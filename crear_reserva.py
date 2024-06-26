@@ -166,9 +166,9 @@ class CrearReserva:
             hours2 = parsed_time2.hour
             minutes2 =  parsed_time2.minute
 
-            start_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours1-5,minutes1).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+            start_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours1,minutes1).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
                              
-            end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2-5,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+            end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
             gs = GoogleSheet(credentials, document, sheet)
                    
@@ -238,7 +238,7 @@ class CrearReserva:
                     range = gs.get_last_row_range()
                     gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, str(hora), attendees=attendees)
+                    calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
 
                     #if whatsapp == True:
                     #  contact = str(57)+telefono

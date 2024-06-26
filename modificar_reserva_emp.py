@@ -150,9 +150,9 @@ class ModificarReservaEmp:
               hours2 = parsed_time2.hour
               minutes2 =  parsed_time2.minute
 
-              start_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours1-5,minutes1).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+              start_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours1,minutes1).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
-              end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2-5,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
+              end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
               gs = GoogleSheet(credentials, document, sheet)
                    
@@ -226,7 +226,7 @@ class ModificarReservaEmp:
                   
                       if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
-                        calendar.update_event(servicio+". "+nombre, start_time, end_time, hora,attendees=attendees)
+                        calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=attendees)
                                     
                         uid = uid1
                         values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid)]
