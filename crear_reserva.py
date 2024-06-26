@@ -10,8 +10,8 @@ import re
 import uuid
 from openpyxl import load_workbook
 #import pywhatkit
-import pyautogui, webbrowser
-from time import sleep
+#import pyautogui, webbrowser
+#from time import sleep
 
 datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
 
@@ -240,23 +240,23 @@ class CrearReserva:
                      
                     calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
 
-                    if whatsapp == True:
-                      contact = str(57)+telefono
-                      message = f'Cordial saludo: Sr(a): {nombre}, su soliciud de reserva se ha realizado de forma exitosa y se agendo el servicio {servicio}, para el dia {fecha}, a las {hora}. Gracias por su cofianza. Cordialmente aplicacion de Reservas y Agendamiento.'
+                    #if whatsapp == True:
+                    #  contact = str(57)+telefono
+                    ##  message = f'Cordial saludo: Sr(a): {nombre}, su soliciud de reserva se ha realizado de forma exitosa y se agendo el servicio {servicio}, para el dia {fecha}, a las {hora}. Gracias por su cofianza. Cordialmente aplicacion de Reservas y Agendamiento.'
                       # Para abrir en buscador Edge                  
-                      enviarwhats = webbrowser.open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
+                    #  enviarwhats = webbrowser.open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
                       # Para abrir en buscador chrome
                       #chrome_path = 'C:/Program Files(x86)/Google/Chrome/Application/chrome.exe %s'
                       #webbrowser.get(chrome_path).open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
                   
-                      sleep(130)
-                      pyautogui.click(1230.964)
-                      sleep(5)
+                    #  sleep(130)
+                    #  pyautogui.click(1230.964)
+                    #  sleep(5)
                       #pyautogui.typewrite(message)
-                      pyautogui.press('enter')
-                      sleep(2)
-                      pyautogui.hotkey('ctrl','w')
-                      sleep(1)
+                    #  pyautogui.press('enter')
+                    #  sleep(2)
+                    #  pyautogui.hotkey('ctrl','w')
+                    #  sleep(1)
                 
                       #pywhatkit.sendwhatmsg('+'+str(57)+contact, message, horawhat, minuto)
                   

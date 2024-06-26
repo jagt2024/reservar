@@ -9,71 +9,44 @@ class Servicios:
   def view(self,model):
     st.title(model.pageTitle)
     
-    image_column, text_column = st.columns((2,1))
+    image_column, image_column2 = st.columns((1,1))
 
     with image_column:
-      image = Image.open('assets/corte-hombre1.jpg')
+      image = Image.open('assets/pexels-1.jpg')
       st.image(image, use_column_width=True)
-    with text_column:
-      st.subheader(""" 
-                   Servicio de Corte Caballero
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   
-                   """)
-
-    with image_column:
-      image = Image.open('assets/cabello-dama1.jpg')
+    
+    with image_column2:
+      image = Image.open('assets/pexels-2.jpg')
       st.image(image, use_column_width=True)
-    with text_column:
-      st.subheader(""" 
-                   Servicio de Corte y Peinado Damas
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                         
-                   """)
-
+   
     with image_column:
-      image = Image.open('assets/corte-barba.jpg')
+      image = Image.open('assets/pexels-3.jpg')
       st.image(image, use_column_width=True)   
-    with text_column:
-      st.subheader(""" 
-                   Servicio de Corte Barba           
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -      
-
-                   """)
-       
-    with image_column:  
-      image = Image.open('assets/afeitar1.jpg')
+          
+    with image_column2:  
+      image = Image.open('assets/pexels-4.jpg')
       st.image(image, use_column_width=True)
-    with text_column:
-      st.subheader(""" 
-                   Servicio de Afeitar Caballero           
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   -
-                   """)
-  
+   
+    with image_column:
+      image = Image.open('assets/pexels-5.jpg')
+      st.image(image, use_column_width=True)   
+          
+    with image_column2:  
+      image = Image.open('assets/pexels-6.jpg')
+      st.image(image, use_column_width=True)
+
+    with image_column:
+      image = Image.open('assets/pexels-7.jpg')
+      st.image(image, use_column_width=True)   
+          
+    with image_column2:  
+      image = Image.open('assets/pexels-8.jpg')
+      st.image(image, use_column_width=True)
+
+    with image_column:
+      image = Image.open('assets/pexels-9.jpg')
+      st.image(image, use_column_width=True)   
+          
+    with image_column2:  
+      image = Image.open('assets/pexels-10.jpg')
+      st.image(image, use_column_width=True)

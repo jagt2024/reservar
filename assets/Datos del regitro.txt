@@ -57,10 +57,14 @@ To fix this you could try to:
 
 ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependency-resolution/#dealing-with-dependency-conflicts
 
-
 [notice] A new release of pip is available: 24.0 -> 24.1
 
 [notice] To update, run: pip install --upgrade pip
 
 Checking if Streamlit is installed
 
+pip uninstall numpy
+pip install numpy=1.26.4
+
+Verifique la versión instalada:
+pip freeze
