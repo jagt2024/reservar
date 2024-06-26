@@ -32,36 +32,9 @@ TLS_PSK_WITH_AES_128_CBC_SHA256
 TLS_PSK_WITH_NULL_SHA384
 TLS_PSK_WITH_NULL_SHA256
 
-
---------------deploy errorr-------------------
-INFO: pip is looking at multiple versions of streamlit to determine which version is compatible with other requirements. This could take a while.
-
-ERROR: Cannot install -r /mount/src/app-reservas/requirements.txt (line 12), -r /mount/src/app-reservas/requirements.txt (line 6) and numpy==2.0.0 because these package versions have conflicting dependencies.
-
-
-The conflict is caused by:
-
-    The user requested numpy==2.0.0
-
-    pandas 2.2.2 depends on numpy>=1.23.2; python_version == "3.11"
-
-    streamlit 1.28.0 depends on numpy<2 and >=1.19.3
-
-
-To fix this you could try to:
-
-1. loosen the range of package versions you've specified
-
-2. remove package versions to allow pip attempt to solve the dependency conflict
-
-
-ERROR: ResolutionImpossible: for help visit https://pip.pypa.io/en/latest/topics/dependency-resolution/#dealing-with-dependency-conflicts
-
-[notice] A new release of pip is available: 24.0 -> 24.1
-
-[notice] To update, run: pip install --upgrade pip
-
-Checking if Streamlit is installed
+------ Aplicacion de Resservas ---------------
+https://agendamiento.streamlit.app/
+----------------------------------------------
 
 pip uninstall numpy
 pip install numpy=1.26.4

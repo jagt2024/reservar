@@ -224,7 +224,7 @@ class CrearReserva:
           
                 if fechacalendarint >= fechoy:
                    
-                  if fechacalendarint == fechoy and hora_actual_int > hora_calendar_int:
+                  if fechacalendarint == fechoy and hora_actual_int < hora_calendar_int:
             
                     st.warning('La hora seleccionda es invalida para hoy')
                     print('La hora seleccionda es invalida para hoy')

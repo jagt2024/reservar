@@ -252,7 +252,7 @@ class ModificarReserva:
                 
                     if fech1 >= fechoy:  #and fechahora_ini >= horahoy2:
                   
-                      if hora_actual_int < hora_calendar_int:
+                      if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
                         calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=attendees)
                                     
