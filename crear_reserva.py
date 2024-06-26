@@ -238,7 +238,7 @@ class CrearReserva:
                     range = gs.get_last_row_range()
                     gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, hora, attendees=attendees)
+                    calendar.create_event(servicio+". "+nombre, start_time, end_time, str(hora), attendees=attendees)
 
                     #if whatsapp == True:
                     #  contact = str(57)+telefono
