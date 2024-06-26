@@ -226,7 +226,7 @@ class ModificarReservaEmp:
                   
                       if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
-                        calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=attendees)
+                        calendar.update_event(servicio+". "+nombre, start_time, end_time, hora,attendees=attendees)
                                     
                         uid = uid1
                         values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid)]

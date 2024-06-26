@@ -238,7 +238,7 @@ class CrearReserva:
                     range = gs.get_last_row_range()
                     gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
+                    calendar.create_event(servicio+". "+nombre, start_time, end_time, hora, attendees=attendees)
 
                     #if whatsapp == True:
                     #  contact = str(57)+telefono
@@ -262,5 +262,5 @@ class CrearReserva:
                   
                     st.success('Su solicitud ha sido reservada de forrma exitosa')
                     send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                    #send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
+                    send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
                     break

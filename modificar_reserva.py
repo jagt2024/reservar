@@ -254,7 +254,7 @@ class ModificarReserva:
                   
                       if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
-                        calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=attendees)
+                        calendar.update_event(servicio+". "+nombre, start_time, end_time, hora,attendees=attendees)
                                     
                         uid = uid1
                         values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, telefono)]
@@ -282,7 +282,7 @@ class ModificarReserva:
                         #  sleep(1)
                                            
                         send_email2(email, nombre, fecha, hora, servicio, encargado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
-                        #send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
+                        send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
           
                         st.success('Su solicitud ha sido actualizada de forrma exitosa')  
 

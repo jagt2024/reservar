@@ -208,7 +208,7 @@ class CrearReservaEmp:
                     range = gs.get_last_row_range()
                     gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
+                    calendar.create_event(servicio+". "+nombre, start_time, end_time, hora, attendees=attendees)
           
                     send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
                     send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)
