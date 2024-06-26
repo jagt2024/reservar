@@ -51,8 +51,9 @@ def send_email2(email, nombre, fecha, hora, servicio, estilista, notas):
   #</html>
   # """, subtype = "html" )
   
-  asunto = f"""Cordial saludo Sr(a) : {nombre},
-      Esperando se encuentre bien, queremos confirmar que su reserva se ha realizado con exito asi :
+  asunto = f"""Cordial saludo,
+      Esperando se encuentre bien, queremos confirmar que su reserva se ha realizado con exito asi : 
+      Evento o Tramite: {nombre},
       Fecha: {fecha},
       Hora: {hora},
       Tramite o Servicio: {servicio},

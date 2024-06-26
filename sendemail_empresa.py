@@ -24,7 +24,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
       Fecha: {fecha},
       Hora: {hora},
       Servicio: {servicio},
-      Estilista: {estilista},
+      Encargado: {estilista},
       Notas: {notas},
       
       
