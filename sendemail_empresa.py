@@ -30,14 +30,14 @@ def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
       
       Atentamente,
       
-      El Equipo de Stilos Modernos
+      El Equipo de Agendamiento
       emil: josegarjagt@gmail.com
       """
   msg.set_content(asunto)
   
   if user in destinatarios:
         
-    with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/assets/barberia.png","rb") as f:
+    with open("assets/barberia.png","rb") as f:
     #with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/gestion-reservas.xlsx","rb") as f:
       
       file_data = f.read()
@@ -54,7 +54,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
   
   elif email not in destinatarios:
     
-    with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/assets/barberia.png","rb") as f1:
+    with open("assets/barberia.png","rb") as f1:
           
       file_data = f1.read()
       file_type1 = imghdr.what(f1.name)
