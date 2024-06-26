@@ -44,18 +44,30 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
+fecha_hasta = int('20240715')
+#print(f'fecha hasta: {fecha_hasta}')
+
+fecha = dt.datetime.now()
+fecha_hoy = int(fecha.strftime("%Y%m%d"))
+#print(f'fecha_hoy: {fecha_hoy}')
+
 def dif_dias(dias):
   fecha = dt.datetime.now()
+  hoy = dt.datetime(fecha.year, fecha.month, fecha.day)
+  #fecha_hasta = dt.datetime(fecha_hasta.year, fecha_hasta.month, fecha_hasta.day)
   parsed_time = dt.datetime(fecha.year, fecha.month, fecha.day)
   new_time = (parsed_time + dt.timedelta(days=dias))
-  delta = parsed_time - new_time
-    
+  old_time = (parsed_time - dt.timedelta(days=dias))
+  tot_dias = new_time - old_time
+  delta = tot_dias
+   
   #print(delta.days)
-  return new_time, delta.days
+  return hoy, new_time, old_time, delta.days
 
-dia, delta = dif_dias(1)
-fechafin = int(dia.strftime("%Y%m%d"))
-#print(f'dia: {dia}, delta: {delta}, fechafin: {fechafin}')
+#hoy, dia, olddia, delta = dif_dias(1)
+
+#fechafin = int(dia.strftime("%Y%m%d"))
+#print(f'hoy: {hoy}, dia: {dia}, difdias: {olddia}, delta: {delta}, fechafin: {fechafin}')
 
 persona = dataBook("sw")
 result_per = np.setdiff1d(persona,'')
@@ -64,9 +76,6 @@ empresa = dataBook_emp("sw")
 result_emp = np.setdiff1d(empresa,'')
 #print(f'sw_empresa {result_emp}')
 
-hoy = dt.datetime.now()
-fechoy = int(hoy.strftime("%Y%m%d"))
-
 sw_empresa = result_emp
 sw_persona = result_per
 
@@ -74,7 +83,6 @@ sw_persona = result_per
    #ws = result_emp["A2"].value
 #print(ws)
 #if sw_empresa == ["False"]:
-#    hojaemp.value="True"
     #empresa.cell(column=1, row=2).value = ["True"])
 #    sw_empresa = ["True"]
 #    print(sw_empresa)
@@ -131,84 +139,87 @@ class Model:
         print(f"IOError {e}")
       
   css_load(r"style/main.css")
+
+if fecha_hasta < fecha_hoy:
   
-def view(model):
-  try:
+   sw_empresa == ['False']
+   sw_persona == ['False']
+      
+   st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
+
+else:  
+
+  def view(model):
+    try:
   
-    #st.title('***ORGANIZACION O PERSONA***')
-    #st.subheader('Genere sus Reservas en Linea y Recibira confirmacion a su correo')
+      #st.title('***ORGANIZACION O PERSONA***')
+      #st.subheader('Genere sus Reservas en Linea y Recibira confirmacion a su correo')
   
-    with st.sidebar:
+      with st.sidebar:
     
-      app = option_menu(model.menuTitle,
-                        [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7],
-                        icons=['bi bi-app-indicator',
-                               'bi bi-calendar2-date', 
-                               'bi bi-calendar2-date',
-                               'bi bi-calendar2-date',
-                               'bi bi-award',
-                               'bi bi-clipboard-minus-fill'
-                              ],
-                        default_index=0,
-                        styles= {
-                          "container":{ "reservas": "5!important",
-                          "background-color":'#acbee9'},
-                          "icon":{"color":"white","font-size":"23px"},
-                          "nav-lik":{"color":"white","font-size":"20px","text-aling":"left","margin":"0px"},
-                          "nav-lik-selected":{"backgroud-color":"#02ab21"},})
+        app = option_menu(model.menuTitle,
+                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7],
+                         icons=['bi bi-app-indicator',
+                                'bi bi-calendar2-date', 
+                                'bi bi-calendar2-date',
+                                'bi bi-calendar2-date',
+                                'bi bi-award',
+                                'bi bi-clipboard-minus-fill'
+                               ],
+                         default_index=0,
+                         styles= {
+                           "container":{ "reservas": "5!important",
+                           "background-color":'#acbee9'},
+                           "icon":{"color":"white","font-size":"23px"},
+                           "nav-lik":{"color":"white","font-size":"20px","text-aling":"left", "margin":"0px"},
+                           "nav-lik-selected":{"backgroud-color":"#02ab21"},})
                        #orientation='horizontal')
                        
-    with st.sidebar:
-      st.markdown("---")
-      st.text("Version: 0.0.1")
-      st.text("Ano: 2024")
-      st.markdown("---")
+      with st.sidebar:
+        st.markdown("---")
+        st.text("Version: 0.0.1")
+        st.text("Ano: 2024")
+        st.markdown("---")
     
-    if fechafin < fechoy:
-      sw_empresa == ['False']
-
-    if sw_empresa == ['True']:
+      if sw_empresa == ['True']:
       
-      st.title('***BARBERIA STYLOS***')
+        st.title('***BARBERIA STYLOS***')
       
-      if app == model.option1:
-        InicioEmp().view(InicioEmp.Model())
-      if app == model.option2:
-        CrearReservaEmp().view(CrearReservaEmp.Model())
-      if app == model.option3:
-        ModificarReservaEmp().view(ModificarReservaEmp.Model())
-      if app == model.option4:
-        EliminarReservaEmp().view(EliminarReservaEmp.Model())
-      if app == model.option5:
-        ServiciosEmp().view(ServiciosEmp.Model())
-      if app == model.option6:
-        InformacionEmp().view(InformacionEmp.Model())
-      if app == model.option7:
-        GenerarExcelEmp().view(GenerarExcelEmp.Model())
-    
-    if fechafin < fechoy:
-      sw_persona == ['False']
-      
-    if sw_persona == ['True']:
+        if app == model.option1:
+          InicioEmp().view(InicioEmp.Model())
+        if app == model.option2:
+          CrearReservaEmp().view(CrearReservaEmp.Model())
+        if app == model.option3:
+          ModificarReservaEmp().view(ModificarReservaEmp.Model())
+        if app == model.option4:
+          EliminarReservaEmp().view(EliminarReservaEmp.Model())
+        if app == model.option5:
+          ServiciosEmp().view(ServiciosEmp.Model())
+        if app == model.option6:
+          InformacionEmp().view(InformacionEmp.Model())
+        if app == model.option7:
+          GenerarExcelEmp().view(GenerarExcelEmp.Model())
+         
+      if sw_persona == ['True']:
 
-      st.title('***AGENDA PERSONAL***')
+        st.title('***AGENDA PERSONAL***')
 
-      if app == model.option1:
-        Inicio().view(Inicio.Model())
-      if app == model.option2:
-        CrearReserva().view(CrearReserva.Model())
-      if app == model.option3:
-        ModificarReserva().view(ModificarReserva.Model())
-      if app == model.option4:
-        EliminarReserva().view(EliminarReserva.Model())
-      if app == model.option5:
-        Servicios().view(Servicios.Model())
-      if app == model.option6:
-        Informacion().view(Informacion.Model())
-      if app == model.option7:
-        GenerarExcel().view(GenerarExcel.Model())
+        if app == model.option1:
+          Inicio().view(Inicio.Model())
+        if app == model.option2:
+          CrearReserva().view(CrearReserva.Model())
+        if app == model.option3:
+          ModificarReserva().view(ModificarReserva.Model())
+        if app == model.option4:
+          EliminarReserva().view(EliminarReserva.Model())
+        if app == model.option5:
+          Servicios().view(Servicios.Model())
+        if app == model.option6:
+          Informacion().view(Informacion.Model())
+        if app == model.option7:
+          GenerarExcel().view(GenerarExcel.Model())
   
-  except SystemError as err:
-   raise Exception(f'A ocurrido un error en main.py: {err}')
+    except SystemError as err:
+      raise Exception(f'A ocurrido un error en main.py: {err}')
           
-view(Model())
+  view(Model())
