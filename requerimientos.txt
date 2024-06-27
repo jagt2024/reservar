@@ -1,0 +1,11 @@
+import time
+
+while True:
+    print("El loop está funcionando.")
+    time.sleep(1) # esto hará que la ejecución se detenga por 1 segundo
+
+streamlit
+streamlit_option_menu
+gspread
+smtplib
+pip install --upgrade google-api-python-client google-auth-httplib2 google-auth-oauthlib
