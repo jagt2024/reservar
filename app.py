@@ -396,4 +396,3 @@ def eliminar_reserva():
                   range = gs.write_data_by_uid(uid,values)
                                            
                   send_email2(email, nombre, fecha, hora, servicio, estilista,  notas='Por su solicitud se cancelo la reserva. Gracias por su atencion.')
-                  
