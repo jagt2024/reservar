@@ -1,26 +1,25 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 import numpy as np
-from inicio import Inicio
-from crear_reserva import CrearReserva
-from modificar_reserva import ModificarReserva
-from eliminar_reserva import EliminarReserva
-from servicios import Servicios
-from informacion import Informacion
-from generar_excel import GenerarExcel
+from inicio_emp import InicioEmp
+from crear_reserva_emp import CrearReservaEmp
+from modificar_reserva_emp import ModificarReservaEmp
+from eliminar_reserva_emp import EliminarReservaEmp
+from servicios_emp import ServiciosEmp
+from informacion_emp import InformacionEmp
+from generar_excel_emp import GenerarExcelEmp
 import datetime as dt
 from openpyxl import load_workbook
 
-datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
+datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
-def dataBook(hoja):
-    ws1 = datos_book[hoja]
-
+def dataBook_emp(hoja):
+    ws1 = datos_book_emp[hoja]
     data = []
     for row in range(1,ws1.max_row):
       _row=[]
       for col in ws1.iter_cols(1,ws1.max_column):
-        _row.append(col[row].value)   
+        _row.append(col[row].value)
       data.append(_row)
       #print(f'data {data}')
     return data
@@ -32,28 +31,11 @@ fecha = dt.datetime.now()
 fecha_hoy = int(fecha.strftime("%Y%m%d"))
 #print(f'fecha_hoy: {fecha_hoy}')
 
-def dif_dias(dias):
-  fecha = dt.datetime.now()
-  hoy = dt.datetime(fecha.year, fecha.month, fecha.day)
-  #fecha_hasta = dt.datetime(fecha_hasta.year, fecha_hasta.month, fecha_hasta.day)
-  parsed_time = dt.datetime(fecha.year, fecha.month, fecha.day)
-  new_time = (parsed_time + dt.timedelta(days=dias))
-  old_time = (parsed_time - dt.timedelta(days=dias))
-  tot_dias = new_time - old_time
-  delta = tot_dias
-   
-  #print(delta.days)
-  return hoy, new_time, old_time, delta.days
+empresa = dataBook_emp("sw")
+result_emp = np.setdiff1d(empresa,'')
+#print(f'sw_empresa {result_emp}')
 
-#hoy, dia, olddia, delta = dif_dias(1)
-
-#fechafin = int(dia.strftime("%Y%m%d"))
-#print(f'hoy: {hoy}, dia: {dia}, difdias: {olddia}, delta: {delta}, fechafin: {fechafin}')
-
-persona = dataBook("sw")
-result_per = np.setdiff1d(persona,'')
-
-sw_persona = result_per
+sw_empresa = result_emp
 
 #ws = result_emp
    #ws = result_emp["A2"].value
@@ -118,7 +100,7 @@ class Model:
 
 if fecha_hasta < fecha_hoy:
   
-   sw_persona == ['False']
+   sw_empresa == ['False']
       
    st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
 
@@ -153,25 +135,25 @@ else:
         st.text("Ano: 2024")
         st.markdown("---")
     
-      if sw_persona == ['True']:
-
-        st.title('***AGENDA PERSONAL***')
-
+      if sw_empresa == ['True']:
+      
+        st.title('***BARBERIA STYLOS***')
+      
         if app == model.option1:
-          Inicio().view(Inicio.Model())
+          InicioEmp().view(InicioEmp.Model())
         if app == model.option2:
-          CrearReserva().view(CrearReserva.Model())
+          CrearReservaEmp().view(CrearReservaEmp.Model())
         if app == model.option3:
-          ModificarReserva().view(ModificarReserva.Model())
+          ModificarReservaEmp().view(ModificarReservaEmp.Model())
         if app == model.option4:
-          EliminarReserva().view(EliminarReserva.Model())
+          EliminarReservaEmp().view(EliminarReservaEmp.Model())
         if app == model.option5:
-          Servicios().view(Servicios.Model())
+          ServiciosEmp().view(ServiciosEmp.Model())
         if app == model.option6:
-          Informacion().view(Informacion.Model())
+          InformacionEmp().view(InformacionEmp.Model())
         if app == model.option7:
-          GenerarExcel().view(GenerarExcel.Model())
-  
+          GenerarExcelEmp().view(GenerarExcelEmp.Model())
+         
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
           
