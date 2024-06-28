@@ -45,6 +45,21 @@ git push -u origin main
 git remote add origin https://github.com/josegart/app-reservas.git
 git branch -M main
 git push -u origin main
+
+----------------------------------------------------------------------------
+BFG Repo-Cleaner es una herramienta creada y mantenida por la comunidad de código abierto. Ofrece una alternativa más rápida y sencilla para git filter-repoeliminar datos no deseados.
+
+Por ejemplo, para eliminar su archivo con datos confidenciales y dejar intacta su última confirmación, ejecute:
+
+bfg --delete-files YOUR-FILE-WITH-SENSITIVE-DATA
+Para reemplazar todo el texto que aparece en passwords.txtcualquier lugar del historial de su repositorio, ejecute:
+
+bfg --replace-text passwords.txt
+Una vez que se hayan eliminado los datos confidenciales, debes forzar la inserción de tus cambios en GitHub. La inserción forzada reescribe el historial del repositorio, lo que elimina los datos confidenciales del historial de confirmaciones. Si fuerza la inserción, puede sobrescribir las confirmaciones en las que otras personas han basado su trabajo.
+
+git push --force
+
+----------------------------------------------------------------------------------------
 ------ Aplicacion de Resservas ---------------
 https://agendamiento.streamlit.app/
 ----------------------------------------------
