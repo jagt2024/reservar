@@ -33,7 +33,7 @@ class Inicio:
   
   def view(self,model):
     st.title(model.pageTitle)
-    image = Image.open("assets/pexels-markina.jpg")
+    image = Image.open("assets/pexels-moments.jpg")
     st.image(image)
     #image = st.image("assets/barberia.png") #("assets/barberia1.webp")
     st.write(
