@@ -52,7 +52,7 @@ class Inicio:
   
   class Model:
     
-    pageTitle ='***Genere sus Reservas en Linea y Recibira confirmacion a su correo***'
+    pageTitle ='***Genere sus Reservas en Linea y Programe su Agenda***'
 
     #text_column, animation_column = st.columns(2)
   
@@ -76,7 +76,7 @@ class Inicio:
   
   def view(self,model):
     st.title(model.pageTitle)
-    image = st.image("assets/barberia.png") #("assets/barberia1.webp")
+    image = st.image("assets/pexels-makina.jpg") #("assets/barberia1.webp")
     st.write(
         """
           Direcion:            
