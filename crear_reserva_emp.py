@@ -183,8 +183,8 @@ class CrearReservaEmp:
               
             if existe == False: 
                        
-                hora_actual = dt.datetime.utcnow().astimezone(dt.timezone.utc)
-                hora_actual_int = int(hora_actual.strftime("%H%M"))
+                hora_actual = dt.datetime.utcnow()
+                hora_actual_int = int(hora_actual.strftime("%H%M"))-5
                 #print(f'hora_actual = {hora_actual_int}')
                 
                 hora_calendar = datetime.datetime.strptime(hora,'%H:%M')
