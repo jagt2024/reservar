@@ -184,7 +184,7 @@ class CrearReservaEmp:
             if existe == False: 
                        
                 hora_actual = dt.datetime.utcnow()
-                hora_actual_int = int(hora_actual.strftime("%H%M")-5)
+                hora_actual_int = int(hora_actual.strftime("%H%M"))
                 #print(f'hora_actual = {hora_actual_int}')
                 
                 hora_calendar = datetime.datetime.strptime(hora,'%H:%M')
@@ -217,4 +217,3 @@ class CrearReservaEmp:
                     st.success('Su solicitud ha sido reservada de forrma exitosa')
                     send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
                     send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas)                    
-                    
