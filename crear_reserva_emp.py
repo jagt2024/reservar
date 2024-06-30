@@ -184,7 +184,7 @@ class CrearReservaEmp:
             if existe == False: 
                        
                 hora_actual = dt.datetime.utcnow()
-                parsed_time = dt.datetime.strptime(hora_actual, "%H:%M").time()
+                parsed_time = dt.datetime.strptime(hora_actual, "%H:%M")
                 hours1 = parsed_time.hour
                 minutes1 =  parsed_time.minute
                 horaweb = hours1 - 5
