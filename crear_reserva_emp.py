@@ -185,10 +185,12 @@ class CrearReservaEmp:
                        
                 hora_actual = dt.datetime.now()
                 hora_actual_int = int(hora_actual.strftime("%H%M"))
-              
+                #print(f'hora_actual = {hora_actual_int}')
+                
                 hora_calendar = datetime.datetime.strptime(hora,'%H:%M')
-                #print(hora_actual)
                 hora_calendar_int = int(hora_calendar.strftime('%H%M'))
+                st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
+                
                 hoy = dt.datetime.now()
                 fechoy = int(hoy.strftime("%Y%m%d"))
                 fechacalendarint = int(fecha.strftime("%Y%m%d"))
