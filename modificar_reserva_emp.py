@@ -120,7 +120,7 @@ class ModificarReservaEmp:
           email_encargado = "otroemail@gmail.com"
     
         attendees = [email_encargado, email]
-      
+              
         hours_blocked = calendar.list_upcoming_events()
         result_hours = np.setdiff1d(horas, hours_blocked) 
         hora = a2.selectbox('Hora: ',result_hours)

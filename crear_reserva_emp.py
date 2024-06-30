@@ -127,7 +127,7 @@ class CrearReservaEmp:
             st.warning('El email no es valido')
         
           else:
-          
+                      
             parsed_time = dt.datetime.strptime(hora, "%H:%M").time()
             hours1 = parsed_time.hour
             minutes1 =  parsed_time.minute

@@ -13,13 +13,11 @@ datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
 def dataBook(hoja):
   ws1 = datos_book[hoja]
-
   data = []
   for row in range(1,ws1.max_row):
     _row=[]
     for col in ws1.iter_cols(1,ws1.max_column):
       _row.append(col[row].value)
-    
     data.append(_row)
   #print(f'data {data}')
   return data
