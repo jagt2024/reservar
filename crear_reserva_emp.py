@@ -1,6 +1,6 @@
 import streamlit as st
-from google_sheets import GoogleSheet
-from google_calendar import GoogleCalendar
+from google_sheets_emp import GoogleSheet
+from google_calendar_emp import GoogleCalendar
 from sendemail import send_email2
 from sendemail_empresa import send_email_emp
 import numpy as np
@@ -58,7 +58,7 @@ class CrearReservaEmp:
       encargado = dataBook("encargado")
       result_estil = np.setdiff1d(encargado,'X') 
     
-      document='gestion-reservas'
+      document='gestion-reservas-emp'
       sheet = 'reservas'
       credentials = st.secrets['sheets']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'
@@ -112,8 +112,8 @@ class CrearReservaEmp:
       result_hours = np.setdiff1d(horas, hours_blocked) 
       hora = c2.selectbox('Hora: ',result_hours)
     
-      #whatsapp = c2.checkbox('Envio a WhatsApp Si/No')
-      #telefono = c2.text_input('Nro. Telefono')
+      whatsapp = c2.checkbox('Envio a WhatsApp Si/No (Opcional)')
+      telefono = c2.text_input('Nro. Telefono')
 
       enviar = st.form_submit_button(" Reservar ")
 
@@ -143,7 +143,10 @@ class CrearReservaEmp:
             end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
             gs = GoogleSheet(credentials, document, sheet)
-                   
+            existe = False
+            
+            #last_row = 0
+            #if len(gs.sheet.get_all_values()) +1 > 2:
             last_row = len(gs.sheet.get_all_values()) +1
             #print(f'last_row {last_row}')
             data = gs.sheet.get_values()
@@ -176,10 +179,11 @@ class CrearReservaEmp:
                 #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
               
                 if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
+                  existe = True
                   st.warning("El cliente ya tiene agenda para esa fecha y hora")
                   break
-            
-              if (nom == [nombre] or nom != [nombre]): #and serv != [servicio] and fech1 >=   fechacalendarint and fechahora_ini != horacalendarint:
+              
+            if existe == False: 
                        
                 hora_actual = dt.datetime.now()
                 hora_actual_int = int(hora_actual.strftime("%H%M"))
@@ -187,17 +191,17 @@ class CrearReservaEmp:
                 hora_calendar = datetime.datetime.strptime(hora,'%H:%M')
                 #print(hora_actual)
                 hora_calendar_int = int(hora_calendar.strftime('%H%M'))
-          
                 hoy = dt.datetime.now()
                 fechoy = int(hoy.strftime("%Y%m%d"))
                 fechacalendarint = int(fecha.strftime("%Y%m%d"))
           
                 if fechacalendarint >= fechoy:
-                   
-                  if fechacalendarint == fechoy and hora_actual_int < hora_calendar_int:
+                  
+                  if fechacalendarint == fechoy and  hora_calendar_int < hora_actual_int:
             
                     st.warning('La hora seleccionda es invalida para hoy')
                     print('La hora seleccionda es invalida para hoy')
+                    #break
                    
                   else:
                       
@@ -209,8 +213,8 @@ class CrearReservaEmp:
                     gs.write_data(range,values)
                      
                     calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
-          
-                    send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                    send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)
+
                     st.success('Su solicitud ha sido reservada de forrma exitosa')
-                    break
+                    send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
+                    send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas)                    
+                    

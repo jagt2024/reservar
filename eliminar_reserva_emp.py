@@ -1,6 +1,6 @@
 import streamlit as st
-from google_sheets import GoogleSheet
-from google_calendar import GoogleCalendar
+from google_sheets_emp import GoogleSheet
+from google_calendar_emp import GoogleCalendar
 from sendemail import send_email2
 from sendemail_empresa import send_email_emp
 import numpy as np
@@ -47,7 +47,7 @@ class EliminarReservaEmp:
       encargado = dataBook("encargado")
       result_estil = np.setdiff1d(encargado,'X')
     
-      document='gestion-reservas'
+      document='gestion-reservas-emp'
       sheet = 'reservas'
       credentials = st.secrets['sheets']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'

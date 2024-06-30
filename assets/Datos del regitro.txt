@@ -1,0 +1,76 @@
+TLS_AES_256_GCM_SHA384
+TLS_AES_128_GCM_SHA256
+TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+TLS_DHE_RSA_WITH_AES_256_GCM_SHA384
+TLS_DHE_RSA_WITH_AES_128_GCM_SHA256
+Equipo\HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL\00010002
+
+TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_AES_256_GCM_SHA384
+TLS_RSA_WITH_AES_128_GCM_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA256
+TLS_RSA_WITH_AES_128_CBC_SHA256
+TLS_RSA_WITH_AES_256_CBC_SHA
+TLS_RSA_WITH_AES_128_CBC_SHA
+TLS_RSA_WITH_3DES_EDE_CBC_SHA
+TLS_RSA_WITH_NULL_SHA256
+TLS_RSA_WITH_NULL_SHA
+TLS_PSK_WITH_AES_256_GCM_SHA384
+TLS_PSK_WITH_AES_128_GCM_SHA256
+TLS_PSK_WITH_AES_256_CBC_SHA384
+TLS_PSK_WITH_AES_128_CBC_SHA256
+TLS_PSK_WITH_NULL_SHA384
+TLS_PSK_WITH_NULL_SHA256
+-----------------------------------------------
+…or create a new repository on the command line
+echo "# app-reservas" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/josegart/app-reservas.git
+git push -u origin main
+
+…or push an existing repository from the command line
+git remote add origin https://github.com/josegart/app-reservas.git
+git branch -M main
+git push -u origin main
+
+----------------------------------------------------------------------------
+BFG Repo-Cleaner es una herramienta creada y mantenida por la comunidad de código abierto. Ofrece una alternativa más rápida y sencilla para git filter-repoeliminar datos no deseados.
+
+Por ejemplo, para eliminar su archivo con datos confidenciales y dejar intacta su última confirmación, ejecute:
+
+bfg --delete-files YOUR-FILE-WITH-SENSITIVE-DATA
+Para reemplazar todo el texto que aparece en passwords.txtcualquier lugar del historial de su repositorio, ejecute:
+
+bfg --replace-text passwords.txt
+Una vez que se hayan eliminado los datos confidenciales, debes forzar la inserción de tus cambios en GitHub. La inserción forzada reescribe el historial del repositorio, lo que elimina los datos confidenciales del historial de confirmaciones. Si fuerza la inserción, puede sobrescribir las confirmaciones en las que otras personas han basado su trabajo.
+
+git push --force
+
+----------------------------------------------------------------------------------------
+------ Aplicacion de Resservas ---------------
+https://reservar.streamlit.app/
+https://reservaremp.streamlit.app/
+----------------------------------------------
+
+pip uninstall numpy
+pip install numpy=1.26.4
+
+Verifique la versión instalada:
+pip freeze
+-------------------------------------------------------------------------------------------
+cuenta de servicio correo: servicio-cuenta-reserva-empres@appreservasemp.iam.gserviceaccount.com
+
+{"type": "service_account","project_id": "appreservasemp","private_key_id": "68d2aa9a7a58a9859f802ccdf698f6a99ac03193","private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCXz4fab3FGIeU2\nOi/QxfPky+6AFtvKNATEy6jMFKFaiZ151DoZov1qtmoQTUNjDrmkHnkn9GA9CUzA\nk34YSfPfv0KpYJxkHdeYCRtIJ7mZ4bFLGsi3O/reu/qKVxbCOGZVNJabdPeHCkOs\nyqgGt0pqgW4GDYrvHDEHT9bopw9rfi9gvc9Q3Py1Ji1j396lCXmwGVL79MY2i4CX\nUoJ+QOyFyddFgAL4pZsywdmms3SQcuKzekr5XpF2TM+GSkR7mUlpue3NPbCTPC3U\nT5L/N65J7KBgc3M810J4v1Atpnh0rhd4e227vhPaKvUMQt8785vUhKXfzaa+DogA\n7K9RFiElAgMBAAECggEAGHwGQzq6ID+TQl28HIXwwjQJ8Wq+ZCxjoIHgZZnmND4B\nwgZyoHPjP3TQQnTTq4RSeJ/ZlpIZe36mfGDNc4lp5eppC/xi/Nq7TPAbEFYn3yPB\nfoWBXdw0p/vVer51EzoZdyCWMdh5m7QSGipNU1f4jpj1b9B7WflIBw/fb4KSQBnI\nPP59xFi9rMNq03o2bSfAV97n0kKg7Mj6srWwYFuW9rj5c2HkIpkpy/X7habiMv82\n/IIy0wqhcQtoznnxa8RwX1hDFokJsLMzdO21QrkhHCWdsfT3zQTcqaKHcvJuTskQ\nQih7dYj6kahINtFYIk2Bab9gm3PGrnp9L9N8VvTleQKBgQDSUTT+Kct6zaXomSZl\nRVTGjeLm09RctvZUdSdUAaIf4Dj0jQbo9oOWG91IEVDVO8VGHkAbT5pnpd5D5x0W\nvJkEEa6J6BFa44lN0IxmhNlga8P3iWL82f4T72WuAkhXPUKbZoOYKN5Euand6tmA\n2GQ0DmXZqx7MKLcS9Z7+34WGbwKBgQC4yQm+Pbm8SQfb/yik1sO6XDZVQ+twiUXX\nhKLASXg1wHN6ndj5WT5AD5V6+KziCL1znDjk/RgxebSXffpFlchq10dAFFmF10zb\n2IbQbvnMHghB908Axs90CNAKX9R79jASu/iR89amz3H7Al92z4oVfoIjLp5uBoPi\nRDP20JJ7qwKBgQDOJtlp1K/mNJPOdegD1jytz0A9ACAlrRWxXZBqMJuo4RES7PV7\n/r6msbNqQ8bW7JqHC3nNC28O76/5IR4LPlxCd8580OPKEkRw6N3mU4v7jkZtadaE\ngG0jP0KMmSItmRej2Y1d5ZlRBigyJVSDjhhSSladULWEathgli/+JjzsswKBgDBt\nBy+jD4TngrbF1Mn2Oo8hUV/hD9eLMhF8Agbweh9kEx9kNJOMLsMtEliKyQvnjHa6\nzzI7ndaBdbFp42fPDBnr1xFVA+0Ocmb/BL2lB7PVfwaCoGKst3tKP/MoEBB4gTq3\npjnhtDQ9Ezrb8Va6pw5g/AvqULy22mM2yoN5P5pHAoGANQRrB3CwxRYxAh2cRMku\nhRQ4y9ypW/H1tAZvIQ790flQQBoMxzHRTlLx4vLiTVNPzxcU8gbj48L1DviRXdhg\n7NQJxeE9TiIjjF1BD97KkBpax1gBpUjmKGmIma/w8L+Wje2sAglydLNk4RzzbH01\nILvagI8ZlzIWjiW2gpHQ3co=\n-----END PRIVATE KEY-----\n","client_email": "servicio-cuenta-reserva-empres@appreservasemp.iam.gserviceaccount.com","client_id": "102588935453228077661","auth_uri": "https://accounts.google.com/o/oauth2/auth","token_uri": "https://oauth2.googleapis.com/token","auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs","client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/servicio-cuenta-reserva-empres%40appreservasemp.iam.gserviceaccount.com","universe_domain": "googleapis.com"

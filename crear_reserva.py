@@ -171,7 +171,8 @@ class CrearReserva:
             end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
             gs = GoogleSheet(credentials, document, sheet)
-                   
+            existe == False
+                 
             last_row = len(gs.sheet.get_all_values()) +1
             #print(f'last_row {last_row}')
             data = gs.sheet.get_values()
@@ -206,10 +207,11 @@ class CrearReserva:
                 #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
               
                 if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
+                  existe = True
                   st.warning("El cliente ya tiene agenda para esa fecha y hora")
                   break
             
-              if (nom == [nombre] or nom != [nombre]): #and serv != [servicio] and fech1 >=   fechacalendarint and fechahora_ini != horacalendarint:
+            if existe == False:
                        
                 hora_actual = dt.datetime.now()
                 hora_actual_int = int(hora_actual.strftime("%H%M"))
@@ -224,7 +226,7 @@ class CrearReserva:
           
                 if fechacalendarint >= fechoy:
                    
-                  if fechacalendarint == fechoy and hora_actual_int < hora_calendar_int:
+                  if fechacalendarint == fechoy and hora_calendar_int < hora_actual_int:
             
                     st.warning('La hora seleccionda es invalida para hoy')
                     print('La hora seleccionda es invalida para hoy')
@@ -263,4 +265,4 @@ class CrearReserva:
                     st.success('Su solicitud ha sido reservada de forrma exitosa')
                     send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
                     send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
-                    break
+

@@ -1,6 +1,6 @@
 import streamlit as st
-from google_sheets import GoogleSheet
-from google_calendar import GoogleCalendar
+from google_sheets_emp import GoogleSheet
+from google_calendar_emp import GoogleCalendar
 from sendemail import send_email2
 from sendemail_empresa import send_email_emp
 import numpy as np
@@ -59,7 +59,7 @@ class ModificarReservaEmp:
       encargado_ant = dataBook('encargado')
       result_est = np.setdiff1d(encargado_ant,'')
    
-      document='gestion-reservas'
+      document='gestion-reservas-emp'
       sheet = 'reservas'
       credentials = st.secrets['sheets']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'
@@ -126,8 +126,8 @@ class ModificarReservaEmp:
         hora = a2.selectbox('Hora: ',result_hours)
     
         notas = a1.text_area('Nota o Mensaje(Opcional)')
-        #whatsapp = a2.checkbox('Envio a WhatsApp Si/No')
-        #telefono = a2.text_input('Nro. Telefono')
+        whatsapp = a2.checkbox('Envio a WhatsApp Si/No (Opcional)')
+        telefono = a2.text_input('Nro. Telefono')
 
         actualizar = st.form_submit_button('Actualizar')
 
