@@ -9,15 +9,13 @@ import datetime as dt
 import re
 import uuid
 from time import ctime
-import ntplib
-from ntplib import NTPClient
+#import ntplib
+#from ntplib import NTPClient
 from openpyxl import load_workbook
 
-servers = ["co.pool.ntp.org","south-america.pool.ntp.org"] 
-
-c= ntplib.NTPClient()
-
-response = c.request(servers[0], version = 3)
+#servers = ["co.pool.ntp.org","south-america.pool.ntp.org"] 
+#c= ntplib.NTPClient()
+#response = c.request(servers[0], version = 3)
 #print(f"version, {response.version}")
 #print(ctime(response.tx_time))
 

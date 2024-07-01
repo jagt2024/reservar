@@ -171,7 +171,7 @@ class CrearReserva:
             end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
             gs = GoogleSheet(credentials, document, sheet)
-            existe == False
+            existe = False
                  
             last_row = len(gs.sheet.get_all_values()) +1
             #print(f'last_row {last_row}')
