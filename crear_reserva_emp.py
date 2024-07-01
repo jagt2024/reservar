@@ -187,7 +187,7 @@ class CrearReservaEmp:
                 horacalendar = datetime.datetime.strptime(hora,'%H:%M')
                 horacalendarint = int(horacalendar.strftime('%H%M'))
               
-                #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
+                #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { #horacalendarint}')
               
                 if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
                   existe = True
