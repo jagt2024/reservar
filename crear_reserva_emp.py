@@ -186,7 +186,8 @@ class CrearReservaEmp:
                 hora_actual = dt.datetime.utcnow().time()
                 hours1 = hora_actual.hour
                 horaweb = hours1 - 5
-                hora_actual_int = int(horaweb)
+                minutes1 =   hora_actual.minute
+                hora_actual_int = int(horaweb.strftime("%H%M"))
                 #hora_actual_int = int(hora_actual.strftime("%H%M"))
                 #print(f'hora_actual = {hora_actual_int}')
                 
