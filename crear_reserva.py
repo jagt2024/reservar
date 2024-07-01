@@ -226,43 +226,43 @@ class CrearReserva:
           
                 if fechacalendarint >= fechoy:
                    
-                  if fechacalendarint == fechoy and hora_calendar_int < hora_actual_int:
+                  #if fechacalendarint == fechoy and hora_calendar_int < hora_actual_int:
             
-                    st.warning('La hora seleccionda es invalida para hoy')
-                    print('La hora seleccionda es invalida para hoy')
+                  #  st.warning('La hora seleccionda es invalida para hoy')
+                  #  print('La hora seleccionda es invalida para hoy')
                    
-                  else:
+                  #else:
                       
-                    uid = generate_uid()
-                    values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, telefono)]
-                    gs = GoogleSheet(credentials, document, sheet)
+                  uid = generate_uid()
+                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, telefono)]
+                  gs = GoogleSheet(credentials, document, sheet)
           
-                    range = gs.get_last_row_range()
-                    gs.write_data(range,values)
+                  range = gs.get_last_row_range()
+                  gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
+                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
 
-                    #if whatsapp == True:
-                    #  contact = str(57)+telefono
-                    ##  message = f'Cordial saludo: Sr(a): {nombre}, su soliciud de reserva se ha realizado de forma exitosa y se agendo el servicio {servicio}, para el dia {fecha}, a las {hora}. Gracias por su cofianza. Cordialmente aplicacion de Reservas y Agendamiento.'
+                  #if whatsapp == True:
+                  #  contact = str(57)+telefono
+                  #  message = f'Cordial saludo: Sr(a): {nombre}, su soliciud de reserva se ha realizado de forma exitosa y se agendo el servicio {servicio}, para el dia {fecha}, a las {hora}. Gracias por su cofianza. Cordialmente aplicacion de Reservas y Agendamiento.'
                       # Para abrir en buscador Edge                  
-                    #  enviarwhats = webbrowser.open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
+                  #  enviarwhats = webbrowser.open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
                       # Para abrir en buscador chrome
                       #chrome_path = 'C:/Program Files(x86)/Google/Chrome/Application/chrome.exe %s'
                       #webbrowser.get(chrome_path).open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
                   
-                    #  sleep(130)
-                    #  pyautogui.click(1230.964)
-                    #  sleep(5)
-                      #pyautogui.typewrite(message)
-                    #  pyautogui.press('enter')
-                    #  sleep(2)
-                    #  pyautogui.hotkey('ctrl','w')
-                    #  sleep(1)
+                  #  sleep(130)
+                  #  pyautogui.click(1230.964)
+                  #  sleep(5)
+                    #pyautogui.typewrite(message)
+                  #  pyautogui.press('enter')
+                  #  sleep(2)
+                  #  pyautogui.hotkey('ctrl','w')
+                  #  sleep(1)
                 
                       #pywhatkit.sendwhatmsg('+'+str(57)+contact, message, horawhat, minuto)
                   
-                    st.success('Su solicitud ha sido reservada de forrma exitosa')
-                    send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                    send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
+                  st.success('Su solicitud ha sido reservada de forrma exitosa')
+                  send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
+                  send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
 

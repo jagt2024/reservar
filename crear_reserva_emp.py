@@ -8,7 +8,22 @@ import datetime
 import datetime as dt
 import re
 import uuid
+from time import ctime
+import ntplib
+from ntplib import NTPClient
 from openpyxl import load_workbook
+
+servers = ["co.pool.ntp.org","south-america.pool.ntp.org"] 
+
+c= ntplib.NTPClient()
+
+response = c.request(servers[0], version = 3)
+#print(f"version, {response.version}")
+#print(ctime(response.tx_time))
+
+#with open('datos.txt', 'a+') as f:
+#  f.write(str(ctime(response.tx_time)) + '\n')
+#f.close()
 
 datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
@@ -183,17 +198,17 @@ class CrearReservaEmp:
               
             if existe == False: 
                        
-                hora_actual = dt.datetime.utcnow().time()
-                hours1 = hora_actual.hour
-                horaweb = hours1 - 5
-                minutes1 =   hora_actual.minute
-                hora_actual_int = int(horaweb).strftime("%H%M")
-                #hora_actual_int = int(hora_actual.strftime("%H%M"))
+                hora_actual = dt.datetime.utcnow()
+                #hours1 = hora_actual.hour
+                #horaweb = hours1 - 5
+                #minutes1 =   hora_actual.minute
+                #hora_actual_int = int(horaweb)
+                hora_actual_int = int(hora_actual.strftime("%H%M"))
                 #print(f'hora_actual = {hora_actual_int}')
                 
                 hora_calendar = datetime.datetime.strptime(hora,'%H:%M')
                 hora_calendar_int = int(hora_calendar.strftime('%H%M'))
-                st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
+                #st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
                 
                 hoy = dt.datetime.now()
                 fechoy = int(hoy.strftime("%Y%m%d"))
@@ -201,23 +216,23 @@ class CrearReservaEmp:
           
                 if fechacalendarint >= fechoy:
                   
-                  if fechacalendarint == fechoy and  hora_calendar_int < hora_actual_int:
+                  #if fechacalendarint == fechoy and  hora_calendar_int < hora_actual_int:
             
-                    st.warning('La hora seleccionda es invalida para hoy')
-                    print('La hora seleccionda es invalida para hoy')
+                  #  st.warning('La hora seleccionda es invalida para hoy')
+                  #  print('La hora seleccionda es invalida para hoy')
                     #break
                    
-                  else:
+                  #else:
                       
-                    uid = generate_uid()
-                    values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid)]
-                    gs = GoogleSheet(credentials, document, sheet)
+                  uid = generate_uid()
+                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid)]
+                  gs = GoogleSheet(credentials, document, sheet)
           
-                    range = gs.get_last_row_range()
-                    gs.write_data(range,values)
+                  range = gs.get_last_row_range()
+                  gs.write_data(range,values)
                      
-                    calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
+                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
 
-                    st.success('Su solicitud ha sido reservada de forrma exitosa')
-                    send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                    send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas)                    
+                  st.success('Su solicitud ha sido reservada de forrma exitosa')
+                  send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
+                  send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas)                    
