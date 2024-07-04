@@ -39,7 +39,7 @@ class GoogleSheet:
       cell = self.sheet.find(uid)
       row_index = cell.row
       print(f'row index {row_index}')
-      self.sheet.delete_rows(f'A{row_index}:J{row_index}', values)
+      self.sheet.delete_rows(f'A{row_index}:L{row_index}', values)
             
   def get_last_row_range(self):
     last_row = len(self.sheet.get_all_values()) +1

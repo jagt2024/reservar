@@ -12,17 +12,30 @@ from openpyxl import load_workbook
 datos_book = load_workbook("archivos/parametros.xlsx", read_only=False) 
 
 def dataBook(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in range(1,ws1.max_row):
+      _row=[]
+      for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+      data.append(_row[0])
+      #print(f'data {data}')
+    return data
+ 
+def dataBookEncEmail(hoja, encargado):
   ws1 = datos_book[hoja]
-
   data = []
   for row in range(1,ws1.max_row):
     _row=[]
     for col in ws1.iter_cols(1,ws1.max_column):
-      _row.append(col[row].value)
-    
-    data.append(_row)
-  #print(f'data {data}')
-  return data
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       emailenc = _row[1]
+       #print(f'su correo es {_row[1]}')
+       break
+  return emailenc
 
 def validate_email(email):
   pattern = re.compile('^[\w\.-]+@[\w\.-]+\.\w+$')
@@ -107,23 +120,12 @@ class EliminarReserva:
           id = idcalendar12
             
       encargado = c2.selectbox('Encargado',result_estil)
+      emailencargado = dataBookEncEmail("encargado",encargado)
+      result_email = np.setdiff1d(emailencargado,'X')
       #hora = c2.selectbox('Hora: ',horas)
      
       calendar = GoogleCalendar(id) #credentials, idcalendar
       
-      if encargado == "Jose Alfaro":
-        email_encargado = "josealfaro@gmail.com"
-      elif encargado ==  "Andres Garcia":
-        email_encargado = "andresgarcia@gmail.com"
-      elif encargado ==  "Mario Vargas":
-        email_encargado = "mariovargas@gmail.com"
-      elif encargado ==  "Stella Gomez":
-        email_encargado = "stellagomez@gmail.com"
-      else:
-        email_encargado = "otroemail@gmail.com"
-    
-      attendees = [email_encargado, email]
-         
       eliminar = st.form_submit_button('Eliminar')
 
       if eliminar:

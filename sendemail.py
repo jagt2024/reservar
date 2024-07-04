@@ -51,20 +51,21 @@ def send_email2(email, nombre, fecha, hora, servicio, estilista, notas):
   #</html>
   # """, subtype = "html" )
   
-  asunto = f"""Cordial saludo,
+  asunto = f"""Cordial saludo Sr(a): {nombre},
       Esperando se encuentre bien, queremos confirmar que su reserva se ha realizado con exito asi : 
-      Evento o Tramite: {nombre},
+      
       Fecha: {fecha},
       Hora: {hora},
       Tramite o Servicio: {servicio},
       Encargado: {estilista},
       Notas: {notas},
+      
       Si necesita cancelar o reprogramar su cita, le agradecemos ir a las opciones del menu de rervas, asi mismo si tiene alguna pregunta o inquietud por favor comuniquese a la linea: 3XX YYYYYY. Gracias por confiar en nosotros.
       
       Atentamente,
       
       El Equipo de Agendamiento
-      emil: josegarjagt@gmail.com
+      emil: empresa@xxxx.com
       """
   msg.set_content(asunto)
   

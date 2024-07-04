@@ -17,17 +17,30 @@ datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
-
     data = []
     for row in range(1,ws1.max_row):
       _row=[]
       for col in ws1.iter_cols(1,ws1.max_column):
         _row.append(col[row].value)
-    
-      data.append(_row)
+      data.append(_row[0])
       #print(f'data {data}')
     return data
-  
+ 
+def dataBookEncEmail(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       emailenc = _row[1]
+       #print(f'su correo es {_row[1]}')
+       break
+  return emailenc
+ 
 def validate_email(email):
     pattern = re.compile('^[\w\.-]+@[\w\.-]+\.\w+$')
     if re.match(pattern, email):
@@ -122,20 +135,9 @@ class CrearReserva:
         
       encargado = c2.selectbox('Encargado:',result_estil)
       #hora = c2.selectbox('Hora: ',horas)
-      
-      if encargado == "Jose Alfaro":
-        email_encargado = "josealfaro@gmail.com"
-      elif encargado ==  "Andres Garcia":
-        email_encargado = "andresgarcia@gmail.com"
-      elif encargado ==  "Mario Vargas":
-        email_encargado = "mariovargas@gmail.com"
-      elif encargado ==  "Stella Gomez":
-        email_encargado = "stellagomez@gmail.com"
-      else:
-        email_encargado = "otroemail@gmail.com"
-    
-      attendees = [email_encargado, email]
-      
+      emailencargado = dataBookEncEmail("encargado",encargado)
+      result_email = np.setdiff1d(emailencargado,'X')
+           
       hours_blocked = calendar.list_upcoming_events()
       result_hours = np.setdiff1d(horas, hours_blocked) 
       hora = c2.selectbox('Hora: ',result_hours)
@@ -232,15 +234,16 @@ class CrearReserva:
                   #  print('La hora seleccionda es invalida para hoy')
                    
                   #else:
-                      
+                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
+                  
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, telefono)]
+                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, str(57)+telefono, whatsappweb)]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()
                   gs.write_data(range,values)
                      
-                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=attendees)
+                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
 
                   #if whatsapp == True:
                   #  contact = str(57)+telefono
