@@ -3,7 +3,7 @@ from email.message import EmailMessage
 import streamlit as st
 import imghdr
     
-def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
+def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas):
    
   destinatarios = []
   user = st.secrets['emails']['smtp_user'] 
@@ -24,6 +24,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
       Fecha: {fecha},
       Hora: {hora},
       Servicio: {servicio},
+      Precio : {precio},
       Encargado: {estilista},
       Notas: {notas},
       
@@ -31,7 +32,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, estilista, notas):
       Atentamente,
       
       El Equipo de Agendamiento
-      emil: josegarjagt@gmail.com
+      emil: emresa@xxxx.com
       """
   msg.set_content(asunto)
   

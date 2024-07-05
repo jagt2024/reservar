@@ -35,6 +35,30 @@ def dataBook(hoja):
       data.append(_row[0])
       #print(f'data {data}')
     return data
+
+def dataBookServicio(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in ws1.iter_rows(min_row=2, min_col=1, max_col=ws1.max_column):
+      resultado = [celda.value for celda in row]
+      data.append(resultado)
+      #print(f'data {data}')
+    return data
+
+def dataBookPrecio(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv  = _row[0]
+       precio = _row[1]
+       #print(f'su correo es {_row[1]}')
+  return precio
  
 def dataBookEncEmail(hoja, encargado):
   ws1 = datos_book[hoja]
@@ -82,7 +106,11 @@ class CrearReservaEmp:
       horas = dataBook("horario")
       
       servicio = dataBook("servicio")
-      result_serv = np.setdiff1d(servicio,'') 
+      result_serv = np.setdiff1d(servicio,'')
+     
+      servicioprecio = dataBookServicio("servicio")
+      muestra = (f'servicio precio; {servicioprecio}')
+      result_servpre = np.setdiff1d(servicioprecio,'')
     
       encargado = dataBook("encargado")
       result_estil = np.setdiff1d(encargado,'X') 
@@ -104,8 +132,12 @@ class CrearReservaEmp:
       nombre = c1.text_input('Nombre*: ', placeholder='Nombre') # label_visibility='hidden')
       email  = c2.text_input('Email:', placeholder='Email')
       fecha  = c1.date_input('Fecha*: ')
-      servicio = c1.selectbox('Servicio*: ',result_serv)
+      servicio = c1.selectbox('Servicio*: ', result_serv) 
+      st.text(muestra)
       notas = c1.text_area('Nota o Mensaje(Opcional)')
+      precio = dataBookPrecio("servicio", servicio)
+      result_precio = np.setdiff1d(precio,'')
+      #print(f'Precio {result_precio}')
            
       if fecha:
         if servicio == "Corte Hombre":
@@ -184,7 +216,7 @@ class CrearReservaEmp:
               serv = [row[4]]
               fech = str(row[2])
               hora2 = str(row[3])
-              uid1 = str(row[7])
+              uid1 = str(row[8])
 
               if nom != ['DATA']:
               
@@ -233,7 +265,7 @@ class CrearReservaEmp:
                   whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
                   
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                  values = [(nombre,email,str(fecha),hora, servicio, precio, encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()
@@ -242,5 +274,5 @@ class CrearReservaEmp:
                   calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
 
                   st.success('Su solicitud ha sido reservada de forrma exitosa')
-                  send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                  send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas)                    
+                  send_email2(email, nombre, fecha, hora, servicio, precio, encargado,  notas)
+                  send_email_emp(email, nombre, fecha, hora, servicio, precio, encargado, notas)                    

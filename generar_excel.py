@@ -34,7 +34,7 @@ class GenerarExcel:
                   #data = os.listdir()
                   #for x in data:
                   #print(data)
-                os.chdir('C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas')
+                os.chdir("..")
                 st.success('Archivos generados exitosamente')
                 st.balloons()
                 

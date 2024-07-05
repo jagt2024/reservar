@@ -6,6 +6,24 @@ import streamlit as st
 import pandas as pd
 from dotenv import load_dotenv
 import os
+from openpyxl import load_workbook
+
+datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+
+def dataBookEncEmail(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       emailenc = _row[1]
+       #print(f'su correo es {_row[1]}')
+       break
+  return emailenc
 
 load_dotenv()
 
@@ -68,7 +86,7 @@ def send_email(excel_file, sheet_name):
           server.sendmail(sender_email, receiver_email, msg.as_string())
           server.quit()
           
-          print('Email envido satisfactoriamente')
+          print('Email enviado satisfactoriamente')
           
         except smtplib.SMTPException as e:
    

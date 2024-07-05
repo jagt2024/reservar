@@ -33,7 +33,7 @@ class GoogleSheet:
   def write_data_by_uid(self, uid, values):
     cell = self.sheet.find(uid)
     row_index = cell.row
-    self.sheet.update(f'A{row_index}:J{row_index}', values)
+    self.sheet.update(f'A{row_index}:L{row_index}', values)
 
   def delete_data_by_uid(self, uid, values):
       cell = self.sheet.find(uid)

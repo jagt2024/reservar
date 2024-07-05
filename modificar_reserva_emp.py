@@ -21,6 +21,21 @@ def dataBook(hoja):
       data.append(_row[0])
       #print(f'data {data}')
     return data
+  
+def dataBookPrecio(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv  = _row[0]
+       precio = _row[1]
+       #print(f'su correo es {_row[1]}')
+  return precio
  
 def dataBookEncEmail(hoja, encargado):
   ws1 = datos_book[hoja]
@@ -105,6 +120,9 @@ class ModificarReservaEmp:
           
         fecha  = a1.date_input('Fecha*: ')
         servicio = a1.selectbox('Servicios', result_serv)
+        
+        precio = dataBookPrecio("servicio", servicio)
+        result_precio = np.setdiff1d(precio,'')
    
         if fecha:
           if servicio == "Corte Hombre":
@@ -230,9 +248,11 @@ class ModificarReservaEmp:
                       if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
                         calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=result_email)
+
+                        whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
                                     
                         uid = uid1
-                        values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid)]
+                        values = [(nombre,email,str(fecha),hora,servicio, precio,encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
                         gs = GoogleSheet(credentials, document, sheet)
 
                         range = gs.write_data_by_uid(uid, values)
