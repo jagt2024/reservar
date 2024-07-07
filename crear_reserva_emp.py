@@ -28,9 +28,9 @@ datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 def dataBook(hoja):
     ws1 = datos_book[hoja]
     data = []
-    for row in range(1,ws1.max_row):
+    for row in range(1, ws1.max_row):
       _row=[]
-      for col in ws1.iter_cols(1,ws1.max_column):
+      for col in ws1.iter_cols(min_row=0, min_col=1, max_col=ws1.max_column):
         _row.append(col[row].value)
       data.append(_row[0])
       #print(f'data {data}')
@@ -39,11 +39,26 @@ def dataBook(hoja):
 def dataBookServicio(hoja):
     ws1 = datos_book[hoja]
     data = []
-    for row in ws1.iter_rows(min_row=2, min_col=1, max_col=ws1.max_column):
-      resultado = [celda.value for celda in row]
-      data.append(resultado)
+    for row in ws1.iter_rows(min_row=2, min_col=1):
+      resultado = [col.value for col in row]
+      data.append(resultado[0:2])
       #print(f'data {data}')
     return data
+  
+def dataBookServicioId(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv = _row[0]
+       idcalendar = _row[2]
+       break
+  return idcalendar
 
 def dataBookPrecio(hoja,servicio):
   ws1 = datos_book[hoja]
@@ -55,7 +70,7 @@ def dataBookPrecio(hoja,servicio):
         data.append(_row) 
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
     if _row[0] == servicio:
-       serv  = _row[0]
+       serv = _row[0]
        precio = _row[1]
        #print(f'su correo es {_row[1]}')
   return precio
@@ -71,8 +86,8 @@ def dataBookEncEmail(hoja, encargado):
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
     if _row[0] == encargado:
        emailenc = _row[1]
-       #print(f'su correo es {_row[1]}')
        break
+       #print(f'su correo es {_row[1]}')
   return emailenc
  
 #encargados = dataBookEncEmail("encargado", "Mario Vargas")
@@ -107,49 +122,42 @@ class CrearReservaEmp:
       
       servicio = dataBook("servicio")
       result_serv = np.setdiff1d(servicio,'')
+      #print(f'servicio y result_serv {servicio}, {result_serv}')
      
       servicioprecio = dataBookServicio("servicio")
       muestra = (f'servicio precio; {servicioprecio}')
-      result_servpre = np.setdiff1d(servicioprecio,'')
+      #print(f'(muestra= {muestra})')
+      #result_servpre = np.setdiff1d(servicioprecio,'')
     
       encargado = dataBook("encargado")
       result_estil = np.setdiff1d(encargado,'X') 
                             
       document='gestion-reservas-emp'
       sheet = 'reservas'
-      credentials = st.secrets['sheets']['credentials_sheet']
+      credentials = st.secrets['sheetsemp']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'
-  
-      idcalendar = "josegarjagt@gmail.com"
-      idcalendar1 = "617d2384ffee7bf87962b771b740e372fc7d8b1e1bd5db386d3c38b0dbf0bce5@group.calendar.google.com"
-      idcalendar2 = "28907ee879da61f67b82a7af31f161bddc00760d22f951a6691994451038b7d7@group.calendar.google.com"
-      idcalendar3 = "228e2b2270fa33d0e9708f40ef5f23ac1315a7f7ddddaf262da22562c141d3e4@group.calendar.google.com"
-      idcalendar4 = "171e4f700155cd208306f2de463285ccd9481949193e55b88db4b0241fedbb6d@group.calendar.google.com"
-      
-      #st.subheader('Reservar')
-      
+            
       c1, c2 = st.columns(2)
       nombre = c1.text_input('Nombre*: ', placeholder='Nombre') # label_visibility='hidden')
       email  = c2.text_input('Email:', placeholder='Email')
       fecha  = c1.date_input('Fecha*: ')
-      servicio = c1.selectbox('Servicio*: ', result_serv) 
+      servicios = c1.selectbox('Servicios*: ', result_serv) 
       st.text(muestra)
       notas = c1.text_area('Nota o Mensaje(Opcional)')
-      precio = dataBookPrecio("servicio", servicio)
-      result_precio = np.setdiff1d(precio,'')
-      #print(f'Precio {result_precio}')
-           
+      precio = dataBookPrecio("servicio", servicios)
+      #result_precio = np.setdiff1d(precio,'')
+      #print(f'Precio = {precio}')
+      
+      idcalendarserv = dataBookServicioId("servicio", servicios)
+      #print(f'idcalendarserv = {idcalendarserv}')
+      result_id = np.setdiff1d(idcalendarserv,'')
+  
+      #idcalendar = "josegarjagt@gmail.com"
+                 
       if fecha:
-        if servicio == "Corte Hombre":
-          id = idcalendar1
-        elif servicio == "Corte Mujer":
-          id = idcalendar2
-        elif servicio == "Arreglo Barba":
-          id = idcalendar3
-        elif servicio == "Afeitar":
-          id = idcalendar4
-        elif servicio == "Otro":
-          id = idcalendar4
+        id = ""
+        if servicios == servicio:
+          id = result_id
         
       calendar = GoogleCalendar(id) #credentials, idcalendar
         
@@ -158,7 +166,7 @@ class CrearReservaEmp:
             
       emailencargado = dataBookEncEmail("encargado",encargado)
       result_email = np.setdiff1d(emailencargado,'X') 
-      #print(f'Emailencargado {result_email}')
+      #print(f'Emailencargado y result_email {emailencargado}, {result_email}')
               
       hours_blocked = calendar.list_upcoming_events()
       result_hours = np.setdiff1d(horas, hours_blocked) 
@@ -262,17 +270,17 @@ class CrearReservaEmp:
                     #break
                    
                   #else:
-                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
+                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicios}")
                   
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora, servicio, precio, encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                  values = [(nombre,email,str(fecha),hora, servicios, precio, encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()
                   gs.write_data(range,values)
                      
-                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
+                  calendar.create_event(servicios+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
 
                   st.success('Su solicitud ha sido reservada de forrma exitosa')
-                  send_email2(email, nombre, fecha, hora, servicio, precio, encargado,  notas)
-                  send_email_emp(email, nombre, fecha, hora, servicio, precio, encargado, notas)                    
+                  send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  notas)
+                  send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas)                    

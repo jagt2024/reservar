@@ -14,14 +14,38 @@ datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 def dataBook(hoja):
     ws1 = datos_book[hoja]
     data = []
-    for row in range(1,ws1.max_row):
+    for row in range(1, ws1.max_row):
       _row=[]
-      for col in ws1.iter_cols(1,ws1.max_column):
+      for col in ws1.iter_cols(min_row=0, min_col=1, max_col=ws1.max_column):
         _row.append(col[row].value)
       data.append(_row[0])
       #print(f'data {data}')
     return data
+
+def dataBookServicio(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in ws1.iter_rows(min_row=2, min_col=1):
+      resultado = [col.value for col in row]
+      data.append(resultado[0:2])
+      #print(f'data {data}')
+    return data
   
+def dataBookServicioId(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv = _row[0]
+       idcalendar = _row[2]
+       break
+  return idcalendar
+
 def dataBookPrecio(hoja,servicio):
   ws1 = datos_book[hoja]
   data = []
@@ -32,7 +56,7 @@ def dataBookPrecio(hoja,servicio):
         data.append(_row) 
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
     if _row[0] == servicio:
-       serv  = _row[0]
+       serv = _row[0]
        precio = _row[1]
        #print(f'su correo es {_row[1]}')
   return precio
@@ -48,8 +72,8 @@ def dataBookEncEmail(hoja, encargado):
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
     if _row[0] == encargado:
        emailenc = _row[1]
-       #print(f'su correo es {_row[1]}')
        break
+       #print(f'su correo es {_row[1]}')
   return emailenc
 
 def validate_email(email):
@@ -90,16 +114,9 @@ class ModificarReservaEmp:
    
       document='gestion-reservas-emp'
       sheet = 'reservas'
-      credentials = st.secrets['sheets']['credentials_sheet']
+      credentials = st.secrets['sheetsemp']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'
   
-      idcalendar = "josegarjagt@gmail.com"
-      idcalendar1 = "617d2384ffee7bf87962b771b740e372fc7d8b1e1bd5db386d3c38b0dbf0bce5@group.calendar.google.com"
-      idcalendar2 = "28907ee879da61f67b82a7af31f161bddc00760d22f951a6691994451038b7d7@group.calendar.google.com"
-      idcalendar3 = "228e2b2270fa33d0e9708f40ef5f23ac1315a7f7ddddaf262da22562c141d3e4@group.calendar.google.com"
-      idcalendar4 = "171e4f700155cd208306f2de463285ccd9481949193e55b88db4b0241fedbb6d@group.calendar.google.com"
-
-    
       st.subheader('Ingrese los datos de la agenda a Modificar') 
     
       c1, c2 = st.columns(2)
@@ -119,26 +136,25 @@ class ModificarReservaEmp:
         a1, a2 = st.columns(2)
           
         fecha  = a1.date_input('Fecha*: ')
-        servicio = a1.selectbox('Servicios', result_serv)
+        servicios = a1.selectbox('Servicios', result_serv)
         
         precio = dataBookPrecio("servicio", servicio)
         result_precio = np.setdiff1d(precio,'')
-   
-        if fecha:
-          if servicio == "Corte Hombre":
-            id = idcalendar1
-          elif servicio == "Corte Mujer":
-            id = idcalendar2
-          elif servicio == "Arreglo Barba":
-            id = idcalendar3
-          elif servicio == "Afeitar":
-            id = idcalendar4
-          elif servicio == "Otro":
-            id = idcalendar4
-                      
+                        
         encargado = a2.selectbox('Encargado',result_est)
         emailencargado = dataBookEncEmail("encargado",encargado)
         result_email = np.setdiff1d(emailencargado,'X')
+        
+        idcalendarserv = dataBookServicioId("servicio", servicios)
+        #print(f'idcalendarserv = {idcalendarserv}')
+        result_id = np.setdiff1d(idcalendarserv,'')
+  
+        #idcalendar = "josegarjagt@gmail.com"
+                 
+        if fecha:
+          id = ""
+          if servicios == servicio:
+            id = result_id
          
         calendar = GoogleCalendar(id) #credentials, idcalendar
                     
@@ -195,7 +211,7 @@ class ModificarReservaEmp:
                 fech = str(row[2])
                 hora2 = str(row[3])
                 nota = [row[6]]
-                uid1 = str(row[7])
+                uid1 = str(row[8])
 
                 if nom != ['DATA']:
               
@@ -247,20 +263,22 @@ class ModificarReservaEmp:
                   
                       if fech1 == fechoy and hora_actual_int < hora_calendar_int:
                     
-                        calendar.update_event(servicio+". "+nombre, start_time, end_time, time_zone,attendees=result_email)
+                        calendar.update_event(servicios+". "+nombre, start_time, end_time, time_zone,attendees=result_email)
 
-                        whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
+                        whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicios}")
                                     
                         uid = uid1
-                        values = [(nombre,email,str(fecha),hora,servicio, precio,encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                        values = [(nombre,email,str(fecha),hora,servicios, precio,encargado, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
                         gs = GoogleSheet(credentials, document, sheet)
 
                         range = gs.write_data_by_uid(uid, values)
-                                           
-                        send_email2(email, nombre, fecha, hora, servicio, encargado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
-                        send_email_emp(email, nombre, fecha, hora, servicio, encargado, notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
+                        
+                        st.success('Su solicitud ha sido actualizada de forrma exitosa')
+
+                        send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
+                        send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
           
-                        st.success('Su solicitud ha sido actualizada de forrma exitosa')  
+                          
 
                       else:
                         st.warning('La hora seleccionda es invalida para hoy')

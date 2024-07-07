@@ -6,8 +6,8 @@ import imghdr
 def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas):
    
   destinatarios = []
-  user = st.secrets['emails']['smtp_user'] 
-  password = st.secrets['emails']['smtp_password']
+  user = st.secrets['emailsemp']['smtp_user'] 
+  password = st.secrets['emailsemp']['smtp_password']
   smtp_server = 'smtp.gmail.com'
   smtp_port = 465
   

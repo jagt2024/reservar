@@ -18,13 +18,52 @@ datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
 def dataBook(hoja):
     ws1 = datos_book[hoja]
     data = []
-    for row in range(1,ws1.max_row):
+    for row in range(1, ws1.max_row):
       _row=[]
-      for col in ws1.iter_cols(1,ws1.max_column):
+      for col in ws1.iter_cols(min_row=0, min_col=1, max_col=ws1.max_column):
         _row.append(col[row].value)
       data.append(_row[0])
       #print(f'data {data}')
     return data
+
+def dataBookServicio(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in ws1.iter_rows(min_row=2, min_col=1):
+      resultado = [col.value for col in row]
+      data.append(resultado[0:2])
+      #print(f'data {data}')
+    return data
+  
+def dataBookServicioId(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv = _row[0]
+       idcalendar = _row[2]
+       break
+  return idcalendar
+
+def dataBookPrecio(hoja,servicio):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == servicio:
+       serv = _row[0]
+       precio = _row[1]
+       #print(f'su correo es {_row[1]}')
+  return precio
  
 def dataBookEncEmail(hoja, encargado):
   ws1 = datos_book[hoja]
@@ -37,8 +76,8 @@ def dataBookEncEmail(hoja, encargado):
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
     if _row[0] == encargado:
        emailenc = _row[1]
-       #print(f'su correo es {_row[1]}')
        break
+       #print(f'su correo es {_row[1]}')
   return emailenc
  
 def validate_email(email):
@@ -78,63 +117,31 @@ class CrearReserva:
       sheet = 'reservas'
       credentials = st.secrets['sheets']['credentials_sheet']
       time_zone = 'GMT-05:00' # 'South America'
-  
-      idcalendar = "josegarjagt@gmail.com"
-      idcalendar1 = "ba6000578facbb0df71389d7c4b76555afe42838fc641f417d7cc3a91bf86b7f@group.calendar.google.com"
-      idcalendar2 = "ebd1ed404fd7c23d10dc5ee277f470bc28942fdd19879aec16a61add832897f2@group.  calendar.google.com"
-      idcalendar3 = "cba31f328b4ec714869a2becbecd214ddf68c8bf74cc0aac984fc0f9c5ddb36f@group.calendar.google.com"
-      idcalendar4 = "ed26cef01eaf4ba394d77252c097fc4da150a2624db87bf96b25f900483201bd@group.calendar.google.com"
-      idcalendar5 = "afe8f37afe5e919952f780062fd693d57680899895c7dbad0878f2dbf8c91be2@group.calendar.google.com"
-      idcalendar6 = "ac9164e4adb34328aafee5b87fe610a44a616df06944a585d64060f4b29ee8b5@group.calendar.google.com"
-      idcalendar7 = "3e434060d0f95a7a15966031efc94bd591fd1b37d470228a3f66d9158ab9e83a@group.calendar.google.com"
-      idcalendar8 = "9e5cb9aeb1d7ee6500e2b9a02118270b7c14b97adba9860492656d69ab5d9f54@group.calendar.google.com"
-      idcalendar9 = "790891854a9130f51711b964bdd84024cbb5e6fdc0cbcb479cae3248dabdfc9b@group.calendar.google.com"
-      idcalendar10 = "1e87a215fbe5b4350a345065b46f886015205618e5350077e847392f6f29af8b@group.calendar.google.com"
-      idcalendar11 = "family03761753017923947946@group.calendar.google.com"
-      idcalendar12 = "addressbook#contacts@group.v.calendar.google.com"
-      idcalendar13 = "es.co#holiday@group.v.calendar.google.com"
-      
-      #st.subheader('Reservar')
-      
+     
       c1, c2 = st.columns(2)
       nombre = c1.text_input('Nombre entidad o persona*: ', placeholder='Nombre') # label_visibility='hidden')
       email  = c2.text_input('Email:', placeholder='Email')
       fecha  = c1.date_input('Fecha*: ')
-      servicio = c1.selectbox('Servicio*: ',result_serv)
+      servicios = c1.selectbox('Servicio*: ',result_serv)
       notas = c1.text_area('Nota o Mensaje(Opcional)')
+      precio = dataBookPrecio("servicio", servicios)
     
+      idcalendarserv = dataBookServicioId("servicio", servicios)
+      #print(f'idcalendarserv = {idcalendarserv}')
+      result_id = np.setdiff1d(idcalendarserv,'')
+  
+      #idcalendar = "josegarjagt@gmail.com"
+                 
       if fecha:
-        if servicio == "Peluqueria":
-          id = idcalendar5
-        elif servicio == "Mercado":
-          id = idcalendar1
-        elif servicio == "Cita Medica":
-          id = idcalendar2
-        elif servicio == "Banco":
-          id = idcalendar3
-        elif servicio == "Taller":
-          id = idcalendar4
-        elif servicio == "Ferreteria":
-          id = idcalendar6
-        elif servicio == "Juzgado":
-          id = idcalendar7
-        elif servicio == "Impuestos":
-          id = idcalendar8
-        elif servicio == "Iglesia":
-          id = idcalendar9
-        elif servicio == "Celebracion":
-          id = idcalendar10
-        elif servicio == "Familia":
-          id = idcalendar11
-        elif servicio == "Cumpleaños":
-          id = idcalendar12
-        elif servicio == "Festivos en Colombia":
-          id = idcalendar12
+        id = ""
+        if servicios == servicio:
+          id = result_id
         
       calendar = GoogleCalendar(id) #credentials, idcalendar
         
       encargado = c2.selectbox('Encargado:',result_estil)
       #hora = c2.selectbox('Hora: ',horas)
+            
       emailencargado = dataBookEncEmail("encargado",encargado)
       result_email = np.setdiff1d(emailencargado,'X')
            
@@ -234,16 +241,16 @@ class CrearReserva:
                   #  print('La hora seleccionda es invalida para hoy')
                    
                   #else:
-                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicio}")
+                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicios}")
                   
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora,servicio,encargado, notas, uid, whatsapp, str(57)+telefono, whatsappweb)]
+                  values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, notas, uid, whatsapp, str(57)+telefono, whatsappweb)]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()
                   gs.write_data(range,values)
                      
-                  calendar.create_event(servicio+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
+                  calendar.create_event(servicios+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
 
                   #if whatsapp == True:
                   #  contact = str(57)+telefono
@@ -266,6 +273,6 @@ class CrearReserva:
                       #pywhatkit.sendwhatmsg('+'+str(57)+contact, message, horawhat, minuto)
                   
                   st.success('Su solicitud ha sido reservada de forrma exitosa')
-                  send_email2(email, nombre, fecha, hora, servicio, encargado,  notas)
-                  send_email_emp(email, nombre, fecha, hora, servicio, encargado,  notas)  
+                  send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  notas)
+                  send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado,  notas)  
 
