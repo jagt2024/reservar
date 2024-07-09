@@ -128,7 +128,7 @@ class CrearReserva:
       time_zone = 'GMT-05:00' # 'South America'
      
       c1, c2 = st.columns(2)
-      nombre = c1.text_input('Numero del Proceso o Nombre Ciente *: ', placeholder='Numero - Nombre') # label_visibility='hidden')
+      nombre = c1.text_input('Numero del Proceso o Nombre Cliente *: ', placeholder='Numero - Nombre') # label_visibility='hidden')
       estados = c2.selectbox('Estado*: ',result_estado)
       servicios = c1.selectbox('Servicio Juridico*: ',result_serv)
       partes = c2.selectbox('Partes Procesales', result_partes)
