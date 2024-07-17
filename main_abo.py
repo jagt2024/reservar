@@ -25,7 +25,7 @@ def dataBook(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20240715')
+fecha_hasta = int('20240830')
 #print(f'fecha hasta: {fecha_hasta}')
 
 fecha = dt.datetime.now()

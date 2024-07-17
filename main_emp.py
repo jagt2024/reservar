@@ -24,8 +24,8 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20240715')
-#print(f'fecha hasta: {fecha_hasta}')
+fecha_hasta = int('20240830')
+#print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
 fecha_hoy = int(fecha.strftime("%Y%m%d"))

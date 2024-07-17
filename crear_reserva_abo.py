@@ -257,7 +257,12 @@ class CrearReserva:
                   #  print('La hora seleccionda es invalida para hoy')
                    
                   #else:
-                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el encargado: {encargado} para el servicio de : {servicios} con la accion {acciones}")
+                  
+                  if whatsapp == True:
+                    contact = str(57)+telefono
+                    message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                    
+                    whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). - Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}")
                   
                   uid = generate_uid()
                   values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, partes, acciones, hechos, causas, uid, whatsapp, str(57)+telefono, whatsappweb)]
@@ -267,10 +272,9 @@ class CrearReserva:
                   gs.write_data(range,values)
                     
                   calendar.create_event(servicios+". Proceso #: "+nombre, start_time, end_time, time_zone, attendees=result_email)
-
-                  #if whatsapp == True:
-                  #  contact = str(57)+telefono
-                  #  message = f'Cordial saludo: Sr(a): {nombre}, su soliciud de reserva se ha realizado de forma exitosa y se agendo el servicio {servicio}, para el dia {fecha}, a las {hora}. Gracias por su cofianza. Cordialmente aplicacion de Reservas y Agendamiento.'
+                    
+                    #response = sendmessage(f'{contact}@c.us', message)          
+                                        
                       # Para abrir en buscador Edge                  
                   #  enviarwhats = webbrowser.open('https://web.whatsapp.com/send?phone='+contact+"&text="+message)
                       # Para abrir en buscador chrome

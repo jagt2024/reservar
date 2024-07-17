@@ -1,3 +1,6 @@
+.streamlit/*
+!tmp/.gitkeep
+.env
 secrests.toml
 token.json
 token_emp.json

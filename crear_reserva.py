@@ -181,44 +181,45 @@ class CrearReserva:
           
             gs = GoogleSheet(credentials, document, sheet)
             existe = False
-                 
-            last_row = len(gs.sheet.get_all_values()) +1
-            #print(f'last_row {last_row}')
-            data = gs.sheet.get_values()
-            #print(f'data {data}')
-            data2 = data[1:]
-            #print(f'data2 {data2}')
-            range_start = f"A{last_row}"
-            #print(f'range_start {range_start}')
-            range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
-            #print(f'range_end {range_end}')
+               
+            if len(gs.sheet.get_all_values()) +1 > 2:     
+              last_row = len(gs.sheet.get_all_values()) +1
+              #print(f'last_row {last_row}')
+              data = gs.sheet.get_values()
+              #print(f'data {data}')
+              data2 = data[1:]
+              #print(f'data2 {data2}')
+              range_start = f"A{last_row}"
+              #print(f'range_start {range_start}')
+              range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
+              #print(f'range_end {range_end}')
           
-            for row in data2:
+              for row in data2:
         
-              nom = [row[0]]
-              serv = [row[4]]
-              fech = str(row[2])
-              hora2 = str(row[3])
-              uid1 = str(row[7])
+                nom = [row[0]]
+                serv = [row[4]]
+                fech = str(row[2])
+                hora2 = str(row[3])
+                uid1 = str(row[7])
 
-              if nom != ['DATA']:
+                if nom != ['DATA']:
               
-                fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
-                fech1 = int(fech2.strftime("%Y%m%d"))
-                fechacalendarint = int(fecha.strftime("%Y%m%d"))
-                hora3 = datetime.datetime.strptime(hora2,'%H:%M')
-                fechahora_ini = int(hora3.strftime('%H%M'))
-                horacalendar = datetime.datetime.strptime(hora,'%H:%M')
-                horacalendarint = int(horacalendar.strftime('%H%M'))
-                #horawhat = int(horacalendar.strftime('%H'))
-                #minuto = int(horacalendar.strftime('%M'))
+                  fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
+                  fech1 = int(fech2.strftime("%Y%m%d"))
+                  fechacalendarint = int(fecha.strftime("%Y%m%d"))
+                  hora3 = datetime.datetime.strptime(hora2,'%H:%M')
+                  fechahora_ini = int(hora3.strftime('%H%M'))
+                  horacalendar = datetime.datetime.strptime(hora,'%H:%M')
+                  horacalendarint = int(horacalendar.strftime('%H%M'))
+                  #horawhat = int(horacalendar.strftime('%H'))
+                  #minuto = int(horacalendar.strftime('%M'))
               
-                #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
+                  #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
               
-                if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
-                  existe = True
-                  st.warning("El cliente ya tiene agenda para esa fecha y hora")
-                  break
+                  if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
+                    existe = True
+                    st.warning("El cliente ya tiene agenda para esa fecha y hora")
+                    break
             
             if existe == False:
                        
