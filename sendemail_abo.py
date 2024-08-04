@@ -112,4 +112,4 @@ def send_email2(email, nombre, fecha, hora, servicio, precio, estilista, partes,
         print(e)
         return False
         
-  st.success('Email enviado correctamnte')
+  #st.success('Email enviado correctamnte')

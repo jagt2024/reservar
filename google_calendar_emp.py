@@ -56,7 +56,7 @@ class GoogleCalendar:
     now = dt.datetime.utcnow().isoformat() + "Z"
     hoy = dt.datetime.now().isoformat() + "Z"
     tomorrow = (dt.datetime.now() + dt.timedelta(days=1)).replace(hour=23, minute=59,second=0,microsecond=0).isoformat() +"Z"
-    print(f'estoy en list_upcoming_events {hoy}, {now}, {tomorrow}')
+    #print(f'estoy en list_upcoming_events {hoy}, {now}, {tomorrow}')
     
     try:
                

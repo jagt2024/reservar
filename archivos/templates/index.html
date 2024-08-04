@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Whatsapp | MHCode</title>
+
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    rel="stylesheet"
+    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/webrtc-adapter/3.3.3/adapter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.1.10/vue.min.js"></script>
+    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-dark">
+    <div class="container">
+        <h1 class="text-center text-white p-4">Envío de mensajes por Whatsapp</h1>
+
+        <form id="myform" class="col-md-8 m-auto">
+            <div class="form-group">
+                <label class="text-white">Para</label>
+
+                <input
+                    type="text"
+                    placeholder="Ingresa el número de destino"
+                    class="form-control"
+                    name="number"
+                />
+            </div>
+
+            <div class="form-group">
+                <label class="text-white">Mensaje</label>
+                
+                <textarea
+                    name="message"
+                    class="form-control"
+                    rows="4"
+                    placeholder="Ingresa el mensaje"
+                ></textarea>
+            </div>
+
+            <div class="text-center">
+                <button class="btn btn-primary col-md-4">ENVIAR</button>
+            </div>
+        </form>
+
+        <p id="status-send-1" class="alert alert-success text-center mt-4">Mensaje enviado correctamente</p>
+        <p id="status-send-2" class="alert alert-danger text-center mt-4">Error al enviar mensaje</p>
+    </div>
+
+    <script>
+
+        // Muestra u oculta resultado del envío
+        const showStatus = (element, status) => {
+            status === true
+            ? element.style.display = 'initial'
+            : element.style.display = 'none';
+        }
+
+        // Elementos para los avisos de envío
+        const statusOne = document.getElementById('status-send-1');
+        const statusTwo = document.getElementById('status-send-2');
+        
+        // Ocultamos ambos por defecto
+        showStatus(statusOne, false);
+        showStatus(statusTwo, false);
+
+        const sendMessage = async (e) => {
+            e.preventDefault();
+
+            // Elemento del formulario
+            const form = document.getElementById('myform');
+
+            // Obtengo los valores: N° destinatario y Mensaje
+            const number = form.querySelector('input[name="number"]').value;
+            const message = form.querySelector('textarea[name="message"]').value;
+
+            // Convertimos JSON a String
+            const data = JSON.stringify({ number, message });
+
+            // Definimos parámetros opcionales
+            const options = {
+                method: 'POST',
+                headers: { "Content-Type": "application/json" },
+                body: data // Insertamos la data que queremos enviar
+            };
+            
+            // Hacemos el envío del mensaje a la siguiente ruta
+            const response = await fetch('/lead', options);
+
+            if(response.status === 200) {
+
+                // Mostramos aviso "Mensaje enviado correctamente"
+                showStatus(statusOne, true);
+
+                setTimeout(() => {
+                    // Ocultamos aviso
+                    showStatus(statusOne, false);
+                }, 3500);
+
+                form.querySelector('textarea[name="message"]').value = '';
+            } else {
+
+                // Mostramos aviso "Error al enviar mensaje"
+                showStatus(statusTwo, true);
+
+                setTimeout(() => {
+                    // Ocultamos aviso
+                    showStatus(statusTwo, false);
+                }, 3500);
+            }
+        }
+        //window.location.replace("http://localhost:3001/" + c);
+        window.addEventListener('submit', sendMessage);
+
+    </script>
+</body>
+</html>

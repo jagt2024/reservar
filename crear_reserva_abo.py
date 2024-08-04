@@ -9,6 +9,8 @@ import datetime as dt
 import re
 import uuid
 from openpyxl import load_workbook
+import requests
+import time
 #import pywhatkit
 #import pyautogui, webbrowser
 #from time import sleep
@@ -79,6 +81,21 @@ def dataBookEncEmail(hoja, encargado):
        break
        #print(f'su correo es {_row[1]}')
   return emailenc
+
+def dataBookEncTelefono(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       telefonoenc = _row[2]
+       break
+       #print(f'su correo es {_row[1]}')
+  return telefonoenc
  
 def validate_email(email):
     pattern = re.compile('^[\w\.-]+@[\w\.-]+\.\w+$')
@@ -94,6 +111,21 @@ def add_hour_and_half(time):
 
 def generate_uid():
     return str(uuid.uuid4())
+  
+def sendMessage(numero, mensaje):
+  url = 'http://localhost:3001/lead'
+  
+  data = {
+    "message": mensaje,
+    "phone": numero 
+  }
+  headers = {
+    'Content-Type': 'application/json'
+  }
+  print(data)
+  response = requests.post(url, json=data, headers=headers)
+  time.sleep(2)
+  return response
 
 class CrearReserva:
   
@@ -154,11 +186,14 @@ class CrearReserva:
             
       emailencargado = dataBookEncEmail("encargado",encargado)
       result_email = np.setdiff1d(emailencargado,'X')
+      
+      telefonoencargado = dataBookEncTelefono("encargado",encargado)
+      result_telef = np.setdiff1d(telefonoencargado,'X')
            
       hours_blocked = calendar.list_upcoming_events()
       result_hours = np.setdiff1d(horas, hours_blocked) 
       hora = c2.selectbox('Hora: ',result_hours)
-      acciones = c2.text_area('Solicitud, Accion o Medio Control')
+      acciones = c2.text_area('Solicitud o Motivo, Accion o Medio Control')
       hechos = c1.text_area('Hechos (Opcional)')
       causas = c2.text_area('Causas (Opcional)')
       precio = dataBookPrecio("servicio", servicios)
@@ -257,15 +292,10 @@ class CrearReserva:
                   #  print('La hora seleccionda es invalida para hoy')
                    
                   #else:
-                  
-                  if whatsapp == True:
-                    contact = str(57)+telefono
-                    message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
-                    
-                    whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). - Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}")
+                  whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). - Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}")
                   
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, partes, acciones, hechos, causas, uid, whatsapp, str(57)+telefono, whatsappweb)]
+                  values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, partes, acciones, hechos, causas, uid, whatsapp, str(57)+telefono, whatsappweb, "Enviado")]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()
@@ -292,7 +322,14 @@ class CrearReserva:
                 
                       #pywhatkit.sendwhatmsg('+'+str(57)+contact, message, horawhat, minuto)
                   
-                  st.success('Su solicitud ha sido reservada de forrma exitosa')
                   send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  partes, acciones, hechos, causas)
                   send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, partes, acciones, hechos, causas, attendees=result_email)
-
+                  
+                  st.success('Su solicitud ha sido reservada de forrma exitosa')
+                  
+                  if whatsapp == True:
+                    contact = str(57)+telefono
+                    message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                    sendMessage(contact, message)
+                    sendMessage(str(57)+str(telefonoencargado), message)
