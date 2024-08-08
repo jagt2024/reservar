@@ -187,4 +187,4 @@ class GenerarQr:
                 
                 except HttpError as err:
                   st.warning(f'se presento un  Errror {err} ')
-                  raise Exception(f'A ocurrido un error al leer el Codigo QR : {err}')          
+                  raise Exception(f'A ocurrido un error al leer el Codigo QR : {err}') 
