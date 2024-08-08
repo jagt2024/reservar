@@ -3,6 +3,7 @@ google_api_python_client==2.129.0
 google_auth_oauthlib==1.2.0
 gspread==6.1.2
 numpy==1.26.4
+qrcode==7.4.2
 opencv-python==4.10.0.84
 pyzbar==0.1.9
 openpyxl==3.1.4
