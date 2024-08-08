@@ -8,6 +8,7 @@ from eliminar_reserva_abo import EliminarReserva
 from servicios_abo import Servicios
 from informacion_abo import Informacion
 from generar_excel_abo import GenerarExcel
+from generaQR.generar_qr import GenerarQr
 import datetime as dt
 from openpyxl import load_workbook
 
@@ -25,7 +26,7 @@ def dataBook(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20240830')
+fecha_hasta = int('20241030')
 #print(f'fecha hasta: {fecha_hasta}')
 
 fecha = dt.datetime.now()
@@ -80,6 +81,8 @@ class Model:
   option5 = 'Nuestros Servicios'
   option6 = 'Mas Informacion'
   option7 = 'Generar Archivos'
+  option8 = 'Generar Codigo QR'
+  
     
   #def __init__(self):
   #  self.apps=[]
@@ -130,7 +133,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7],
+                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -171,6 +174,8 @@ else:
           Informacion().view(Informacion.Model())
         if app == model.option7:
           GenerarExcel().view(GenerarExcel.Model())
+        if app == model.option8:
+          GenerarQr().view(GenerarQr.Model())
   
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
