@@ -3,6 +3,7 @@ import streamlit as st
 import numpy as np
 import os
 import cv2
+import pyzbar
 from pyzbar.pyzbar import decode
 from googleapiclient.errors import HttpError
 #import pandas as pd
