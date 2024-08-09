@@ -63,13 +63,11 @@ class GenerarQr:
       data = []
       for row in range(1,ws1.max_row):
         _row=[]
-        for col in ws1.iter_cols(1,ws1.max_column):
+        for col in ws1.iter_cols(min_row=0, min_col=0, max_col=4):
           _row.append(col[row].value)
-          data.append(_row) 
-          #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
           if _row[0] == acargo:
-            codigo = _row[3]
-            break
+            #data.append(_row[3:4])
+            codigo = _row[3:4]
       return codigo
     
     #def read_qr_code(file):
@@ -178,8 +176,8 @@ class GenerarQr:
       elif opcion == "Leer QR":
                   
           nombre = dataBookQR2("encargado", acargo)
-          codigo = dataBookQR3("encargado", acargo)
-            
+          print(f"nmbre : {nombre} a cargo : {acargo}")
+          
           if nombre == acargo:
                         
             generar = st.form_submit_button(" Generar ")
@@ -194,10 +192,12 @@ class GenerarQr:
                     #print("nombre")
           
                     #leer = read_qr_code(file)
-                    st.success(f' El dato del codigo QR es : {codigo} y corresponde a : {nombre} ')
+                    codigo1 = dataBookQR3("encargado", acargo)
+                                        
+                    st.success(f' La informacion de : {nombre} corresponde al codigo - {codigo1}')
                     
                     #os.chdir("..")
-                    st.success(f'Codigo QR se leyo exitosamente')
+                    st.success(f'Codigo se leyo exitosamente')
                     st.balloons()
                 
                 except HttpError as err:
