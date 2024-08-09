@@ -146,27 +146,24 @@ class GenerarQr:
                 os.chdir("generaQR")
                 encargado = dataBookServicio("encargado")
                 cedula = encargado[0][3]
-  
-                for i in range(len(encargado)):
+                nombre = encargado[0][0]
+                telefono = encargado[0][2]
+                codigoqr = encargado[0][4]
+                
+                nombre = dataBookQR2("encargado", acargo )
    
-                  if encargado[i][4] != "Generado":
-            
-                    cod_proveedor = encargado[i][3]
-                    nombre_proveedor = encargado[i][0]
-                    telefono = encargado[i][2]
-                    codigoqr = encargado[i][4]
-                    
+                if codigoqr[0][4] != "Generado":
                     #os.chdir("./generaQR")
-                    img = qrcode.make(cod_proveedor)
-                    img.save(f"img/{nombre_proveedor}.png")
+                    img = qrcode.make(codigoqr)
+                    img.save(f"img/{nombre}.png")
       
-                    ws2 = encargado
-                    ws2[i][4] = "Generado"
+                    ws2 = acargo
+                    ws2[0][4] = "Generado"
       
                 #datos_book.save("./archivos/parametros_abogados.xlsx")
                 
                 os.chdir("..")
-                st.success('Archivos generados exitosamente')
+                st.success('Archivo generado exitosamente')
                 st.balloons()
                  
               except HttpError as err:
@@ -176,7 +173,7 @@ class GenerarQr:
       elif opcion == "Leer QR":
                   
           nombre = dataBookQR2("encargado", acargo)
-          print(f"nmbre : {nombre} a cargo : {acargo}")
+          #print(f"nmbre : {nombre} a cargo : {acargo}")
           
           if nombre == acargo:
                         
