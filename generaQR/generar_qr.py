@@ -2,9 +2,8 @@ import qrcode
 import streamlit as st
 import numpy as np
 import os
-import cv2
-import pyzbar
-from pyzbar.pyzbar import decode
+#import cv2
+#from pyzbar.pyzbar import decode
 from googleapiclient.errors import HttpError
 #import pandas as pd
 from openpyxl import load_workbook
@@ -55,23 +54,37 @@ class GenerarQr:
           data.append(_row) 
           #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
           if _row[0] == acargo:
-            codigo = _row[0]
+            nombre = _row[0]
+            break
+      return nombre
+    
+    def dataBookQR3(hoja,acargo):
+      ws1 = datos_book[hoja]
+      data = []
+      for row in range(1,ws1.max_row):
+        _row=[]
+        for col in ws1.iter_cols(1,ws1.max_column):
+          _row.append(col[row].value)
+          data.append(_row) 
+          #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+          if _row[0] == acargo:
+            codigo = _row[3]
             break
       return codigo
     
-    def read_qr_code(file):
+    #def read_qr_code(file):
       
-      image = cv2.imread(file)
-      gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-      decoded_objects = decode(gray_image)
+    #  image = cv2.imread(file)
+    #  gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #  decoded_objects = decode(gray_image)
       
-      if decoded_objects:
-        for obj in decoded_objects:
-          data = obj.data.decode('utf-8')
-          st.success(f'El dato del codigo QR es : {data} ')
+    #  if decoded_objects:
+    #    for obj in decoded_objects:
+    #     data = obj.data.decode('utf-8')
+    #      st.success(f'El dato del codigo QR es : {data} ')
       
-      else:
-        st.warning('No se encontro el  codigo QR para el nombre dado')
+    #  else:
+    #    st.warning('No se encontro el  codigo QR para el nombre dado')
 
   
     with st.form(key='myform',clear_on_submit=True):
@@ -164,9 +177,10 @@ class GenerarQr:
 
       elif opcion == "Leer QR":
                   
-          codigo = dataBookQR2("encargado", acargo)
+          nombre = dataBookQR2("encargado", acargo)
+          codigo = dataBookQR3("encargado", acargo)
             
-          if codigo == acargo:
+          if nombre == acargo:
                         
             generar = st.form_submit_button(" Generar ")
               
@@ -176,12 +190,12 @@ class GenerarQr:
               
                 try: 
                     #os.chdir("generaQR")
-                    file = (f"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/generaQR/img/{codigo}.png") #=  datos
+                    #file = (f"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/generaQR/img/{nombre}.png") #=  datos
                     #print("nombre")
           
-                    leer = read_qr_code(file)
-                    st.success(f' El dato del codigo QR corresponde a : {codigo}')
-                                                        
+                    #leer = read_qr_code(file)
+                    st.success(f' El dato del codigo QR es : {codigo} y corresponde a : {nombre} ')
+                    
                     #os.chdir("..")
                     st.success(f'Codigo QR se leyo exitosamente')
                     st.balloons()
