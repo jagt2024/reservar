@@ -327,9 +327,9 @@ class CrearReserva:
                   
                   st.success('Su solicitud ha sido reservada de forrma exitosa')
                   
-                  if whatsapp == True:
-                    contact = str(57)+telefono
-                    message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                  #if whatsapp == True:
+                  #  contact = str(57)+telefono
+                  #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
                                           
-                    sendMessage(contact, message)
-                    sendMessage(str(57)+str(telefonoencargado), message)
+                  #  sendMessage(contact, message)
+                  #  sendMessage(str(57)+str(telefonoencargado), message)

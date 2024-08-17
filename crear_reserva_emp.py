@@ -107,6 +107,21 @@ def add_hour_and_half(time):
 
 def generate_uid():
     return str(uuid.uuid4())
+  
+def sendMessage(numero, mensaje):
+  url = 'http://localhost:3001/lead'
+  
+  data = {
+    "message": mensaje,
+    "phone": numero 
+  }
+  headers = {
+    'Content-Type': 'application/json'
+  }
+  print(data)
+  response = requests.post(url, json=data, headers=headers)
+  time.sleep(2)
+  return response
 
 class CrearReservaEmp:
   
@@ -283,3 +298,10 @@ class CrearReservaEmp:
                   st.success('Su solicitud ha sido reservada de forrma exitosa')
                   send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  notas)
                   send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas)                    
+
+                  #if whatsapp == True:
+                  #  contact = str(57)+telefono
+                  #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                  #  sendMessage(contact, message)
+                  #  sendMessage(str(57)+str(telefonoencargado), message)

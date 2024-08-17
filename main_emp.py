@@ -8,6 +8,7 @@ from eliminar_reserva_emp import EliminarReservaEmp
 from servicios_emp import ServiciosEmp
 from informacion_emp import InformacionEmp
 from generar_excel_emp import GenerarExcelEmp
+from generaQR.generar_qr import GenerarQr
 import datetime as dt
 from openpyxl import load_workbook
 
@@ -62,6 +63,7 @@ class Model:
   option5 = 'Nuestros Servicios'
   option6 = 'Mas Informacion'
   option7 = 'Generar Archivos'
+  option8 = 'Generar Codigo QR'
     
   #def __init__(self):
   #  self.apps=[]
@@ -153,6 +155,8 @@ else:
           InformacionEmp().view(InformacionEmp.Model())
         if app == model.option7:
           GenerarExcelEmp().view(GenerarExcelEmp.Model())
+        if app == model.option8:
+          GenerarQr().view(GenerarQr.Model())
          
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
