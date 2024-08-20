@@ -153,7 +153,7 @@ class CrearReservaEmp:
       time_zone = 'GMT-05:00' # 'South America'
             
       c1, c2 = st.columns(2)
-      nombre = c1.text_input('Nombre*: ', placeholder='Nombre') # label_visibility='hidden')
+      nombre = c1.text_input('Nombre o Empresa*: ', placeholder='Nombre') # label_visibility='hidden')
       email  = c2.text_input('Email:', placeholder='Email')
       fecha  = c1.date_input('Fecha*: ')
       servicios = c1.selectbox('Servicios*: ', result_serv) 

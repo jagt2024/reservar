@@ -26,7 +26,7 @@ def dataBook(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20241030')
+fecha_hasta = int('20241130')
 #print(f'fecha hasta: {fecha_hasta}')
 
 fecha = dt.datetime.now()
@@ -154,6 +154,7 @@ else:
         st.markdown("---")
         st.text("Version: 0.0.1")
         st.text("Ano: 2024")
+        st.text("Autor: JAGT")
         st.markdown("---")
     
       if sw_persona == ['True']:

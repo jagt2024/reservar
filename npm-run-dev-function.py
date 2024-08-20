@@ -37,7 +37,7 @@ def run_npm_dev():
 # Crear una aplicación Flask para ejecutar la función desde la web
 app = Flask(__name__)
 
-@app.route('./api-whatsapp-ts/run-npm-dev', methods=['GET'])
+@app.route('/api-whatsapp-ts/run-npm-dev', methods=['GET'])
 def web_run_npm_dev():
     success = run_npm_dev()
     return jsonify({"success": success})

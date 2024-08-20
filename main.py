@@ -8,6 +8,7 @@ from eliminar_reserva import EliminarReserva
 from servicios import Servicios
 from informacion import Informacion
 from generar_excel import GenerarExcel
+from consulta_google_drive_excel import ConsultarAgenda
 import datetime as dt
 from openpyxl import load_workbook
 
@@ -25,7 +26,7 @@ def dataBook(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20240830')
+fecha_hasta = int('20241130')
 #print(f'fecha hasta: {fecha_hasta}')
 
 fecha = dt.datetime.now()
@@ -80,6 +81,7 @@ class Model:
   option5 = 'Nuestros Servicios'
   option6 = 'Mas Informacion'
   option7 = 'Generar Archivos'
+  option8 = 'Consultar Agenda'
     
   #def __init__(self):
   #  self.apps=[]
@@ -130,7 +132,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7],
+                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -151,6 +153,7 @@ else:
         st.markdown("---")
         st.text("Version: 0.0.1")
         st.text("Ano: 2024")
+        st.text("Autor: JAGT")
         st.markdown("---")
     
       if sw_persona == ['True']:
@@ -171,6 +174,8 @@ else:
           Informacion().view(Informacion.Model())
         if app == model.option7:
           GenerarExcel().view(GenerarExcel.Model())
+        if app == model.option8:
+          ConsultarAgenda().view(ConsultarAgenda.Model())
   
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')

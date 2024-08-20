@@ -25,7 +25,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20240830')
+fecha_hasta = int('202401130')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -114,7 +114,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7],
+                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -135,6 +135,7 @@ else:
         st.markdown("---")
         st.text("Version: 0.0.1")
         st.text("Ano: 2024")
+        st.text("Autor: JAGT")
         st.markdown("---")
     
       if sw_empresa == ['True']:

@@ -116,11 +116,11 @@ class CrearReserva:
       document='gestion-reservas'
       sheet = 'reservas'
       credentials = st.secrets['sheets']['credentials_sheet']
-      time_zone = 'GMT-05:00' # 'South America'
+      time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
      
       c1, c2 = st.columns(2)
-      nombre = c1.text_input('Nombre entidad o persona*: ', placeholder='Nombre') # label_visibility='hidden')
-      email  = c2.text_input('Email:', placeholder='Email')
+      nombre = c1.text_input('Nombre entidad o Actividad*: ', placeholder='Nombre') # label_visibility='hidden')
+      email  = c2.text_input('Tu Email:', placeholder='Email')
       fecha  = c1.date_input('Fecha*: ')
       servicios = c1.selectbox('Servicio*: ',result_serv)
       notas = c1.text_area('Nota o Mensaje(Opcional)')
