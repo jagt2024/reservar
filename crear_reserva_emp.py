@@ -9,6 +9,8 @@ import datetime as dt
 import re
 import uuid
 from time import ctime
+import requests
+import time
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook

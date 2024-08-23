@@ -1,21 +1,30 @@
+import toml
 import streamlit as st
 import pandas as pd
+from google_sheets import GoogleSheet
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
 # Ruta del archivo de credenciales
-CREDENTIALS_FILE = 'appreservas-origin.json'
+#CREDENTIALS_FILE = 'appreservas-origin.json'
+document='gestion-reservas'
+sheet = 'reservas'
+credentials = st.secrets['sheets']['credentials_sheet']
 
 # Función para obtener los datos de la hoja de cálculo de Google Drive
-def get_google_drive_excel_data(spreadsheet_url):
+def get_google_drive_excel_data(spreadsheet_url, toml_file_path):
     try:
+        # Cargar las credenciales desde el archivo .toml
+        config = toml.load(toml_file_path)
+        cred_dict = config['sheets']['credentials_sheet']
+
+        # Crear las credenciales a partir del diccionario
+        creds = Credentials.from_service_account_info(cred_dict, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])
+
         # Extraer el ID de la hoja de cálculo del URL
         spreadsheet_id = spreadsheet_url.split('/d/')[1].split('/')[0]
 
-        # Cargar las credenciales de la cuenta de servicio
-        creds = Credentials.from_service_account_file(CREDENTIALS_FILE, scopes=['https://www.googleapis.com/auth/drive.readonly'])
-
-        # Crear un servicio de Google Drive
+        # Crear un servicio de Google Sheets
         sheets_service = build('sheets', 'v4', credentials=creds)
 
         # Obtener los valores de la hoja de cálculo
@@ -23,14 +32,15 @@ def get_google_drive_excel_data(spreadsheet_url):
         values = result.get('values', [])
 
         # Convertir los datos a un DataFrame
-        df = pd.DataFrame(values[1:], columns=values[0])
-        return df
-    
-    except Exception as e:
-        if 'invalid_grant' in str(e):
-            st.error("Error de autenticación: Firma JWT no válida. Verifica tus credenciales.")
+        if values:
+            df = pd.DataFrame(values[1:], columns=values[0])
+            return df
         else:
-            st.error(f"Error al obtener los datos: {str(e)}")
+            print("No se encontraron datos en la hoja de cálculo.")
+            return None
+
+    except Exception as e:
+        print(f"Error al obtener los datos: {str(e)}")
         return None
 
 class ConsultarAgenda:
@@ -41,14 +51,16 @@ class ConsultarAgenda:
   def view(self,model):
     st.title(model.pageTitle)
 
+    toml_file_path = './.streamlit/secrets.toml'
     # Configuración de la aplicación Streamlit
     #st.title("Lector de Excel de Google Drive")
 
     # URL de la hoja de cálculo de Google Drive
-    spreadsheet_url = "https://docs.google.com/spreadsheets/d/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM/edit?hl=es&gid=0#gid=0"
+    spreadsheet_url = "https://docs.google.com/spreadsheets/d/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM/edit?hl=es&pli=1&gid=0#gid=0"
+    #"https://docs.google.com/spreadsheets/d/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM/edit?usp=sharing"
 
     # Obtener los datos de la hoja de cálculo
-    data = get_google_drive_excel_data(spreadsheet_url)
+    data = get_google_drive_excel_data(spreadsheet_url,toml_file_path)
 
     if data is not None:
         # Mostrar las columnas disponibles
@@ -79,6 +91,6 @@ class ConsultarAgenda:
         st.download_button(
             label="Descargar resultados como CSV",
             data=csv,
-            file_name="resultados.csv",
+            file_name="resultados_consulta.csv",
             mime="text/csv",
         )

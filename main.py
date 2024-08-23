@@ -8,11 +8,37 @@ from eliminar_reserva import EliminarReserva
 from servicios import Servicios
 from informacion import Informacion
 from generar_excel import GenerarExcel
-from consulta_google_drive_excel import ConsultarAgenda
+from consulta_st_excel import ConsultarAgenda
 import datetime as dt
 from openpyxl import load_workbook
 
 datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
+
+def creds_entered():
+  if st.session_state["user"].strip() == "admin" and st.session_state["passwd"].strip() == "admin1234":
+    st.session_state["authenticated"] = True
+  else:
+    st.session_state["authenticated"] = False
+    if not st.session_state["passwd"]:
+      st.warning("Por favor ingrese el password.")
+    elif not st.session_state["user"]:
+      st.warning("Por favor ingrese el usuario.")
+    else:
+      st.error("Invalido el Username/Password : face_with_raised_eyebrow:")
+      
+def authenticate_user():
+  st.warning('***AUTENTICACION***')
+  if "authenticated" not in st.session_state:
+    st.text_input(label="Username :", value="",key="user", on_change=creds_entered)
+    st.text_input(label="Password :", value="",key="passwd", type="password",on_change=creds_entered)
+    return False
+  else:
+    if st.session_state["authenticated"]:
+      return True
+    else:
+      st.text_input(label="Username :", value="",key="user", on_change=creds_entered)
+      st.text_input(label="Password :", value="",key="passwd", type="password",on_change=creds_entered)
+      return False    
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
@@ -73,50 +99,51 @@ st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   
-  menuTitle = "Reserve y Agende en Linea"
-  option1 = 'Inicio'
-  option2 = 'Crear Reserva'
-  option3 = 'Modificar Reserva'
-  option4 = 'Eliminar Reserva'
-  option5 = 'Nuestros Servicios'
-  option6 = 'Mas Informacion'
-  option7 = 'Generar Archivos'
-  option8 = 'Consultar Agenda'
+    menuTitle = "Reserve y Agende en Linea"
+    option1 = 'Inicio'
+    option2 = 'Crear Reserva'
+    option3 = 'Modificar Reserva'
+    option4 = 'Eliminar Reserva'
+    option5 = 'Nuestros Servicios'
+    option6 = 'Mas Informacion'
+    option7 = 'Generar Archivos'
+    option8 = 'Consultar Agenda'
     
-  #def __init__(self):
-  #  self.apps=[]
+    #def __init__(self):
+    #  self.apps=[]
     
-  def add_app(self,title, function):
+    def add_app(self,title, function):
       self.apps.append({
          "title":title,
          "function":function
        })
       
-  def css_load(css_file):
+    def css_load(css_file):
     
-    #file_path = r"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/style/main.css"
-    #print(file_path)
+      #file_path = r"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/style/main.css"
+      #print(file_path)
 
-    #try:
-    #  if os.path.exists(file_path):
-    #    pass
-        #os.chmod(file_path, 0o666)
-        #print("File permissions modified successfully!")
-    #  else:
-    #    print("File not found:", file_path)
-    #except PermissionError:
-    #  print("Permission denied: You don't have the necessary permissions to change the permissions of this file.")
+      #try:
+      #  if os.path.exists(file_path):
+      #    pass
+          #os.chmod(file_path, 0o666)
+          #print("File permissions modified successfully!")
+      #  else:
+      #    print("File not found:", file_path)
+      #except PermissionError:
+      #  print("Permission denied: You don't have the necessary permissions to change the permissions of this file.")
     
-    try:
-      with open(css_file, "r") as file:
-        st.markdown(f"<style>{file.read()}</style>",unsafe_allow_html=True)
-    except IOError  as e:
-      if "not readable" in str(e):
-        print("Error no readable check mode")
-      else:
-        print(f"IOError {e}")
+      try:
+        with open(css_file, "r") as file:
+          st.markdown(f"<style>{file.read()}</style>",unsafe_allow_html=True)
+      except IOError  as e:
       
-  css_load(r"style/main.css")
+        if "not readable" in str(e):
+          print("Error no readable check mode")
+        else:
+          print(f"IOError {e}")
+      
+    css_load(r"style/main.css")
 
 if fecha_hasta < fecha_hoy:
   
@@ -126,12 +153,14 @@ if fecha_hasta < fecha_hoy:
 
 else:  
 
-  def view(model):
-    try:
+  #if authenticate_user():
+      
+      def view(model):
+        try:
   
-      with st.sidebar:
+          with st.sidebar:
     
-        app = option_menu(model.menuTitle,
+            app = option_menu(model.menuTitle,
                          [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
@@ -149,35 +178,35 @@ else:
                            "nav-lik-selected":{"backgroud-color":"#02ab21"},})
                        #orientation='horizontal')
                        
-      with st.sidebar:
-        st.markdown("---")
-        st.text("Version: 0.0.1")
-        st.text("Ano: 2024")
-        st.text("Autor: JAGT")
-        st.markdown("---")
+          with st.sidebar:
+            st.markdown("---")
+            st.text("Version: 0.0.1")
+            st.text("Ano: 2024")
+            st.text("Autor: JAGT")
+            st.markdown("---")
     
-      if sw_persona == ['True']:
+          if sw_persona == ['True']:
 
-        st.title('***AGENDA PERSONAL***')
+            st.title('***AGENDA PERSONAL***')
 
-        if app == model.option1:
-          Inicio().view(Inicio.Model())
-        if app == model.option2:
-          CrearReserva().view(CrearReserva.Model())
-        if app == model.option3:
-          ModificarReserva().view(ModificarReserva.Model())
-        if app == model.option4:
-          EliminarReserva().view(EliminarReserva.Model())
-        if app == model.option5:
-          Servicios().view(Servicios.Model())
-        if app == model.option6:
-          Informacion().view(Informacion.Model())
-        if app == model.option7:
-          GenerarExcel().view(GenerarExcel.Model())
-        if app == model.option8:
-          ConsultarAgenda().view(ConsultarAgenda.Model())
+            if app == model.option1:
+              Inicio().view(Inicio.Model())
+            if app == model.option2:
+              CrearReserva().view(CrearReserva.Model())
+            if app == model.option3:
+              ModificarReserva().view(ModificarReserva.Model())
+            if app == model.option4:
+              EliminarReserva().view(EliminarReserva.Model())
+            if app == model.option5:
+              Servicios().view(Servicios.Model())
+            if app == model.option6:
+              Informacion().view(Informacion.Model())
+            if app == model.option7:
+              GenerarExcel().view(GenerarExcel.Model())
+            if app == model.option8:
+              ConsultarAgenda().view(ConsultarAgenda.Model())
   
-    except SystemError as err:
-      raise Exception(f'A ocurrido un error en main.py: {err}')
+        except SystemError as err:
+          raise Exception(f'A ocurrido un error en main.py: {err}')
           
-  view(Model())
+      view(Model())
