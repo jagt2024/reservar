@@ -5,10 +5,12 @@ from inicio import Inicio
 from crear_reserva import CrearReserva
 from modificar_reserva import ModificarReserva
 from eliminar_reserva import EliminarReserva
-from servicios import Servicios
-from informacion import Informacion
+from servicios import SocialMediaConsultant
+from informacion import streamlit_app
 from generar_excel import GenerarExcel
 from consulta_st_excel import ConsultarAgenda
+from descargar_agenda import download_and_process_data
+from user_management import user_management_system, logout
 import datetime as dt
 from openpyxl import load_workbook
 
@@ -101,13 +103,14 @@ class Model:
   
     menuTitle = "Reserve y Agende en Linea"
     option1 = 'Inicio'
-    option2 = 'Crear Reserva'
-    option3 = 'Modificar Reserva'
-    option4 = 'Eliminar Reserva'
-    option5 = 'Nuestros Servicios'
-    option6 = 'Mas Informacion'
-    option7 = 'Generar Archivos'
+    option2 = 'Crear Agenda'
+    option9 = 'Descargar Agenda'
     option8 = 'Consultar Agenda'
+    option3 = 'Modificar Agenda'
+    option4 = 'Eliminar Agenda'
+    option5 = 'Redes Sociales'
+    option6 = 'Buscar Informacion'
+    option7 = 'Generar Archivos'
     
     #def __init__(self):
     #  self.apps=[]
@@ -151,17 +154,23 @@ if fecha_hasta < fecha_hoy:
       
    st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
 
-else:  
+else:
 
-  #if authenticate_user():
+  #if user_management_system():
+  
+    #st.success("Sesión iniciada")
+       
+    # Contenido principal de la aplicación
+    #if st.session_state.get('logged_in', False):
       
-      def view(model):
+    def view(model):
+      
         try:
   
           with st.sidebar:
     
             app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
+                         [model.option1, model.option2, model.option9, model.option8, model.option3,model.option4, model.option5, model.option6, model.option7],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -188,25 +197,30 @@ else:
           if sw_persona == ['True']:
 
             st.title('***AGENDA PERSONAL***')
-
+                        
             if app == model.option1:
-              Inicio().view(Inicio.Model())
+               Inicio().view(Inicio.Model())
             if app == model.option2:
-              CrearReserva().view(CrearReserva.Model())
+               CrearReserva().view(CrearReserva.Model())
             if app == model.option3:
-              ModificarReserva().view(ModificarReserva.Model())
+               ModificarReserva().view(ModificarReserva.Model())
             if app == model.option4:
-              EliminarReserva().view(EliminarReserva.Model())
+               EliminarReserva().view(EliminarReserva.Model())
             if app == model.option5:
-              Servicios().view(Servicios.Model())
+               SocialMediaConsultant().render_ui()
             if app == model.option6:
-              Informacion().view(Informacion.Model())
+               streamlit_app()
             if app == model.option7:
-              GenerarExcel().view(GenerarExcel.Model())
+               GenerarExcel().view(GenerarExcel.Model())
             if app == model.option8:
-              ConsultarAgenda().view(ConsultarAgenda.Model())
+               ConsultarAgenda().view(ConsultarAgenda.Model())
+            if app == model.option9:
+               download_and_process_data('./.streamlit/secrets.toml')
   
         except SystemError as err:
           raise Exception(f'A ocurrido un error en main.py: {err}')
           
-      view(Model())
+    view(Model())
+    
+  #else:
+  #    st.write("Por favor, inicie sesión para acceder a la aplicación")

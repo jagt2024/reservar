@@ -6,7 +6,7 @@ import io
 def load_excel(file):
     return pd.read_excel(file)
 
-def get_table_download_link(df, filename="datos_filtrados.csv"):
+def get_table_download_link(df, filename="datos_agenda_filtrados.csv"):
     csv = df.to_csv(index=False)
     b64 = base64.b64encode(csv.encode()).decode()
     href = f'<a href="data:file/csv;base64,{b64}" download="{filename}">Descargar datos filtrados (CSV)</a>'

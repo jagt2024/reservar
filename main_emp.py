@@ -9,6 +9,9 @@ from servicios_emp import ServiciosEmp
 from informacion_emp import InformacionEmp
 from generar_excel_emp import GenerarExcelEmp
 from generaQR.generar_qr import GenerarQr
+from consulta_st_excel import ConsultarAgenda
+from descargar_agenda_abo import download_and_process_data
+from user_management import user_management_system, logout
 import datetime as dt
 from openpyxl import load_workbook
 
@@ -58,12 +61,14 @@ class Model:
   menuTitle = "Reserve y Agende en Linea"
   option1 = 'Inicio'
   option2 = 'Crear Reserva'
-  option3 = 'Modificar Reserva'
-  option4 = 'Eliminar Reserva'
-  option5 = 'Nuestros Servicios'
-  option6 = 'Mas Informacion'
-  option7 = 'Generar Archivos'
-  option8 = 'Generar Codigo QR'
+  option10 = 'Descargar Agenda'
+  option9  = 'Consultar Agenda'
+  option3  = 'Modificar Reserva'
+  option4  = 'Eliminar Reserva'
+  option5  = 'Nuestros Servicios'
+  option6  = 'Mas Informacion'
+  option7  = 'Generar Archivos'
+  option8  = 'Generar Codigo QR'
     
   #def __init__(self):
   #  self.apps=[]
@@ -114,7 +119,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
+                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -158,6 +163,12 @@ else:
           GenerarExcelEmp().view(GenerarExcelEmp.Model())
         if app == model.option8:
           GenerarQr().view(GenerarQr.Model())
+        if app == model.option9:
+             ConsultarAgenda().view(ConsultarAgenda.Model())
+        if app == model.option10:
+           if user_management_system():
+             download_and_process_data('./.streamlit/secrets.toml')
+             logout()
          
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')

@@ -1,0 +1,40 @@
+Date: 31/8/2024
+Time: 12:41
+Phone Number: +573205511091
+Message: Ess una prueba desde la aplicacion
+--------------------
+Date: 31/8/2024
+Time: 13:41
+Phone Number: +573205511091
+Message: Nueva prueba desde programa python
+--------------------
+Date: 1/9/2024
+Time: 7:56
+Phone Number: +57573205511091
+Message: Necesito comprar una pintura
+--------------------
+Date: 1/9/2024
+Time: 7:57
+Phone Number: +57573205511091
+Message: Necesito comprar una pintura
+--------------------
+Date: 1/9/2024
+Time: 8:24
+Phone Number: +573205511091
+Message: Necesito comprar una pintura
+--------------------
+Date: 1/9/2024
+Time: 9:7
+Phone Number: +573205511091
+Message: Necesito comprar una pintura
+--------------------
+Date: 2/9/2024
+Time: 8:9
+Phone Number: +573205511091
+Message: prueba de envio de mensaje personal
+--------------------
+Date: 2/9/2024
+Time: 10:36
+Phone Number: +573205511091
+Message: Necesito comprar una pintura
+--------------------

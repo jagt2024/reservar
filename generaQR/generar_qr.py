@@ -136,39 +136,43 @@ class GenerarQr:
                 st.warning(f'se presento un  Errror {err} ')
                 raise Exception(f'A ocurrido un error en genera CodigoQR: {err}')
 
-      elif opcion == "Generar uno Especifico":
-
+      elif opcion == "Generar Uno Especifico":
+                 
          generar = st.form_submit_button(" Generar ")
   
          if generar:   
-            with st.spinner('Cargando...'):
-              try:   
-                os.chdir("generaQR")
-                encargado = dataBookServicio("encargado")
-                cedula = encargado[0][3]
-                nombre = encargado[0][0]
-                telefono = encargado[0][2]
-                codigoqr = encargado[0][4]
-                
-                nombre = dataBookQR2("encargado", acargo )
-   
-                if codigoqr[0][4] != "Generado":
-                    #os.chdir("./generaQR")
-                    img = qrcode.make(codigoqr)
-                    img.save(f"img/{nombre}.png")
-      
-                    ws2 = acargo
-                    ws2[0][4] = "Generado"
-      
-                #datos_book.save("./archivos/parametros_abogados.xlsx")
-                
-                os.chdir("..")
-                st.success('Archivo generado exitosamente')
-                st.balloons()
+             with st.spinner('Cargando...'):
+               try:   
+                 os.chdir("generaQR")
                  
-              except HttpError as err:
-                st.warning(f'se presento un  Errror {err} ')
-                raise Exception(f'A ocurrido un error en genera CodigoQR: {err}')
+                 #nombre = dataBookQR2("encargado", acargo)
+                 encargado = dataBookServicio("encargado")
+                 
+                 for i in range(len(encargado)):
+                 
+                    cod_proveedor = encargado[i][3]
+                    nombre_proveedor = encargado[i][0]
+                    telefono = encargado[i][2]
+                    codigoqr = encargado[i][4]
+         
+                    if nombre_proveedor == acargo:           
+                      #os.chdir("./generaQR")
+                      img = qrcode.make(cod_proveedor)
+                      img.save(f"img/{nombre_proveedor}.png")
+                  
+                      #os.chdir("./generaQR")
+                      img = qrcode.make(codigoqr)
+                      img.save(f"img/{nombre_proveedor}.png")
+          
+                      #datos_book.save("./archivos/parametros_abogados.xlsx")
+                
+                 os.chdir("..")
+                 st.success('Archivo generado exitosamente')
+                 st.balloons()
+                 
+               except HttpError as err:
+                 st.warning(f'se presento un  Errror {err} ')
+                 raise Exception(f'A ocurrido un error en genera CodigoQR: {err}')
 
       elif opcion == "Leer QR":
                   
