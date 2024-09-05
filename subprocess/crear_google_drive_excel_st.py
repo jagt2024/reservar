@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import toml
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
@@ -9,16 +10,24 @@ from google_auth_oauthlib.flow import Flow
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/spreadsheets']
 
 @st.cache_resource
+def load_config():
+    with open('./.sreamlit/secrets.toml', 'r') as f:
+        return toml.load(f)
+
+@st.cache_resource
 def get_google_auth():
+    config = load_config()
     creds = None
     if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        creds = Credentials.from_authorized_user_file('../token.json', SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = Flow.from_client_secrets_file(
-                'credentials.json', SCOPES, redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+            flow = Flow.from_client_config(
+                config['google_credentials'],
+                SCOPES,
+                redirect_uri='urn:ietf:wg:oauth:2.0:oob')
             auth_url, _ = flow.authorization_url(prompt='consent')
             st.write("Please visit this URL to authorize the application:")
             st.write(auth_url)
@@ -26,7 +35,7 @@ def get_google_auth():
             if code:
                 flow.fetch_token(code=code)
                 creds = flow.credentials
-                with open('token.json', 'w') as token:
+                with open('../token.json', 'w') as token:
                     token.write(creds.to_json())
     return creds
 

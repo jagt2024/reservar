@@ -9,7 +9,7 @@ class InicioEmp:
   
   class Model:
     
-    pageTitle ='***Genere sus Reservas en Linea y Programe su Agenda***'
+    pageTitle = ('***BARBERIA STYLOS***')
 
     #text_column, animation_column = st.columns(2)
   
@@ -36,6 +36,7 @@ class InicioEmp:
     image = st.image("assets/barberia1.webp")
     st.write(
         """
+          ***Genere sus Reservas en Linea y Programe su Agenda***
           Direcion:            
           Ciudad:              
           Celular:             

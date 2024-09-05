@@ -5,11 +5,11 @@ class SocialMediaConsultant:
       
   def __init__(self):
       self.social_media = {
-            "Facebook": {"url": "https://facebook.com", "icon": "📘"},
-            "Twitter": {"url": "https://twitter.com", "icon": "🐦"},
-            "Instagram": {"url": "https://instagram.com", "icon": "📷"},
-            "LinkedIn": {"url": "https://linkedin.com", "icon": "💼"},
-            "YouTube": {"url": "https://youtube.com", "icon": "▶️"}
+            "Facebook": {"url": "https://web.facebook.com/?_rdc=1&_rdr", "icon": "📘"},
+            "Equis": {"url": "https://x.com/xmetaofficial", "icon": " X "},
+            "Instagram": {"url": "https://www.instagram.com/", "icon": "📷"},
+            "LinkedIn": {"url": "https://co.linkedin.com/", "icon": "💼"},
+            "YouTube": {"url": "https://www.youtube.com/?app=desktop&hl=es", "icon": "▶️"}
         } 
 
   class Model:
@@ -43,11 +43,11 @@ class SocialMediaConsultant:
 
   def search_social_media(self, platform, term):
         search_urls = {
-            "Facebook": f"https://www.facebook.com/search/top/?q={term}",
-            "Twitter": f"https://twitter.com/search?q={term}",
-            "Instagram": f"https://www.instagram.com/explore/tags/{term}/",
-            "LinkedIn": f"https://www.linkedin.com/search/results/all/?keywords={term}",
-            "YouTube": f"https://www.youtube.com/results?search_query={term}"
+            "Facebook": f"https://web.facebook.com/?_rdc=1&_rdr={term}",
+            "Equis": f"https://x.com/xmetaofficial={term}",
+            "Instagram": f"https://www.instagram.com/={term}/",
+            "LinkedIn": f"https://co.linkedin.com/={term}",
+            "YouTube": f"https://www.youtube.com/?app=desktop&hl=es={term}"
         }
         if platform in search_urls:
             webbrowser.open_new_tab(search_urls[platform])

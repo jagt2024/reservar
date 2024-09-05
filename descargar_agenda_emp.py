@@ -5,41 +5,11 @@ import pandas as pd
 import os
 import toml
 import base64
-from googleapiclient.errors import HttpError
-from googleapiclient.http import MediaIoBaseDownload
-import datetime
-import time
-import io
-
-os.environ["REQUESTS_CONNECT_TIMEOUT"] = "30"
-os.environ["REQUESTS_READ_TIMEOUT"] = "30"
-
-def download_file(service, file_id, max_retries=5):
-    for attempt in range(max_retries):
-        try:
-            request = service.files().get_media(fileId=file_id)
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, request)
-            done = False
-            while done is False:
-                status, done = downloader.next_chunk()
-            return fh.getvalue()
-        except HttpError as error:
-            if error.resp.status in [403, 500, 503]:
-                time.sleep(5 * (attempt + 1))  # Espera exponencial
-            else:
-                raise
-    raise Exception(f"Failed to download after {max_retries} attempts")
-
-def filter_data_by_last_days(df, num_days=8):
-    today = pd.Timestamp.today().date()
-    start_date = today - pd.Timedelta(days=num_days-1)
-    return df[df['FECHA'].dt.date >= start_date]
 
 def load_credentials_from_toml(file_path):
     with open(file_path, 'r') as toml_file:
         config = toml.load(toml_file)
-        credentials = config['sheets']['credentials_sheet']
+        credentials = config['sheetsemp']['credentials_sheet']
     return credentials
     #config['credentials_sheet']
 
@@ -48,14 +18,11 @@ def get_google_sheet_data(creds):
     credentials = Credentials.from_service_account_info(creds, scopes=scope)
     client = gspread.authorize(credentials)
 
-    sheet_url = 'https://docs.google.com/spreadsheets/d/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM/edit?hl=es&pli=1&gid=0#gid=0'
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU/edit?pli=1&gid=0#gid=0'
     sheet = client.open_by_url(sheet_url)
     worksheet = sheet.worksheet('reservas')
     data = worksheet.get_all_values()
     df = pd.DataFrame(data[1:], columns=data[0])
-    
-    # Asegúrate de que la columna 'fecha' esté correctamente formateada
-    df['FECHA'] = pd.to_datetime(df['FECHA'])
     return df
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
@@ -72,9 +39,8 @@ def process_and_display_data(df):
 
     #st.write("Últimos 5 registros de la hoja:")
     #st.dataframe(df.tail())
-    df = filter_data_by_last_days(df)
 
-    temp_file_path = "./archivos/temp_gestion-reservas.xlsx"
+    temp_file_path = "./archivos/temp_gestion-reservas-emp.xlsx"
     df.to_excel(temp_file_path, index=False)
     
     #st.markdown(get_binary_file_downloader_html(temp_file_path, 'Excel'), #unsafe_allow_html=True)
@@ -89,6 +55,7 @@ def process_and_display_data(df):
 
 def download_and_process_data(creds_path):
     try:
+        #creds = load_credentials_from_toml('./.streamlit/secrets.toml')
         creds = load_credentials_from_toml(creds_path)
         st.success("Credenciales cargadas correctamente")
     except Exception as e:
@@ -98,8 +65,9 @@ def download_and_process_data(creds_path):
     try:
         with st.spinner('Descargando datos...'):
             df = get_google_sheet_data(creds)
-        st.success('Datos descargados correctamente! en /archivos/temp_gestion-reservas.xlsx')
+        st.success('Datos descargados correctamente! en /archivos/temp_gestion-reservas-emp.xlsx')
         process_and_display_data(df)
+ 
     except Exception as e:
         st.error(f"Error al procesar los datos: {str(e)}")
 

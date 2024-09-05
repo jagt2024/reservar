@@ -10,10 +10,23 @@ from informacion_emp import InformacionEmp
 from generar_excel_emp import GenerarExcelEmp
 from generaQR.generar_qr import GenerarQr
 from consulta_st_excel import ConsultarAgenda
-from descargar_agenda_abo import download_and_process_data
+from descargar_agenda_emp import download_and_process_data
 from user_management import user_management_system, logout
 import datetime as dt
 from openpyxl import load_workbook
+import os
+from datetime import date
+import datetime
+import time
+import pytz
+import toml
+
+# Cargar configuraciones desde config.toml
+with open("./.streamlit/config.toml", "r") as f:
+    config = toml.load(f)
+
+os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
+os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
 datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
@@ -135,7 +148,56 @@ else:
                            "nav-lik":{"color":"white","font-size":"20px","text-aling":"left", "margin":"0px"},
                            "nav-lik-selected":{"backgroud-color":"#02ab21"},})
                        #orientation='horizontal')
-                       
+      st.markdown(f"""
+      <style>
+            @import url('https://fonts.googleapis.com/css2?family={config['fonts']['clock_font']}:wght@400;500&display=swap');
+            .clock {{
+              font-family: '{config['fonts']['clock_font']}', sans-serif;
+              font-size: {config['font_sizes']['clock_font_size']};
+              color: {config['colors']['clock_color']};
+              text-shadow: 0 0 10px rgba(255,255,0,0.7);
+              margin-top: {config['layout']['top_margin']};
+              margin-bottom: {config['layout']['bottom_margin']};
+            }}
+            .calendar {{
+              font-family: '{config['fonts']['calendar_font']}', sans-serif;
+              font-size: {config['font_sizes']['calendar_font_size']};
+              color: {config['colors']['calendar_color']};
+              margin-top: {config['layout']['top_margin']};
+              margin-bottom: {config['layout']['bottom_margin']};
+            }}
+      </style>
+      """, unsafe_allow_html=True)
+
+      # Crear columnas para el diseño
+      col1, col2 = st.columns(2)
+
+      # Columna 1: Reloj Digital
+      with col1:
+        #st.header("Reloj Digital")
+        clock_placeholder = st.empty()
+
+        # Columna 2: Calendario
+      with col2:
+        #st.header("Calendario")
+        calendar_placeholder = st.empty()
+          
+      def update_clock_and_calendar():
+         while True:
+              now = datetime.datetime.now(pytz.timezone('America/Bogota'))
+              clock_placeholder.markdown(f'<p class="clock">Hora: {now.strftime("%H:%M:%S")}</p>', unsafe_allow_html=True)
+
+              today = date.today()
+              meses_es = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+              mes_es = meses_es[today.month - 1]
+              dias_es = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+              dia_es = dias_es[today.weekday()]
+        
+              calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
+        
+              time.sleep(5)
+              #st.experimental_rerun()      
+
       with st.sidebar:
         st.markdown("---")
         st.text("Version: 0.0.1")
@@ -145,7 +207,7 @@ else:
     
       if sw_empresa == ['True']:
       
-        st.title('***BARBERIA STYLOS***')
+        #st.title('***BARBERIA STYLOS***')
       
         if app == model.option1:
           InicioEmp().view(InicioEmp.Model())
@@ -172,5 +234,8 @@ else:
          
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
-          
+    
+    
+    update_clock_and_calendar()
+
   view(Model())

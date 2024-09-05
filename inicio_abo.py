@@ -9,8 +9,8 @@ class Inicio:
   
   class Model:
     
-    pageTitle ='***Genere y Programe su Agenda***'
-
+    pageTitle = ('***BUFETE ABOGADOS***')
+    
     #text_column, animation_column = st.columns(2)
   
     #url= "https://lottiefiles.com/animations/japan-rocket-lottie-json-animation-R0uHPn4UFa?from=search"
@@ -36,10 +36,4 @@ class Inicio:
     image = Image.open("assets/despacho-abogados.jpg")
     st.image(image)
     #image = st.image("assets/barberia.png") #("assets/barberia1.webp")
-    st.write(
-        """
-          Direcion:            
-          Ciudad:              
-          Celular:             
-          Email:            
-        """)
+    st.write('***Genere y Programe su Agenda***')

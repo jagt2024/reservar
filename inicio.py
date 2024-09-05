@@ -9,7 +9,7 @@ class Inicio:
   
   class Model:
     
-    pageTitle ='***Genere sus Reservas en Linea y Programe su Agenda***'
+    pageTitle =('***AGENDA PERSONAL***')
 
     #text_column, animation_column = st.columns(2)
   
@@ -36,10 +36,4 @@ class Inicio:
     image = Image.open("assets/pexels-moments.jpg")
     st.image(image)
     #image = st.image("assets/barberia.png") #("assets/barberia1.webp")
-    st.write(
-        """
-          Direcion:            
-          Ciudad:              
-          Celular:             
-          Email:            
-        """)
+    st.write('***Programe su Agenda (Diariamente, Semanalmente o por mas tiempo)***')

@@ -11,6 +11,7 @@ import uuid
 from time import ctime
 import requests
 import time
+import os 
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
@@ -24,6 +25,9 @@ from openpyxl import load_workbook
 #with open('datos.txt', 'a+') as f:
 #  f.write(str(ctime(response.tx_time)) + '\n')
 #f.close()
+
+os.environ["REQUESTS_CONNECT_TIMEOUT"] = "60"
+os.environ["REQUESTS_READ_TIMEOUT"] = "60"
 
 datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
