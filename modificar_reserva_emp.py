@@ -138,7 +138,7 @@ class ModificarReservaEmp:
         fecha  = a1.date_input('Fecha*: ')
         servicios = a1.selectbox('Servicios', result_serv)
         
-        precio = dataBookPrecio("servicio", servicio)
+        precio = dataBookPrecio("servicio", servicios)
         result_precio = np.setdiff1d(precio,'')
                         
         encargado = a2.selectbox('Encargado',result_est)

@@ -90,7 +90,7 @@ def add_hour_and_half(time):
   new_time = (dt.datetime.combine(dt.date.today(), parsed_time) + dt.timedelta(hours=1, minutes=0)).time()
   return new_time.strftime("%H:%M")
 
-class ModificarReserva:
+class ModificarReservaAbo:
   
   class Model:
     pageTitle = "***Modificar Reserva***"
@@ -143,28 +143,30 @@ class ModificarReserva:
       #hora_ant = c2.selectbox('Hora Agendada: ',horas)
       result_hours_ant = np.setdiff1d(horas, "00:00") 
       hora_ant = c2.selectbox('Hora Ant: ',result_hours_ant)
-      email  = c1.text_input('Email Empresa o Personal*:', placeholder='Email')
+      #email  = c1.text_input('Email Empresa o Personal*:', placeholder='Email')
 
       with st.container():
         st.write("---")
         st.subheader('Ingrese los datos para la Nueva Agenda')
       
         a1, a2 = st.columns(2)
-          
-        nombre = c1.text_input('Numero del Proceso*: ', placeholder='Numero Proceso') # label_visibility='hidden')
-        estados = c2.selectbox('Estado*: ',result_estado)
-        servicios = c1.selectbox('Servicio Juridico*: ',result_serv)
-        partes = c2.selectbox('Partes Procesales', result_partes)
-        jurisdicciones = c1.selectbox('Jurisdiccion*: ',result_juris)
-        fecha  = c2.date_input('Fecha Agenda*: ')
-        email  = c1.text_input('Email Empresa o Personal:', placeholder='Email')
         
-        idcalendarserv = dataBookServicioId("servicio", servicios)
-        #print(f'idcalendarserv = {idcalendarserv}')
-        result_id = np.setdiff1d(idcalendarserv,'')
-  
-        #idcalendar = "josegarjagt@gmail.com"
-                 
+        st.write("---")
+
+        nombre = a1.text_input('Numero del Proceso*: ', placeholder='Numero Proceso') # label_visibility='hidden')
+        estados = a2.selectbox('Estado*: ',result_estado)
+        servicios = a1.selectbox('Servicio Juridico*: ',result_serv)
+        partes = a2.selectbox('Partes Procesales', result_partes)
+        jurisdicciones = a1.selectbox('Jurisdiccion*: ',result_juris)
+        fecha  = a2.date_input('Fecha Agenda*: ')
+        email  = a1.text_input('Email Empresa o Personal:', placeholder='Email')
+          
+        encargado = a1.selectbox('Abogado Encargado:',result_estil)
+        #hora = c2.selectbox('Hora: ',horas)
+            
+        emailencargado = dataBookEncEmail("encargado",encargado)
+        result_email = np.setdiff1d(emailencargado,'X')
+
         if fecha:
           id = ""
           if servicios == servicio:
@@ -172,24 +174,21 @@ class ModificarReserva:
          
         calendar = GoogleCalendar(id) #credentials, idcalendar
            
-        encargado = c1.selectbox('Abogado Encargado:',result_estil)
-        #hora = c2.selectbox('Hora: ',horas)
-            
-        emailencargado = dataBookEncEmail("encargado",encargado)
-        result_email = np.setdiff1d(emailencargado,'X')
-           
         hours_blocked = calendar.list_upcoming_events()
         result_hours = np.setdiff1d(horas, hours_blocked) 
-        hora = c2.selectbox('Hora: ',result_hours)
-        acciones = c2.text_area('Accion o Medio Control (Opcional)')
-        hechos = c1.text_area('Hechos (Opcional)')
-        causas = c2.text_area('Causas (Opcional)')
+        hora = a2.selectbox('Hora: ',result_hours)
+        acciones = a2.text_area('Accion o Medio Control (Opcional)')
+        hechos = a1.text_area('Hechos (Opcional)')
+        causas = a2.text_area('Causas (Opcional)')
         precio = dataBookPrecio("servicio", servicios)
-      
-        st.write("---")
-        whatsapp = a2.checkbox('Envio a WhatsApp Si/No')
-        telefono = a2.text_input('Nro. Telefono')
+        whatsapp = a1.checkbox('Envio a WhatsApp Si/No')
+        telefono = a1.text_input('Nro. Telefono')
 
+        #idcalendar = "josegarjagt@gmail.com"
+        idcalendarserv = dataBookServicioId("servicio", servicios)
+        #print(f'idcalendarserv = {idcalendarserv}')
+        result_id = np.setdiff1d(idcalendarserv,'')
+                       
         actualizar = st.form_submit_button('Actualizar')
 
         if actualizar:
@@ -234,8 +233,9 @@ class ModificarReserva:
                 serv = [row[4]]
                 fech = str(row[2])
                 hora2 = str(row[3])
-                nota = [row[6]]
-                uid1 = str(row[8])
+                encargado = [row[6]]
+                nota = [row[8]]
+                uid1 = str(row[11])
 
                 if nom != ['DATA']:
               
@@ -249,7 +249,7 @@ class ModificarReserva:
               
                   #print(f'Esto es elregistro anterior fech1 {fech1}, hora3 {hora3}, horaini {fechahora_ini}, hora calendar {horacalendarint}, nota{nota}')
                             
-                  if nom == [nombre] and fech1 == fechacalendarint and serv == [servicio_ant] and fechahora_ini == horacalendarint and nota != ["Agenda Cancelada"]: 
+                  if nom == [nombre] and fech1 == fechacalendarint and serv == [servicio_ant] and fechahora_ini == horacalendarint and encargado == [encargado_ant] and nota != ["Agenda Cancelada"]: 
                 
                     fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
                     #print(f'Esto es fech2 {fech2}')

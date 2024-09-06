@@ -3,7 +3,7 @@ from streamlit_option_menu import option_menu
 import numpy as np
 from inicio_abo import Inicio
 from crear_reserva_abo import CrearReserva
-from modificar_reserva_abo import ModificarReserva
+from modificar_reserva_abo import ModificarReservaAbo
 from eliminar_reserva_abo import EliminarReserva
 from servicios_abo import Servicios
 from informacion_abo import Informacion
@@ -21,6 +21,7 @@ import datetime
 import time
 import pytz
 import toml
+from PIL import Image
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -28,6 +29,8 @@ with open("./.streamlit/config.toml", "r") as f:
 
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
+
+logo = Image.open("./assets/logoJAGT.ico")
 
 datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
 
@@ -191,15 +194,18 @@ else:
       """, unsafe_allow_html=True)
 
       # Crear columnas para el diseño
-      col1, col2 = st.columns(2)
+      col1, col2, col3 = st.columns(3)
 
       # Columna 1: Reloj Digital
       with col1:
         #st.header("Reloj Digital")
         clock_placeholder = st.empty()
 
+       with col2:
+            st.image(logo, width=150)  # Ajusta el ancho según sea necesario
+            
         # Columna 2: Calendario
-      with col2:
+      with col3:
         #st.header("Calendario")
         calendar_placeholder = st.empty()
           
@@ -235,7 +241,7 @@ else:
         if app == model.option2:
           CrearReserva().view(CrearReserva.Model())
         if app == model.option3:
-          ModificarReserva().view(ModificarReserva.Model())
+          ModificarReservaAbo().view(ModificarReservaAbo.Model())
         if app == model.option4:
           EliminarReserva().view(EliminarReserva.Model())
         if app == model.option5:

@@ -25,4 +25,4 @@ calendar_color = "white"
 temperature_color = "white"
 
 [update]
-clock_update_interval = 5
+clock_update_interval = 1
