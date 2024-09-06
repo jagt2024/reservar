@@ -12,6 +12,7 @@ from generaQR.generar_qr import GenerarQr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_abo import download_and_process_data
 from user_management import user_management_system, logout
+from buscar_info import streamlit_app
 import datetime as dt
 from openpyxl import load_workbook
 from calendar import month_name
@@ -104,8 +105,8 @@ class Model:
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
   option8  = 'Generar Codigo QR'
+  option11 = 'Buscar Informacion'
   
-    
   #def __init__(self):
   #  self.apps=[]
     
@@ -155,7 +156,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8],
+                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8, model.option11],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -258,6 +259,8 @@ else:
            if user_management_system():
              download_and_process_data('./.streamlit/secrets.toml')
              logout()
+        if app == model.option11:
+               streamlit_app()
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
     # Iniciar la actualización del reloj y calendario
