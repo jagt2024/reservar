@@ -180,8 +180,8 @@ else:
         #st.header("Reloj Digital")
         clock_placeholder = st.empty()
         
-       with col2:
-            st.image(logo, width=150)  # Ajusta el ancho según sea necesario
+      with col2:
+        st.image(logo, width=150)  # Ajusta el ancho según sea necesario
 
         # Columna 2: Calendario
       with col3:
