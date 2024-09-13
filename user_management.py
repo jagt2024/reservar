@@ -1,5 +1,3 @@
-# user_management.py
-
 import streamlit as st
 import sqlite3
 import hashlib
@@ -37,11 +35,21 @@ def check_credentials(username, password):
     return result[0] if result else None
 
 def login():
+    st.write("Por favor, inicie sesión para acceder a la aplicación")
     st.subheader("Inicio de Sesión")
-    with st.form("login_form"):
-        username = st.text_input("Nombre de usuario")
-        password = st.text_input("Contraseña", type="password")
-        submit_button = st.form_submit_button("Iniciar Sesión")
+
+    col1, col2 = st.columns([3, 1])
+
+    with col1:
+        with st.form("login_form"):
+            username = st.text_input("Nombre de usuario", key="login_username")
+            password = st.text_input("Contraseña", type="password", key="login_password")
+            submit_button = st.form_submit_button("Iniciar Sesión")
+
+    with col2:
+        if st.button("Cerrar Sesión", key="logout"):
+            logout()
+            st.rerun()
 
     if submit_button:
         role = check_credentials(username, password)
@@ -51,7 +59,6 @@ def login():
             st.session_state['username'] = username
             st.session_state['role'] = role
             return True
-        
         else:
             st.error("Nombre de usuario o contraseña incorrectos")
     return False
@@ -60,49 +67,51 @@ def signup():
     st.subheader("Registro de Usuario")
     if st.session_state.get('role') == 'admin':
         with st.form("signup_form"):
-            new_username = st.text_input("Nuevo nombre de usuario")
-            new_password = st.text_input("Nueva contraseña", type="password")
+            new_username = st.text_input("Nuevo nombre de usuario", key="signup_username")
+            new_password = st.text_input("Nueva contraseña", type="password", key="signup_password")
             new_role = st.selectbox("Rol", ["user", "admin"])
             submit_button = st.form_submit_button("Registrarse")
 
         if submit_button:
             if new_username and new_password:
                 add_user(new_username, new_password, new_role)
-                st.success("Usuario registrado con éxito.")                
-                
+                st.success("Usuario registrado con éxito.")            
+                st.session_state.signup_username = ""
+                st.session_state.signup_password = ""
             else:
                 st.error("Por favor, introduzca un nombre de usuario y una contraseña.")
     else:
         st.error("Solo los administradores pueden registrar nuevos usuarios.")
 
 def logout():
+    if 'login_username' in st.session_state:
+        del st.session_state.login_username
+    if 'login_password' in st.session_state:
+        del st.session_state.login_password
     st.session_state['logged_in'] = False
     st.session_state.pop('username', None)
     st.session_state.pop('role', None)
 
 def user_management_system():
     init_db()
+    
     if 'logged_in' not in st.session_state:
         st.session_state['logged_in'] = False
 
     if not st.session_state['logged_in']:
         return login()
     else:
-    #    st.write(f"Bienvenido, {st.session_state['username']}!")
-    #    if st.button("Cerrar Sesión", key="logout"):
-    #        logout()
-    #        st.experimental_rerun()
-    #    
+        st.write(f"Bienvenido, {st.session_state['username']}!")
         if st.session_state.get('role') == 'admin':
             st.markdown("---")
             signup()
         
-        return True
+    return True
 
 # Ejemplo de uso en la aplicación principal:
 #if __name__ == "__main__":
 #    if user_management_system():
 #        st.write("Acceso concedido a la aplicación principal")
-        # Aquí iría el código de tu aplicación principal
+#        # Aquí iría el código de tu aplicación principal
 #    else:
 #        st.write("Por favor, inicie sesión para acceder a la aplicación")

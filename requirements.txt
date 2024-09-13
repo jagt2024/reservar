@@ -13,5 +13,7 @@ Requests==2.32.3
 streamlit==1.38.0
 streamlit_lottie==0.0.5
 streamlit_option_menu==0.3.12
+reportlab ==4.2.2
 bs4
 pyzbar
+plotly

@@ -261,7 +261,7 @@ else:
         
               calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
         
-              time.sleep(5)
+              time.sleep(1)
               #st.experimental_rerun()
                                  
           with st.sidebar:

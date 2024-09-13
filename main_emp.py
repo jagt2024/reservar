@@ -13,6 +13,9 @@ from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
 from user_management import user_management_system, logout
 from buscar_info import streamlit_app
+from facturacion_servicios_emp import generar_factura
+from estadisticas_reservas_emp import main_reservas
+from estadisticas_facturacion import main_factura
 import datetime as dt
 from openpyxl import load_workbook
 import os
@@ -87,6 +90,10 @@ class Model:
   option7  = 'Generar Archivos'
   option8  = 'Generar Codigo QR'
   option11 = 'Buscar Informacion'
+  option12 = 'Facturacion'
+  option13 = 'Estadisticas de Resservas'
+  option14 = 'Estadisticas de Facturacion'
+  
     
   #def __init__(self):
   #  self.apps=[]
@@ -137,7 +144,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11],
+                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option12, model.option13, model.option14],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -238,10 +245,22 @@ else:
         if app == model.option10:
            if user_management_system():
              download_and_process_data('./.streamlit/secrets.toml')
-             logout()
+             
         if app == model.option11:
            streamlit_app()
-         
+        if app == model.option12:
+           if user_management_system():
+              generar_factura()
+              
+        if app == model.option13:
+           if user_management_system():  
+              main_reservas()
+              
+        if app == model.option14:
+           if user_management_system():
+              main_factura()
+              
+             
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main.py: {err}')
     
