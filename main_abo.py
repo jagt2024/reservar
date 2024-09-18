@@ -41,7 +41,7 @@ logging.basicConfig(level=logging.DEBUG, filename='main_abo.log', filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # En diferentes partes de tu código:
-logging.debug('Entrando en función X')
+#logging.debug('Entrando en función X')
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -251,8 +251,7 @@ else:
               calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
         
               time.sleep(5)
-              #st.experimental_rerun() 
-    
+              #st.experimental_rerun()   
 
       with st.sidebar:
         st.markdown("---")
@@ -302,7 +301,7 @@ else:
         if app == model.option11:
                streamlit_app()
                
-        logging.info('Estado actual: %s', app)
+        #logging.info('Estado actual: %s', app)
 
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main_abo.py: {err}')

@@ -40,7 +40,7 @@ logging.basicConfig(level=logging.DEBUG, filename='main_emp.log', filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # En diferentes partes de tu código:
-logging.debug('Entrando en función X')
+#logging.debug('Entrando en función X')
 
 
 def clear_session_state():

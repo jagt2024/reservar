@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.DEBUG, filename='main.log', filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # En diferentes partes de tu código:
-logging.debug('Entrando en función X')
+#logging.debug('Entrando en función X')
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -54,32 +54,6 @@ datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
 def clear_session_state():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
-
-def creds_entered():
-  if st.session_state["user"].strip() == "admin" and st.session_state["passwd"].strip() == "admin1234":
-    st.session_state["authenticated"] = True
-  else:
-    st.session_state["authenticated"] = False
-    if not st.session_state["passwd"]:
-      st.warning("Por favor ingrese el password.")
-    elif not st.session_state["user"]:
-      st.warning("Por favor ingrese el usuario.")
-    else:
-      st.error("Invalido el Username/Password : face_with_raised_eyebrow:")
-      
-def authenticate_user():
-  st.warning('***AUTENTICACION***')
-  if "authenticated" not in st.session_state:
-    st.text_input(label="Username :", value="",key="user", on_change=creds_entered)
-    st.text_input(label="Password :", value="",key="passwd", type="password",on_change=creds_entered)
-    return False
-  else:
-    if st.session_state["authenticated"]:
-      return True
-    else:
-      st.text_input(label="Username :", value="",key="user", on_change=creds_entered)
-      st.text_input(label="Password :", value="",key="passwd", type="password",on_change=creds_entered)
-      return False    
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
@@ -320,7 +294,7 @@ else:
             if app == model.option9:
                download_and_process_data('./.streamlit/secrets.toml')
                
-            logging.info('Estado actual: %s', app)
+            #logging.info('Estado actual: %s', app)
   
         except SystemError as err:
           raise Exception(f'A ocurrido un error en main.py: {err}')
