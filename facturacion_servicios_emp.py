@@ -11,7 +11,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
-from user_management import logout 
+#from user_management import logout 
 import os
 import sqlite3
 import json
@@ -304,7 +304,6 @@ def generar_factura():
     
     # Limpiar campos después de generar y descargar la factura
     st.button("Limpiar campos y generar nueva factura", on_click=limpiar_campos)
-    logout()
 
 #if __name__ == "__main__":
 #    generar_factura()

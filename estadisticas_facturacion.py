@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 import json
 from datetime import datetime
-from user_management import logout 
+#from user_management import logout 
 
 # Función para conectar a la base de datos
 def get_db_connection():
@@ -86,7 +86,7 @@ def main_factura():
     service_summary['Ingresos Totales'] = service_summary['Ingresos Totales'].apply(lambda x: f"${x:,.2f}")
     service_summary['Precio Promedio'] = service_summary['Precio Promedio'].apply(lambda x: f"${x:,.2f}")
     st.dataframe(service_summary)
-    logout()
+    
 
 #if __name__ == "__main__":
 #    main()

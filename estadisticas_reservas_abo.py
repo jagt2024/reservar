@@ -6,22 +6,37 @@ import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 import toml
+from openpyxl import load_workbook
 
 # secrets = toml.load('./.stream/secrets.toml')
+datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
+
+# secrets = toml.load('./.stream/secrets.toml')
+def dataBookSheetUrl(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in range(1,ws1.max_row):
+      _row=[]
+      for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row)
+      url = _row[1]
+    return url
 
 def load_credentials():
     with open('./.streamlit/secrets.toml', 'r') as toml_file:
         config = toml.load(toml_file)
         creds = config['sheetsemp']['credentials_sheet']
     return creds
-    
+
+sheetUrl = dataBookSheetUrl("sw")    
 
 def get_google_sheet_data(creds):
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     credentials = Credentials.from_service_account_info(creds, scopes=scope)
     client = gspread.authorize(credentials)
 
-    sheet_url = 'https://docs.google.com/spreadsheets/d/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4/edit?gid=0#gid=0'
+    sheet_url = str(sheetUrl)
     sheet = client.open_by_url(sheet_url)
     worksheet = sheet.worksheet('reservas')
     data = worksheet.get_all_values()
@@ -128,5 +143,5 @@ def main():
         st.error(f"Se produjo un error al cargar o procesar los datos: {str(e)}")
         st.error("Por favor, verifique sus credenciales y la conexión a Internet.")
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

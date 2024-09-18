@@ -1,6 +1,9 @@
 [server]
 port = 8501
 
+[seguridad]
+clave_protegida = "admin54321"
+
 [theme]
 prymaryColor = '#FFFFFF'
 backgroundColor = '#acbee9'

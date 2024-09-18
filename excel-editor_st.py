@@ -92,5 +92,5 @@ def main():
         # Descargar datos editados
         st.markdown(get_table_download_link(uploaded_file, edited_df, sheet_name), unsafe_allow_html=True)
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

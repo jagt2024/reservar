@@ -23,6 +23,21 @@ import time
 import pytz
 import toml
 from PIL import Image
+import sys
+import logging
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
+    logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
+
+logging.basicConfig(level=logging.DEBUG, filename='main.log', filemode='w',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# En diferentes partes de tu código:
+logging.debug('Entrando en función X')
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -35,6 +50,10 @@ os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 logo = Image.open("./assets/logoJAGT.ico")  
 
 datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
+
+def clear_session_state():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
 def creds_entered():
   if st.session_state["user"].strip() == "admin" and st.session_state["passwd"].strip() == "admin1234":
@@ -70,7 +89,7 @@ def dataBook(hoja):
       _row=[]
       for col in ws1.iter_cols(1,ws1.max_column):
         _row.append(col[row].value)   
-      data.append(_row)
+      data.append(_row[0])
       #print(f'data {data}')
     return data
 
@@ -247,6 +266,13 @@ else:
           with col3:
             #st.header("Calendario")
             calendar_placeholder = st.empty()
+            
+            with st.form("signup_form"):
+              submit_button = st.form_submit_button("Limpiar Opcion")
+              if submit_button:
+                #st.submit_button("Limpiar Opcion")
+                clear_session_state()
+                st.rerun()
           
           def update_clock_and_calendar():
             while True:
@@ -293,17 +319,19 @@ else:
                ConsultarAgenda().view(ConsultarAgenda.Model())
             if app == model.option9:
                download_and_process_data('./.streamlit/secrets.toml')
+               
+            logging.info('Estado actual: %s', app)
   
         except SystemError as err:
           raise Exception(f'A ocurrido un error en main.py: {err}')
+        
+        except Exception as e:
+          st.error(f"Ocurrió un error en main.py: {e}")
 
         # Iniciar la actualización del reloj y calendario
         update_clock_and_calendar()
+        
+        sys.excepthook = global_exception_handler
           
     view(Model())
         
-  #except RequestException as e:
-  #  print(f"An error occurred: {e}")
-    
-  #else:
-  #    st.write("Por favor, inicie sesión para acceder a la aplicación")

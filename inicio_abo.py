@@ -2,6 +2,14 @@ import streamlit as st
 from PIL import Image
 import requests
 from streamlit_lottie import st_lottie
+import logging
+import psutil
+
+# Llama a esta función periódicamente
+def log_resource_usage():
+    cpu_percent = psutil.cpu_percent()
+    memory_percent = psutil.virtual_memory().percent
+    logging.info(f"CPU: {cpu_percent}%, Memoria: {memory_percent}%")
 
 #st.write(st.session_state["shared"])
    
@@ -37,3 +45,5 @@ class Inicio:
     st.image(image)
     #image = st.image("assets/barberia.png") #("assets/barberia1.webp")
     st.write('***Genere y Programe su Agenda***')
+
+log = log_resource_usage()

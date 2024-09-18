@@ -11,7 +11,8 @@ from generar_excel_emp import GenerarExcelEmp
 from generaQR.generar_qr import GenerarQr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
-from user_management import user_management_system, logout
+from authentication_users import authenticate_user
+from user_management import user_management_system
 from buscar_info import streamlit_app
 from facturacion_servicios_emp import generar_factura
 from estadisticas_reservas_emp import main_reservas
@@ -25,6 +26,26 @@ import time
 import pytz
 import toml
 from PIL import Image
+import sys
+import logging
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
+    logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
+
+logging.basicConfig(level=logging.DEBUG, filename='main_emp.log', filemode='w',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# En diferentes partes de tu código:
+logging.debug('Entrando en función X')
+
+
+def clear_session_state():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -37,6 +58,22 @@ logo = Image.open("./assets/logoJAGT.ico")
 
 datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
+def cargar_configuracion():
+    try:
+        config = toml.load("./.streamlit/config.toml")
+        return config["seguridad"]["clave_protegida"]
+    except FileNotFoundError:
+        st.error("Archivo de configuración no encontrado.")
+        return None
+    except KeyError:
+        st.error("Clave no encontrada en el archivo de configuración.")
+        return None
+
+def limpiar_pantalla():
+    for key in list(st.session_state.keys()):
+        if key != 'menu_selection':
+          del st.session_state[key]
+        
 def dataBook_emp(hoja):
     ws1 = datos_book_emp[hoja]
     data = []
@@ -44,11 +81,11 @@ def dataBook_emp(hoja):
       _row=[]
       for col in ws1.iter_cols(1,ws1.max_column):
         _row.append(col[row].value)
-      data.append(_row)
+      data.append(_row[0])
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('202401130')
+fecha_hasta = int('20241130')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -137,13 +174,15 @@ if fecha_hasta < fecha_hoy:
    st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
 
 else:  
-
-  def view(model):
-    try:
   
-      with st.sidebar:
+  if user_management_system():
+      
+    def view(model):
+      try:
+  
+        with st.sidebar:
     
-        app = option_menu(model.menuTitle,
+          app = option_menu(model.menuTitle,
                          [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option12, model.option13, model.option14],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
@@ -160,8 +199,8 @@ else:
                            "nav-lik":{"color":"white","font-size":"20px","text-aling":"left", "margin":"0px"},
                            "nav-lik-selected":{"backgroud-color":"#02ab21"},})
                        #orientation='horizontal')
-      st.markdown(f"""
-      <style>
+        st.markdown(f"""
+        <style>
             @import url('https://fonts.googleapis.com/css2?family={config['fonts']['clock_font']}:wght@400;500&display=swap');
             .clock {{
               font-family: '{config['fonts']['clock_font']}', sans-serif;
@@ -178,26 +217,33 @@ else:
               margin-top: {config['layout']['top_margin']};
               margin-bottom: {config['layout']['bottom_margin']};
             }}
-      </style>
-      """, unsafe_allow_html=True)
+        </style>
+        """, unsafe_allow_html=True)
 
-      # Crear columnas para el diseño
-      col1, col2, col3 = st.columns(3)
+        # Crear columnas para el diseño
+        col1, col2, col3 = st.columns(3)
 
-      # Columna 1: Reloj Digital
-      with col1:
-        #st.header("Reloj Digital")
-        clock_placeholder = st.empty()
+        # Columna 1: Reloj Digital
+        with col1:
+          #st.header("Reloj Digital")
+          clock_placeholder = st.empty()
         
-      with col2:
-        st.image(logo, width=150)  # Ajusta el ancho según sea necesario
+        with col2:
+          st.image(logo, width=150)  # Ajusta el ancho según sea necesario
 
         # Columna 2: Calendario
-      with col3:
-        #st.header("Calendario")
-        calendar_placeholder = st.empty()
+        with col3:
+          #st.header("Calendario")
+          calendar_placeholder = st.empty()
+
+          with st.form("signup_form"):
+            submit_button = st.form_submit_button("Limpiar Opcion")
+            if submit_button:
+              #st.submit_button("Limpiar Opcion")
+              clear_session_state()
+              st.rerun()
           
-      def update_clock_and_calendar():
+        def update_clock_and_calendar():
          while True:
               now = datetime.datetime.now(pytz.timezone('America/Bogota'))
               clock_placeholder.markdown(f'<p class="clock">Hora: {now.strftime("%H:%M:%S")}</p>', unsafe_allow_html=True)
@@ -213,58 +259,90 @@ else:
               time.sleep(5)
               #st.experimental_rerun()      
 
-      with st.sidebar:
-        st.markdown("---")
-        st.text("Version: 0.0.1")
-        st.text("Ano: 2024")
-        st.text("Autor: JAGT")
-        st.markdown("---")
+        with st.sidebar:
+          st.markdown("---")
+          st.text("Version: 0.0.1")
+          st.text("Ano: 2024")
+          st.text("Autor: JAGT")
+          st.markdown("---")
     
-      if sw_empresa == ['True']:
+        if sw_empresa == ['True']:
+          try:
+            #st.title('***BARBERIA STYLOS***')
+        
+            clave_correcta = cargar_configuracion()
+            if clave_correcta is None:
+              st.error("No se pudo cargar la configuración. La opción protegida no estará disponible.")
+              return 
       
-        #st.title('***BARBERIA STYLOS***')
-      
-        if app == model.option1:
-          InicioEmp().view(InicioEmp.Model())
-        if app == model.option2:
-          CrearReservaEmp().view(CrearReservaEmp.Model())
-        if app == model.option3:
-          ModificarReservaEmp().view(ModificarReservaEmp.Model())
-        if app == model.option4:
-          EliminarReservaEmp().view(EliminarReservaEmp.Model())
-        if app == model.option5:
-          ServiciosEmp().view(ServiciosEmp.Model())
-        if app == model.option6:
-          InformacionEmp().view(InformacionEmp.Model())
-        if app == model.option7:
-          GenerarExcelEmp().view(GenerarExcelEmp.Model())
-        if app == model.option8:
-          GenerarQr().view(GenerarQr.Model())
-        if app == model.option9:
-             ConsultarAgenda().view(ConsultarAgenda.Model())
-        if app == model.option10:
-           if user_management_system():
-             download_and_process_data('./.streamlit/secrets.toml')
-             
-        if app == model.option11:
-           streamlit_app()
-        if app == model.option12:
-           if user_management_system():
-              generar_factura()
+            if app == model.option1:
+              InicioEmp().view(InicioEmp.Model())
+            if app == model.option2:
+              CrearReservaEmp().view(CrearReservaEmp.Model())
+            if app == model.option3:
+              ModificarReservaEmp().view(ModificarReservaEmp.Model())
+            if app == model.option4:
+              EliminarReservaEmp().view(EliminarReservaEmp.Model())
+            if app == model.option5:
+              ServiciosEmp().view(ServiciosEmp.Model())
+            if app == model.option6:
+              InformacionEmp().view(InformacionEmp.Model())
+            if app == model.option7:
+              GenerarExcelEmp().view(GenerarExcelEmp.Model())
+            if app == model.option8:
+              GenerarQr().view(GenerarQr.Model())
+            if app == model.option9:
+              ConsultarAgenda().view(ConsultarAgenda.Model())
+            if app == model.option10:
+                
+              #if 'prev_selection' not in st.session_state or st.session_state.prev_selection != #model.option10:
+              #limpiar_pantalla()
+              #st.session_state.prev_selection = model.option10
+           
+              #clave_ingresada = st.text_input("Ingresa la clave para acceder a la Opción Protegida:", type="password")
+           
+              #if clave_ingresada == clave_correcta:
+                 
+              #    st.session_state.prev_selection = model.option10
+              #    st.success("Clave correcta. Acceso concedido.")
+              st.write(download_and_process_data('./.streamlit/secrets.toml'))
               
-        if app == model.option13:
-           if user_management_system():  
-              main_reservas()
-              
-        if app == model.option14:
-           if user_management_system():
-              main_factura()
-              
-             
-    except SystemError as err:
-      raise Exception(f'A ocurrido un error en main.py: {err}')
-    
-    
-    update_clock_and_calendar()
+                #del st.session_state.clave_ingresada
+                #limpiar_pantalla()
+                #st.session_state.clave_ingresada = ""
+                #st.rerun()
+           
+              #elif clave_ingresada:
+              #  st.error("Clave incorrecta. Acceso denegado.")         
 
-  view(Model())
+            if app == model.option11:
+              streamlit_app()
+            if app == model.option12:
+
+              generar_factura()
+                            
+            if app == model.option13:
+           
+              #if authenticate_user(): 
+            
+              main_reservas()
+                            
+            if app == model.option14:
+           
+              #if authenticate_user():
+          
+              main_factura()
+          
+          except Exception as e:
+            st.error(f"Ocurrió un error: {e}")
+                           
+      except SystemError as err:
+        raise Exception(f'A ocurrido un error en main_emp.py: {err}')
+      except Exception as e:
+        st.error(f"Ocurrió un error en main_emp.py: {e}")
+    
+      update_clock_and_calendar()
+
+      sys.excepthook = global_exception_handler
+
+    view(Model())

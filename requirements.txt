@@ -17,3 +17,4 @@ reportlab ==4.2.2
 bs4
 pyzbar
 plotly
+psutil

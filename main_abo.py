@@ -23,6 +23,25 @@ import time
 import pytz
 import toml
 from PIL import Image
+import sys
+import logging
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+def clear_session_state():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+ 
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
+    logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
+
+logging.basicConfig(level=logging.DEBUG, filename='main_abo.log', filemode='w',
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# En diferentes partes de tu código:
+logging.debug('Entrando en función X')
 
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
@@ -43,7 +62,7 @@ def dataBook(hoja):
       _row=[]
       for col in ws1.iter_cols(1,ws1.max_column):
         _row.append(col[row].value)   
-      data.append(_row)
+      data.append(_row[0])
       #print(f'data {data}')
     return data
 
@@ -208,7 +227,15 @@ else:
         # Columna 2: Calendario
       with col3:
         #st.header("Calendario")
+        
         calendar_placeholder = st.empty()
+        
+        with st.form("signup_form"):
+          submit_button = st.form_submit_button("Limpiar Opcion")
+          if submit_button:
+            #st.submit_button("Limpiar Opcion")
+            clear_session_state()
+            st.rerun()
           
       def update_clock_and_calendar():
          while True:
@@ -224,7 +251,8 @@ else:
               calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
         
               time.sleep(5)
-              #st.experimental_rerun()      
+              #st.experimental_rerun() 
+    
 
       with st.sidebar:
         st.markdown("---")
@@ -232,7 +260,19 @@ else:
         st.text("Ano: 2024")
         st.text("Autor: JAGT")
         st.markdown("---")
-    
+
+        st.markdown("""
+        <script>
+          window.onerror = function(message, source, lineno, colno, error) {
+          fetch('/log_error', {
+          method: 'POST',
+          headers: {'Content-Type': 'main_abo/json'},
+          body: JSON.stringify({message, source, lineno, colno, error: error.stack})
+            });
+          };
+        </script>
+        """, unsafe_allow_html=True)
+   
       if sw_persona == ['True']:
 
         #st.title('***BUFETE ABOGADOS***')
@@ -256,15 +296,22 @@ else:
         if app == model.option9:
              ConsultarAgenda().view(ConsultarAgenda.Model())
         if app == model.option10:
-           if user_management_system():
-             download_and_process_data('./.streamlit/secrets.toml')
-             logout()
+           #if user_management_system():
+           download_and_process_data('./.streamlit/secrets.toml')
+           #  logout()
         if app == model.option11:
                streamlit_app()
+               
+        logging.info('Estado actual: %s', app)
+
     except SystemError as err:
-      raise Exception(f'A ocurrido un error en main.py: {err}')
+      raise Exception(f'A ocurrido un error en main_abo.py: {err}')
+    except Exception as e:
+        st.error(f"Ocurrió un error en main_abo.py: {e}")
     # Iniciar la actualización del reloj y calendario
     
     update_clock_and_calendar()
+    
+    sys.excepthook = global_exception_handler
         
   view(Model())

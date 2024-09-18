@@ -304,5 +304,5 @@ def generar_factura():
     # Limpiar campos después de generar y descargar la factura
     st.button("Limpiar campos y generar nueva factura", on_click=limpiar_campos)
 
-if __name__ == "__main__":
-    generar_factura()
+#if __name__ == "__main__":
+#    generar_factura()

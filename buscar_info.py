@@ -110,8 +110,8 @@ def streamlit_app():
         else:
             st.warning("Por favor, ingrese una consulta de búsqueda.")
 
-if __name__ == "__main__":
-    streamlit_app()
+#if __name__ == "__main__":
+#    streamlit_app()
 
 # Ejemplo de uso como módulo importado
 def example_usage():

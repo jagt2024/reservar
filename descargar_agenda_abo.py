@@ -5,6 +5,20 @@ import pandas as pd
 import os
 import toml
 import base64
+from openpyxl import load_workbook
+
+datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
+
+def dataBookSheetUrl(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in range(1,ws1.max_row):
+      _row=[]
+      for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row)
+      url = _row[1]
+    return url
 
 def load_credentials_from_toml(file_path):
     with open(file_path, 'r') as toml_file:
@@ -12,13 +26,15 @@ def load_credentials_from_toml(file_path):
         credentials = config['sheetsemp']['credentials_sheet']
     return credentials
     #config['credentials_sheet']
+    
+sheetUrl = dataBookSheetUrl("sw")
 
 def get_google_sheet_data(creds):
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     credentials = Credentials.from_service_account_info(creds, scopes=scope)
     client = gspread.authorize(credentials)
 
-    sheet_url = 'https://docs.google.com/spreadsheets/d/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4/edit?gid=0#gid=0'
+    sheet_url = str(sheetUrl)
     sheet = client.open_by_url(sheet_url)
     worksheet = sheet.worksheet('reservas')
     data = worksheet.get_all_values()
