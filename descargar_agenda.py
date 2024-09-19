@@ -46,8 +46,21 @@ def download_file(service, file_id, max_retries=5):
     raise Exception(f"Failed to download after {max_retries} attempts")
 
 def filter_data_by_last_days(df, num_days=8):
+    if df is None or df.empty:
+        st.error("No hay datos para filtrar.")
+        return None
+
     today = pd.Timestamp.today().date()
     start_date = today - pd.Timedelta(days=num_days-1)
+    
+    # Filtrar los datos, ignorando las fechas nulas
+    filtered_df = df[df['FECHA'].notna() & (df['FECHA'].dt.date >= start_date)]
+    
+    if filtered_df.empty:
+        st.warning("No hay datos en los últimos 8 días.")
+        return None
+    
+    return filtered_df
 
 def load_credentials_from_toml(file_path):
     with open(file_path, 'r') as toml_file:
@@ -59,6 +72,7 @@ def load_credentials_from_toml(file_path):
 sheetUrl = dataBookSheetUrl("sw")
 
 def get_google_sheet_data(creds):
+  try:
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     credentials = Credentials.from_service_account_info(creds, scopes=scope)
     client = gspread.authorize(credentials)
@@ -67,7 +81,16 @@ def get_google_sheet_data(creds):
     sheet = client.open_by_url(sheet_url)
     worksheet = sheet.worksheet('reservas')
     data = worksheet.get_all_values()
+    
+    if not data:
+            st.error("No se encontraron datos en la hoja de cálculo.")
+            return None
+    
     df = pd.DataFrame(data[1:], columns=data[0])
+    
+    if df.empty:
+       st.error("El DataFrame está vacío después de cargar los datos.")
+       return None
     
     df['FECHA'] = pd.to_datetime(df['FECHA'], errors='coerce')
     
@@ -78,9 +101,18 @@ def get_google_sheet_data(creds):
         st.write("Primeras 5 filas con fechas inválidas:")
         st.write(invalid_dates.head())
     
+    if df.empty:
+        st.error("El DataFrame está vacío después de eliminar las fechas inválidas.")
+        return None
     # Eliminar filas con fechas inválidas
+    
     df = df.dropna(subset=['FECHA'])
+    
     return df
+
+  except Exception as e:
+     st.error(f"Error al obtener datos de Google Sheets: {str(e)}")
+     return None
 
 def get_binary_file_downloader_html(bin_file, file_label='File'):
     with open(bin_file, 'rb') as f:
@@ -91,8 +123,17 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
 
 def process_and_display_data(df):
   try:
-    df = filter_data_by_last_days(df)
+      
+    if df is None or df.empty:
+       st.error("No hay datos para procesar.")
+       return
 
+    df = filter_data_by_last_days(df)
+        
+    if df is None or df.empty:
+       st.error("No hay datos después de filtrar por los últimos días.")
+       return
+    
     temp_file_path = "./archivos/temp_gestion-reservas.xlsx"
     df.to_excel(temp_file_path, index=False)
     
@@ -138,8 +179,11 @@ def download_and_process_data(creds_path):
     try:
         with st.spinner('Descargando datos...'):
             df = get_google_sheet_data(creds)
-        st.success('Datos descargados correctamente! en /archivos/temp_gestion-reservas.xlsx')
-        process_and_display_data(df)
+        if df is not None and not df.empty:
+            st.success('Datos descargados correctamente!')
+            process_and_display_data(df)
+        else:
+            st.error("No se pudieron obtener datos válidos de Google Sheets.")
     except Exception as e:
         st.error(f"Error al procesar los datos: {str(e)}")
 
