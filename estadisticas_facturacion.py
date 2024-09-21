@@ -41,14 +41,26 @@ def main_factura():
 
     # Cargar datos
     df = load_invoice_data()
-    services_df = extract_services(df)
+
+    # Añadir filtro de rango de fechas
+    st.sidebar.header("Filtrar por Fecha")
+    min_date = df['fecha_factura'].min().date()
+    max_date = df['fecha_factura'].max().date()
+    start_date = st.sidebar.date_input("Fecha de inicio", min_date, min_value=min_date, max_value=max_date)
+    end_date = st.sidebar.date_input("Fecha de fin", max_date, min_value=min_date, max_value=max_date)
+
+    # Filtrar el DataFrame por el rango de fechas seleccionado
+    mask = (df['fecha_factura'].dt.date >= start_date) & (df['fecha_factura'].dt.date <= end_date)
+    filtered_df = df.loc[mask]
+
+    services_df = extract_services(filtered_df)
 
     # Métricas generales
     st.header("Métricas Generales")
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Facturas", len(df))
+    col1.metric("Total Facturas", len(filtered_df))
     col2.metric("Total Servicios Vendidos", services_df['cantidad'].sum())
-    col3.metric("Ingresos Totales", f"${df['total'].sum():,.2f}")
+    col3.metric("Ingresos Totales", f"${filtered_df['total'].sum():,.2f}")
 
     # Gráfico de barras: Servicios más vendidos
     st.header("Servicios Más Vendidos")
@@ -58,8 +70,8 @@ def main_factura():
 
     # Gráfico de líneas: Ingresos por mes
     st.header("Ingresos por Mes")
-    df['mes'] = df['fecha_factura'].dt.to_period('M')
-    monthly_revenue = df.groupby('mes')['total'].sum().reset_index()
+    filtered_df['mes'] = filtered_df['fecha_factura'].dt.to_period('M')
+    monthly_revenue = filtered_df.groupby('mes')['total'].sum().reset_index()
     monthly_revenue['mes'] = monthly_revenue['mes'].astype(str)
     fig = px.line(monthly_revenue, x='mes', y='total', title='Ingresos Mensuales')
     st.plotly_chart(fig)

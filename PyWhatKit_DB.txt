@@ -38,3 +38,43 @@ Time: 10:36
 Phone Number: +573205511091
 Message: Necesito comprar una pintura
 --------------------
+Date: 20/9/2024
+Time: 8:28
+Phone Number: +573205511091
+Message: prueeba desde aplicaccion
+--------------------
+Date: 20/9/2024
+Time: 11:18
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 11:23
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 12:40
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 12:44
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 12:50
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 13:46
+Phone Number: +573205511091
+Message: nan
+--------------------
+Date: 20/9/2024
+Time: 13:51
+Phone Number: +573205511091
+Message: nan
+--------------------

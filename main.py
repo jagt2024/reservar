@@ -10,6 +10,7 @@ from informacion import streamlit_app
 from generar_excel import GenerarExcel
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda import download_and_process_data
+from whatsapp_sender_st import whatsapp_sender
 from user_management import user_management_system, logout
 import datetime as dt
 from openpyxl import load_workbook
@@ -124,6 +125,7 @@ class Model:
     option5 = 'Redes Sociales'
     option6 = 'Buscar Informacion'
     option7 = 'Generar Archivos'
+    option10 = 'Enviar Whatsapp'
     
     #def __init__(self):
     #  self.apps=[]
@@ -187,7 +189,7 @@ else:
           with st.sidebar:
     
             app = option_menu(model.menuTitle,
-                         [model.option1, model.option2, model.option9, model.option8, model.option3,model.option4, model.option5, model.option6, model.option7],
+                         [model.option1, model.option2, model.option9, model.option8, model.option3,model.option4, model.option5, model.option6, model.option7, model.option10],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -232,6 +234,8 @@ else:
           with col1:
             #st.header("Reloj Digital")
             clock_placeholder = st.empty()
+
+            #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
             
           with col2:
             st.image(logo, width=150)  # Ajusta el ancho según sea necesario
@@ -293,6 +297,8 @@ else:
                ConsultarAgenda().view(ConsultarAgenda.Model())
             if app == model.option9:
                download_and_process_data('./.streamlit/secrets.toml')
+            if app == model.option10:
+               whatsapp_sender()
                
             #logging.info('Estado actual: %s', app)
   
@@ -308,4 +314,3 @@ else:
         sys.excepthook = global_exception_handler
           
     view(Model())
-        

@@ -16,7 +16,8 @@ from user_management import user_management_system
 from buscar_info import streamlit_app
 from facturacion_servicios_emp import generar_factura
 from estadisticas_reservas_emp import main_reservas
-from estadisticas_facturacion import main_factura
+from estadisticas_facturacion_emp import main_factura
+from whatsapp_sender_st import whatsapp_sender
 import datetime as dt
 from openpyxl import load_workbook
 import os
@@ -127,6 +128,7 @@ class Model:
   option7  = 'Generar Archivos'
   option8  = 'Generar Codigo QR'
   option11 = 'Buscar Informacion'
+  option15 = 'Eviar Whatsapp'
   option12 = 'Facturacion'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
@@ -183,7 +185,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option12, model.option13, model.option14],
+                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -227,6 +229,8 @@ else:
         with col1:
           #st.header("Reloj Digital")
           clock_placeholder = st.empty()
+          
+          #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
         
         with col2:
           st.image(logo, width=150)  # Ajusta el ancho según sea necesario
@@ -332,6 +336,12 @@ else:
               #if authenticate_user():
           
               main_factura()
+              
+            if app == model.option15:
+           
+              #if authenticate_user(): 
+            
+              whatsapp_sender()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")
