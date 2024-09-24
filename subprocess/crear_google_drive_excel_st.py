@@ -11,32 +11,35 @@ SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.
 
 @st.cache_resource
 def load_config():
-    with open('./.sreamlit/secrets.toml', 'r') as f:
-        return toml.load(f)
+    with open('../.streamlit/secrets.toml', 'r') as toml_file:
+        config = toml.load(toml_file)
+        #creds = config['sheets']['credentials_sheet']
+        return config
 
 @st.cache_resource
 def get_google_auth():
     config = load_config()
     creds = None
-    if os.path.exists('token.json'):
+    if os.path.exists('../token.json'):
         creds = Credentials.from_authorized_user_file('../token.json', SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = Flow.from_client_config(
-                config['google_credentials'],
-                SCOPES,
-                redirect_uri='urn:ietf:wg:oauth:2.0:oob')
-            auth_url, _ = flow.authorization_url(prompt='consent')
-            st.write("Please visit this URL to authorize the application:")
-            st.write(auth_url)
-            code = st.text_input("Enter the authorization code:")
-            if code:
-                flow.fetch_token(code=code)
-                creds = flow.credentials
-                with open('../token.json', 'w') as token:
-                    token.write(creds.to_json())
+            #flow = Flow.from_client_config(
+            config =  load_config()
+            creds = config['sheets']['credentials_sheet']
+                
+               # redirect_uri='urn:ietf:wg:oauth:2.0:oob')
+            #auth_url, _ = flow.authorization_url(prompt='consent')
+            #st.write("Please visit this URL to authorize the application:")
+            #st.write(auth_url)
+            #code = st.text_input("Enter the authorization code:")
+            #if code:
+            #    flow.fetch_token(code=code)
+            #    creds = flow.credentials
+            #    with open('../token.json', 'w') as token:
+            #        token.write(creds.to_json())
     return creds
 
 def create_spreadsheet(name):
