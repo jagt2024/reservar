@@ -4,7 +4,7 @@ import base64
 import io
 
 def load_excel(file):
-    return pd.read_excel(file)
+    return pd.read_excel(file, sheet_name=None)
 
 def get_table_download_link(df, filename="datos_agenda_filtrados.csv"):
     csv = df.to_csv(index=False)
@@ -27,8 +27,16 @@ class ConsultarAgenda:
     uploaded_file = st.file_uploader("Escoge un archivo Excel", type=['xlsx', 'xls'])
     
     if uploaded_file is not None:
-        df = load_excel(uploaded_file)
+        #df = load_excel(uploaded_file)
+        excel_file = load_excel(uploaded_file)
         st.success("Archivo cargado exitosamente!")
+        
+        # Seleccionar hoja
+        sheet_names = list(excel_file.keys())
+        selected_sheet = st.selectbox("Selecciona la hoja a consultar", sheet_names)
+
+        # Cargar la hoja seleccionada
+        df = excel_file[selected_sheet]
 
         # Seleccionar columnas
         all_columns = df.columns.tolist()
