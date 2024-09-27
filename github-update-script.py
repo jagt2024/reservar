@@ -21,7 +21,7 @@ def update_github_repo(repo_path, commit_message):
         current_branch = repo.active_branch
         
         # Hace el push al remoto
-        origin = repo.remote(name='main')
+        origin = repo.remote(name='jagt2024/reservar')
         origin.push(current_branch)
         
         print(f"Repositorio actualizado exitosamente en el branch {current_branch}.")
