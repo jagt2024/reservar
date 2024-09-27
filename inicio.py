@@ -25,7 +25,7 @@ def image_carousel(image_directory, width=None, height=None, position="center"):
         return None
     
       # Mostrar las imágenes una a una, reemplazando la imagen anterior
-      image_files = image_files[:4]
+      image_files = image_files[:3]
       
       # Configurar el layout según la posición
       if position == "left":
@@ -88,13 +88,13 @@ class Inicio:
         #height = st.sidebar.slider("Altura de la imagen", 100, 600, 500)
         #position = st.sidebar.radio("Posición de la imagen", ["left", "center", "right"])
         
-        image_carousel('./album_personal', 700, 600, 'center')
+        image_carousel('./album_personal', 800, 700, 'center')
         
         st.title(model.pageTitle)
         st.write('***Programe su Agenda Ahora (Diariamente, Semanalmente o por más tiempo)***')
         
         # Imagen final
         final_image = Image.open("./album_personal/pexels-moments.jpg")
-        final_width = 650  #st.sidebar.slider("Ancho de la imagen final", 100, 800, 600)
+        final_width = 700 #st.sidebar.slider("Ancho de la imagen final", 100, 800, 600)
         final_image = final_image.resize((final_width, int(final_width * final_image.size[1] / final_image.size[0])))
         st.image(final_image)

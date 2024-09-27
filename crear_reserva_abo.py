@@ -8,12 +8,16 @@ import datetime
 import datetime as dt
 import re
 import uuid
+import os
 from openpyxl import load_workbook
 import requests
 import time
 #import pywhatkit
 #import pyautogui, webbrowser
 #from time import sleep
+
+os.environ["REQUESTS_CONNECT_TIMEOUT"] = "15"
+os.environ["REQUESTS_READ_TIMEOUT"] = "15"
 
 datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
 

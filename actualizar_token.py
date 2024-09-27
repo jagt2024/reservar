@@ -1,10 +1,15 @@
 import os
 import json
+import warnings
 from datetime import datetime, timedelta, timezone
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
+
+# Suprimir el warning específico
+warnings.filterwarnings("ignore", category=FutureWarning, message="elementwise comparison failed")
+
 
 SCOPES = ["https://www.googleapis.com/auth/calendar"]
 

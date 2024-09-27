@@ -12,6 +12,10 @@ import time
 import numpy as np
 import datetime as dt
 import json
+import warnings
+
+# Suprimir el warning específico
+warnings.filterwarnings("ignore", category=FutureWarning, message="elementwise comparison failed")
 
 SCOPES =["https://www.googleapis.com/auth/calendar"]
 

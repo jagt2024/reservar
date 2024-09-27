@@ -6,12 +6,16 @@ from sendemail_empresa import send_email_emp
 import numpy as np
 import datetime
 import datetime as dt
+import os
 import re
 import uuid
 from openpyxl import load_workbook
 #import pywhatkit
 #import pyautogui, webbrowser
 #from time import sleep
+
+os.environ["REQUESTS_CONNECT_TIMEOUT"] = "15"
+os.environ["REQUESTS_READ_TIMEOUT"] = "15"
 
 datos_book = load_workbook("archivos/parametros.xlsx", read_only=False)
 

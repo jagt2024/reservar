@@ -1,7 +1,7 @@
 import os.path
 import streamlit as st
 from requests.exceptions import ReadTimeout
-from google.oauth2 import service_accoun
+from google.oauth2 import service_account
 from datetime import datetime, timedelta, timezone
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -12,6 +12,10 @@ import time
 import numpy as np
 import datetime as dt
 import json
+import warnings
+
+# Suprimir el warning específico
+warnings.filterwarnings("ignore", category=FutureWarning, message="elementwise comparison failed")
 
 SCOPES =["https://www.googleapis.com/auth/calendar"]
 

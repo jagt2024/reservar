@@ -229,8 +229,6 @@ else:
         #st.header("Reloj Digital")
         clock_placeholder = st.empty()
         
-        #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
-
       with col2:
         st.image(logo, width=150)  # Ajusta el ancho según sea necesario
             
