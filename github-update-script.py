@@ -1,3 +1,5 @@
+#revisar io hace inmediatamente
+
 import os
 from git import Repo
 
