@@ -1,192 +1,670 @@
-2024-09-27 14:59:11,875 - PIL.Image - DEBUG - Importing BlpImagePlugin
-2024-09-27 14:59:11,892 - PIL.Image - DEBUG - Importing BmpImagePlugin
-2024-09-27 14:59:11,893 - PIL.Image - DEBUG - Importing BufrStubImagePlugin
-2024-09-27 14:59:11,994 - PIL.Image - DEBUG - Importing CurImagePlugin
-2024-09-27 14:59:12,069 - PIL.Image - DEBUG - Importing DcxImagePlugin
-2024-09-27 14:59:12,307 - PIL.Image - DEBUG - Importing DdsImagePlugin
-2024-09-27 14:59:12,404 - PIL.Image - DEBUG - Importing EpsImagePlugin
-2024-09-27 14:59:12,475 - PIL.Image - DEBUG - Importing FitsImagePlugin
-2024-09-27 14:59:12,541 - PIL.Image - DEBUG - Importing FliImagePlugin
-2024-09-27 14:59:12,548 - PIL.Image - DEBUG - Importing FpxImagePlugin
-2024-09-27 14:59:12,576 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
-2024-09-27 14:59:12,577 - PIL.Image - DEBUG - Importing FtexImagePlugin
-2024-09-27 14:59:12,602 - PIL.Image - DEBUG - Importing GbrImagePlugin
-2024-09-27 14:59:12,698 - PIL.Image - DEBUG - Importing GifImagePlugin
-2024-09-27 14:59:12,698 - PIL.Image - DEBUG - Importing GribStubImagePlugin
-2024-09-27 14:59:12,781 - PIL.Image - DEBUG - Importing Hdf5StubImagePlugin
-2024-09-27 14:59:12,808 - PIL.Image - DEBUG - Importing IcnsImagePlugin
-2024-09-27 14:59:13,014 - PIL.Image - DEBUG - Importing IcoImagePlugin
-2024-09-27 14:59:13,119 - PIL.Image - DEBUG - Importing ImImagePlugin
-2024-09-27 14:59:13,325 - PIL.Image - DEBUG - Importing ImtImagePlugin
-2024-09-27 14:59:13,564 - PIL.Image - DEBUG - Importing IptcImagePlugin
-2024-09-27 14:59:13,656 - PIL.Image - DEBUG - Importing JpegImagePlugin
-2024-09-27 14:59:13,657 - PIL.Image - DEBUG - Importing Jpeg2KImagePlugin
-2024-09-27 14:59:13,658 - PIL.Image - DEBUG - Importing McIdasImagePlugin
-2024-09-27 14:59:13,683 - PIL.Image - DEBUG - Importing MicImagePlugin
-2024-09-27 14:59:13,711 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
-2024-09-27 14:59:13,712 - PIL.Image - DEBUG - Importing MpegImagePlugin
-2024-09-27 14:59:13,880 - PIL.Image - DEBUG - Importing MpoImagePlugin
-2024-09-27 14:59:14,362 - PIL.Image - DEBUG - Importing MspImagePlugin
-2024-09-27 14:59:14,540 - PIL.Image - DEBUG - Importing PalmImagePlugin
-2024-09-27 14:59:14,985 - PIL.Image - DEBUG - Importing PcdImagePlugin
-2024-09-27 14:59:15,033 - PIL.Image - DEBUG - Importing PcxImagePlugin
-2024-09-27 14:59:15,034 - PIL.Image - DEBUG - Importing PdfImagePlugin
-2024-09-27 14:59:15,204 - PIL.Image - DEBUG - Importing PixarImagePlugin
-2024-09-27 14:59:15,300 - PIL.Image - DEBUG - Importing PngImagePlugin
-2024-09-27 14:59:15,300 - PIL.Image - DEBUG - Importing PpmImagePlugin
-2024-09-27 14:59:15,301 - PIL.Image - DEBUG - Importing PsdImagePlugin
-2024-09-27 14:59:15,508 - PIL.Image - DEBUG - Importing QoiImagePlugin
-2024-09-27 14:59:15,584 - PIL.Image - DEBUG - Importing SgiImagePlugin
-2024-09-27 14:59:15,597 - PIL.Image - DEBUG - Importing SpiderImagePlugin
-2024-09-27 14:59:15,688 - PIL.Image - DEBUG - Importing SunImagePlugin
-2024-09-27 14:59:15,735 - PIL.Image - DEBUG - Importing TgaImagePlugin
-2024-09-27 14:59:15,769 - PIL.Image - DEBUG - Importing TiffImagePlugin
-2024-09-27 14:59:15,770 - PIL.Image - DEBUG - Importing WebPImagePlugin
-2024-09-27 14:59:15,968 - PIL.Image - DEBUG - Importing WmfImagePlugin
-2024-09-27 14:59:16,007 - PIL.Image - DEBUG - Importing XbmImagePlugin
-2024-09-27 14:59:16,020 - PIL.Image - DEBUG - Importing XpmImagePlugin
-2024-09-27 14:59:16,070 - PIL.Image - DEBUG - Importing XVThumbImagePlugin
-2024-09-27 14:59:16,082 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 14:59:16,148 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 14:59:17,189 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:17,189 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 14:59:17,190 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 14:59:17,191 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 14:59:17,192 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 14:59:17,198 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 14:59:17,199 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:17,200 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 14:59:17,200 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 14:59:17,201 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 14:59:17,202 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 14:59:17,202 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 14:59:18,393 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:18,393 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 14:59:18,394 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:18,395 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 14:59:55,636 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 14:59:55,636 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 14:59:56,510 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 14:59:57,448 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:57,448 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 14:59:57,449 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 14:59:57,450 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:00:23,695 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:00:23,695 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:00:25,463 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:25,463 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:00:25,463 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:00:25,463 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:00:25,478 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:00:25,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:25,847 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:00:25,847 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:25,847 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:00:58,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:00:58,101 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:00:58,978 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:58,981 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:00:58,982 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:00:58,983 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:00:58,984 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:00:58,985 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:00:58,985 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:58,986 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:00:58,986 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:00:58,987 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:00:58,987 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:00:58,988 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:00:59,387 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:59,387 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:00:59,393 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:00:59,394 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:02:26,545 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:02:26,545 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:02:27,066 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:27,068 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:02:27,068 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:02:27,069 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:02:28,381 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:28,383 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:02:28,388 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:28,388 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:02:48,840 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:02:48,841 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:02:49,643 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:49,644 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:02:49,652 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:02:49,653 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:02:49,654 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:02:49,654 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:02:49,655 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:49,655 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:02:49,656 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:02:49,656 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:02:49,657 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:02:49,658 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:02:50,375 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:50,375 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:02:50,375 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:02:50,605 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:03:20,878 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:03:20,878 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:03:21,236 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:21,237 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:03:21,237 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:03:21,238 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:03:21,238 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:03:21,239 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:03:21,239 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:21,341 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:03:21,342 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:03:21,343 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:03:21,345 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:03:21,346 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:03:22,150 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:22,150 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:03:22,166 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:22,166 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:03:35,601 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
-2024-09-27 15:03:35,607 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
-2024-09-27 15:03:36,323 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:36,324 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:03:36,324 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:03:36,325 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:03:36,325 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:03:36,327 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:03:36,328 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:36,329 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
-2024-09-27 15:03:36,329 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
-2024-09-27 15:03:36,329 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
-2024-09-27 15:03:36,330 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
-2024-09-27 15:03:36,330 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
-2024-09-27 15:03:36,718 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:36,728 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
-2024-09-27 15:03:36,729 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-09-27 15:03:36,730 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 09:59:15,664 - PIL.Image - DEBUG - Importing BlpImagePlugin
+2024-09-30 09:59:15,700 - PIL.Image - DEBUG - Importing BmpImagePlugin
+2024-09-30 09:59:15,701 - PIL.Image - DEBUG - Importing BufrStubImagePlugin
+2024-09-30 09:59:15,762 - PIL.Image - DEBUG - Importing CurImagePlugin
+2024-09-30 09:59:15,774 - PIL.Image - DEBUG - Importing DcxImagePlugin
+2024-09-30 09:59:16,123 - PIL.Image - DEBUG - Importing DdsImagePlugin
+2024-09-30 09:59:16,382 - PIL.Image - DEBUG - Importing EpsImagePlugin
+2024-09-30 09:59:16,496 - PIL.Image - DEBUG - Importing FitsImagePlugin
+2024-09-30 09:59:16,999 - PIL.Image - DEBUG - Importing FliImagePlugin
+2024-09-30 09:59:17,031 - PIL.Image - DEBUG - Importing FpxImagePlugin
+2024-09-30 09:59:17,469 - PIL.Image - DEBUG - Image: failed to import FpxImagePlugin: No module named 'olefile'
+2024-09-30 09:59:17,469 - PIL.Image - DEBUG - Importing FtexImagePlugin
+2024-09-30 09:59:17,531 - PIL.Image - DEBUG - Importing GbrImagePlugin
+2024-09-30 09:59:17,551 - PIL.Image - DEBUG - Importing GifImagePlugin
+2024-09-30 09:59:17,551 - PIL.Image - DEBUG - Importing GribStubImagePlugin
+2024-09-30 09:59:17,568 - PIL.Image - DEBUG - Importing Hdf5StubImagePlugin
+2024-09-30 09:59:17,629 - PIL.Image - DEBUG - Importing IcnsImagePlugin
+2024-09-30 09:59:18,468 - PIL.Image - DEBUG - Importing IcoImagePlugin
+2024-09-30 09:59:18,504 - PIL.Image - DEBUG - Importing ImImagePlugin
+2024-09-30 09:59:18,653 - PIL.Image - DEBUG - Importing ImtImagePlugin
+2024-09-30 09:59:18,906 - PIL.Image - DEBUG - Importing IptcImagePlugin
+2024-09-30 09:59:18,986 - PIL.Image - DEBUG - Importing JpegImagePlugin
+2024-09-30 09:59:18,986 - PIL.Image - DEBUG - Importing Jpeg2KImagePlugin
+2024-09-30 09:59:18,988 - PIL.Image - DEBUG - Importing McIdasImagePlugin
+2024-09-30 09:59:19,151 - PIL.Image - DEBUG - Importing MicImagePlugin
+2024-09-30 09:59:19,261 - PIL.Image - DEBUG - Image: failed to import MicImagePlugin: No module named 'olefile'
+2024-09-30 09:59:19,262 - PIL.Image - DEBUG - Importing MpegImagePlugin
+2024-09-30 09:59:19,312 - PIL.Image - DEBUG - Importing MpoImagePlugin
+2024-09-30 09:59:20,148 - PIL.Image - DEBUG - Importing MspImagePlugin
+2024-09-30 09:59:20,346 - PIL.Image - DEBUG - Importing PalmImagePlugin
+2024-09-30 09:59:21,149 - PIL.Image - DEBUG - Importing PcdImagePlugin
+2024-09-30 09:59:21,184 - PIL.Image - DEBUG - Importing PcxImagePlugin
+2024-09-30 09:59:21,184 - PIL.Image - DEBUG - Importing PdfImagePlugin
+2024-09-30 09:59:21,528 - PIL.Image - DEBUG - Importing PixarImagePlugin
+2024-09-30 09:59:21,750 - PIL.Image - DEBUG - Importing PngImagePlugin
+2024-09-30 09:59:21,750 - PIL.Image - DEBUG - Importing PpmImagePlugin
+2024-09-30 09:59:21,757 - PIL.Image - DEBUG - Importing PsdImagePlugin
+2024-09-30 09:59:21,958 - PIL.Image - DEBUG - Importing QoiImagePlugin
+2024-09-30 09:59:22,123 - PIL.Image - DEBUG - Importing SgiImagePlugin
+2024-09-30 09:59:22,325 - PIL.Image - DEBUG - Importing SpiderImagePlugin
+2024-09-30 09:59:22,647 - PIL.Image - DEBUG - Importing SunImagePlugin
+2024-09-30 09:59:22,786 - PIL.Image - DEBUG - Importing TgaImagePlugin
+2024-09-30 09:59:22,917 - PIL.Image - DEBUG - Importing TiffImagePlugin
+2024-09-30 09:59:22,923 - PIL.Image - DEBUG - Importing WebPImagePlugin
+2024-09-30 09:59:23,435 - PIL.Image - DEBUG - Importing WmfImagePlugin
+2024-09-30 09:59:23,548 - PIL.Image - DEBUG - Importing XbmImagePlugin
+2024-09-30 09:59:23,711 - PIL.Image - DEBUG - Importing XpmImagePlugin
+2024-09-30 09:59:23,724 - PIL.Image - DEBUG - Importing XVThumbImagePlugin
+2024-09-30 09:59:23,858 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 09:59:23,880 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 09:59:26,013 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 09:59:26,014 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 09:59:26,015 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 09:59:26,016 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 09:59:26,016 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 09:59:26,021 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 09:59:26,022 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 09:59:26,023 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 09:59:26,023 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 09:59:26,024 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 09:59:26,024 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 09:59:26,025 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 09:59:28,617 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 09:59:28,618 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 09:59:28,619 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 09:59:28,620 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:01,914 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:01:01,914 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:01:02,581 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:02,582 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:02,582 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:02,583 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:02,583 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:02,584 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:02,584 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:02,585 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:02,585 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:02,586 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:02,586 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:02,587 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:02,697 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:02,697 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:02,700 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:02,701 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:41,034 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:01:41,034 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:01:41,874 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:41,875 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:41,875 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:41,876 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:41,876 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:41,880 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:41,880 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:41,881 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:41,881 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:41,882 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:41,882 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:41,883 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:42,253 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:42,253 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:42,253 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:42,253 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:43,458 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:01:43,458 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:01:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:01:43,676 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:43,676 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:01:43,676 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:01:43,676 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:36,674 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:02:36,674 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:02:37,315 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:37,316 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:37,317 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:37,317 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:37,318 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:37,318 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:37,326 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:37,327 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:37,328 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:37,328 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:37,329 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:37,330 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:37,725 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:37,727 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:37,728 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:37,728 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:40,992 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:02:40,993 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:41,219 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:41,235 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:41,728 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:41,729 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:41,729 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:41,730 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:54,768 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:02:54,769 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:02:54,988 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:54,989 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:54,990 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:54,991 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:54,992 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:54,993 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:54,993 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:54,994 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:02:54,994 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:02:54,995 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:02:54,995 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:02:54,996 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:02:55,182 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:55,185 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:02:55,185 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:02:55,187 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:03:32,817 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:03:32,818 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:03:33,086 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:03:33,087 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:03:33,087 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:03:33,088 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:03:33,088 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:03:33,089 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:03:33,089 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:03:33,090 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:03:33,090 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:03:33,093 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:03:33,093 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:03:33,094 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:03:33,278 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:03:33,279 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:03:33,280 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:03:33,280 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:04:45,581 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:04:45,581 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:04:46,539 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:04:47,120 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:47,120 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:04:47,120 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:47,120 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:04:48,414 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:04:48,430 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:04:48,684 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:48,686 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:04:48,686 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:04:48,687 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:04:48,688 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:04:48,689 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:04:48,690 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:48,692 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:04:48,694 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:04:48,695 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:04:48,696 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:04:48,698 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:04:48,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:48,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:04:48,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:04:48,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:18,062 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:05:18,063 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:05:19,548 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:19,548 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:19,550 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:19,560 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:19,561 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:19,648 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:19,650 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:19,650 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:19,650 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:27,286 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2024-09-30 10:05:27,819 - googleapiclient.discovery - DEBUG - URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=2024-09-30T15%3A05%3A27.789452Z&timeMax=2024-10-01T23%3A59%3A00Z&maxResults=5&singleEvents=true&orderBy=startTime&alt=json
+2024-09-30 10:05:32,343 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:05:32,343 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:05:32,960 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:32,961 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:32,961 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:32,962 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:32,962 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:32,963 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:32,963 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:32,964 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:32,964 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:32,965 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:32,965 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:32,966 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:33,142 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:33,143 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:33,143 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:33,146 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:34,815 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:05:34,816 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:05:34,988 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:34,989 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:34,992 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:34,993 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:34,994 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:34,997 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:34,998 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:34,999 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:05:35,000 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:05:35,001 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:05:35,001 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:05:35,003 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:05:35,062 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:35,063 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:35,063 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:05:35,064 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:05:35,333 - googleapiclient.discovery_cache - INFO - file_cache is only supported with oauth2client<4.0.0
+2024-09-30 10:05:35,382 - googleapiclient.discovery - DEBUG - URL being requested: GET https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=2024-09-30T15%3A05%3A35.349288Z&timeMax=2024-10-01T23%3A59%3A00Z&maxResults=5&singleEvents=true&orderBy=startTime&alt=json
+2024-09-30 10:05:36,627 - google_auth_httplib2 - INFO - Refreshing credentials due to a 401 response. Attempt 1/2.
+2024-09-30 10:05:36,630 - google_auth_httplib2 - INFO - Refreshing credentials due to a 401 response. Attempt 1/2.
+2024-09-30 10:05:36,632 - google_auth_httplib2 - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-09-30 10:05:36,633 - google_auth_httplib2 - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-09-30 10:05:59,853 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:05:59,854 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:06:00,266 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:06:00,267 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:06:00,268 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:06:00,268 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:06:00,269 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:06:00,269 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:06:00,271 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:06:00,272 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:06:00,273 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:06:00,273 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:06:00,273 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:06:00,298 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:06:00,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:06:00,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:06:00,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:06:00,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:16:17,118 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:16:17,342 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:16:22,785 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:16:22,786 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:16:22,787 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:16:22,787 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:16:22,788 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:16:22,789 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:16:22,790 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:16:22,791 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:16:22,791 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:16:22,792 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:16:22,792 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:16:22,793 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:16:24,077 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:16:24,077 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:16:24,078 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:16:24,080 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:17:04,998 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:17:05,000 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:17:05,162 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:17:05,163 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:17:05,163 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:17:05,164 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:17:05,164 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:17:05,165 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:17:05,166 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:17:05,166 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:17:05,167 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:17:05,167 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:17:05,168 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:17:05,169 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:17:05,356 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:17:05,357 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:17:05,358 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:17:05,359 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:56:56,560 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 10:57:01,239 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 10:58:29,134 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:58:29,138 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:58:29,139 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:58:29,215 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:58:29,496 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:58:29,927 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:58:30,009 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:58:30,010 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 10:58:30,010 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 10:58:30,011 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 10:58:30,011 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 10:58:30,012 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 10:59:04,345 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:59:04,348 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 10:59:04,457 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 10:59:04,458 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 11:26:32,267 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 11:26:33,168 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 11:26:43,622 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 11:26:43,623 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 11:26:43,624 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 11:26:43,624 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 11:26:43,624 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 11:26:43,625 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 11:26:43,626 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 11:26:43,626 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 11:26:43,628 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 11:26:43,628 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 11:26:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 11:26:43,629 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 11:26:48,331 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 11:26:48,333 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 11:26:48,334 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 11:26:48,335 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:28:06,543 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:28:07,336 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:28:20,672 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:28:20,674 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:28:20,674 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:28:20,674 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:28:20,674 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:28:20,935 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:28:20,939 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:28:20,939 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:28:20,939 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:28:20,943 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:28:20,943 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:28:20,944 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:28:24,936 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:28:24,937 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:28:24,938 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:28:24,940 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:29:35,065 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:29:35,066 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:29:35,912 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:29:35,913 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:29:35,933 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:29:36,719 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:29:37,181 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:29:37,181 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:29:37,181 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:29:37,577 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:30:11,297 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:30:11,298 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:30:11,328 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:30:11,332 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:30:11,792 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:11,793 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:30:11,795 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:30:11,795 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:30:11,883 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:30:11,884 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:30:11,885 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:11,887 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:30:11,887 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:30:11,887 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:30:11,889 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:30:11,889 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:30:11,878 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:11,922 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:30:11,923 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:30:11,924 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:30:11,924 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:30:11,926 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:30:11,927 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:11,928 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:30:11,929 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:30:11,930 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:30:11,931 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:30:11,931 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:30:12,364 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:12,365 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:30:12,369 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:30:12,371 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:31:22,566 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:31:22,567 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:31:24,046 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:31:24,046 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,392 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:24,610 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:24,614 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:24,615 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:24,616 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:24,855 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:24,941 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,956 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:31:24,956 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:24,956 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:31:25,626 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:31:25,626 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:31:25,782 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:31:25,829 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:25,829 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:31:25,829 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:31:25,829 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:36:04,630 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:36:04,630 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:36:04,948 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:36:04,949 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:36:04,949 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:36:04,950 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:36:04,950 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:36:04,951 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:36:04,952 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:36:04,952 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:36:04,953 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:36:04,953 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:36:04,953 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:36:04,955 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:36:05,795 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:36:05,797 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:36:05,800 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:36:05,802 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:50:24,981 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:50:25,039 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:50:24,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:50:25,134 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:50:29,415 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:29,416 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:29,417 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:29,417 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:29,418 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:29,452 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:29,453 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:29,454 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:29,456 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:29,457 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:29,458 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:29,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:29,831 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:50:29,831 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:29,941 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:50:30,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:50:31,444 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:31,445 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:50:31,446 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:50:31,447 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:16,556 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:51:16,559 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:16,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:17,027 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:17,029 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:17,121 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:17,130 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:20,154 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:51:20,154 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:51:20,424 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:20,425 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:20,425 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:20,426 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:20,426 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:20,427 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:20,428 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:20,429 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:20,429 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:20,430 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:20,430 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:20,431 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:20,536 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:20,537 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:20,538 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:20,538 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:54,634 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:51:54,635 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:51:55,055 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:55,055 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:55,060 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:55,064 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:55,065 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:55,362 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:55,366 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:55,368 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:55,369 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:55,369 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:55,370 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:55,370 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:56,360 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:56,360 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:56,360 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:56,376 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:57,002 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:51:57,002 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:51:57,221 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:57,221 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:57,221 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:57,221 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:57,221 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:51:57,237 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:51:57,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:57,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:51:57,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:51:57,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:52:25,926 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 12:52:25,927 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 12:52:27,046 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 12:52:27,062 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 12:52:27,062 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 12:52:27,705 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:52:27,705 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 12:52:27,705 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 12:52:27,705 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 14:00:23,844 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 118 13
+2024-09-30 14:00:24,295 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 143 19041
+2024-09-30 14:00:41,259 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 14:00:41,260 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 14:00:41,260 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 14:00:41,263 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 14:00:41,264 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 14:00:41,311 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 14:00:41,312 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 14:00:41,313 - PIL.PngImagePlugin - DEBUG - STREAM b'sBIT' 41 4
+2024-09-30 14:00:41,314 - PIL.PngImagePlugin - DEBUG - b'sBIT' 41 4 (unknown)
+2024-09-30 14:00:41,314 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 57 9
+2024-09-30 14:00:41,315 - PIL.PngImagePlugin - DEBUG - STREAM b'tEXt' 78 25
+2024-09-30 14:00:41,315 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 115 8192
+2024-09-30 14:00:49,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 14:00:49,857 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855
+2024-09-30 14:00:49,858 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2024-09-30 14:00:49,859 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 18855

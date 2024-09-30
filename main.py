@@ -11,6 +11,7 @@ from generar_excel import GenerarExcel
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda import download_and_process_data
 from whatsapp_sender_st import whatsapp_sender
+from ticket_support_app import soporte
 from user_management import user_management_system, logout
 import datetime as dt
 from openpyxl import load_workbook
@@ -126,6 +127,7 @@ class Model:
     option6 = 'Buscar Informacion'
     option7 = 'Generar Archivos'
     option10 = 'Enviar Whatsapp'
+    option11 = 'Soporte - PQRS'
     
     #def __init__(self):
     #  self.apps=[]
@@ -189,7 +191,7 @@ else:
           with st.sidebar:
     
             app = option_menu(model.menuTitle,
-                         [model.option1, model.option2, model.option9, model.option8, model.option3,model.option4, model.option5, model.option6, model.option7, model.option10],
+                         [model.option1, model.option2, model.option9, model.option8, model.option3,model.option4, model.option5, model.option6, model.option7, model.option10, model.option11],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -297,6 +299,8 @@ else:
                download_and_process_data('./.streamlit/secrets.toml')
             if app == model.option10:
                whatsapp_sender()
+            if app == model.option11:
+               soporte()
                
             #logging.info('Estado actual: %s', app)
   

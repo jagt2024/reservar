@@ -17,6 +17,7 @@ from facturacion_servicios_abo import generar_factura
 from estadisticas_reservas_abo import main_reservas_abo
 from estadisticas_facturacion_abo import main_factura
 from whatsapp_sender_abo import whatsapp_sender
+from ticket_support_app import soporte
 import datetime as dt
 from openpyxl import load_workbook
 from calendar import month_name
@@ -133,6 +134,7 @@ class Model:
   option12 = 'Facturacion'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
+  option16 = 'Soporte - PQRS'
   
   #def __init__(self):
   #  self.apps=[]
@@ -183,7 +185,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8, model.option11, model.option15, model.option12, model.option13, model.option14],
+                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -301,16 +303,16 @@ else:
         if app == model.option8:
           GenerarQr().view(GenerarQr.Model())
         if app == model.option9:
-             ConsultarAgenda().view(ConsultarAgenda.Model())
+           ConsultarAgenda().view(ConsultarAgenda.Model())
         if app == model.option10:
            #if user_management_system():
            download_and_process_data('./.streamlit/secrets.toml')
            #  logout()
         if app == model.option11:
-               streamlit_app()
+           streamlit_app()
         if app == model.option12:
 
-              generar_factura()
+           generar_factura()
                             
         if app == model.option13:
            
@@ -326,9 +328,11 @@ else:
            
         if app == model.option15:
            
-              #if authenticate_user(): 
-            
-              whatsapp_sender()
+           #if authenticate_user(): 
+           whatsapp_sender()
+        
+        if app == model.option16:
+           soporte()
                
         #logging.info('Estado actual: %s', app)
 

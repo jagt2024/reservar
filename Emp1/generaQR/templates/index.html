@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pagina de inicio</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/webrtc-adapter/3.3.3/adapter.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.1.10/vue.min.js"></script>
+    <script src="https://rawgit.com/schmich/instascan-builds/master/instascan.min.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</head>
+
+<body class="bg-dark text-white">
+    <div class="container">
+
+        <div class="row">
+            <div class="col-md-12">
+                <h2>El numero de registros actual es: {{contador}}</h2>
+            </div>
+            <div class="col-md-12">
+                <video id="preview"></video>
+                <div class="input-group">
+                    <label for="qr_text">ÚLTIMO CÓDIGO QR DE PROVEEDOR</label>
+                    {% if codigo != None %}
+                    <input value="{{codigo}}" type="text" name="qr_text" id="qr_text" class="form-control">
+                    {% else %}
+                    <input type="text" name="qr_text" id="qr_text" class="form-control">
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let scanner = new Instascan.Scanner({ video: document.getElementById("preview") });
+            Instascan.Camera.getCameras().then(function (cameras) {
+                if (cameras.length > 0) {
+                    scanner.start(cameras[0]);
+                }
+                else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: '',
+                        text: "No se han encontrado cámaras",
+                        footer: ""
+                    });
+                }
+
+            }).catch(function (e) {
+                console.error(e);
+            });
+
+            scanner.addListener('scan', function (c) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Registro guardado con éxito',
+                    text: "",
+                    footer: ""
+                });
+                window.location.replace("http://localhost:5000/" + c);
+
+            })
+
+        </script>
+
+    </div>
+</body>
+
+</html>
