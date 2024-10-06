@@ -18,5 +18,3 @@ bs4
 pyzbar
 plotly
 psutil
-backoff
-socket
