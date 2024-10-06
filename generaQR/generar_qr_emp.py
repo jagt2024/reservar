@@ -8,7 +8,7 @@ from googleapiclient.errors import HttpError
 #import pandas as pd
 from openpyxl import load_workbook
 
-datos_book = load_workbook("./archivos/parametros_abogados.xlsx", read_only=False)
+datos_book = load_workbook("./archivos/parametros_empresa.xlsx", read_only=False)
 
 #data = pd.read_csv('BASE.csv')
 #print(data.head())
@@ -93,7 +93,7 @@ class GenerarQr:
       
       codigoqr = dataBookQR("encargado")
       result_qr = np.setdiff1d(codigoqr,'X')
-      acargo = col2.selectbox('A cargo de:',result_qr)                
+      acargo = col2.selectbox('A cargo de:',result_qr)
       #print(f"Result QR: {acargo}")
         
       if opcion == "Generar Todos":
@@ -125,7 +125,7 @@ class GenerarQr:
       
                 #datos_book.save("./archivos/parametros_abogados.xlsx")
 
-                image = qrcode.make("https://app-abogados.streamlit.app/")
+                image = qrcode.make("https://reservaremp.streamlit.app/")
                 image.save('img/qr_app.png')
                 
                 os.chdir("..")

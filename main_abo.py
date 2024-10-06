@@ -8,7 +8,7 @@ from eliminar_reserva_abo import EliminarReserva
 from servicios_abo import Servicios
 from informacion_abo import Informacion
 from generar_excel_abo import GenerarExcel
-from generaQR.generar_qr import GenerarQr
+from generaQR.generar_qr_abo import GenerarQr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_abo import download_and_process_data
 from user_management import user_management_system, logout

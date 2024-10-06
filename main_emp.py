@@ -8,7 +8,7 @@ from eliminar_reserva_emp import EliminarReservaEmp
 from servicios_emp import ServiciosEmp
 from informacion_emp import InformacionEmp
 from generar_excel_emp import GenerarExcelEmp
-from generaQR.generar_qr import GenerarQr
+from generaQR.generar_qr_emp import GenerarQr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
 from authentication_users import authenticate_user

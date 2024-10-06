@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 from datetime import datetime
 import plotly.express as px
+from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -49,13 +50,14 @@ class TicketDatabase:
         self.conn.commit()
         return self.c.lastrowid
 
-    def obtener_tickets(self, fecha_inicio=None, fecha_fin=None):
-        query = "SELECT * FROM tickets"
-        params = []
-        if fecha_inicio and fecha_fin:
-            query += " WHERE estado = 'Abierto' and fecha >= ? AND fecha <= ?"
-            params.extend([fecha_inicio, fecha_fin])
-        return pd.read_sql_query(query, self.conn, params=params)
+    def obtener_tickets_recientes_abiertos(self):
+        fecha_limite = (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d")
+        query = """
+        SELECT * FROM tickets 
+        WHERE estado = 'Abierto' AND fecha >= ?
+        ORDER BY fecha DESC, hora DESC
+        """
+        return pd.read_sql_query(query, self.conn, params=(fecha_limite,))
 
     def cerrar_ticket(self, ticket_id):
         fecha_cierre = datetime.now().strftime("%Y-%m-%d")
@@ -70,7 +72,7 @@ class TicketApp:
         self.db = TicketDatabase()
         self.email_sender = EmailSender(
             smtp_server="smtp.gmail.com",
-            port = 465, #587
+            port=465,
             sender_email=st.secrets['emails']['smtp_user'],
             password=st.secrets['emailsemp']['smtp_password']
         )
@@ -78,7 +80,6 @@ class TicketApp:
     def run(self):
         st.title("Sistema de Tickets de Soporte")
 
-        # Autenticación simple
         if 'is_support' not in st.session_state:
             st.session_state.is_support = False
 
@@ -110,7 +111,7 @@ class TicketApp:
         self.formulario_ticket()
 
     def support_view(self):
-        self.mostrar_tickets()
+        self.mostrar_tickets_recientes_abiertos()
         self.filtro_fechas_y_estadisticas()
 
     def formulario_ticket(self):
@@ -154,32 +155,20 @@ class TicketApp:
         except Exception as e:
             st.error(f"Error al enviar correo: {str(e)}")
 
-    def mostrar_tickets(self):
-        st.header("Tickets de Soporte")
+    def mostrar_tickets_recientes_abiertos(self):
+        st.header("Tickets Abiertos (Últimos 5 días)")
         
-        # Filtro de fechas de cierre
-        col1, col2 = st.columns(2)
-        with col1:
-            fecha_inicio = st.date_input("Fecha (inicio)", value=None)
-        with col2:
-            fecha_fin = st.date_input("Fecha (fin)", value=None)
-
-        # Convertir fechas a formato de string para la consulta SQL
-        fecha_inicio_str = fecha_inicio.strftime("%Y-%m-%d") if fecha_inicio else None
-        fecha_fin_str = fecha_fin.strftime("%Y-%m-%d") if fecha_fin else None
-
-        df = self.db.obtener_tickets(fecha_inicio_str, fecha_fin_str)
+        df = self.db.obtener_tickets_recientes_abiertos()
         
-        # Mostrar tickets
-        for index, row in df.iterrows():
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.write(f"Ticket #{row['id']} - {row['fecha']} {row['hora']} - {row['prioridad']} - {row['estado']}")
-                st.write(f"Descripción: {row['descripcion']}")
-                if row['fecha_cierre']:
-                    st.write(f"Fecha de cierre: {row['fecha_cierre']}")
-            with col2:
-                if row['estado'] != 'Cerrado':
+        if df.empty:
+            st.info("No hay tickets abiertos en los últimos 5 días.")
+        else:
+            for index, row in df.iterrows():
+                col1, col2 = st.columns([3, 1])
+                with col1:
+                    st.write(f"Ticket #{row['id']} - {row['fecha']} {row['hora']} - {row['prioridad']} - {row['estado']}")
+                    st.write(f"Descripción: {row['descripcion']}")
+                with col2:
                     if st.button(f"Cerrar Ticket #{row['id']}"):
                         self.db.cerrar_ticket(row['id'])
                         st.success(f"Ticket #{row['id']} cerrado con éxito")
@@ -187,7 +176,7 @@ class TicketApp:
 
         if st.button("Exportar a Excel"):
             current_date = datetime.now().strftime("%Y-%m-%d")
-            filename = f"tickets_export_{current_date}.xlsx"
+            filename = f"tickets_abiertos_recientes_{current_date}.xlsx"
             df.to_excel(filename, index=False)
             st.success(f"Datos exportados a '{filename}'")
 
@@ -200,7 +189,7 @@ class TicketApp:
         with col2:
             fecha_fin = st.date_input("Fecha de fin")
 
-        df = self.db.obtener_tickets()
+        df = self.db.obtener_tickets_recientes_abiertos()
         df['fecha'] = pd.to_datetime(df['fecha'])
         df_filtrado = df[(df['fecha'] >= pd.Timestamp(fecha_inicio)) & (df['fecha'] <= pd.Timestamp(fecha_fin))]
 

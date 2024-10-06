@@ -3,6 +3,7 @@ from PIL import Image
 import requests
 from streamlit_lottie import st_lottie
 import psutil
+import logging
 
 def log_resource_usage():
     cpu_percent = psutil.cpu_percent()

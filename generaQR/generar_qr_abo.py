@@ -93,7 +93,7 @@ class GenerarQr:
       
       codigoqr = dataBookQR("encargado")
       result_qr = np.setdiff1d(codigoqr,'X')
-      acargo = col2.selectbox('A cargo de:',result_qr)                
+      acargo = col2.selectbox('A cargo de:',result_qr)
       #print(f"Result QR: {acargo}")
         
       if opcion == "Generar Todos":

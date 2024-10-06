@@ -43,7 +43,7 @@ class ConsultarAgenda:
         selected_columns = st.multiselect("Selecciona las columnas a mostrar", all_columns, default=all_columns)
 
         # Número de registros
-        num_records = st.number_input("Número de registros a mostrar", min_value=1, max_value=len(df), value=2)
+        num_records = st.number_input("Número de registros a mostrar", min_value=1, max_value=len(df), value=1)
 
         # Ordenar por columna
         sort_column = st.selectbox("Ordenar por", ["Sin ordenar"] + all_columns)
