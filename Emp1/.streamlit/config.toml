@@ -1,0 +1,34 @@
+[server]
+port = 8501
+
+[seguridad]
+clave_protegida = "admin54321"
+
+[theme]
+prymaryColor = '#FFFFFF'
+backgroundColor = '#acbee9'
+secundarybackgroundColor = '#B9F1C0'
+textColor = '#U779E3'
+font = "sans serif"
+
+[layout]
+top_margin = "5px"
+bottom_margin = "20px"
+
+[fonts]
+clock_font = "Orbitron"
+calendar_font = "Orbitron"
+temperature_font = "Arial"
+
+[font_sizes]
+clock_font_size = "20px"
+calendar_font_size = "18px"
+temperature_font_size = "20px"
+
+[colors]
+clock_color = "red"
+calendar_color = "white"
+temperature_color = "white"
+
+[update]
+clock_update_interval = 1

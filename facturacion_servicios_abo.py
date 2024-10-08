@@ -11,9 +11,24 @@ from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import inch
+import numpy as np
 import os
 import sqlite3
 import json
+from openpyxl import load_workbook
+
+datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+
+def dataBook(hoja):
+    ws1 = datos_book[hoja]
+    data = []
+    for row in range(1, ws1.max_row):
+      _row=[]
+      for col in ws1.iter_cols(min_row=0, min_col=1, max_col=ws1.max_column):
+        _row.append(col[row].value)
+      data.append(_row[0])
+      #print(f'data {data}')
+    return data
 
 # Función para cargar datos del emisor desde Excel
 def cargar_datos_emisor():
@@ -204,12 +219,16 @@ def generar_factura():
     st.subheader("Número de Factura")
     numero_factura = st.text_input("Número de Factura", value=generar_numero_factura(), key="numero_factura")
 
+    servicio = dataBook("servicio")
+    result_serv = np.setdiff1d(servicio,'')
+    
     st.subheader("Servicios")
     servicios = []
         
     for i in range(10):  # Limit to 10 services for this example
         with st.expander(f"Servicio {i + 1}", expanded=i == 0):
-            descripcion = st.text_input(f"Descripción del Servicio", key=f"desc_{i}")
+            descripcion = st.selectbox('Descripcion del Servicio: ', result_serv, key=f"desc_{i}")
+            #st.text_input(f"Descripción del Servicio", key=f"desc_{i}")
             cantidad = st.number_input(f"Cantidad", min_value=1, value=1, step=1, key=f"cant_{i}")
             precio_unitario_con_iva = st.number_input(f"Precio Unitario (con IVA)", min_value=0.0, value=0.0, step=1000.0, key=f"precio_{i}")
         
