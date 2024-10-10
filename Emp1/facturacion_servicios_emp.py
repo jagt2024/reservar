@@ -18,10 +18,14 @@ import sqlite3
 import json
 from openpyxl import load_workbook
 import smtplib
-from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
+import logging
+
+# Configurar logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
@@ -83,36 +87,39 @@ def guardar_factura_en_db(numero_factura, fecha_factura, emisor_nombre, emisor_n
     conn.close()
     
 def enviar_factura_por_email(email_cliente, pdf_buffer, numero_factura):
-    # Configuración del servidor de correo (ejemplo con Gmail)
     smtp_server = "smtp.gmail.com"
     port = 465
     sender_email = st.secrets['emails']['smtp_user']
     password = st.secrets['emails']['smtp_password']
- 
-    message = EmailMessage()
-    #message = MIMEMultipart()
+
+    logger.info(f"Iniciando envío de correo a {email_cliente}")
+    
+    message = MIMEMultipart()
     message["From"] = sender_email
     message["To"] = email_cliente
     message["Subject"] = f"Factura {numero_factura}"
 
-    # Cuerpo del correo
     body = f"Adjunto encontrará la factura {numero_factura}. Gracias por su preferencia."
-    message.add_attachment(MIMEText(body, "plain"))
+    message.attach(MIMEText(body, "plain"))
 
-    # Adjuntar PDF
     pdf_attachment = MIMEApplication(pdf_buffer.getvalue(), _subtype="pdf")
     pdf_attachment.add_header('Content-Disposition', f'attachment; filename=factura_{numero_factura}.pdf')
     message.attach(pdf_attachment)
 
-    # Enviar correo
-    with smtplib.SMTP_SSL(smtp_server, port) as server: 
-         #smtplib.SMTP(smtp_server, port) as server:
-        
-        #server.starttls()
-        server.login(sender_email, password)
-        server.send_message(message)
-        server.quit()
-        
+    try:
+        logger.debug("Intentando conexión SMTP_SSL")
+        with smtplib.SMTP_SSL(smtp_server, port) as server:
+            logger.debug("Conexión SMTP_SSL exitosa")
+            logger.debug("Intentando login")
+            server.login(sender_email, password)
+            logger.debug("Login exitoso")
+            logger.debug("Enviando mensaje")
+            server.send_message(message)
+            logger.info("Mensaje enviado exitosamente")
+        return True
+    except Exception as e:
+        logger.error(f"Error al enviar el correo: {str(e)}", exc_info=True)
+        return False
 
 def generar_numero_factura():
     if 'numero_factura' not in st.session_state:
@@ -292,7 +299,7 @@ def generar_factura():
         subtotal = sum(servicio["precio_unitario_sin_iva"] * servicio["cantidad"] for servicio in servicios)
         iva_total = sum(servicio["iva"] for servicio in servicios)
         total = sum(servicio["subtotal"] for servicio in servicios)
-
+     
         if st.button("Generar Factura", key="generar_factura"):
             fecha_factura = datetime.now().strftime('%Y-%m-%d')
             
@@ -329,47 +336,57 @@ def generar_factura():
             
             try:
                
-               pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, servicios, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
+                pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, servicios, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
 
-               st.download_button(
-                    label="Descargar Factura como PDF",
-                    data=pdf_buffer,
-                    file_name=f"factura_{numero_factura}.pdf",
-                    mime="application/pdf",
-               )
+                st.download_button(
+                label="Descargar Factura como PDF",
+                data=pdf_buffer,
+                file_name=f"factura_{numero_factura}.pdf",
+                mime="application/pdf",
+                )
 
-               df_servicios = pd.DataFrame(servicios)
-               csv = df_servicios.to_csv(index=False)
-               st.download_button(
-                    label="Descargar Factura como CSV",
-                    data=csv,
-                    file_name=f"factura_{numero_factura}.csv",
-                    mime="text/csv",
-               )
+                df_servicios = pd.DataFrame(servicios)
+                csv = df_servicios.to_csv(index=False)
+                st.download_button(
+                label="Descargar Factura como CSV",
+                data=csv,
+                file_name=f"factura_{numero_factura}.csv",
+                mime="text/csv",
+                )
 
-               st.download_button(
-                    label="Descargar Código QR",
-                    data=qr_bytes,
-                    file_name=f"codigo_qr_factura_{numero_factura}.png",
-                    mime="image/png",
-               )
-               
-               # Opción para enviar la factura por correo electrónico
-               if st.button("Enviar Factura por Correo Electrónico"):
-                  if email_cliente:
-                     try:
-                        enviar_factura_por_email(email_cliente, pdf_buffer, numero_factura)
-                        st.success(f"Factura enviada exitosamente a {email_cliente}")
-                     except Exception as e:
-                        st.error(f"Error al enviar el correo: {str(e)}")
-                  else:
-                    st.warning("Por favor, ingrese el correo electrónico del cliente para enviar la factura.")
+                st.download_button(
+                label="Descargar Código QR",
+                data=qr_bytes,
+                file_name=f"codigo_qr_factura_{numero_factura}.png",
+                mime="image/png",
+                )
 
             except Exception as e:
-              st.error(f"Error al generar el PDF o guardar en la base de datos: {str(e)}")
-
+                st.error(f"Error al generar el PDF o guardar en la base de datos: {str(e)}")
     else:
         st.warning("Por favor, agregue al menos un servicio para generar la factura.")
+
+    #Opción para enviar la factura por correo electrónico
+    if st.button("Enviar Factura por Correo Electrónico"):
+       if email_cliente:
+          fecha_factura = datetime.now().strftime('%Y-%m-%d')
+          datos_qr = f"Factura: {numero_factura}\nFecha: {fecha_factura}\nEmisor: {emisor_data['nombre']}\nCliente: {nombre_cliente}\nTotal: ${total:,.2f} COP"
+          qr_bytes = generar_qr(datos_qr)
+          with st.spinner("Enviando factura por correo electrónico..."):
+            logger.info(f"Generando PDF para factura {numero_factura}")
+            pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, servicios, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
+            logger.info("PDF generado correctamente")
+                    
+            logger.info(f"Intentando enviar correo a {email_cliente}")
+            if enviar_factura_por_email(email_cliente, pdf_buffer, numero_factura):
+               st.success(f"Factura enviada exitosamente a {email_cliente}")
+               logger.info(f"Factura enviada exitosamente a {email_cliente}")
+            else:
+               st.error("No se pudo enviar la factura por correo electrónico. Por favor, revise los logs para más detalles.")
+               logger.error("Fallo en el envío de la factura por correo electrónico")
+       else:
+          st.warning("Por favor, ingrese el correo electrónico del cliente para enviar la factura.")
+          logger.warning("Intento de envío de factura sin dirección de correo electrónico")
     
     if st.button("Confirmar y Guardar Factura"):
        fecha_factura = datetime.now().strftime('%Y-%m-%d')
