@@ -18,4 +18,3 @@ bs4
 pyzbar
 plotly
 psutil
-zipfile
