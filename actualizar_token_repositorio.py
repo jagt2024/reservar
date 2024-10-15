@@ -12,8 +12,8 @@ from github import Github
 SCRIPT_PATH = "actualizar_token.py"
 DB_PATH = "users.db"
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-REPO_NAME = "your_username/your_repo_name"  # Reemplaza con tu nombre de usuario y repositorio
-FILE_PATH = "path/to/token.json"  # Reemplaza con la ruta correcta en tu repositorio
+REPO_NAME = "jagt2024/reservar"  # Reemplaza con tu nombre de usuario y repositorio
+FILE_PATH = "token.json"  # Reemplaza con la ruta correcta en tu repositorio
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()

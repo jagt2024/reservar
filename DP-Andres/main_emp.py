@@ -39,7 +39,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
 
-logging.basicConfig(level=logging.DEBUG, filename='main_emp.log', filemode='w',
+logging.basicConfig(level=logging.DEBUG, filename='main_emp_dp.log', filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # En diferentes partes de tu código:
@@ -57,9 +57,9 @@ with open("./.streamlit/config.toml", "r") as f:
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
-logo = Image.open("./assets/logoJAGT.ico")  
+logo = Image.open("./assets/dp_andres.png")  
 
-datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+datos_book_emp = load_workbook("/archivos/parametros_empresa_dp.xlsx", read_only=False)
 
 def cargar_configuracion():
     try:
@@ -88,7 +88,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20241130')
+fecha_hasta = int('20241231')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()

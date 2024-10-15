@@ -4,6 +4,14 @@ import requests
 from streamlit_lottie import st_lottie
 import psutil
 import logging
+import streamlit.components.v1 as components
+
+def st_custom_icon(url, key=None):
+    component_value = components.declare_component(
+        "custom_icon",
+        path="frontend"  # Directorio donde estará tu componente React
+    )
+    return component_value(url=url, key=key, default=None)
 
 def log_resource_usage():
     cpu_percent = psutil.cpu_percent()
@@ -16,11 +24,14 @@ class InicioEmp:
   
   class Model:
     
-    pageTitle = ('***BARBERIA STYLOS***')
+   pageTitle = ('***DISTRITO PRIVADO***')
  
   def view(self,model):
     st.title(model.pageTitle)
-    image = st.image("assets/barberia1.webp")
+    if st_custom_icon("https://reservaremp.streamlit.app"):
+      st.write("¡Icono clickeado!")
+
+    image = st.image("assets/CarService.mp4")
     st.write(
         """
           ***Genere sus Reservas en Linea y Programe su Agenda***

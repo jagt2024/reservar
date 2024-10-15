@@ -1,0 +1,93 @@
+# Archivo: frontend/index.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Streamlit Icon</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/streamlit-component-lib/1.3.0/streamlit.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/feather-icons/4.28.0/feather.min.js"></script>
+    <style>
+        .icon-button {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #4A90E2, #356CB4);
+            color: white;
+            border-radius: 16px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .icon-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+        .icon-button span {
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script>
+        const { createRoot } = ReactDOM;
+        const { useEffect, useState } = React;
+
+        const StreamlitAppIcon = ({ url }) => {
+            const handleClick = () => {
+                window.open(url, '_blank');
+                Streamlit.setComponentValue(true);
+            };
+
+            return React.createElement(
+                'button',
+                { 
+                    onClick: handleClick,
+                    className: 'icon-button'
+                },
+                [
+                    React.createElement('i', { 
+                        key: 'icon',
+                        'data-feather': 'tv',
+                        style: { width: '36px', height: '36px' }
+                    }),
+                    React.createElement('span', { key: 'text' }, 'Streamlit')
+                ]
+            );
+        };
+
+        const App = () => {
+            const [url, setUrl] = useState('');
+
+            useEffect(() => {
+                const onRender = (event) => {
+                    if (event.data.type === 'render') {
+                        setUrl(event.data.args.url);
+                    }
+                };
+                window.addEventListener('message', onRender);
+                Streamlit.setFrameHeight();
+                return () => window.removeEventListener('message', onRender);
+            }, []);
+
+            useEffect(() => {
+                feather.replace();
+            });
+
+            return React.createElement(StreamlitAppIcon, { url: url });
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(React.createElement(App));
+    </script>
+</body>
+</html>
