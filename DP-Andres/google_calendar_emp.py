@@ -38,8 +38,8 @@ class GoogleCalendar:
   def _authenticate(self):
     creds = None
     
-    if os.path.exists("token.json"):
-        with open("token.json", "r") as token_file:
+    if os.path.exists("token_emp.json"):
+        with open("token_emp.json", "r") as token_file:
             token_data = json.load(token_file)
         
         # Convertir la fecha de expiración a un objeto datetime con zona horaria UTC
@@ -52,23 +52,23 @@ class GoogleCalendar:
             token_data['expiry'] = new_expiry
             
             # Guardar el token actualizado
-            with open("token.json", "w") as token_file:
+            with open("token_emp.json", "w") as token_file:
                 json.dump(token_data, token_file)
         
-        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        creds = Credentials.from_authorized_user_file("token_emp.json", SCOPES)
     
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             try:
-                flow = InstalledAppFlow.from_client_secrets_file("client_secret_app_escritorio_oauth.json", SCOPES)
+                flow = InstalledAppFlow.from_client_secrets_file("client_secret_emp.json", SCOPES)
                 creds = flow.run_local_server(port=0)
             except StopIteration as err:
                 raise Exception(f'Ha ocurrido un error en def _authenticate: {err}')
         
         try:
-            with open("token.json", "w") as token:
+            with open("token_emp.json", "w") as token:
                 token.write(creds.to_json())
         except json.decoder.JSONDecodeError:
             print("Error al escribir en creds.to_json")

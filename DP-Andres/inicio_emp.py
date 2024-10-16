@@ -13,6 +13,7 @@ def st_custom_icon(url, key=None):
     )
     return component_value(url=url, key=key, default=None)
 
+
 def log_resource_usage():
     cpu_percent = psutil.cpu_percent()
     memory_percent = psutil.virtual_memory().percent

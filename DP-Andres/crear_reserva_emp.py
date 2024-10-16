@@ -19,7 +19,7 @@ from openpyxl import load_workbook
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
-datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("archivos/parametros_empresa_dp.xlsx", read_only=False)
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
@@ -98,7 +98,7 @@ def validate_email(email):
   
 def add_hour_and_half(time):
     parsed_time = dt.datetime.strptime(time, "%H:%M").time()
-    new_time = (dt.datetime.combine(dt.date.today(), parsed_time) + dt.timedelta(hours=1, minutes=0)).time()
+    new_time = (dt.datetime.combine(dt.date.today(), parsed_time) + dt.timedelta(hours=1, minutes=30)).time()
     return new_time.strftime("%H:%M")
 
 def generate_uid():
@@ -130,6 +130,9 @@ class CrearReservaEmp:
     with st.form(key='myform1',clear_on_submit=True):
   
       horas = dataBook("horario")
+
+      zonas = dataBook("zonas")
+      result_zonas = np.setdiff1d(zonas,'')
       
       servicio = dataBook("servicio")
       result_serv = np.setdiff1d(servicio,'')
@@ -151,10 +154,11 @@ class CrearReservaEmp:
       c1, c2 = st.columns(2)
       nombre = c1.text_input('Nombre o Empresa*: ', placeholder='Nombre') # label_visibility='hidden')
       email  = c2.text_input('Email:', placeholder='Email')
-      fecha  = c1.date_input('Fecha*: ')
+      direccion  = c1.text_input('Direccion:', placeholder='direccion')
+      fecha  = c2.date_input('Fecha*: ')
       servicios = c1.selectbox('Servicios*: ', result_serv) 
       st.text(muestra)
-      notas = c1.text_area('Nota o Mensaje(Opcional)')
+      notas = c2.text_area('Nota o Mensaje(Opcional)')
       precio = dataBookPrecio("servicio", servicios)
       #result_precio = np.setdiff1d(precio,'')
       #print(f'Precio = {precio}')
@@ -183,8 +187,8 @@ class CrearReservaEmp:
       result_hours = np.setdiff1d(horas, hours_blocked) 
       hora = c2.selectbox('Hora: ',result_hours)
     
-      whatsapp = c2.checkbox('Envio a WhatsApp Si/No (Opcional)')
-      telefono = c2.text_input('Nro. Telefono')
+      whatsapp = c1.checkbox('Envio a WhatsApp Si/No (Opcional)')
+      telefono = c1.text_input('Nro. Telefono')
 
       enviar = st.form_submit_button(" Reservar ")
 
@@ -291,9 +295,9 @@ class CrearReservaEmp:
                      
                   calendar.create_event(servicios+". "+nombre, start_time, end_time, time_zone, attendees=result_email)
 
-                  st.success('Su solicitud ha sido reservada de forrma exitosa')
                   send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  notas)
-                  send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas)                    
+                  send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas)            
+                  st.success('Su solicitud ha sido reservada de forrma exitosa')
 
                   #if whatsapp == True:
                   #  contact = str(57)+telefono

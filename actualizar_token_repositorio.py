@@ -6,13 +6,13 @@ import hashlib
 import sqlite3
 import json
 import requests
-from github import Github
+#from github import Github
 
 # Asumimos que actualizar_token.py está en el mismo directorio
 SCRIPT_PATH = "actualizar_token.py"
 DB_PATH = "users.db"
-GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
-REPO_NAME = "jagt2024/reservar"  # Reemplaza con tu nombre de usuario y repositorio
+GITHUB_TOKEN = os.environ.get('https://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@github.com')
+REPO_NAME = "jagt2024/reservar.git"  # Reemplaza con tu nombre de usuario y repositorio
 FILE_PATH = "token.json"  # Reemplaza con la ruta correcta en tu repositorio
 
 def hash_password(password):
@@ -38,7 +38,7 @@ def verify_support_credentials(username, password):
         conn.close()
 
 def update_github_file(file_content):
-    g = Github(GITHUB_TOKEN)
+    g = (GITHUB_TOKEN)
     repo = g.get_repo(REPO_NAME)
     
     try:
