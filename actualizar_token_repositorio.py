@@ -5,13 +5,25 @@ import os
 import hashlib
 import sqlite3
 import json
+import toml
 import requests
 #from github import Github
+
+def cargar_configuracion():
+    try:
+        config = toml.load("./.streamlit/config.toml")
+        return config["token"]["github"]
+    except FileNotFoundError:
+        st.error("Archivo de configuración no encontrado.")
+        return None
+    except KeyError:
+        st.error("Clave no encontrada en el archivo de configuración.")
+        return None
 
 # Asumimos que actualizar_token.py está en el mismo directorio
 SCRIPT_PATH = "actualizar_token.py"
 DB_PATH = "users.db"
-GITHUB_TOKEN = os.environ.get('https://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@github.com')
+GITHUB_TOKEN = cargar_configuracion()
 REPO_NAME = "jagt2024/reservar.git"  # Reemplaza con tu nombre de usuario y repositorio
 FILE_PATH = "token.json"  # Reemplaza con la ruta correcta en tu repositorio
 

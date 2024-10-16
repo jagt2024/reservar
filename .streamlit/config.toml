@@ -4,6 +4,9 @@ port = 8501
 [seguridad]
 clave_protegida = "admin54321"
 
+[token]
+github = 'https://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@github.com'
+
 [theme]
 prymaryColor = '#FFFFFF'
 backgroundColor = '#acbee9'
