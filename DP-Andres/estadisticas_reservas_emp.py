@@ -102,7 +102,7 @@ def main_reservas():
             col1, col2, col3 = st.columns(3)
             col1.metric("Total Reservas", len(filtered_df))
             col2.metric("Servicios Únicos", filtered_df['SERVICIOS'].nunique())
-            col3.metric("Encargados Únicos", filtered_df['ESTILISTA'].nunique())
+            col3.metric("Encargados Únicos", filtered_df['ENCARGADO'].nunique())
 
             # Gráfico de barras: Servicios más solicitados
             st.header("Servicios Más Solicitados")
@@ -113,7 +113,7 @@ def main_reservas():
 
             # Gráfico circular: Distribución de servicios por encargado
             st.header("Distribución de Servicios por Encargado")
-            encargado_servicios = filtered_df.groupby('ESTILISTA')['SERVICIOS'].count()
+            encargado_servicios = filtered_df.groupby('ENCARGADO')['SERVICIOS'].count()
             fig = px.pie(encargado_servicios, values='SERVICIOS', names=encargado_servicios.index, title='Distribución de Servicios por Encargado')
             st.plotly_chart(fig)
 
@@ -125,7 +125,7 @@ def main_reservas():
 
             # Tabla de resumen de encargados
             st.header("Resumen de Encargados")
-            encargado_summary = filtered_df.groupby('ESTILISTA').agg({
+            encargado_summary = filtered_df.groupby('ENCARGADO').agg({
             'SERVICIOS': ['count', 'nunique']
             })
             encargado_summary.columns = ['Total Servicios', 'Servicios Únicos']
@@ -135,12 +135,12 @@ def main_reservas():
             # Servicios más populares por encargado
             st.header("Servicios Más Populares por Encargado")
             encargado_select = st.selectbox("Seleccione un Encargado", 
-            options=['Todos'] + list(filtered_df['ESTILISTA'].unique()))
+            options=['Todos'] + list(filtered_df['ENCARGADO'].unique()))
         
             if encargado_select == 'Todos':
                 encargado_services = filtered_df
             else:
-                encargado_services = filtered_df[filtered_df['ESTILISTA'] == encargado_select]
+                encargado_services = filtered_df[filtered_df['ENCARGADO'] == encargado_select]
                 top_services = encargado_services['SERVICIOS'].value_counts().head(5)
                 fig = px.bar(top_services, x=top_services.index, y=top_services.values,
                 labels={'x': 'Servicio', 'y': 'Cantidad'})

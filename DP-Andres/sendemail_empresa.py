@@ -3,9 +3,9 @@ from email.message import EmailMessage
 import streamlit as st
 import imghdr
     
-def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas):
+def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas, emailencargado):
    
-  destinatarios = []
+  destinatarios = emailencargado
   user = st.secrets['emailsemp']['smtp_user'] 
   password = st.secrets['emailsemp']['smtp_password']
   smtp_server = 'smtp.gmail.com'
@@ -25,7 +25,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, nota
       Hora: {hora},
       Servicio: {servicio},
       Precio : {precio},
-      Encargado: {estilista},
+      Conductor Encargado: {estilista},
       Notas: {notas},
       
       
@@ -38,7 +38,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, nota
   
   if user in destinatarios:
         
-    with open("assets/barberia.png","rb") as f:
+    with open("assets/dp_andres.png","rb") as f:
     #with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/gestion-reservas.xlsx","rb") as f:
       
       file_data = f.read()
@@ -55,7 +55,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, nota
   
   elif email not in destinatarios:
     
-    with open("assets/barberia.png","rb") as f1:
+    with open("assets/dp_andres.png","rb") as f1:
           
       file_data = f1.read()
       file_type1 = imghdr.what(f1.name)

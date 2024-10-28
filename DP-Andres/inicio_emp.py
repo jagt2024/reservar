@@ -25,14 +25,21 @@ class InicioEmp:
   
   class Model:
     
-   pageTitle = ('***DISTRITO PRIVADO***')
+   pageTitle = ('***DISTRITO PRIVADO***') 
  
   def view(self,model):
     st.title(model.pageTitle)
-    if st_custom_icon("https://reservaremp.streamlit.app"):
-      st.write("¡Icono clickeado!")
+    st.subheader(' ASOCIACION USUARIOS-CONDUCTORES')
 
-    image = st.image("assets/CarService.mp4")
+    #st_custom_icon("https://reservaremp.streamlit.app")
+    #st.write("¡Icono clickeado!")
+    
+    try:
+        st.video("assets/CarService.mp4")
+    except Exception as e:
+        st.error(f"Error al cargar el video: {str(e)}")
+
+    #image = st.image("assets/CarService.mp4")
     st.write(
         """
           ***Genere sus Reservas en Linea y Programe su Agenda***

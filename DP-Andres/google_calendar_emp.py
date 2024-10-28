@@ -29,11 +29,11 @@ def create_service_with_timeout(service_name, version, creds):
 SCOPES =["https://www.googleapis.com/auth/calendar"]
 
 class GoogleCalendar:
-  def __init__(self, idcalendar):
+  def __init__(self):
     self.service = self._authenticate()
     
     #self.credentials = credentials
-    self.idcalendar = idcalendar
+    #self.idcalendar = idcalendar
     
   def _authenticate(self):
     creds = None

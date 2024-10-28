@@ -7,16 +7,16 @@ from googleapiclient.discovery import build
 
 # Ruta del archivo de credenciales
 #CREDENTIALS_FILE = 'appreservas-origin.json'
-document='gestion-reservas'
+document='gestion-reservas-dp'
 sheet = 'reservas'
-credentials = st.secrets['sheets']['credentials_sheet']
+credentials = st.secrets['sheetsemp']['credentials_sheet']
 
 # Función para obtener los datos de la hoja de cálculo de Google Drive
 def get_google_drive_excel_data(spreadsheet_url, toml_file_path):
     try:
         # Cargar las credenciales desde el archivo .toml
         config = toml.load(toml_file_path)
-        cred_dict = config['sheets']['credentials_sheet']
+        cred_dict = config['sheetsemp']['credentials_sheet']
 
         # Crear las credenciales a partir del diccionario
         creds = Credentials.from_service_account_info(cred_dict, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])

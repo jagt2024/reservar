@@ -26,7 +26,7 @@ class GenerarExcel:
         
         if opcion == "Encargado":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-emp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -35,8 +35,8 @@ class GenerarExcel:
             with st.spinner('Cargando...'): 
               try: 
                 os.chdir("archivos")
-                for x in df["ESTILISTA"].unique(): 
-                  df_temp = df[df["ESTILISTA"] == x ]
+                for x in df["ENCARGADO"].unique(): 
+                  df_temp = df[df["ENCARGADO"] == x ]
                   
                   # Descargar datos filtrados
                   #df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
@@ -60,7 +60,7 @@ class GenerarExcel:
                 
         elif opcion == "Servicio":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-emp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -88,7 +88,7 @@ class GenerarExcel:
                 
         elif opcion == "Fecha":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-emp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   

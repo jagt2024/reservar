@@ -36,7 +36,8 @@ def get_google_sheet_data(creds):
     client = gspread.authorize(credentials)
 
     sheet_url = str(sheetUrl)
-    sheet = client.open_by_url(sheet_url)
+    #sheet = client.open_by_url(sheet_url)
+    sheet = client.open('gestion-reservas-dp')
     worksheet = sheet.worksheet('reservas')
     data = worksheet.get_all_values()
     
@@ -109,7 +110,7 @@ def process_and_display_data(df):
        st.error("No hay datos después de filtrar por los últimos días.")
        return
     
-    temp_file_path = "./archivos/temp_gestion-reservas-emp.xlsx"
+    temp_file_path = "./archivos/temp_gestion-reservas-dp.xlsx"
     df.to_excel(temp_file_path, index=False)
     
     # Add a download button for the generated file
@@ -117,7 +118,7 @@ def process_and_display_data(df):
         btn = st.download_button(
             label="Descargar archivo Excel",
             data=file,
-            file_name="gestion-reservas-abo.xlsx",
+            file_name="gestion-reservas-dp.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
     st.write(f"Se han procesado {len(df)} registros válidos.")

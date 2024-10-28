@@ -157,8 +157,8 @@ class EliminarReservaEmp:
             serv = [row[4]]
             fech = str(row[2])
             hora2 = str(row[3])
-            nota = [row[6]]
-            uid1 = str(row[8])
+            nota = [row[10]]
+            uid1 = str(row[11])
 
             if nom != ['DATA']:
               

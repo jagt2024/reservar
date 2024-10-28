@@ -2,12 +2,12 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 import numpy as np
 from inicio_emp import InicioEmp
-from crear_reserva_emp import CrearReservaEmp
-from modificar_reserva_emp import ModificarReservaEmp
-from eliminar_reserva_emp import EliminarReservaEmp
-from servicios_emp import ServiciosEmp
-from informacion_emp import InformacionEmp
-from generar_excel_emp import GenerarExcelEmp
+from crear_reserva_emp_dp import crea_reserva
+from modificar_reserva_emp_dp import modificar_reserva
+from eliminar_reserva_emp_dp import eliminar_reserva
+from servicios_emp_dp import ServiciosEmp
+from informacion_emp_dp import InformacionEmp
+from generar_excel_emp_dp import GenerarExcelEmp
 from generaQR.generar_qr_emp import GenerarQr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
@@ -59,7 +59,7 @@ os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
 logo = Image.open("./assets/dp_andres.png")  
 
-datos_book_emp = load_workbook("archivos/parametros_empresa_dp.xlsx", read_only=False)
+datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
 def cargar_configuracion():
     try:
@@ -110,7 +110,7 @@ sw_empresa = result_emp
 #    print(sw_empresa)
   
 page_title = 'Agenda Actividad' 
-page_icon= "assets/barberia.png" 
+page_icon= "assets/dp_andres.png" 
 title="Resevas"
 layout = 'centered'
 
@@ -136,8 +136,7 @@ class Model:
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
   option17 = 'Actualiza Token'
-  
-    
+      
   #def __init__(self):
   #  self.apps=[]
     
@@ -181,7 +180,7 @@ if fecha_hasta < fecha_hoy:
 
 else:  
   
-  if user_management_system():
+  #if user_management_system():
       
     def view(model):
       try:
@@ -286,11 +285,11 @@ else:
             if app == model.option1:
               InicioEmp().view(InicioEmp.Model())
             if app == model.option2:
-              CrearReservaEmp().view(CrearReservaEmp.Model())
+              crea_reserva()
             if app == model.option3:
-              ModificarReservaEmp().view(ModificarReservaEmp.Model())
+              modificar_reserva()
             if app == model.option4:
-              EliminarReservaEmp().view(EliminarReservaEmp.Model())
+              eliminar_reserva()
             if app == model.option5:
               ServiciosEmp().view(ServiciosEmp.Model())
             if app == model.option6:
