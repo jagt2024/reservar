@@ -35,7 +35,7 @@ class InicioEmp:
     #st.write("¡Icono clickeado!")
     
     try:
-        st.video("assets/CarService.mp4")
+        st.video("assets_dp/CarService.mp4")
     except Exception as e:
         st.error(f"Error al cargar el video: {str(e)}")
 
@@ -43,8 +43,4 @@ class InicioEmp:
     st.write(
         """
           ***Genere sus Reservas en Linea y Programe su Agenda***
-          Direcion:            
-          Ciudad:              
-          Celular:             
-          Email:            
         """)
