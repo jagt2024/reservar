@@ -57,7 +57,7 @@ with open("./.streamlit/config.toml", "r") as f:
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
-logo = Image.open("assets/dp_andres.png")  
+logo = Image.open("./assets-dp/dp_andres.png")  
 
 datos_book_emp = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
 
