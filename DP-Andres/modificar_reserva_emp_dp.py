@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.DEBUG, filename='modificar_reserva_emp_dp.log'
 
 
 # Cargar el archivo Excel una sola vez
-datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBook(hoja):
     

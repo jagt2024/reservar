@@ -20,27 +20,6 @@ def send_email2(email, nombre, fecha, hora, servicio, precio, estilista, notas):
   msg["To"] = email
   msg["Cc"] = destinatarios
   
-  css_style_alternative = """
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        background-color: #222222;
-        margin: 0;
-        padding: 0;
-      }
-      .container {
-        max-width: 600px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-      .header {
-        text-align: center;
-        margin-bottom: 20px;
-      }
-      .header img{
-        max-width: 200px;
-      }
-  """
   #msg.add_alternative("""\
   #<!DOCTYPE html>
   #<html>
@@ -72,7 +51,7 @@ def send_email2(email, nombre, fecha, hora, servicio, precio, estilista, notas):
   
   if user in destinatarios:
         
-    with open("assets/dp_andres.png","rb") as f:
+    with open("assets-dp/dp_andres.png","rb") as f:
     #with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/gestion-reservas.xlsx","rb") as f:
       
       file_data = f.read()
@@ -89,7 +68,7 @@ def send_email2(email, nombre, fecha, hora, servicio, precio, estilista, notas):
   
   elif email not in destinatarios:
     
-    with open("assets/dp_andres.png","rb") as f1:
+    with open("assets-dp/dp_andres.png","rb") as f1:
           
       file_data = f1.read()
       file_type1 = imghdr.what(f1.name)

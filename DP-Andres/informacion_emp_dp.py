@@ -26,6 +26,8 @@ class InformacionEmp:
       hora.text('05:00 am - 11:00 pm')
       dia.text('Sabado')
       hora.text('05:00 am - 11:00 pm')
+      dia.text('Domingo')
+      hora.text('05:00 am - 11:00 pm')
       servicio.text('Hacia el Aeropuerto')
       precio.text('$35.000')
       servicio.text('Desde el Aeropuerto')
@@ -33,7 +35,7 @@ class InformacionEmp:
       
       st.write("---")
       st.subheader('Contactos')
-      st.image('assets/telephone-fill.svg')
+      st.image('assets-dp/telephone-fill.svg')
       st.text('Cel. 3XX XXXXXXX')
       st.text('Correo : empresa@xxxx.com')
 

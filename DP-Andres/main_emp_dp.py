@@ -59,7 +59,7 @@ os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
 logo = Image.open("./assets-dp/dp_andres.png")  
 
-datos_book_emp = load_workbook("DP-Andres/archivos/parametros_empresa.xlsx", read_only=False)
+datos_book_emp = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def cargar_configuracion():
     try:

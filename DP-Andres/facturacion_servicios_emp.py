@@ -27,7 +27,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
@@ -43,7 +43,7 @@ def dataBook(hoja):
 # Función para cargar datos del emisor desde Excel
 def cargar_datos_emisor():
     try:
-        df = pd.read_excel('./archivos/parametros_empresa.xlsx', sheet_name='emisor')
+        df = pd.read_excel('./archivos-dp/parametros_empresa.xlsx', sheet_name='emisor')
         emisor = df.iloc[0]
         return {
             'nombre': emisor['NOMBRE'],

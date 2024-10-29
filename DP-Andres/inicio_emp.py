@@ -35,7 +35,7 @@ class InicioEmp:
     #st.write("¡Icono clickeado!")
     
     try:
-        st.video("assets_dp/CarService.mp4")
+        st.video("assets-dp/CarService.mp4")
     except Exception as e:
         st.error(f"Error al cargar el video: {str(e)}")
 
