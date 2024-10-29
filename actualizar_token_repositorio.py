@@ -7,7 +7,7 @@ import sqlite3
 import json
 import toml
 import requests
-#from github import Github
+import base64
 
 def cargar_configuracion():
     try:
@@ -20,12 +20,12 @@ def cargar_configuracion():
         st.error("Clave no encontrada en el archivo de configuración.")
         return None
 
-# Asumimos que actualizar_token.py está en el mismo directorio
+
 SCRIPT_PATH = "actualizar_token.py"
 DB_PATH = "users.db"
 GITHUB_TOKEN = cargar_configuracion()
-REPO_NAME = "jagt2024/reservar.git"  # Reemplaza con tu nombre de usuario y repositorio
-FILE_PATH = "token.json"  # Reemplaza con la ruta correcta en tu repositorio
+REPO_NAME = "jagt2024/reservar"   
+FILE_PATH = "token.json"
 
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
@@ -50,23 +50,44 @@ def verify_support_credentials(username, password):
         conn.close()
 
 def update_github_file(file_content):
-    g = (GITHUB_TOKEN)
-    repo = g.get_repo(REPO_NAME)
-    
     try:
-        # Obtener el archivo actual
-        file = repo.get_contents(FILE_PATH)
+        # Configurar headers para la API de GitHub
+        headers = {
+            'Authorization': f'Bearer {GITHUB_TOKEN}',
+            'Accept': 'application/vnd.github.v3+json'
+        }
         
-        # Actualizar el archivo
-        repo.update_file(
-            FILE_PATH,
-            "Actualizar token.json",
-            json.dumps(file_content, indent=2),
-            file.sha
-        )
-        return True, "Archivo actualizado exitosamente en GitHub"
+        # URL de la API de GitHub para el archivo
+        api_url = f'https://api.github.com/repos/{REPO_NAME}/contents/{FILE_PATH}'
+        
+        # Primero obtener el SHA del archivo actual
+        response = requests.get(api_url, headers=headers)
+        if response.status_code == 401:
+            return False, "Error de autenticación: Token de GitHub inválido o expirado 1"
+        elif response.status_code != 200:
+            return False, f"Error al obtener el archivo: {response.json().get('message', '')}"
+        
+        current_file = response.json()
+        
+        # Preparar la actualización
+        update_data = {
+            'message': 'Actualizar token.json',
+            'content': base64.b64encode(json.dumps(file_content, indent=2).encode()).decode(),
+            'sha': current_file['sha']
+        }
+        
+        # Realizar la actualización
+        response = requests.put(api_url, headers=headers, json=update_data)
+        
+        if response.status_code == 200:
+            return True, "Archivo actualizado exitosamente en GitHub"
+        elif response.status_code == 401:
+            return False, "Error de autenticación: Token de GitHub inválido o expirado 2"
+        else:
+            return False, f"Error al actualizar el archivo: {response.json().get('message', '')}"
+            
     except Exception as e:
-        return False, f"Error al actualizar el archivo en GitHub: {str(e)}"
+        return False, f"Error al conectar con GitHub: {str(e)}"
 
 def run_actualizar_token():
     try:
