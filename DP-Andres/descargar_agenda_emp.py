@@ -7,7 +7,7 @@ import toml
 import base64
 from openpyxl import load_workbook
 
-datos_book = load_workbook("archivos/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBookSheetUrl(hoja):
     ws1 = datos_book[hoja]
@@ -110,7 +110,7 @@ def process_and_display_data(df):
        st.error("No hay datos después de filtrar por los últimos días.")
        return
     
-    temp_file_path = "./archivos/temp_gestion-reservas-dp.xlsx"
+    temp_file_path = "./archivos-dp/temp_gestion-reservas-dp.xlsx"
     df.to_excel(temp_file_path, index=False)
     
     # Add a download button for the generated file

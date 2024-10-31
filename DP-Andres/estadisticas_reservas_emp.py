@@ -10,7 +10,7 @@ import numpy as np
 from openpyxl import load_workbook
 
 # secrets = toml.load('./.stream/secrets.toml')
-datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBookSheetUrl(hoja):
     ws1 = datos_book[hoja]
