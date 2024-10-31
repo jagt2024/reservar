@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.DEBUG, filename='crear_reserva_emp_dp.log', fi
 
 
 # Cargar el archivo Excel una sola vez
-datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBook(hoja):
     
@@ -410,7 +410,7 @@ def crea_reserva():
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
             hora = st.selectbox('Hora Servicio: ', horas)
-            print(f'fecha: {fecha} hora : {hora}')
+            #print(f'fecha: {fecha} hora : {hora}')
 
             conn = create_connection()
             resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
@@ -447,19 +447,24 @@ def crea_reserva():
                     "🚗 Conductor Encargado": conductor_seleccionado,   "🎯 Servicio": servicio_seleccionado, "Fecha": fecha, "Hora":  hora
                 }
             
+            conductor_seleccionado_c = conductor_seleccionado
+            info2 = {
+                    "🚗 Conductor Encargado": conductor_seleccionado_c,   "🎯 Servicio": servicio_seleccionado, "Fecha": fecha, "Hora":  hora
+                }
+            
             if servicio_seleccionado == 'Hacia el Aeropuerto':
                info["📍 Zona"] = zona_seleccionada
                 
                for key, value in info.items():
                     st.write(f"{key}: **{value}**")
             else:
-                encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
-                #info["📍 Zona"] = zona_seleccionada
+               encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
+               #info["📍 Zona"] = zona_seleccionada
                 
-                for key, value in info.items():
-                    st.write(f"{key}: **{value}**")
+               for key, value in info2.items():
+                  st.write(f"{key}: **{value}**")
 
-                #st.warning("No hay conductores disponibles para la selección actual.")
+               #st.warning("No hay conductores disponibles para la selección actual.")
                  
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
