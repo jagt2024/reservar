@@ -377,8 +377,18 @@ def crea_reserva():
                 encargado = get_conductores_por_zona(zona_seleccionada)
             else:
                 precio_serv ='30.000'
+                zonas = ['Norte', 'Sur', 'Oriente', 'Occidente']
+                zona_seleccionada = st.selectbox(
+                    'Seleccione la zona:',
+                    zonas,
+                    key='zona_selector'
+                )
+                
+                # Obtener conductores según la zona
+                encargado = get_conductores_por_zona(zona_seleccionada)
+                
                 # Para otros servicios, mostrar lista general de conductores
-                encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
+                #encargado = [c for c in dataBook("encargado") if c != 'X' and c #is not None]
                 
                 conn = create_connection()
 
@@ -447,22 +457,17 @@ def crea_reserva():
                     "🚗 Conductor Encargado": conductor_seleccionado,   "🎯 Servicio": servicio_seleccionado, "Fecha": fecha, "Hora":  hora
                 }
             
-            conductor_seleccionado_c = conductor_seleccionado
-            info2 = {
-                    "🚗 Conductor Encargado": conductor_seleccionado_c,   "🎯 Servicio": servicio_seleccionado, "Fecha": fecha, "Hora":  hora
-                }
-            
-            if servicio_seleccionado == 'Hacia el Aeropuerto':
-               info["📍 Zona"] = zona_seleccionada
+            #if servicio_seleccionado == 'Hacia el Aeropuerto':
+            info["📍 Zona"] = zona_seleccionada
                 
-               for key, value in info.items():
-                    st.write(f"{key}: **{value}**")
-            else:
-               encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
+            for key, value in info.items():
+                st.write(f"{key}: **{value}**")
+            #else:
+            #   encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                #info["📍 Zona"] = zona_seleccionada
                 
-               for key, value in info2.items():
-                  st.write(f"{key}: **{value}**")
+            #   for key, value in info2.items():
+            #      st.write(f"{key}: **{value}**")
 
                #st.warning("No hay conductores disponibles para la selección actual.")
                  
