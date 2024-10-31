@@ -385,10 +385,10 @@ def crea_reserva():
                 )
                 
                 # Obtener conductores según la zona
-                encargado = get_conductores_por_zona(zona_seleccionada)
+                #encargado = get_conductores_por_zona(zona_seleccionada)
                 
                 # Para otros servicios, mostrar lista general de conductores
-                #encargado = [c for c in dataBook("encargado") if c != 'X' and c #is not None]
+                encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                 
                 conn = create_connection()
 
@@ -462,6 +462,7 @@ def crea_reserva():
                 
             for key, value in info.items():
                 st.write(f"{key}: **{value}**")
+                
             #else:
             #   encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                #info["📍 Zona"] = zona_seleccionada
