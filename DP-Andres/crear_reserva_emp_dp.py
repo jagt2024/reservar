@@ -392,7 +392,7 @@ def crea_reserva():
                 
                 conn = create_connection()
 
-                existe_db2 = check_existing_encargado(conn, conductor_seleccionado, str(fecha), hora)
+                existe_db2 = check_existing_encargado(conn, encargado, str(fecha), hora)
 
                 if existe_db2:
                    st.warning("Conductor ya tiene agenda para esa fecha y hora")
@@ -462,7 +462,7 @@ def crea_reserva():
                 
             for key, value in info.items():
                 st.write(f"{key}: **{value}**")
-                
+
             #else:
             #   encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                #info["📍 Zona"] = zona_seleccionada
