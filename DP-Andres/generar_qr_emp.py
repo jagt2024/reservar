@@ -140,7 +140,7 @@ class GenerarQr:
                  
          generar = st.form_submit_button(" Generar ")
   
-         if generar:  
+         if generar:   
              with st.spinner('Cargando...'):
                try:   
                  os.chdir("generaQR_dp")
