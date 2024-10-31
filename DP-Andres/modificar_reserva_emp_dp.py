@@ -316,6 +316,11 @@ def check_existing_encargado(conn, encargado, fecha, hora):
     except Error as e:
         print(f"Error checking existing encargado: {e}")
         return False 
+    
+def limpiar_campos(widgets):
+
+    for widget in widgets:
+        widget.delete(0, 'end')
 
 def modificar_reserva():
     
@@ -639,12 +644,17 @@ def modificar_reserva():
                      
                 st.success('Su solicitud ha sido reservada de forrma exitosa')
                 
-                nombre = ''
-                email = ''
-                direccion=''
-                fecha=''
-                hora=''
-                telefono=''
+                limpiar_campos([nombre_c, email, direccion, telefono])
+
+                # Versión alternativa si prefieres limpiar campos individualmente
+                #def limpiar_formulario(nombre, email, direccion_entry, telefono_entry):
+    
+                #Limpia todos los campos del formulario individualmente.
+    
+                nombre.delete(0, 'end')
+                email.delete(0, 'end')
+                direccion.delete(0, 'end')
+                telefono.delete(0, 'end')
 
                 
                   #calendar.create_event(servicios+". "+nombre, 
