@@ -17,6 +17,7 @@ from sqlite3 import Error
 import os 
 import sys
 import logging
+from typing import List, Optional
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
@@ -29,8 +30,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
   
 logging.basicConfig(level=logging.DEBUG, filename='modificar_reserva_emp_dp.log', filemode='w',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Cargar el archivo Excel una sola vez
 datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
@@ -317,10 +317,52 @@ def check_existing_encargado(conn, encargado, fecha, hora):
         print(f"Error checking existing encargado: {e}")
         return False 
     
-def limpiar_campos(widgets):
+def limpiar_campos_formulario():
+    
+    try:
+        # Lista de campos a limpiar
+         valores_default = {
+            'nombre_c': '',
+            'nombre': '',
+            'email': '',
+            'direccion': '',
+            'telefono': '',
+            'notas': ''
+            #'fecha',
+            #'hora',
+            #'servicio_selector'
+         }
+        
+         # Actualizar el session state con los valores por defecto
+         for campo, valor in valores_default.items():
+            if campo in st.session_state:
+                # Eliminar la entrada actual del session state
+                del st.session_state[campo]
+        
+         # Forzar la recarga de la página para reiniciar los widgets
+         st.rerun()
+        
+         return True
+        
+    except Exception as e:
+        st.error(f"Error al limpiar los campos del formulario: {str(e)}")
+        logging.error(f"Error en limpiar_campos_formulario: {str(e)}")
+        return False
 
-    for widget in widgets:
-        widget.delete(0, 'end')
+def inicializar_valores_default():
+    
+    valores_default = {
+            'nombre_c': '',
+            'nombre': '',
+            'email': '',
+            'direccion': '',
+            'telefono': '',
+            'notas': ''
+    }
+    
+    for campo, valor in valores_default.items():
+        if campo not in st.session_state:
+            st.session_state[campo] = valor
 
 def modificar_reserva():
     
@@ -362,13 +404,16 @@ def modificar_reserva():
         
         #calendar = GoogleCalendar() #credentials, idcalendar
 
+        # Inicializar valores por defecto
+        inicializar_valores_default()
+
         st.write("---")
         st.subheader('Ingrese los datos de la Reserva Agendada')
         colum1, colum2 = st.columns([1, 1])
         
         with colum1:
         
-            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_ant') 
+            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_c',value=st.session_state.nombre_c) 
                        
             # Lista de servicios disponibles
             servicios_c = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
@@ -405,7 +450,7 @@ def modificar_reserva():
         
                 with col1:
             
-                    nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre')           
+                    nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre',key='nombre',value=st.session_state.nombre)           
                     # Lista de servicios disponibles
                     servicios = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
                     precios = ['35.000' , '30.000']
@@ -445,12 +490,12 @@ def modificar_reserva():
                             st.success("La reserva está disponible")  
 
                     fecha  = st.date_input('Fecha Servicio*: ')
-                    notas = st.text_area('Nota o Mensaje(Opcional)')
+                    notas = st.text_area('Nota o Mensaje(Opcional)',key='notas')
             
                 with col2:
 
-                    email  = st.text_input('Email Solicitante:', placeholder='Email')
-                    direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion')  
+                    email  = st.text_input('Email Solicitante:', placeholder='Email', key='email',value=st.session_state.email)
+                    direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion',key='direccion',value=st.session_state.direccion)  
                         
                     # Mostrar selector de conductor si hay conductores disponibles
                     if encargado:
@@ -491,7 +536,7 @@ def modificar_reserva():
                         st.success("La reserva está disponible")
 
                     whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
-                    telefono = st.text_input('Nro. Telefono')
+                    telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
 
                     # Mostrar resumen de la selección
                     st.write("---")
@@ -644,18 +689,9 @@ def modificar_reserva():
                      
                 st.success('Su solicitud ha sido reservada de forrma exitosa')
                 
-                limpiar_campos([nombre_c, email, direccion, telefono])
-
-                # Versión alternativa si prefieres limpiar campos individualmente
-                #def limpiar_formulario(nombre, email, direccion_entry, telefono_entry):
-    
-                #Limpia todos los campos del formulario individualmente.
-    
-                nombre.delete(0, 'end')
-                email.delete(0, 'end')
-                direccion.delete(0, 'end')
-                telefono.delete(0, 'end')
-
+                if limpiar_campos_formulario():
+                    st.success('Campos limpiados exitosamente')
+                               
                 
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   

@@ -17,6 +17,7 @@ from sqlite3 import Error
 import os 
 import sys
 import logging
+from typing import List, Optional
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
@@ -29,8 +30,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
   
 logging.basicConfig(level=logging.DEBUG, filename='eliminar_reserva_emp_dp.log', filemode='w',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Cargar el archivo Excel una sola vez
 datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
@@ -352,10 +352,41 @@ def check_existing_encargado(conn, encargado, fecha, hora):
         print(f"Error checking existing encargado: {e}")
         return False 
 
-def limpiar_campos(widgets):
+def limpiar_campos_formulario():
+    
+    try:
+        # Definir los valores por defecto para cada campo
+        valores_default = {
+            'nombre_ant': '',
+            'email': ''
+        }
+        
+        # Actualizar el session state con los valores por defecto
+        for campo, valor in valores_default.items():
+            if campo in st.session_state:
+                # Eliminar la entrada actual del session state
+                del st.session_state[campo]
+        
+        # Forzar la recarga de la página para reiniciar los widgets
+        st.rerun()
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error al limpiar los campos del formulario: {str(e)}")
+        logging.error(f"Error en limpiar_campos_formulario: {str(e)}")
+        return False
 
-    for widget in widgets:
-        widget.delete(0, 'end')
+def inicializar_valores_default():
+    
+    valores_default = {
+        'nombre_ant': '',
+        'email': ''
+    }
+    
+    for campo, valor in valores_default.items():
+        if campo not in st.session_state:
+            st.session_state[campo] = valor
 
 def eliminar_reserva():
     
@@ -396,6 +427,9 @@ def eliminar_reserva():
         time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
         
         #calendar = GoogleCalendar() #credentials, idcalendar
+        
+        # Inicializar valores por defecto
+        inicializar_valores_default()
 
         st.write("---")
         st.subheader('Ingrese los datos de la Reserva Agendada')
@@ -403,7 +437,7 @@ def eliminar_reserva():
         
         with colum1:
         
-            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_ant') 
+            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_ant', value=st.session_state.nombre_ant) 
                        
             # Lista de servicios disponibles
             servicios_c = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
@@ -417,7 +451,7 @@ def eliminar_reserva():
             
             fecha_c  = st.date_input('Fecha Servicio*: ', key='fecha_ant')
             hora_c = st.selectbox('Hora Servicio: ', horas, key='hora_ant')
-            email  = st.text_input('Email Solicitante:', placeholder='Email')
+            email  = st.text_input('Email Solicitante:', placeholder='Email', key='email', value=st.session_state.email)
         
         if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
@@ -548,16 +582,11 @@ def eliminar_reserva():
                      
             st.success('Su solicitud se ha cancelado de forrma exitosa')
 
-            limpiar_campos([nombre_c, email])
+            if limpiar_campos_formulario():
+                
+               st.success('Los ccaampos fueron limpiados exitosamente')
 
-                # Versión alternativa si prefieres limpiar campos individualmente
-                #def limpiar_formulario(nombre, email, direccion_entry, telefono_entry):
-    
-                #Limpia todos los campos del formulario individualmente.
-    
-            nombre_c.delete(0, 'end')
-            email.delete(0, 'end')
-                                           
+                                               
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 
@@ -574,5 +603,5 @@ def eliminar_reserva():
 
 sys.excepthook = global_exception_handler
 
-if __name__ == "__main__":
-   eliminar_reserva()
+#if __name__ == "__main__":
+#   eliminar_reserva()

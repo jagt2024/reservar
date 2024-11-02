@@ -29,11 +29,10 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
   
 logging.basicConfig(level=logging.DEBUG, filename='crear_reserva_emp_dp.log', filemode='w',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
+format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Cargar el archivo Excel una sola vez
-datos_book = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
 
 def dataBook(hoja):
     
@@ -70,7 +69,7 @@ def dataBookServicioId(hoja,servicio):
        break
   return data
 
-def dataBookZonaEnc(hoja, zona):
+def dataBookZonaEnc(hoja, encargado):
   ws1 = datos_book[hoja]
   data = []
   for row in range(1,ws1.max_row):
@@ -79,8 +78,8 @@ def dataBookZonaEnc(hoja, zona):
         _row.append(col[row].value)
         data.append(_row) 
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
-    if _row[5] == zona:
-       data = _row[0]
+    if _row[0] == encargado:
+       data = _row[5]
        break
   return data
 
@@ -303,12 +302,52 @@ def check_existing_encargado(conn, encargado, fecha, hora):
         print(f"Error checking existing encargado: {e}")
         return False 
 
-def limpiar_campos(widgets):
+def limpiar_campos_formulario():
+    
+    try:
+        # Lista de campos a limpiar
+         valores_default = {
+            'nombre': '',
+            'email': '',
+            'direccion': '',
+            'telefono': '',
+            'notas': '',
+            #'fecha',
+            #'hora',
+            #'servicio_selector'
+         }
+        
+         # Actualizar el session state con los valores por defecto
+         for campo, valor in valores_default.items():
+            if campo in st.session_state:
+                # Eliminar la entrada actual del session state
+                del st.session_state[campo]
+        
+         # Forzar la recarga de la página para reiniciar los widgets
+         st.rerun()
+        
+         return True
+        
+    except Exception as e:
+        st.error(f"Error al limpiar los campos del formulario: {str(e)}")
+        logging.error(f"Error en limpiar_campos_formulario: {str(e)}")
+        return False
 
-    for widget in widgets:
-        widget.delete(0, 'end')
+def inicializar_valores_default():
+    
+    valores_default = {
+            'nombre': '',
+            'email': '',
+            'direccion': '',
+            'telefono': '',
+            'notas': '',
+    }
+    
+    for campo, valor in valores_default.items():
+        if campo not in st.session_state:
+            st.session_state[campo] = valor
 
-
+    
 def crea_reserva():
     
   try:
@@ -330,7 +369,11 @@ def crea_reserva():
         result_serv = np.setdiff1d(servicio,'')
         
         servicios_precio = dataBook("servicio")
-        result_serv2 = np.setdiff1d(servicios_precio,'')        
+        result_serv2 = np.setdiff1d(servicios_precio,'')
+
+        #zona_enc = dataBookZonaEnc("zonas", encargado)
+        #result_zonaencc = np.setdiff1d(zona_enc,'')
+        #print(f'servicio2 {servicio2}')
             
         #servicio2 = dataBookServicio2("servicio", 'Hacia el Aeropuerto')
         #result_serv2 = np.setdiff1d(servicio2,'')
@@ -350,13 +393,17 @@ def crea_reserva():
         time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
         
         #calendar = GoogleCalendar() #credentials, idcalendar
-                
+        
+        
+        # Inicializar valores por defecto
+        inicializar_valores_default()
+        
         # Crear columnas para organizar la interfaz
         col1, col2 = st.columns([1, 1])
         
         with col1:
             
-            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre') # label_visibility='hidden')
+            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre',value=st.session_state.nombre) # label_visibility='hidden')
                         
             # Lista de servicios disponibles
             servicios = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
@@ -387,12 +434,12 @@ def crea_reserva():
                 encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                 
             fecha  = st.date_input('Fecha Servicio*: ')
-            notas = st.text_area('Nota o Mensaje(Opcional)')
+            notas = st.text_area('Nota o Mensaje(Opcional)', key='notas',value=st.session_state.notas)
             
         with col2:
 
-            email  = st.text_input('Email Solicitante:', placeholder='Email')
-            direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion')  
+            email  = st.text_input('Email Solicitante:', placeholder='Email', key='email',value=st.session_state.email)
+            direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion', key='direccion',value=st.session_state.direccion)  
                         
             # Mostrar selector de conductor si hay conductores disponibles
             if encargado:
@@ -432,7 +479,7 @@ def crea_reserva():
                st.success("La reserva está disponible")
 
             whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
-            telefono = st.text_input('Nro. Telefono')
+            telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
 
             # Mostrar resumen de la selección
             st.write("---")
@@ -450,7 +497,10 @@ def crea_reserva():
 
             else:
                encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
-               #info["📍 Zona"] = zona_seleccionada
+               
+               zona_enc = dataBookZonaEnc("encargado", conductor_seleccionado)
+               
+               info["📍 Zona"] = zona_enc
                 
                for key, value in info.items():
                   st.write(f"{key}: **{value}**")
@@ -464,7 +514,7 @@ def crea_reserva():
     st.write("---")
     
     with st.form(key='myform1',clear_on_submit=True):
-        
+    
      enviar = st.form_submit_button(" Reservar ")
 
      #Backend
@@ -589,48 +639,69 @@ def crea_reserva():
                    
                   #else:
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
+                
+                if servicio_seleccionado == 'Hacia el Aeropuerto':
+                    
+                    uid = generate_uid()
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
                   
-                uid = generate_uid()
-                values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
-                  
-                try:
-                     reserva_data = (
-                     nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
-                     conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
-                     )
+                    try:
+                        reserva_data = (
+                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
+                        conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        )
                      
-                     insert_reserva(conn, reserva_data)
-                     
-                     send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
-                     send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
-
-                     #st.success('Su Solicitud se ha enviado a correo ingresado')
+                        insert_reserva(conn, reserva_data)
                         
-                except Exception as e:
-                    st.error(f"Error al guardar en la base de datos: {str(e)}")
-                finally:
-                    conn.close()
-
-                gs = GoogleSheet(credentials, document, sheet)
+                        gs = GoogleSheet(credentials, document, sheet)
           
-                range = gs.get_last_row_range()
-                gs.write_data(range,values)
-                     
-                st.success('Su solicitud ha sido reservada de forrma exitosa')
-                
-    
-                limpiar_campos([nombre, email, direccion, telefono])
+                        range = gs.get_last_row_range()
+                        gs.write_data(range,values)
 
-                # Versión alternativa si prefieres limpiar campos individualmente
-                #def limpiar_formulario(nombre, email, direccion_entry, telefono_entry):
-    
-                #Limpia todos los campos del formulario individualmente.
-    
-                nombre.delete(0, 'end')
-                email.delete(0, 'end')
-                direccion.delete(0, 'end')
-                telefono.delete(0, 'end')
+                        send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
                 
+                        send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+                     
+                        st.success('Su solicitud ha sido reservada de forrma exitosa')
+                        
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    finally:
+                        conn.close()
+                
+                elif servicio_seleccionado == 'Desde el Aeropuerto':
+                    
+                    uid = generate_uid()
+                    
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                  
+                    try:
+                        reserva_data = (
+                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
+                        conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        )
+                     
+                        insert_reserva(conn, reserva_data)
+                    
+                        gs = GoogleSheet(credentials, document, sheet)
+          
+                        range = gs.get_last_row_range()
+                        gs.write_data(range,values)
+                
+                        send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
+                
+                        send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+                     
+                        st.success('Su solicitud ha sido reservada de forrma exitosa')                     
+                        
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    finally:
+                        conn.close()
+                
+                if limpiar_campos_formulario():
+                    st.success('Campos limpiaddos exitosamente')
+                 
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 
