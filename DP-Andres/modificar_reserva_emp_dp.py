@@ -70,7 +70,7 @@ def dataBookServicioId(hoja,servicio):
        break
   return data
 
-def dataBookZonaEnc(hoja, zona):
+def dataBookZonaEnc(hoja, encargado):
   ws1 = datos_book[hoja]
   data = []
   for row in range(1,ws1.max_row):
@@ -79,8 +79,8 @@ def dataBookZonaEnc(hoja, zona):
         _row.append(col[row].value)
         data.append(_row) 
     #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
-    if _row[5] == zona:
-       data = _row[0]
+    if _row[0] == encargado:
+       data = _row[5]
        break
   return data
 
@@ -327,7 +327,8 @@ def limpiar_campos_formulario():
             'email': '',
             'direccion': '',
             'telefono': '',
-            'notas': ''
+            'notas': '',
+            'whatsapp': ''
             #'fecha',
             #'hora',
             #'servicio_selector'
@@ -357,7 +358,8 @@ def inicializar_valores_default():
             'email': '',
             'direccion': '',
             'telefono': '',
-            'notas': ''
+            'notas': '',
+            'whatsapp': ''
     }
     
     for campo, valor in valores_default.items():
@@ -535,7 +537,7 @@ def modificar_reserva():
                     else:
                         st.success("La reserva está disponible")
 
-                    whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
+                    whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)', key='whatsapp',value=st.session_state.whatsapp)
                     telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
 
                     # Mostrar resumen de la selección
@@ -553,7 +555,10 @@ def modificar_reserva():
                             st.write(f"{key}: **{value}**")
                     else:
                         encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
-                        #info["📍 Zona"] = zona_seleccionada
+                        
+                        zona_enc = dataBookZonaEnc("encargado", conductor_seleccionado)
+               
+                        info["📍 Zona"] = zona_enc
                 
                         for key, value in info.items():
                             st.write(f"{key}: **{value}**")
@@ -639,19 +644,21 @@ def modificar_reserva():
                 ##hora_calendar_int = int(hora_calendar.strftime('%H%M'))
                 #st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
                 
-                hoy = dt.datetime.now()
-                fechoy = int(hoy.strftime("%Y%m%d"))
-                fechacalendarint = int(fecha.strftime("%Y%m%d"))
-
-                uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
-                   
+                #hoy = dt.datetime.now()
+                #fechoy = int(hoy.strftime("%Y%m%d"))
+                #fechacalendarint = int(fecha.strftime("%Y%m%d"))
+                                  
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
-                  
-                values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                
+                if servicio_seleccionado == 'Hacia el Aeropuerto':
 
-                try:
+                    uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
+                  
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+
+                    try:
                                           
-                     nuevos_datos = {
+                      nuevos_datos = {
                         'nombre': nombre,
                         'email': email,
                         'fecha': fecha,
@@ -667,28 +674,69 @@ def modificar_reserva():
                         'whatsapp': whatsapp,
                         'telefono': str(57)+telefono,
                         'whatsapp_web': whatsappweb
-                     }
-  
-  
-                     actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+                      }
+    
+                      actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+                     
+                      gs = GoogleSheet(credentials, document, sheet)
+
+                      range = gs.write_data_by_uid(uid, values)
                                                              
-                     send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
+                      send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
                      
-                     send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
 
-                     #st.success('Su Solicitud se ha enviado a correo ingresado')
+                      st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
-                except Exception as e:
-                    st.error(f"Error al guardar en la base de datos: {str(e)}")
-                finally:
-                    conn.close()
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    finally:
+                        conn.close()
                 
-                gs = GoogleSheet(credentials, document, sheet)
+                else:
 
-                range = gs.write_data_by_uid(uid, values)
+                    uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
+                  
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+
+                    try:
+                                          
+                      nuevos_datos = {
+                        'nombre': nombre,
+                        'email': email,
+                        'fecha': fecha,
+                        'hora': hora,
+                        'servicio': servicio_seleccionado,
+                        'precio':precio_serv,
+                        'encargado': conductor_seleccionado,
+                        'email_encargado': str(emailencargado),
+                        'zona': str(zona_enc),
+                        'direccion': direccion,
+                        'notas': notas,
+                        'uid': uid,
+                        'whatsapp': whatsapp,
+                        'telefono': str(57)+telefono,
+                        'whatsapp_web': whatsappweb
+                      }
+    
+                      actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
                      
-                st.success('Su solicitud ha sido reservada de forrma exitosa')
-                
+                      gs = GoogleSheet(credentials, document, sheet)
+
+                      range = gs.write_data_by_uid(uid, values)
+                                                                               
+                      send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
+                     
+                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+
+                      st.success('Su solicitud ha sido reservada de forrma exitosa')
+                        
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    finally:
+                        conn.close()
+                        
+                        
                 if limpiar_campos_formulario():
                     st.success('Campos limpiados exitosamente')
                                

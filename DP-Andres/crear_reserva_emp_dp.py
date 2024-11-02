@@ -669,7 +669,7 @@ def crea_reserva():
                     finally:
                         conn.close()
                 
-                elif servicio_seleccionado == 'Desde el Aeropuerto':
+                else:
                     
                     uid = generate_uid()
                     
