@@ -5,4 +5,5 @@ secrests.toml
 token.json
 token_emp.json
 client_secret_emp.json
+*.db
 

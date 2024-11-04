@@ -120,11 +120,8 @@ class Model:
   
   menuTitle = "Reserve y Agende en Linea"
   option1 = 'Inicio'
-  option2 = 'Crear Reserva'
   option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda'
-  option3  = 'Modificar Reserva'
-  option4  = 'Eliminar Reserva'
   option5  = 'Nuestros Servicios'
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
@@ -135,8 +132,7 @@ class Model:
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
-  option17 = 'Actualiza Token'
-      
+        
   #def __init__(self):
   #  self.apps=[]
     
@@ -188,7 +184,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
+                         [model.option1, model.option10,model.option9,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -226,30 +222,47 @@ else:
         """, unsafe_allow_html=True)
 
         # Crear columnas para el diseño
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         # Columna 1: Reloj Digital
         with col1:
           #st.header("Reloj Digital")
           clock_placeholder = st.empty()
-          
+
+                     
           #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
         
         with col2:
           st.image(logo, width=150)  # Ajusta el ancho según sea necesario
-
+        
         # Columna 2: Calendario
         with col3:
           #st.header("Calendario")
           calendar_placeholder = st.empty()
+          
+        with col4:
 
-          with st.form("signup_form"):
-            submit_button = st.form_submit_button("Limpiar Opcion")
-            if submit_button:
+          with st.form(key='myform4',clear_on_submit=True):
+            limpiar = st.form_submit_button("Limpiar Opcion")
+            if limpiar:
               #st.submit_button("Limpiar Opcion")
               clear_session_state()
               st.rerun()
-          
+        
+        tabs = st.tabs(["⚙️ Opciones :", "📊 Crear Reserva", "📈 Modificar Reserva", "👥 Eliminar Reserva" ])
+    
+        with tabs[0]:
+          clear_session_state()
+              
+        with tabs[1]:
+          crea_reserva()
+    
+        with tabs[2]:
+         modificar_reserva()
+    
+        with tabs[3]:
+          eliminar_reserva()
+
         def update_clock_and_calendar():
          while True:
               now = datetime.datetime.now(pytz.timezone('America/Bogota'))
@@ -284,12 +297,6 @@ else:
       
             if app == model.option1:
               InicioEmp().view(InicioEmp.Model())
-            if app == model.option2:
-              crea_reserva()
-            if app == model.option3:
-              modificar_reserva()
-            if app == model.option4:
-              eliminar_reserva()
             if app == model.option5:
               ServiciosEmp().view(ServiciosEmp.Model())
             if app == model.option6:
@@ -348,9 +355,6 @@ else:
               
             if app == model.option16:
                soporte()
-            
-            if app == model.option17:
-               newtoken()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")

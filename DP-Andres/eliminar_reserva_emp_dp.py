@@ -437,21 +437,21 @@ def eliminar_reserva():
         
         with colum1:
         
-            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_ant', value=st.session_state.nombre_ant) 
+            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', value=st.session_state.nombre_ant) 
                        
             # Lista de servicios disponibles
             servicios_c = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
             servicio_seleccionado_c = st.selectbox(
                 'Seleccione el servicio:',
                 servicios_c,
-                key='servicio_selector_c'
+                key='servicio_selector_ant'
             )
 
         with colum2:
             
-            fecha_c  = st.date_input('Fecha Servicio*: ', key='fecha_ant')
-            hora_c = st.selectbox('Hora Servicio: ', horas, key='hora_ant')
-            email  = st.text_input('Email Solicitante:', placeholder='Email', key='email', value=st.session_state.email)
+            fecha_c  = st.date_input('Fecha Servicio*: ', key='date_ant')
+            hora_c = st.selectbox('Hora Servicio: ', horas,  key='hora_del')
+            email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_del', value=st.session_state.email)
         
         if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
@@ -492,11 +492,9 @@ def eliminar_reserva():
                 info = {
                      "🚗 Conductor Encargado": encargado,"🎯 Servicio": servicio_seleccionado_c, "Fecha": fecha_c, "Hora":  hora_c
                  }
-                print(f'Encargado : {encargado}')
                  
                 if servicio_seleccionado_c == 'Hacia el Aeropuerto':
                    info["📍 Zona"] = zona
-                   print(f'Zona : {zona}')
                                    
                    for key, value in info.items():
                        st.write(f"{key}: **{value}**")
@@ -517,7 +515,7 @@ def eliminar_reserva():
        st.error(f"Error en la aplicación: {str(e)}")
        #st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
 
-    with st.form(key='myform1',clear_on_submit=True):
+    with st.form(key='myform6',clear_on_submit=True):
         
      eliminar = st.form_submit_button("Eliminar")
      
@@ -564,23 +562,21 @@ def eliminar_reserva():
                 values = [(nombre_c,email,str(fecha_c),hora_c, servicio_seleccionado_c, '0', encargado, str(emailencargado), zona, direccion, 'Reserva Cancelada', uid, whatsapp,telefono, whatsappweb)]
   
                 actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+
+                gs = GoogleSheet(credentials, document, sheet)
+
+                range = gs.write_data_by_uid(uid, values)
                                                              
                 send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, "0", encargado,  notas='De acuerdo con su solicitud su reserva de movilizacion se cancelo. Gracias por su atencion.')
                      
                 send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
-                     #st.success('Su Solicitud se ha enviado a correo ingresado')
+                st.success('Su solicitud se ha cancelado de forrma exitosa')
                         
             except Exception as e:
                 st.error(f"Error al guardar en la base de datos: {str(e)}")
             finally:
                 conn.close()
-                
-            gs = GoogleSheet(credentials, document, sheet)
-
-            range = gs.write_data_by_uid(uid, values)
-                     
-            st.success('Su solicitud se ha cancelado de forrma exitosa')
 
             if limpiar_campos_formulario():
                 
@@ -600,6 +596,7 @@ def eliminar_reserva():
   except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")
         st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
+        print(f'Error crítico en la aplicación: {str(e)}')
 
 sys.excepthook = global_exception_handler
 

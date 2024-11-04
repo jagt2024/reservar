@@ -393,9 +393,8 @@ def crea_reserva():
         time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
         
         #calendar = GoogleCalendar() #credentials, idcalendar
-        
-        
-        # Inicializar valores por defecto
+                       
+                # Inicializar valores por defecto
         inicializar_valores_default()
         
         # Crear columnas para organizar la interfaz
@@ -455,6 +454,10 @@ def crea_reserva():
             #print(f'fecha: {fecha} hora : {hora}')
 
             conn = create_connection()
+            if conn is None:
+                st.error("Error: No se pudo conectar a la base de datos")
+                return
+
             resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
             
             # Check if reservation already exists in database
@@ -534,7 +537,7 @@ def crea_reserva():
                 return
                 
             # Create tables if they don't exist
-            create_tables(conn)
+            #create_tables(conn)
                 
             parsed_time = dt.datetime.strptime(hora, "%H:%M").time()
             hours1 = parsed_time.hour
@@ -647,8 +650,7 @@ def crea_reserva():
                   
                     try:
                         reserva_data = (
-                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
-                        conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
                         )
                      
                         insert_reserva(conn, reserva_data)
