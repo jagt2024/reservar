@@ -537,10 +537,10 @@ def eliminar_reserva_sheet(nombre, fecha, hora):
             return False
         
         # Obtener el índice de la fila a eliminar
-        row_index = reserva.index[0] + 2  # +2 porque las filas en la hoja de cálculo empiezan en 2
-        
-        # Eliminar la fila de la hoja de cálculo
-        worksheet.delete_row(row_index)
+        row_index = int(reserva.index[0]) + 2 
+                
+        # Eliminar la fila usando delete_rows (inicio, fin)
+        worksheet.delete_rows(row_index, row_index)
         
         st.success("Reserva eliminada exitosamente.")
         return True

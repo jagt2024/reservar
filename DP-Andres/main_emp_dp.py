@@ -253,18 +253,18 @@ else:
           <style>
           /* Estilo para los tabs */
           .stTabs [data-baseweb="tab-list"] {
-          gap: 24px;
+          gap: 10px;
           padding: 0px 10px;
           }
     
           .stTabs [data-baseweb="tab"] {
-          height: 50px;
+          height: 30px;
           white-space: pre-wrap;
           background-color: #f0f2f6;
           border-radius: 5px;
-          padding: 10px 20px;
+          padding: 0px 10px;
           font-size: 16px;
-          font-weight: 600;
+          font-weight: 300;
           color: #31333F;
           }
 
@@ -281,7 +281,7 @@ else:
 
           /* Estilo para los íconos en los tabs */
           .stTabs [data-baseweb="tab"] div {
-          font-size: 20px;
+          font-size: 15px;
           }
           </style>
 
