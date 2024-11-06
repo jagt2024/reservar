@@ -425,10 +425,10 @@ def consultar_reserva(nombre, fecha, hora):
         
         if not reserva.empty:
             # Si encuentra la reserva, devuelve True y los detalles
-            detalles_reserva = reserva.iloc[0].to_dict()
-            return True, detalles_reserva
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True    #, detalles_reserva
         else:
-            return False, None
+            return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
@@ -477,9 +477,9 @@ def consultar_encargado(encargado, fecha, hora):
         if not encargado_registro.empty:
             # Si encuentra el encargado, devuelve True y los detalles
             detalles_encargado = encargado_registro.iloc[0].to_dict()
-            return True, detalles_encargado
+            return True #, detalles_encargado
         else:
-            return False, None
+            return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
@@ -554,7 +554,7 @@ def modificar_reserva():
             #conn = create_connection()
 
             # Check if reservation already exists in database
-            existe_db2, detalles = consultar_reserva(nombre_c,  str(fecha_c), hora_c)
+            existe_db2 = consultar_reserva(nombre_c,  str(fecha_c), hora_c)
 
             if existe_db2:
                 resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
@@ -579,7 +579,7 @@ def modificar_reserva():
                     servicio_seleccionado = st.selectbox(
                         'Seleccione el servicio:',
                         servicios,
-                        key='servicio_selector'
+                        key='servicio_selector_new'
                     )
             
                     # Si es hacia el aeropuerto, mostrar selector de zona
@@ -589,9 +589,9 @@ def modificar_reserva():
                         zona_seleccionada = st.selectbox(
                             'Seleccione la zona:',
                             zonas,
-                            key='zona_selector'
+                            key='zona_selector_new'
                         )
-                
+            
                         # Obtener conductores según la zona
                         encargado = get_conductores_por_zona(zona_seleccionada)
                     else:
@@ -601,7 +601,7 @@ def modificar_reserva():
                 
                         #conn = create_connection()
 
-                        existe_db2, detalles = consultar_encargado(conductor_seleccionado, str(fecha), hora)
+                        existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
                         if existe_db2:
                             st.warning("Conductor ya tiene agenda para esa fecha y hora")
@@ -610,32 +610,32 @@ def modificar_reserva():
                         else:
                             st.success("La reserva está disponible")  
 
-                    fecha  = st.date_input('Fecha Servicio*: ')
-                    notas = st.text_area('Nota o Mensaje(Opcional)',key='notas',value=st.session_state.notas)
+                    fecha  = st.date_input('Fecha Servicio*: ', key='fecha_new')
+                    notas = st.text_area('Nota o Mensaje(Opcional)',key='notas_new',value=st.session_state.notas)
             
                 with col2:
 
-                    email  = st.text_input('Email Solicitante:', placeholder='Email', key='email',value=st.session_state.email)
-                    direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion',key='direccion',value=st.session_state.direccion)  
+                    email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_new',value=st.session_state.email)
+                    direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion',key='direccion_new',value=st.session_state.direccion)  
                         
                     # Mostrar selector de conductor si hay conductores disponibles
                     if encargado:
                         conductor_seleccionado = st.selectbox(
                         'Conductor Encargado:',
                         encargado,
-                        key='conductor_selector'
+                        key='conductor_selector_new'
                         )
                 
                     #hours_blocked = calendar.list_upcoming_events()
                     #result_hours = np.setdiff1d(horas, '05:00')
-                    hora = st.selectbox('Hora Servicio: ', horas)
+                    hora = st.selectbox('Hora Servicio: ', horas, key="hora_new")
                     #print(f'fecha: {fecha} hora : {hora}')
 
                     #conn = create_connection()
                     resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')       
 
                     # Check if reservation already exists in database
-                    existe_db2, detalles = consultar_encargado(conductor_seleccionado,  str(fecha), hora)
+                    existe_db2 = consultar_encargado(conductor_seleccionado,  str(fecha), hora)
 
                     if existe_db2:
                         resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
@@ -654,8 +654,8 @@ def modificar_reserva():
                     else:
                         st.success("La reserva está disponible")
 
-                    whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)', key='whatsapp',value=st.session_state.whatsapp)
-                    telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
+                    whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)', key='whatsapp_new',value=st.session_state.whatsapp)
+                    telefono = st.text_input('Nro. Telefono', key='telefono_new',value=st.session_state.telefono)
 
                     # Mostrar resumen de la selección
                     st.write("---")
@@ -724,7 +724,7 @@ def modificar_reserva():
             minutes2 =  parsed_time2.minute
           
             # Check if reservation already exists in database
-            existe_db, detalles = consultar_reserva(nombre, str(fecha), hora)
+            existe_db = consultar_reserva(nombre, str(fecha), hora)
 
             if existe_db:
                st.warning("Usuario ya tiene agenda para esa fecha y hora")

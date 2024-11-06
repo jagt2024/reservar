@@ -406,10 +406,10 @@ def consultar_reserva(nombre, fecha, hora):
         
         if not reserva.empty:
             # Si encuentra la reserva, devuelve True y los detalles
-            detalles_reserva = reserva.iloc[0].to_dict()
-            return True, detalles_reserva
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
         else:
-            return False, None
+            return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
@@ -457,14 +457,14 @@ def consultar_encargado(encargado, fecha, hora):
         
         if not encargado_registro.empty:
             # Si encuentra el encargado, devuelve True y los detalles
-            detalles_encargado = encargado_registro.iloc[0].to_dict()
-            return True, detalles_encargado
+            #detalles_encargado = encargado_registro.iloc[0].to_dict()
+            return True #, detalles_encargado
         else:
-            return False, None
+            return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
-        return False, None
+        return False #, None
 
 
 def crea_reserva():
@@ -561,8 +561,7 @@ def crea_reserva():
 
             email  = st.text_input('Email Solicitante:', placeholder='Email', key='email',value=st.session_state.email
             )
-            direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion', key='direccion',value=st.session_state.direccion
-                       )  
+            direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion', key='direccion',value=st.session_state.direccion)  
                         
             # Mostrar selector de conductor si hay conductores disponibles
             if encargado:
@@ -584,7 +583,7 @@ def crea_reserva():
 
             #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
-            existe_db2, detalles = consultar_encargado(conductor_seleccionado, str(fecha), hora)
+            existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
             if existe_db2:
                
@@ -676,7 +675,7 @@ def crea_reserva():
             end_time = dt.datetime(fecha.year, fecha.month, fecha.day, hours2,minutes2).astimezone(dt.timezone.utc).strftime('%Y-%m-%dT%H:%M:%S')
           
             # Check if reservation already exists in database
-            existe_db, detalles = consultar_reserva(nombre, str(fecha), hora)
+            existe_db = consultar_reserva(nombre, str(fecha), hora)
 
             if existe_db:
                st.warning("Usuario ya tiene agenda para esa fecha y hora")
