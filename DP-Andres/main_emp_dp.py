@@ -251,8 +251,7 @@ else:
         
         tabs = st.tabs(["⚙️ Opciones :", "📊 Crear Reserva", "📈 Modificar Reserva", "👥 Eliminar Reserva" ])
     
-        with tabs[0]:
-          clear_session_state()
+        #with tabs[0]:
               
         with tabs[1]:
           crea_reserva()
@@ -277,7 +276,7 @@ else:
               calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
         
               time.sleep(1)
-              #st.experimental_rerun()      
+              #st.experimental_rerun()  
 
         with st.sidebar:
           st.markdown("---")

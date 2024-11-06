@@ -21,6 +21,11 @@ from typing import List, Optional
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import toml
+import json
 
 st.cache_data.clear()
 st.cache_resource.clear()
@@ -365,6 +370,120 @@ def inicializar_valores_default():
     for campo, valor in valores_default.items():
         if campo not in st.session_state:
             st.session_state[campo] = valor
+            
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None
+
+def consultar_reserva(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Normalizar el formato de fecha y hora para la búsqueda
+        #try:
+        #    fecha_busqueda = datetime.strptime(fecha, '%d-%m-%Y').strftime#('%d-%m-%Y')
+        #    hora_busqueda = datetime.strptime(hora, '%H:%M').strftime('%H:%M')
+        #except ValueError:
+        #    st.error("Formato de fecha u hora inválido")
+        #    return False, None
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            detalles_reserva = reserva.iloc[0].to_dict()
+            return True, detalles_reserva
+        else:
+            return False, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False, None
+
+def consultar_encargado(encargado, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Normalizar el formato de fecha y hora para la búsqueda
+        #try:
+        #    fecha_busqueda = datetime.strptime(fecha, '%d/%m/%Y').strftime('%d/#%m/%Y')
+        #    hora_busqueda = datetime.strptime(hora, '%H:%M').strftime('%H:%M')
+        #except ValueError:
+        #    st.error("Formato de fecha u hora inválido")
+        #    return False, None
+        
+        # Realizar la búsqueda
+        encargado_registro = df[
+            (df['ENCARGADO'].str.lower() == encargado.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        if not encargado_registro.empty:
+            # Si encuentra el encargado, devuelve True y los detalles
+            detalles_encargado = encargado_registro.iloc[0].to_dict()
+            return True, detalles_encargado
+        else:
+            return False, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar encargado: {str(e)}")
+        return False, None
 
 def modificar_reserva():
     
@@ -377,12 +496,12 @@ def modificar_reserva():
         horas = dataBook("horario")
         #print(f'horas {horas}')
 
-        zonas = dataBook("zonas")
-        result_zonas = np.setdiff1d(zonas,'')
+        #zonas = dataBook("zonas")
+        #result_zonas = np.setdiff1d(zonas,'')
         #print(f'zona {zona} {result_zonas}')
       
-        servicio = dataBook("servicio")
-        result_serv = np.setdiff1d(servicio,'')
+        #servicio = dataBook("servicio")
+        #result_serv = np.setdiff1d(servicio,'')
         
         servicios_precio = dataBook("servicio")
         result_serv2 = np.setdiff1d(servicios_precio,'')        
@@ -432,10 +551,10 @@ def modificar_reserva():
         
         if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
-            conn = create_connection()
+            #conn = create_connection()
 
             # Check if reservation already exists in database
-            existe_db2 = check_existing_reserva(conn, nombre_c, str(fecha_c), hora_c)
+            existe_db2, detalles = consultar_reserva(nombre_c,  str(fecha_c), hora_c)
 
             if existe_db2:
                 resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
@@ -452,7 +571,7 @@ def modificar_reserva():
         
                 with col1:
             
-                    nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre',key='nombre',value=st.session_state.nombre)           
+                    nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre',key='nombre_new',value=st.session_state.nombre)           
                     # Lista de servicios disponibles
                     servicios = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
                     precios = ['35.000' , '30.000']
@@ -480,9 +599,9 @@ def modificar_reserva():
                         # Para otros servicios, mostrar lista general de conductores
                         encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
                 
-                        conn = create_connection()
+                        #conn = create_connection()
 
-                        existe_db2 = check_existing_encargado(conn, conductor_seleccionado, str(fecha), hora)
+                        existe_db2, detalles = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
                         if existe_db2:
                             st.warning("Conductor ya tiene agenda para esa fecha y hora")
@@ -492,7 +611,7 @@ def modificar_reserva():
                             st.success("La reserva está disponible")  
 
                     fecha  = st.date_input('Fecha Servicio*: ')
-                    notas = st.text_area('Nota o Mensaje(Opcional)',key='notas')
+                    notas = st.text_area('Nota o Mensaje(Opcional)',key='notas',value=st.session_state.notas)
             
                 with col2:
 
@@ -512,19 +631,18 @@ def modificar_reserva():
                     hora = st.selectbox('Hora Servicio: ', horas)
                     #print(f'fecha: {fecha} hora : {hora}')
 
-                    conn = create_connection()
+                    #conn = create_connection()
                     resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')       
 
                     # Check if reservation already exists in database
-                    existe_db2 = check_existing_encargado(conn, conductor_seleccionado, str(fecha), hora)
+                    existe_db2, detalles = consultar_encargado(conductor_seleccionado,  str(fecha), hora)
 
                     if existe_db2:
                         resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
                         #print(f'resultado {resultado}')
                         if resultado > 0 and resultado <= 90:
                             st.warning("Conductor se encuetra atendiedo un servicio")
-                            conn.close()
-                            return
+                            
                         elif resultado >= 720:
                             st.warning("Conductor ya tiene agenda para esa fecha y hora")
                         elif resultado < 0:
@@ -532,8 +650,7 @@ def modificar_reserva():
                     
                     elif resultado < 0:
                         st.warning("No sepuede modificar un servicio ya vencido")
-                        conn.close()
-                        return
+                        
                     else:
                         st.success("La reserva está disponible")
 
@@ -566,9 +683,7 @@ def modificar_reserva():
                         #st.warning("No hay conductores disponibles para la selección actual.")
             else:    
               st.warning("El servicio No existe Favor verficar")
-              conn.close()
-              return
-
+              
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
        #st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
@@ -580,7 +695,7 @@ def modificar_reserva():
      #Backend
      if actualizar:
         with st.spinner('Cargando...'):
-         if not nombre or not servicio or not encargado or not email:
+         if not nombre or not encargado or not email:
             st.warning('Se Require completar los campos para cosulta y Modificcacion')
         
          elif not validate_email(email):
@@ -609,12 +724,11 @@ def modificar_reserva():
             minutes2 =  parsed_time2.minute
           
             # Check if reservation already exists in database
-            existe_db = check_existing_reserva(conn, nombre, str(fecha), hora)
+            existe_db, detalles = consultar_reserva(nombre, str(fecha), hora)
 
             if existe_db:
                st.warning("Usuario ya tiene agenda para esa fecha y hora")
-               conn.close()
-               return
+            
             else:
                #gs = GoogleSheet(credentials, document, sheet)
                existe = False
@@ -684,7 +798,10 @@ def modificar_reserva():
                                                              
                       send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
                      
-                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
+
+                      if limpiar_campos_formulario():
+                        st.success('Campos limpiados exitosamente')
 
                       st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
@@ -727,7 +844,10 @@ def modificar_reserva():
                                                                                
                       send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
                      
-                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
+                      send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
+
+                      if limpiar_campos_formulario():
+                        st.success('Campos limpiados exitosamente')
 
                       st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
@@ -735,12 +855,7 @@ def modificar_reserva():
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
                     finally:
                         conn.close()
-                        
-                        
-                if limpiar_campos_formulario():
-                    st.success('Campos limpiados exitosamente')
                                
-                
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 

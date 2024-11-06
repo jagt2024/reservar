@@ -21,6 +21,11 @@ from typing import List, Optional
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import toml
+import json
 
 st.cache_data.clear()
 st.cache_resource.clear()
@@ -388,6 +393,112 @@ def inicializar_valores_default():
         if campo not in st.session_state:
             st.session_state[campo] = valor
 
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None
+
+def consultar_otros(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if reserva.empty:
+            return False, None
+            
+        # Extraer los campos solicitados
+        datos_reserva = {
+            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+            'ZONA': reserva['ZONA'].iloc[0],
+            'TELEFONO': reserva['TELEFONO'].iloc[0],
+            'DIRECCION': reserva['DIRECCION'].iloc[0],
+            'WHATSAPP': reserva['WHATSAPP'].iloc[0]
+        }
+        
+        return True, datos_reserva
+        
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False,(f"Error al consultar la reserva: {str(e)}")
+
+def consultar_reserva(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            detalles_reserva = reserva.iloc[0].to_dict()
+            return True, detalles_reserva
+        else:
+            return False, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False, None
+
 def eliminar_reserva():
     
   try:
@@ -437,7 +548,7 @@ def eliminar_reserva():
         
         with colum1:
         
-            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', value=st.session_state.nombre_ant) 
+            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_c', value=st.session_state.nombre_ant) 
                        
             # Lista de servicios disponibles
             servicios_c = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
@@ -455,27 +566,23 @@ def eliminar_reserva():
         
         if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
-            conn = create_connection()
+            #conn = create_connection()
 
-            result = check_existing_otros(conn, nombre_c, fecha_c, hora_c)
+            valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
 
-            if isinstance(result, tuple):
+            if valida(result, tuple):
 
                 encargado, zona, telefono, direccion, whatsapp = result       
                 
             else:
                 # Si hay error, result será un diccionario
                 print(f"Error: {result['message']}")
-                if result['code'] == 'NOT_FOUND':
-                    # Manejar caso específico de registro no encontrado
-                    print("Por favor, verifique los datos de búsqueda")
-                elif result['code'] == 'DATABASE_ERROR':
-                    # Manejar error de base de datos
-                    print("Por favor, contacte al administrador del sistema")
-        
+               
             # Check if reservation already exists in database
 
-            existe_db2 = check_existing_reserva(conn, nombre_c, str(fecha_c), hora_c)
+            #existe_db2 = check_existing_reserva(conn, nombre_c, str(fecha_c), hora_c)
+
+            existe_db2 = consultar_reserva(nombre_c, str(fecha_c), hora_c)
 
             if existe_db2:
                 resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
