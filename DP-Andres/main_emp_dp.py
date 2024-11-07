@@ -253,17 +253,17 @@ else:
           <style>
           /* Estilo para los tabs */
           .stTabs [data-baseweb="tab-list"] {
-          gap: 10px;
+          gap: 5px;
           padding: 0px 10px;
           }
     
           .stTabs [data-baseweb="tab"] {
-          height: 30px;
+          height: 40px;
           white-space: pre-wrap;
           background-color: #f0f2f6;
           border-radius: 5px;
           padding: 0px 10px;
-          font-size: 16px;
+          font-size: 12px;
           font-weight: 300;
           color: #31333F;
           }
@@ -289,7 +289,7 @@ else:
 
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["⚙️ Opciones :", "📊 Crear Reserva", "📈 Modificar Reserva", "👥 Eliminar Reserva" ])
+        tabs = st.tabs(["⚙️ Opciones :", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
     
         #with tabs[0]:
               
