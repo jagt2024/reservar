@@ -250,46 +250,78 @@ else:
               st.rerun()
         
         st.markdown("""
-          <style>
-          /* Estilo para los tabs */
+        <style>
+        /* Estilos para pantallas grandes */
+        @media (min-width: 768px) {
           .stTabs [data-baseweb="tab-list"] {
-          gap: 5px;
+          gap: 24px;
           padding: 0px 10px;
           }
-    
+
           .stTabs [data-baseweb="tab"] {
-          height: 40px;
-          white-space: pre-wrap;
-          background-color: #f0f2f6;
-          border-radius: 5px;
-          padding: 0px 10px;
-          font-size: 12px;
-          font-weight: 300;
-          color: #31333F;
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #31333F;
           }
 
           .stTabs [data-baseweb="tab"]:hover {
-          background-color: #e0e2e6;
-          color: #1f77b4;
+            background-color: #e0e2e6;
+            color: #1f77b4;
           }
 
-          /* Estilo para el tab activo */
           .stTabs [data-baseweb="tab"][aria-selected="true"] {
-          background-color: #1f77b4;
-          color: white;
+            background-color: #1f77b4;
+            color: white;
           }
 
-          /* Estilo para los íconos en los tabs */
           .stTabs [data-baseweb="tab"] div {
-          font-size: 15px;
+            font-size: 20px;
           }
-          </style>
+        }
 
+        /* Estilos para pantallas pequeñas */
+        @media (max-width: 767px) {
+          .stTabs [data-baseweb="tab-list"] {
+          gap: 3px;
+          padding: 0px 5px;
+          }
+
+          .stTabs [data-baseweb="tab"] {
+            height: 40px;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 5px;
+            padding: 6px 10px;
+            font-size: 10px;
+            font-weight: 300;
+            color: #31333F;
+          }
+
+          .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e0e2e6;
+            color: #1f77b4;
+          }
+
+          .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: #1f77b4;
+            color: white;
+          }
+
+          .stTabs [data-baseweb="tab"] div {
+            font-size: 10px;
+          }
+        }
+        </style>
         """, unsafe_allow_html=True)
 
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["⚙️ Opciones :", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
     
         #with tabs[0]:
               

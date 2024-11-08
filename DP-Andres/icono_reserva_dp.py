@@ -1,52 +1,60 @@
 import streamlit as st
 
-# Definir el estilo CSS para el botón de imagen
+# Definir el estilo CSS para el ícono de aplicación
 st.markdown("""
-    <style>
-    .image-button {
-        background: none;
-        border: none;
-        padding: 0;
-        cursor: pointer;
-        transition: transform 0.3s ease;
-        display: inline-block;
-    }
-    
-    .image-button img {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        object-fit: cover;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    }
-    
-    .image-button:hover {
-        transform: scale(1.1);
-    }
-    
-    .image-button:active {
-        transform: scale(0.95);
-    }
-    </style>
+<style>
+.app-icon-container {
+    position: relative;
+    display: inline-block;
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.3s ease;
+}
+
+.app-icon {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 16px;
+}
+
+.app-link {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.4);
+    color: white;
+    font-weight: 600;
+    text-decoration: none;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+.app-icon-container:hover .app-link {
+    opacity: 1;
+}
+
+.app-icon-container:hover {
+    transform: scale(1.05);
+}
+</style>
 """, unsafe_allow_html=True)
 
-# Crear el botón de imagen
+# Crear el ícono de aplicación con superposición
 st.markdown(f"""
-    <a href="https://reservar-dp.streamlit.app/" target="_blank" class="image-button">
-        <img src="./assets-dp/dp-andres.png" alt="Abrir Aplicación">
+<div class="app-icon-container">
+    <img src="assets-dp/coche-electrico.png" alt="App Icon" class="app-icon">
+    <a href="https://reservar-dp.streamlit.app/" target="_blank" class="app-link">
+        Abrir Aplicación
     </a>
+</div>
 """, unsafe_allow_html=True)
-
-# Alternativa usando componentes nativos de Streamlit
-col1, col2, col3 = st.columns([2, 1, 2])
-
-with col2:
-    image = st.image("dp-andres.png", width=60)
-    # Hacer la imagen clicable
-    if st.button("", key="image_button", use_container_width=True):
-        js = f"""
-        <script>
-            window.open("https://reservar-dp.streamlit.app/", "_blank");
-        </script>
-        """
-        st.components.v1.html(js, height=0)
