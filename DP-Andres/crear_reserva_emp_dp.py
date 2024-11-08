@@ -624,30 +624,13 @@ def crea_reserva():
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
             hora = st.selectbox('Hora Servicio: ', horas)
-            st.warning(f'Fecha : {fecha} hora : {hora}')
-            print(f'fecha: {fecha} hora : {hora}')
+
+            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
 
             #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
-            
-            valida, result = consultar_otros(nombre, str(fecha), hora)
-
-            if valida:
-                
-               encargado_g = result['ENCARGADO']
-               zona_g = result['ZONA']
-               fecha_g = result['FECHA']
-               hora_g = result['HORA']    
-
-            else:
-               # Si hay error, result será un diccionario
-               print(f"Error: {result['message']}")
-               
-            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-            st.warning(f'resultado {resultado}')
-            print(f'resultado {resultado}')
 
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
@@ -656,7 +639,7 @@ def crea_reserva():
                #print(f'resultado {resultado}')
                if resultado > 0 and resultado <= 90:
                   st.warning("Conductor se encuetra atendiedo un servicio")
-               elif resultado >= 720:
+               elif resultado >= 60:
                   st.warning("Conductor ya tiene agenda para esa fecha y hora")
                elif resultado < 0:
                   st.warning("No pude agendarse con una fecha y/o  hora vencida")
