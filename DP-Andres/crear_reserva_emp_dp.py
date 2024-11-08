@@ -624,29 +624,33 @@ def crea_reserva():
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
             hora = st.selectbox('Hora Servicio: ', horas)
-
-            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
 
             #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
+            
+            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+            print(f'resultado {resultado}')
 
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
             if existe_db2:
-               
-               #print(f'resultado {resultado}')
+               resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+               print(f'resultado {resultado}')
                if resultado > 0 and resultado <= 90:
                   st.warning("Conductor se encuetra atendiedo un servicio")
                elif resultado >= 60:
                   st.warning("Conductor ya tiene agenda para esa fecha y hora")
-               elif resultado < 0:
+               elif resultado < 180:
                   st.warning("No pude agendarse con una fecha y/o  hora vencida")
-            elif resultado < 0:
-                 st.warning("No sepuede agendar con una fecha y/o  hora vencida")
+               else:
+                  st.success("La reserva está disponible")
             else:
-               st.success("La reserva está disponible")
+              if resultado < 90:
+                st.warning("No pude agendarse con una fecha y/u  hora vencida")
+              else:
+                st.success("La reserva está disponible")
 
             whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
             telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)

@@ -631,9 +631,9 @@ def modificar_reserva():
                     hora = st.selectbox('Hora Servicio: ', horas, key="hora_new")
                     #print(f'fecha: {fecha} hora : {hora}')
 
-                    #conn = create_connection()
-                    resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')       
-
+                    #conn = create_connection()       
+                    resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+                    
                     # Check if reservation already exists in database
                     existe_db2 = consultar_encargado(conductor_seleccionado,  str(fecha), hora)
 
@@ -643,16 +643,17 @@ def modificar_reserva():
                         if resultado > 0 and resultado <= 90:
                             st.warning("Conductor se encuetra atendiedo un servicio")
                             
-                        elif resultado >= 720:
+                        elif resultado >= 60:
                             st.warning("Conductor ya tiene agenda para esa fecha y hora")
-                        elif resultado < 0:
+                        elif resultado < 180:
                             st.warning("No pude agendarse con una fecha y/o  hora vencida")
-                    
-                    elif resultado < 0:
-                        st.warning("No sepuede modificar un servicio ya vencido")
-                        
+                        else:
+                            st.success("La reserva está disponible")
                     else:
-                        st.success("La reserva está disponible")
+                        if resultado < 90:
+                            st.warning("No pude agendarse con una fecha y/u  hora vencida")
+                        else:
+                            st.success("La reserva está disponible")
 
                     whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)', key='whatsapp_new',value=st.session_state.whatsapp)
                     telefono = st.text_input('Nro. Telefono', key='telefono_new',value=st.session_state.telefono)
