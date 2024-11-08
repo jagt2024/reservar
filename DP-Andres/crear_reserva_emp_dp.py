@@ -466,6 +466,56 @@ def consultar_encargado(encargado, fecha, hora):
         st.error(f"Error al consultar encargado: {str(e)}")
         return False #, None
 
+def consultar_otros(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if reserva.empty:
+            return False, None
+            
+        # Extraer los campos solicitados
+        datos_reserva = {
+            'NOMBRE': reserva['NOMBRE'].iloc[0],
+            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+            'ZONA': reserva['ZONA'].iloc[0],
+            'FECHA': reserva['FECHA'].iloc[0],
+            'HORA': reserva['HORA'].iloc[0]
+        }
+        
+        return True, datos_reserva
+        
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False,(f"Error al consultar la reserva: {str(e)}")
 
 def crea_reserva():
     
@@ -576,15 +626,28 @@ def crea_reserva():
             hora = st.selectbox('Hora Servicio: ', horas)
             st.warning(f'Fecha : {fecha} hora : {hora}')
             print(f'fecha: {fecha} hora : {hora}')
-
-            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-            st.warning(f'resultado {resultado}')
-            print(f'resultado {resultado}')
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
 
             #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
+            
+            valida, result = consultar_otros(nombre, str(fecha), hora)
+
+            if valida:
+                
+               encargado_g = result['ENCARGADO']
+               zona_g = result['ZONA']
+               fecha_g = result['FECHA']
+               hora_g = result['HORA']    
+
+            else:
+               # Si hay error, result será un diccionario
+               print(f"Error: {result['message']}")
+               
+            resultado = calcular_diferencia_tiempo(f'{fecha_g} {hora_g}')
+            st.warning(f'resultado {resultado}')
+            print(f'resultado {resultado}')
 
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
