@@ -704,8 +704,14 @@ def eliminar_reserva():
             uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
                    
             whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre_c} De acuerdo co  su  solicitud,  la Resserva fue Cancelada con exito para el servicio de movilizacion: {servicio_seleccionado_c}")
-                  
-            try:
+            
+            resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
+            #print(f'resultado {resultado}')
+            if resultado < 0:
+               st.warning("No sepuede eliminar un servicio ya vencido")
+            else:
+                      
+             try:
                                           
                 nuevos_datos = {
                              
@@ -737,9 +743,9 @@ def eliminar_reserva():
                 
                     st.success('Los ccaampos fueron limpiados exitosamente')
                         
-            except Exception as e:
+             except Exception as e:
                 st.error(f"Error al guardar en la base de datos: {str(e)}")
-            finally:
+             finally:
                 conn.close()
                                                
                   #calendar.create_event(servicios+". "+nombre, 
