@@ -645,7 +645,7 @@ def crea_reserva():
                # Si hay error, result será un diccionario
                print(f"Error: {result['message']}")
                
-            resultado = calcular_diferencia_tiempo(f'{fecha_g} {hora_g}')
+            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
             st.warning(f'resultado {resultado}')
             print(f'resultado {resultado}')
 
