@@ -574,9 +574,12 @@ def crea_reserva():
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
             hora = st.selectbox('Hora Servicio: ', horas)
-            #print(f'fecha: {fecha} hora : {hora}')
+            st.warning(f'Fecha : {fecha} hora : {hora}')
+            print(f'fecha: {fecha} hora : {hora}')
 
             resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+            st.warning(f'resultado {resultado}')
+            print(f'resultado {resultado}')
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
