@@ -12,12 +12,29 @@ import os
 from openpyxl import load_workbook
 import requests
 import time
+import sys
+import logging
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import toml
+import json
 #import pywhatkit
 #import pyautogui, webbrowser
 #from time import sleep
 
-os.environ["REQUESTS_CONNECT_TIMEOUT"] = "15"
-os.environ["REQUESTS_READ_TIMEOUT"] = "15"
+os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
+os.environ["REQUESTS_READ_TIMEOUT"] = "5"
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
+    logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
+  
+logging.basicConfig(level=logging.DEBUG, filename='crear_reserva_abo.log', filemode='w',
+format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
 
@@ -131,14 +148,77 @@ def sendMessage(numero, mensaje):
   time.sleep(2)
   return response
 
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheets']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None
+
+def consultar_reserva(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-abo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Normalizar el formato de fecha y hora para la búsqueda
+        #try:
+        #    fecha_busqueda = datetime.strptime(fecha, '%d-%m-%Y').strftime#('%d-%m-%Y')
+        #    hora_busqueda = datetime.strptime(hora, '%H:%M').strftime('%H:%M')
+        #except ValueError:
+        #    st.error("Formato de fecha u hora inválido")
+        #    return False, None
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['PROCESO'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+            return False #, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False, None
+
 class CrearReserva:
-  
+ try:
   class Model:
     pageTitle = "***Generar Agenda***"
   
   def view(self,model):
     st.title(model.pageTitle)
-
+  
     with st.form(key='myform1',clear_on_submit=True):
   
       horas = dataBook("horario")
@@ -183,7 +263,7 @@ class CrearReserva:
         if servicios == servicio:
           id = result_id
         
-      calendar = GoogleCalendar(id) #credentials, idcalendar
+      #calendar = GoogleCalendar(id) #credentials, idcalendar
         
       encargado = c1.selectbox('Abogado Encargado:',result_estil)
       #hora = c2.selectbox('Hora: ',horas)
@@ -194,9 +274,11 @@ class CrearReserva:
       telefonoencargado = dataBookEncTelefono("encargado",encargado)
       result_telef = np.setdiff1d(telefonoencargado,'X')
            
-      hours_blocked = calendar.list_upcoming_events()
-      result_hours = np.setdiff1d(horas, hours_blocked) 
-      hora = c2.selectbox('Hora: ',result_hours)
+      #hours_blocked = calendar.list_upcoming_events()
+      #result_hours = np.setdiff1d(horas, hours_blocked) 
+      
+      hora = c2.selectbox('Hora: ',horas)
+      
       acciones = c2.text_area('Solicitud o Motivo, Accion o Medio Control')
       hechos = c1.text_area('Hechos (Opcional)')
       causas = c2.text_area('Causas (Opcional)')
@@ -237,43 +319,53 @@ class CrearReserva:
             
             if len(gs.sheet.get_all_values()) +1 > 2:
                  
-              last_row = len(gs.sheet.get_all_values()) +1
-              print(f'last_row {last_row}')
-              data = gs.sheet.get_values()
-              print(f'data {data}')
-              data2 = data[1:]
+             # last_row = len(gs.sheet.get_all_values()) +1
+             # print(f'last_row {last_row}')
+             # data = gs.sheet.get_values()
+             # print(f'data {data}')
+             # data2 = data[1:]
               #print(f'data2 {data2}')
-              range_start = f"A{last_row}"
+             # range_start = f"A{last_row}"
               #print(f'range_start {range_start}')
-              range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
+             #  range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
               #print(f'range_end {range_end}')
           
-              for row in data2:
+              #for row in data2:
         
-                nom = [row[0]]
-                serv = [row[4]]
-                fech = str(row[2])
-                hora2 = str(row[3])
-                uid1 = str(row[11])
+               # nom = [row[0]]
+               # serv = [row[4]]
+               # fech = str(row[2])
+               # hora2 = str(row[3])
+               # uid1 = str(row[11])
 
-                if nom != ['DATA']:
+               # if nom != ['DATA']:
               
-                  fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
-                  fech1 = int(fech2.strftime("%Y%m%d"))
-                  fechacalendarint = int(fecha.strftime("%Y%m%d"))
-                  hora3 = datetime.datetime.strptime(hora2,'%H:%M')
-                  fechahora_ini = int(hora3.strftime('%H%M'))
-                  horacalendar = datetime.datetime.strptime(hora,'%H:%M')
-                  horacalendarint = int(horacalendar.strftime('%H%M'))
+                  #fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
+                  #fech1 = int(fech2.strftime("%Y%m%d"))
+                  #fechacalendarint = int(fecha.strftime("%Y%m%d"))
+                  #hora3 = datetime.datetime.strptime(hora2,'%H:%M')
+                  #fechahora_ini = int(hora3.strftime('%H%M'))
+                  #horacalendar = datetime.datetime.strptime(hora,'%H:%M')
+                  #horacalendarint = int(horacalendar.strftime('%H%M'))
+                  
                   #horawhat = int(horacalendar.strftime('%H'))
                   #minuto = int(horacalendar.strftime('%M'))
               
                   #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { horacalendarint}')
               
-                  if nom == [nombre] and fech1 == fechacalendarint and fechahora_ini == horacalendarint:
-                    existe = True
-                    st.warning("El cliente ya tiene agenda para esa fecha y hora")
-                    break
+                  #if nom == [nombre] and fech1 == fechacalendarint and #fechahora_ini == horacalendarint:
+                  #  existe = True
+                  #  st.warning("El cliente ya tiene agenda para esa fecha y hora")
+                  #  break
+                  
+             existe_db = consultar_reserva(nombre, str(fecha), hora)
+
+             if existe_db:
+               existe = True
+               st.warning("Ciente Ya tiene agenda para esa fecha y hora")
+             else:
+               #gs = GoogleSheet(credentials, document, sheet)
+               existe = False  
             
             if existe == False:
                        
@@ -305,7 +397,7 @@ class CrearReserva:
                   range = gs.get_last_row_range()
                   gs.write_data(range,values)
                     
-                  calendar.create_event(servicios+". Proceso #: "+nombre, start_time, end_time, time_zone, attendees=result_email)
+                  #calendar.create_event(servicios+". Proceso #: "+nombre, #start_time, end_time, time_zone, attendees=result_email)
                     
                     #response = sendmessage(f'{contact}@c.us', message)          
                                         
@@ -337,3 +429,8 @@ class CrearReserva:
                                           
                   #  sendMessage(contact, message)
                   #  sendMessage(str(57)+str(telefonoencargado), message)
+ except Exception as e:
+      logging.error(f"Error crítico en la aplicación: {str(e)}")
+      st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
+
+ sys.excepthook = global_exception_handler

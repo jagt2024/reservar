@@ -669,8 +669,6 @@ def eliminar_reserva():
                         #st.warning("No hay conductores disponibles para la selección actual.")
             else:    
               st.warning("El servicio No existe Favor verficar")
-              conn.close()
-              return
 
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
@@ -739,8 +737,7 @@ def eliminar_reserva():
 
                 st.success('Su solicitud se ha cancelado de forrma exitosa')
                     
-                if limpiar_campos_formulario():
-                
+                if limpiar_campos_formulario():               
                     st.success('Los ccaampos fueron limpiados exitosamente')
                         
              except Exception as e:

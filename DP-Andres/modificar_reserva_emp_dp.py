@@ -728,16 +728,12 @@ def modificar_reserva():
             existe_db = consultar_reserva(nombre, str(fecha), hora)
 
             if existe_db:
-               st.warning("Usuario ya tiene agenda para esa fecha y hora")
+               existe = True
+               st.warning("Ciente Ya tiene agenda para esa fecha y hora")
             
             else:
                #gs = GoogleSheet(credentials, document, sheet)
                existe = False
-          
-            if existe_db:            
-                 
-                existe = True
-                st.warning("Ciente Ya tiene agenda para esa fecha y hora")
 
             if existe == False:
                 
@@ -746,23 +742,7 @@ def modificar_reserva():
                 #print(f'Precio = {precio} result_precio = {result_precio}')
                
                 emailencargado = dataBookEncEmail("encargado",conductor_seleccionado)
-                       
-                hora_actual = dt.datetime.utcnow()
-                #hours1 = hora_actual.hour
-                #horaweb = hours1 - 5
-                #minutes1 =   hora_actual.minute
-                #hora_actual_int = int(horaweb)
-                hora_actual_int = int(hora_actual.strftime("%H%M"))
-                #print(f'hora_actual = {hora_actual_int}')
-                
-                #hora_calendar = dt.datetime.strptime(hora,'%H:%M')
-                ##hora_calendar_int = int(hora_calendar.strftime('%H%M'))
-                #st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
-                
-                #hoy = dt.datetime.now()
-                #fechoy = int(hoy.strftime("%Y%m%d"))
-                #fechacalendarint = int(fecha.strftime("%Y%m%d"))
-                                  
+                                                  
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
                 
                 if servicio_seleccionado == 'Hacia el Aeropuerto':
@@ -800,9 +780,6 @@ def modificar_reserva():
                       send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
                      
                       send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
-
-                      if limpiar_campos_formulario():
-                        st.success('Campos limpiados exitosamente')
 
                       st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
@@ -847,9 +824,6 @@ def modificar_reserva():
                      
                       send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
 
-                      if limpiar_campos_formulario():
-                        st.success('Campos limpiados exitosamente')
-
                       st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
                     except Exception as e:
@@ -857,15 +831,16 @@ def modificar_reserva():
                     finally:
                         conn.close()
                                
-                  #calendar.create_event(servicios+". "+nombre, 
-                  #start_time, end_time, time_zone, attendees=result_email)   
+                if limpiar_campos_formulario():
+                   st.success('Campos limpiados exitosamente')
 
-                  #if whatsapp == True:
-                  #  contact = str(57)+telefono
-                  #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+
+                #if whatsapp == True:
+                #  contact = str(57)+telefono
+                #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
                                           
-                  #  sendMessage(contact, message)
-                  #  sendMessage(str(57)+str(telefonoencargado), message)
+                #  sendMessage(contact, message)
+                #  sendMessage(str(57)+str(telefonoencargado), message)
 
   except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")

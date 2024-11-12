@@ -39,8 +39,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
 
-logging.basicConfig(level=logging.DEBUG, filename='main_emp_dp.log', filemode='w',
-                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.DEBUG, filename='main_emp_dp.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # En diferentes partes de tu código:
 #logging.debug('Entrando en función X')
@@ -88,7 +87,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20241231')
+fecha_hasta = int('20250131')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -100,14 +99,6 @@ result_emp = np.setdiff1d(empresa,'')
 #print(f'sw_empresa {result_emp}')
 
 sw_empresa = result_emp
-
-#ws = result_emp
-   #ws = result_emp["A2"].value
-#print(ws)
-#if sw_empresa == ["False"]:
-    #empresa.cell(column=1, row=2).value = ["True"])
-#    sw_empresa = ["True"]
-#    print(sw_empresa)
   
 page_title = 'Agenda Actividad' 
 page_icon= "assets/dp_andres.png" 
@@ -143,20 +134,7 @@ class Model:
        })
       
   def css_load(css_file):
-    
-    #file_path = r"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/style/main.css"
-    #print(file_path)
-
-    #try:
-    #  if os.path.exists(file_path):
-    #    pass
-        #os.chmod(file_path, 0o666)
-        #print("File permissions modified successfully!")
-    #  else:
-    #    print("File not found:", file_path)
-    #except PermissionError:
-    #  print("Permission denied: You don't have the necessary permissions to change the permissions of this file.")
-    
+        
     try:
       with open(css_file, "r") as file:
         st.markdown(f"<style>{file.read()}</style>",unsafe_allow_html=True)
@@ -228,7 +206,6 @@ else:
         with col1:
           #st.header("Reloj Digital")
           clock_placeholder = st.empty()
-
                      
           #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
         
@@ -359,8 +336,7 @@ else:
     
         if sw_empresa == ['True']:
           try:
-            #st.title('***BARBERIA STYLOS***')
-        
+                   
             clave_correcta = cargar_configuracion()
             if clave_correcta is None:
               st.error("No se pudo cargar la configuración. La opción protegida no estará disponible.")

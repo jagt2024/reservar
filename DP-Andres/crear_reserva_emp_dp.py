@@ -731,47 +731,11 @@ def crea_reserva():
             existe_db = consultar_reserva(nombre, str(fecha), hora)
 
             if existe_db:
-               st.warning("Usuario ya tiene agenda para esa fecha y hora")
+               existe = True
+               st.warning("Ciente Ya tiene agenda para esa fecha y hora")
             else:
                #gs = GoogleSheet(credentials, document, sheet)
                existe = False
-            
-            #if len(gs.sheet.get_all_values()) +1 > 2:
-            #  last_row = len(gs.sheet.get_all_values()) +1
-            #  #print(f'last_row {last_row}')
-            #  data = gs.sheet.get_values()
-            #  #print(f'data {data}')
-            #  data2 = data[1:]
-            #  #print(f'data2 {data2}')
-            #  range_start = f"A{last_row}"
-            #  #print(f'range_start {range_start}')
-            #  range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
-            #  #print(f'range_end {range_end}')
-          
-            #for row in existe_db:
-        
-                #nom = [row[0]]
-                #serv = [row[4]]
-                #fech = str(row[2])
-                #hora2 = str(row[3])
-                #zona_enc =str[8]
-                #conductor_enc = str[6]
-                #uid1 = str(row[11])
-
-            if existe_db:
-              
-                  #fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
-                  #fech1 = int(fech2.strftime("%Y%m%d"))
-                  #fechacalendarint = int(fecha.strftime("%Y%m%d"))
-                  #hora3 = datetime.datetime.strptime(hora2,'%H:%M')
-                  #fechahora_ini = int(hora3.strftime('%H%M'))
-                  #horacalendar = datetime.datetime.strptime(hora,'%H:%M')
-                  #horacalendarint = int(horacalendar.strftime('%H%M'))
-              
-                  #print(f'Fechas y horas {fech1}, {fechacalendarint}, {fechahora_ini}, { #horacalendarint}')
-                existe = True
-                st.warning("Ciente Ya tiene agenda para esa fecha y hora")
-
               
             if existe == False:
                 
@@ -785,31 +749,6 @@ def crea_reserva():
       
                 #st.text(muestra)
                        
-                hora_actual = dt.datetime.utcnow()
-                #hours1 = hora_actual.hour
-                #horaweb = hours1 - 5
-                #minutes1 =   hora_actual.minute
-                #hora_actual_int = int(horaweb)
-                hora_actual_int = int(hora_actual.strftime("%H%M"))
-                #print(f'hora_actual = {hora_actual_int}')
-                
-                #hora_calendar = dt.datetime.strptime(hora,'%H:%M')
-                ##hora_calendar_int = int(hora_calendar.strftime('%H%M'))
-                #st.warning(f'hora_actual = {hora_actual_int}, hora_calendar = {hora_calendar_int}')
-                
-                hoy = dt.datetime.now()
-                fechoy = int(hoy.strftime("%Y%m%d"))
-                fechacalendarint = int(fecha.strftime("%Y%m%d"))
-          
-                # if fechacalendarint >= fechoy:
-                  
-                  #if fechacalendarint == fechoy and  hora_calendar_int < hora_actual_int:
-            
-                  #  st.warning('La hora seleccionda es invalida para hoy')
-                  #  print('La hora seleccionda es invalida para hoy')
-                    #break
-                   
-                  #else:
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
                 
                 if servicio_seleccionado == 'Hacia el Aeropuerto':
@@ -832,10 +771,7 @@ def crea_reserva():
                         send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
                 
                         send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
-                        
-                        if limpiar_campos_formulario():
-                            st.success('Campos limpiaddos exitosamente')
-                     
+                                             
                         st.success('Su solicitud ha sido reservada de forrma exitosa')
                         
                     except Exception as e:
@@ -865,9 +801,6 @@ def crea_reserva():
                         send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
                 
                         send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
-
-                        if limpiar_campos_formulario():
-                            st.success('Campos limpiaddos exitosamente')
                      
                         st.success('Su solicitud ha sido reservada de forrma exitosa')                     
                         
@@ -875,7 +808,10 @@ def crea_reserva():
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
                     finally:
                         conn.close()
-                 
+
+                if limpiar_campos_formulario():
+                   st.success('Campos limpiaddos exitosamente')                 
+                
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 

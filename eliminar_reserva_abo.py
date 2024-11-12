@@ -8,6 +8,28 @@ import datetime as dt
 import datetime
 import re
 from openpyxl import load_workbook
+import os 
+import sys
+import logging
+from typing import List, Optional
+#import ntplib
+#from ntplib import NTPClient
+from openpyxl import load_workbook
+import gspread
+from google.oauth2.service_account import Credentials
+import pandas as pd
+import toml
+import json
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+def global_exception_handler(exc_type, exc_value, exc_traceback):
+    st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
+    logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
+  
+logging.basicConfig(level=logging.DEBUG, filename='eliminar_reserva_abo.log', filemode='w',
+format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False) 
 
@@ -83,6 +105,68 @@ def validate_email(email):
   else:
     return False
   
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheets']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None 
+
+def eliminar_reserva_sheet(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-abo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['PROCESO'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if reserva.empty:
+            st.warning("No se encontró la reserva a eliminar.")
+            return False
+        
+        # Obtener el índice de la fila a eliminar
+        row_index = int(reserva.index[0]) + 2 
+                
+        # Eliminar la fila usando delete_rows (inicio, fin)
+        worksheet.delete_rows(row_index, row_index)
+        
+        st.success("Reserva eliminada exitosamente.")
+        return True
+        
+    except Exception as e:
+        st.error(f"Error al eliminar la reserva: {str(e)}")
+        return False
+
 class EliminarReserva:
   
   class Model:
@@ -136,7 +220,7 @@ class EliminarReserva:
         if servicios == servicio:
           id = result_id
       
-      calendar = GoogleCalendar(id) #credentials, idcalendar
+      #calendar = GoogleCalendar(id) #credentials, idcalendar
       
       eliminar = st.form_submit_button('Eliminar')
 
@@ -162,8 +246,8 @@ class EliminarReserva:
             serv = [row[4]]
             fech = str(row[2])
             hora2 = str(row[3])
-            nota = [row[6]]
-            uid1 = str(row[8])
+            nota = [row[8]]
+            uid1 = str(row[11])
 
             if nom != ['DATA']:
               
@@ -179,18 +263,20 @@ class EliminarReserva:
               
               if nom == [nombre] and serv == [servicios] and fech1 == fechacalendarint and fechahora_ini == horacalendarint and nota != ["Agenda Cancelada"]:
              
-                uid = str(uid1)
-                values = [(nombre,email,str(fecha),str(horacalendarint),servicios,precio,encargado, "Agenda Cancelada", uid,"False")]
+                #uid = str(uid1)
+                #values = [(nombre,email,str(fecha),str(horacalendarint),servicios,precio,encargado, "Agenda Cancelada", uid,"False")]
                   
-                gs = GoogleSheet(credentials, document, sheet)
-                range = gs.write_data_by_uid(uid, values)
+                eliminar_reserva_sheet(nombre, str(fecha), hora)
+                  
+                #gs = GoogleSheet(credentials, document, sheet)
+                #range = gs.write_data_by_uid(uid, values)
 
-                calendar.delete_event()
+                #calendar.delete_event()
                                           
-                send_email2(email, nombre, fecha, hora3, servicios, precio, encargado,  notas='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
-                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, notas='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email2(email, nombre, fecha, hora3, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
                 
-                st.success('Su solicitud ha sido actualizada de forrma exitosa')
+                st.success('Su solicitud ha sido cacelada de forrma exitosa')
                                     
             if nom == [nombre] and serv == [servicios] and fech1 == fechacalendarint and (fechahora_ini != horacalendarint or nota == 'Agenda Cancelada'):  
                 st.warning('El cliente No tiene agenda o esta vencida o cancelda verifique su correo.')
