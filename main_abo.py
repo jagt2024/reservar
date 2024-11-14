@@ -120,11 +120,11 @@ class Model:
   
   menuTitle = "Reserve y Agende en Linea"
   option1  = 'Inicio'
-  option2  = 'Crear Reserva'
+  #option2  = 'Crear Reserva'
   option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda'
-  option3  = 'Modificar Reserva'
-  option4  = 'Eliminar Reserva'
+  #option3  = 'Modificar Reserva'
+  #option4  = 'Eliminar Reserva'
   option5  = 'Nuestros Servicios'
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
@@ -185,7 +185,7 @@ else:
       with st.sidebar:
     
         app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7, model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
+                         [model.option1, model.option10, model.option9, model.option5,model.option6,model.option7, model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -224,28 +224,114 @@ else:
       """, unsafe_allow_html=True)
 
       # Crear columnas para el diseño
-      col1, col2, col3 = st.columns(3)
+      col1, col2, col3, col4 = st.columns(4)
 
       # Columna 1: Reloj Digital
       with col1:
-        #st.header("Reloj Digital")
-        clock_placeholder = st.empty()
-        
+          #st.header("Reloj Digital")
+          clock_placeholder = st.empty()
+                
       with col2:
-        st.image(logo, width=150)  # Ajusta el ancho según sea necesario
-            
+          st.image(logo, width=150)  # Ajusta el ancho según sea necesario
+        
         # Columna 2: Calendario
       with col3:
-        #st.header("Calendario")
+          #st.header("Calendario")
+          calendar_placeholder = st.empty()
+          
+      with col4:
+
+         with st.form(key='myform4',clear_on_submit=True):
+            limpiar = st.form_submit_button("Limpiar Opcion")
+            if limpiar:
+              #st.submit_button("Limpiar Opcion")
+              clear_session_state()
+              st.rerun()
         
-        calendar_placeholder = st.empty()
-        
-        with st.form("signup_form"):
-          submit_button = st.form_submit_button("Limpiar Opcion")
-          if submit_button:
-            #st.submit_button("Limpiar Opcion")
-            clear_session_state()
-            st.rerun()
+      st.markdown("""
+      <style>
+      /* Estilos para pantallas grandes */
+      @media (min-width: 768px) {
+        .stTabs [data-baseweb="tab-list"] {
+        gap: 24px;
+        padding: 0px 10px;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+          height: 50px;
+          white-space: pre-wrap;
+          background-color: #f0f2f6;
+          border-radius: 5px;
+          padding: 10px 20px;
+          font-size: 16px;
+          font-weight: 600;
+          color: #31333F;
+        }
+
+        .stTabs [data-baseweb="tab"]:hover {
+          background-color: #e0e2e6;
+          color: #1f77b4;
+        }
+
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+          background-color: #1f77b4;
+          color: white;
+        }
+
+        .stTabs [data-baseweb="tab"] div {
+          font-size: 20px;
+         }
+      }
+
+      /* Estilos para pantallas pequeñas */
+      @media (max-width: 767px) {
+        .stTabs [data-baseweb="tab-list"] {
+         gap: 3px;
+        padding: 0px 5px;
+        }
+
+        .stTabs [data-baseweb="tab"] {
+          height: 40px;
+          white-space: pre-wrap;
+          background-color: #f0f2f6;
+          border-radius: 5px;
+          padding: 6px 10px;
+          font-size: 10px;
+          font-weight: 300;
+          color: #31333F;
+        }
+
+        .stTabs [data-baseweb="tab"]:hover {
+          background-color: #e0e2e6;
+          color: #1f77b4;
+        }
+
+        .stTabs [data-baseweb="tab"][aria-selected="true"] {
+          background-color: #1f77b4;
+          color: white;
+        }
+
+        .stTabs [data-baseweb="tab"] div {
+          font-size: 10px;
+        }
+       }
+      </style>
+      """, unsafe_allow_html=True)
+
+      # Crear los tabs con los estilos personalizados
+               
+      tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
+    
+      #with tabs[0]:
+              
+      with tabs[1]:
+         CrearReserva().view(CrearReserva.Model())
+    
+      with tabs[2]:
+         ModificarReservaAbo().view(ModificarReservaAbo.Model())
+    
+      with tabs[3]:
+          EliminarReserva().view(EliminarReserva.Model())
           
       def update_clock_and_calendar():
          while True:
@@ -288,12 +374,12 @@ else:
 
         if app == model.option1:
           Inicio().view(Inicio.Model())
-        if app == model.option2:
-          CrearReserva().view(CrearReserva.Model())
-        if app == model.option3:
-          ModificarReservaAbo().view(ModificarReservaAbo.Model())
-        if app == model.option4:
-          EliminarReserva().view(EliminarReserva.Model())
+        #if app == model.option2:
+        #  CrearReserva().view(CrearReserva.Model())
+        #if app == model.option3:
+        #  ModificarReservaAbo().view(ModificarReservaAbo.Model())
+        #if app == model.option4:
+        #  EliminarReserva().view(EliminarReserva.Model())
         if app == model.option5:
           Servicios().view(Servicios.Model())
         if app == model.option6:

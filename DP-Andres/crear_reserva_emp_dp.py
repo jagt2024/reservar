@@ -750,11 +750,13 @@ def crea_reserva():
                 #st.text(muestra)
                        
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
-                
+                 
+                boton = '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                 
                 if servicio_seleccionado == 'Hacia el Aeropuerto':
                     
                     uid = generate_uid()
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         reserva_data = (
@@ -783,7 +785,7 @@ def crea_reserva():
                     
                     uid = generate_uid()
                     
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         reserva_data = (

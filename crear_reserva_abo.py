@@ -389,9 +389,11 @@ class CrearReserva:
                    
                   #else:
                   whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). - Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}")
+
+                  boton = '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
                   
                   uid = generate_uid()
-                  values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, partes, acciones, hechos, causas, uid, whatsapp, str(57)+telefono, whatsappweb, "Enviado")]
+                  values = [(nombre,email,str(fecha),hora,servicios,precio, encargado, partes, acciones, hechos, causas, uid, whatsapp, str(57)+telefono, whatsappweb, boton)]
                   gs = GoogleSheet(credentials, document, sheet)
           
                   range = gs.get_last_row_range()

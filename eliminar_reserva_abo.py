@@ -115,7 +115,100 @@ def load_credentials_from_toml():
             return creds
     except Exception as e:
         st.error(f"Error al cargar credenciales: {str(e)}")
-        return None 
+        return None
+
+def consultar_otros(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-abo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['PROCESO'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if reserva.empty:
+            return False, None
+            
+        # Extraer los campos solicitados
+        datos_reserva = {
+            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+            'SERVICIOS': reserva['SERVICIOS'].iloc[0],
+            'PRECIO': reserva['PRECIO'].iloc[0],
+            'ACCION': reserva['ACCION'].iloc[0]
+        }
+
+        return True, datos_reserva
+      
+    except Exception as e:
+        st.error(f"Error al consultar otros: {str(e)}")    
+        return True, datos_reserva
+
+def consultar_reserva(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-abo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['PROCESO'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+            return False #, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar la reserva: {str(e)}")
+        return False #, None
 
 def eliminar_reserva_sheet(nombre, fecha, hora):
     try:
@@ -171,19 +264,18 @@ class EliminarReserva:
   
   class Model:
     pageTitle = "***Eliminar Agenda***"
-  
-  def view(self,model):
-    st.title(model.pageTitle)
-  
-    with st.form(key='myform3',clear_on_submit=True):
-  
+  try:
+
+    def view(self,model):
+      st.title(model.pageTitle)
+    
       horas = dataBook("horario")
       servicio = dataBook("servicio")
-      result_serv = np.setdiff1d(servicio,'')       
+      #result_serv = np.setdiff1d(servicio,'')       
       encargado = dataBook("encargado")
-      result_estil = np.setdiff1d(encargado,'X')
-      estados = dataBook("estado")
-      result_estado = np.setdiff1d(estados,'')
+      #result_estil = np.setdiff1d(encargado,'X')
+      #estados = dataBook("estado")
+      #result_estado = np.setdiff1d(estados,'')
     
       document='gestion-reservas-abo'
       sheet = 'reservas'
@@ -192,79 +284,55 @@ class EliminarReserva:
        
       st.subheader('Eliminar Reserva')
     
-      result_hours = np.setdiff1d(horas, "00:00") 
+      #result_hours = np.setdiff1d(horas, "00:00") 
         
       c1, c2 = st.columns(2)
-      nombre = c1.text_input('Numero de Proceso*: ', placeholder='Numero Proceso') # label_visibility='hidden')
-      estados = c2.selectbox('estado: ',result_estado)
-      fecha  = c2.date_input('Fecha*: ')
-      servicios = c1.selectbox('servicio: ',result_serv)
-      hora = c2.selectbox('Hora: ',result_hours)           
-      encargado = c1.selectbox('Encargado',result_estil)
-      email  = c2.text_input('Email*:', placeholder='Email')
-      emailencargado = dataBookEncEmail("encargado",encargado)
-      result_email = np.setdiff1d(emailencargado,'X')
-      #hora = c2.selectbox('Hora: ',horas)
-      precio = dataBookPrecio("servicio", servicios)
-      #result_precio = np.setdiff1d(precio,'')
-      #print(f'Precio = {precio}')
       
-      idcalendarserv = dataBookServicioId("servicio", servicios)
-      #print(f'idcalendarserv = {idcalendarserv}')
-      result_id = np.setdiff1d(idcalendarserv,'')
-  
-      #idcalendar = "josegarjagt@gmail.com"
-                 
-      if fecha:
-        id = ""
-        if servicios == servicio:
-          id = result_id
+      with c1:
+        nombre = st.text_input('Numero de Proceso*: ', placeholder='Numero Proceso') # label_visibility='hidden')
+        #servicios = st.selectbox('servicio: ',servicio)           
+        #encargado = st.selectbox('Encargado',encargado)
+        fecha  = st.date_input('Fecha*: ')
+        
+      with c2:
+        #estados = st.selectbox('estado: ',result_estado)
+        
+        hora = st.selectbox('Hora: ', horas)
+        email  = st.text_input('Email*:', placeholder='Email')
       
-      #calendar = GoogleCalendar(id) #credentials, idcalendar
+      if nombre and hora !=  dt.datetime.utcnow().strftime("%H%M"): 
+ 
+        with st.form(key='myform3',clear_on_submit=True):
       
-      eliminar = st.form_submit_button('Eliminar')
+         eliminar = st.form_submit_button('Eliminar')
 
-      if eliminar:
+         if eliminar:
             
-       with st.spinner('Cargando...'):
-        if not nombre or not email or not servicio or not encargado:
-          st.warning('Se Require completar los campos con * son obligatorios')
+          with st.spinner('Cargando...'):
         
-        elif not validate_email(email):
-          st.warning('El email no es valido')
-        
-          gs = GoogleSheet(credentials, document, sheet)
-                   
-          last_row = len(gs.sheet.get_all_values()) +1
-          data = gs.sheet.get_values()
-          data2 = data[1:]
-          range_start = f"A{last_row}"
-          range_end = f"{chr(ord('A')+len(data[0])-1)}{last_row}"
-         
-          for row in data2:
-            nom = [row[0]]
-            serv = [row[4]]
-            fech = str(row[2])
-            hora2 = str(row[3])
-            nota = [row[8]]
-            uid1 = str(row[11])
+           if not nombre or not email:
+             st.warning('Se Require completar los campos para cosulta y Modificcacion')
 
-            if nom != ['DATA']:
-              
-              fech2 = datetime.datetime.strptime(fech,'%Y-%m-%d')
-              fech1 = int(fech2.strftime("%Y%m%d"))
-              fechacalendarint = int(fecha.strftime("%Y%m%d"))
-              hora3 = datetime.datetime.strptime(hora2,'%H:%M')
-              fechahora_ini = int(hora3.strftime('%H%M'))
-              horacalendar = datetime.datetime.strptime(hora,'%H:%M')
-              horacalendarint = int(horacalendar.strftime('%H%M'))
-              
-              #print(f'nombre fechas y servicio {nom}, {serv}, {fech1}, {fechacalendarint}, {fechahora_ini}, {horacalendarint}, {nota}')
-              
-              if nom == [nombre] and serv == [servicios] and fech1 == fechacalendarint and fechahora_ini == horacalendarint and nota != ["Agenda Cancelada"]:
-             
-                #uid = str(uid1)
-                #values = [(nombre,email,str(fecha),str(horacalendarint),servicios,precio,encargado, "Agenda Cancelada", uid,"False")]
+           elif not validate_email(email):
+             st.warning('El email no es valido')
+
+           else:                            
+           
+             existe_db2 = consultar_reserva(nombre, str(fecha), hora)
+
+             if existe_db2:
+
+                valida, result = consultar_otros(nombre, str(fecha), hora)
+
+                if valida:       
+                  encargado = result['ENCARGADO']
+                  servicios = result['SERVICIOS']
+                  precio = result['PRECIO']
+                  accion = result['ACCION']
+
+                else:
+                  # Si hay error, result será un diccionario
+                  print(f"Error: {result['message']}") 
                   
                 eliminar_reserva_sheet(nombre, str(fecha), hora)
                   
@@ -273,12 +341,16 @@ class EliminarReserva:
 
                 #calendar.delete_event()
                                           
-                send_email2(email, nombre, fecha, hora3, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
-                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email2(email, nombre, fecha, hora, servicios, precio, encargado, accion='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, accion='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
                 
                 st.success('Su solicitud ha sido cacelada de forrma exitosa')
-                                    
-            if nom == [nombre] and serv == [servicios] and fech1 == fechacalendarint and (fechahora_ini != horacalendarint or nota == 'Agenda Cancelada'):  
-                st.warning('El cliente No tiene agenda o esta vencida o cancelda verifique su correo.')
-                print('El cliente No tiene agenda o esta vencida verifique su correo.')
-                break
+             else:
+                st.success('Reserva no existe para el cliente en esa Fecha y Hora')
+
+  except Exception as e:
+        logging.error(f"Error crítico en la aplicación: {str(e)}")
+        st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
+        print(f'Error crítico en la aplicación: {str(e)}')
+
+sys.excepthook = global_exception_handler
