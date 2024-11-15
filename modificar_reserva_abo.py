@@ -33,7 +33,7 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
   
-logging.basicConfig(level=logging.DEBUG, filename='crear_reserva_abo.log', filemode='w',
+logging.basicConfig(level=logging.DEBUG, filename='modificar_reserva_abo.log', filemode='w',
 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 datos_book = load_workbook("archivos/parametros_abogados.xlsx", read_only=False)
@@ -496,4 +496,4 @@ class ModificarReservaAbo:
         st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
         print(f'Error crítico en la aplicación: {str(e)}')
 
- sys.excepthook = global_exception_handler
+sys.excepthook = global_exception_handler

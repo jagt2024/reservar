@@ -435,4 +435,4 @@ class CrearReserva:
       logging.error(f"Error crítico en la aplicación: {str(e)}")
       st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
 
- sys.excepthook = global_exception_handler
+sys.excepthook = global_exception_handler

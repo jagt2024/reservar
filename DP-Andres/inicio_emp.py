@@ -25,11 +25,11 @@ class InicioEmp:
   
   class Model:
     
-   pageTitle = ('***DISTRITO PRIVADO - RESERVE SU SERVICIO***') 
+   pageTitle = ('***DISTRITO PRIVADO***') 
  
   def view(self,model):
     st.title(model.pageTitle)
-    st.subheader(' ASOCIACION DE USUARIOS Y CONDUCTORES')
+    st.subheader(' ASOCIACION DE USUARIOS Y CONDUCTORES - Reserve Su Servicio')
 
     #st_custom_icon("https://reservaremp.streamlit.app")
     #st.write("¡Icono clickeado!")

@@ -120,11 +120,11 @@ class Model:
   
   menuTitle = "Reserve y Agende en Linea"
   option1 = 'Inicio'
-  option2 = 'Crear Reserva'
+  #option2 = 'Crear Reserva'
   option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda'
-  option3  = 'Modificar Reserva'
-  option4  = 'Eliminar Reserva'
+  #option3  = 'Modificar Reserva'
+  #option4  = 'Eliminar Reserva'
   option5  = 'Nuestros Servicios'
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
@@ -181,7 +181,7 @@ if fecha_hasta < fecha_hoy:
 
 else:  
   
-  if user_management_system():
+  #if user_management_system():
       
     def view(model):
       try:
@@ -189,7 +189,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option2,model.option10,model.option9,model.option3,model.option4,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
+                         [model.option1, model.option10,model.option9,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -250,6 +250,92 @@ else:
               #st.submit_button("Limpiar Opcion")
               clear_session_state()
               st.rerun()
+
+        st.markdown("""
+        <style>
+        /* Estilos para pantallas grandes */
+        @media (min-width: 768px) {
+          .stTabs [data-baseweb="tab-list"] {
+          gap: 24px;
+          padding: 0px 10px;
+          }
+
+          .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 5px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #31333F;
+          }
+
+          .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e0e2e6;
+            color: #1f77b4;
+          }
+
+          .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: #1f77b4;
+            color: white;
+          }
+
+          .stTabs [data-baseweb="tab"] div {
+            font-size: 20px;
+          }
+        }
+
+        /* Estilos para pantallas pequeñas */
+        @media (max-width: 767px) {
+          .stTabs [data-baseweb="tab-list"] {
+          gap: 3px;
+          padding: 0px 5px;
+          }
+
+          .stTabs [data-baseweb="tab"] {
+            height: 40px;
+            white-space: pre-wrap;
+            background-color: #f0f2f6;
+            border-radius: 5px;
+            padding: 6px 10px;
+            font-size: 10px;
+            font-weight: 300;
+            color: #31333F;
+          }
+
+          .stTabs [data-baseweb="tab"]:hover {
+            background-color: #e0e2e6;
+            color: #1f77b4;
+          }
+
+          .stTabs [data-baseweb="tab"][aria-selected="true"] {
+            background-color: #1f77b4;
+            color: white;
+          }
+
+          .stTabs [data-baseweb="tab"] div {
+            font-size: 10px;
+          }
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Crear los tabs con los estilos personalizados
+               
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
+    
+        #with tabs[0]:
+              
+        with tabs[1]:
+          CrearReservaEmp().view(CrearReservaEmp.Model())
+    
+        with tabs[2]:
+          ModificarReservaEmp().view(ModificarReservaEmp.Model())
+    
+        with tabs[3]:
+          EliminarReservaEmp().view(EliminarReservaEmp.Model())
+        
           
         def update_clock_and_calendar():
          while True:
@@ -285,12 +371,12 @@ else:
       
             if app == model.option1:
               InicioEmp().view(InicioEmp.Model())
-            if app == model.option2:
-              CrearReservaEmp().view(CrearReservaEmp.Model())
-            if app == model.option3:
-              ModificarReservaEmp().view(ModificarReservaEmp.Model())
-            if app == model.option4:
-              EliminarReservaEmp().view(EliminarReservaEmp.Model())
+            #if app == model.option2:
+            #  CrearReservaEmp().view(CrearReservaEmp.Model())
+            #if app == model.option3:
+             # ModificarReservaEmp().view(ModificarReservaEmp.Model())
+            #if app == model.option4:
+              #EliminarReservaEmp().view(EliminarReservaEmp.Model())
             if app == model.option5:
               ServiciosEmp().view(ServiciosEmp.Model())
             if app == model.option6:

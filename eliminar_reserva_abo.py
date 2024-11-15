@@ -341,12 +341,12 @@ class EliminarReserva:
 
                 #calendar.delete_event()
                                           
-                send_email2(email, nombre, fecha, hora, servicios, precio, encargado, accion='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
-                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, accion='De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email2(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
                 
                 st.success('Su solicitud ha sido cacelada de forrma exitosa')
              else:
-                st.success('Reserva no existe para el cliente en esa Fecha y Hora')
+                st.success('Reserva no existe para el cliente en esa Fecha y Hora por favor verifique')
 
   except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")

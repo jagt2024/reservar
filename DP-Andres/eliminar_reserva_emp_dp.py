@@ -736,15 +736,14 @@ def eliminar_reserva():
                 send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
                 st.success('Su solicitud se ha cancelado de forrma exitosa')
-                    
-                if limpiar_campos_formulario():               
-                    st.success('Los ccaampos fueron limpiados exitosamente')
                         
              except Exception as e:
                 st.error(f"Error al guardar en la base de datos: {str(e)}")
              finally:
                 conn.close()
-                                               
+             
+             if limpiar_campos_formulario():               
+                st.success('Los ccaampos fueron limpiados exitosamente')                                   
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 
