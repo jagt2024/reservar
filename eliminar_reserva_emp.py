@@ -265,13 +265,11 @@ class EliminarReservaEmp:
     pageTitle = "***Eliminar Reserva***"
   
   def view(self,model):
-    st.title(model.pageTitle)
-  
-    with st.form(key='myform3',clear_on_submit=True):
-  
+      st.title(model.pageTitle)
+       
       horas = dataBook("horario")
       servicio = dataBook("servicio")
-      result_serv = np.setdiff1d(servicio,'')       
+      #result_serv = np.setdiff1d(servicio,'')       
       encargado = dataBook("encargado")
       result_estil = np.setdiff1d(encargado,'X')
     
@@ -287,21 +285,21 @@ class EliminarReservaEmp:
       c1, c2 = st.columns(2)
       
       with c1:
-        nombre = c1.text_input('Nombre entidad o persona*: ', placeholder='Nombre') # label_visibility='hidden')
+        nombre = st.text_input('Nombre entidad o persona*: ', placeholder='Nombre', key='nom1') # label_visibility='hidden')
         
-        fecha  = c1.date_input('Fecha*: ')
-        servicios = c1.selectbox('servicio: ',result_serv)
+        fecha  = st.date_input('Fecha*: ', key='fecha1')
+        #servicios = c1.selectbox('servicio: ',result_serv)
         #hora = c2.selectbox('Hora: ',horas)
         
       with c2:
         
-        email  = c2.text_input('Su Email*:', placeholder='Email')
-        hora = c2.selectbox('Hora: ', horas)            
-        encargado = c2.selectbox('Encargado',result_estil)
+        email  = st.text_input('Su Email*:', placeholder='Email', key='emai1')
+        hora = st.selectbox('Hora: ', horas)
+        #encargado = c2.selectbox('Encargado',result_estil)
         
-      if nombre and hora !=  dt.datetime.utcnow().strftime("%H%M"): 
+      #if nombre and hora !=  dt.datetime.utcnow().strftime("%H%M"): 
  
-        with st.form(key='myform3',clear_on_submit=True):
+      with st.form(key='myform4',clear_on_submit=True):
       
          eliminar = st.form_submit_button('Eliminar')
 
@@ -317,33 +315,27 @@ class EliminarReservaEmp:
 
            else:                            
            
-             existe_db2 = consultar_reserva(nombre, str(fecha), hora)
+              valida, result = consultar_otros(nombre, str(fecha), hora)
 
-             if existe_db2:
-
-                valida, result = consultar_otros(nombre, str(fecha), hora)
-
-                if valida:       
+              if valida:       
                   encargado = result['ESTILISTA']
                   servicios = result['SERVICIOS']
                   precio = result['PRECIO']
                   notas = result['NOTAS']
-
-                else:
-                  # Si hay error, result será un diccionario
-                  print(f"Error: {result['message']}") 
-                  
-                eliminar_reserva_sheet(nombre, str(fecha), hora)
+              
+                  eliminar_reserva_sheet(nombre, str(fecha), hora)
      
-                #calendar = GoogleCalendar(id) #credentials, idcalendar
+                  #calendar = GoogleCalendar(id) #credentials, idcalendar
                                                 
-                send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
-                send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                  send_email2(email, nombre, fecha, hora, servicios, precio, encargado,  'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
+                  send_email_emp(email, nombre, fecha, hora, servicios, precio, encargado, 'De acuerdo con su solicitud se cancelo la reserva. Gracias por su atencion.')
                 
-                st.success('Su solicitud ha sido actualizada de forrma exitosa')
-                                    
-             else:
-                st.success('Reserva no existe para el cliente en esa Fecha y Hora por favor verifique')
+                  st.success('Su solicitud ha sido actualizada de forrma exitosa')
+
+              else:
+                  # Si hay error, result será un diccionario
+                  print(f"Error: {result['message']}")
+                  st.success('Reserva no existe para el cliente en esa Fecha y Hora por favor verifique')
 
  except Exception as e:
      logging.error(f"Error crítico en la aplicación: {str(e)}")

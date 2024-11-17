@@ -227,7 +227,7 @@ else:
         """, unsafe_allow_html=True)
 
         # Crear columnas para el diseño
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
         # Columna 1: Reloj Digital
         with col1:
@@ -244,6 +244,7 @@ else:
           #st.header("Calendario")
           calendar_placeholder = st.empty()
 
+        with col4:
           with st.form("signup_form"):
             submit_button = st.form_submit_button("Limpiar Opcion")
             if submit_button:
@@ -350,7 +351,7 @@ else:
         
               calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
         
-              time.sleep(5)
+              time.sleep(1)
               #st.experimental_rerun()      
 
         with st.sidebar:
