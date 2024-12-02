@@ -21,7 +21,6 @@ class LocationTracker:
     def get_ip_location(self):
         """Get location based on IP address"""
         try:
-            # Use multiple IP geolocation services for reliability
             services = [
                 'https://ipapi.co/json/',
                 'https://ip-api.com/json/'
@@ -32,12 +31,11 @@ class LocationTracker:
                     response = requests.get(service, timeout=5)
                     data = response.json()
                     
-                    # Handle different API response formats
                     if 'latitude' in data:  # ipapi.co format
                         return LocationData(
                             latitude=data.get('latitude', 0),
                             longitude=data.get('longitude', 0),
-                            accuracy=1000,  # IP location is less precise
+                            accuracy=1000,
                             timestamp=datetime.now().isoformat(),
                             source='IP-API'
                         )
@@ -52,7 +50,6 @@ class LocationTracker:
                 except Exception as e:
                     st.warning(f"Error with {service}: {e}")
             
-            # If all services fail
             st.error("Could not retrieve location from any IP service")
             return None
         
@@ -65,7 +62,7 @@ class LocationTracker:
         location = LocationData(
             latitude=latitude,
             longitude=longitude,
-            accuracy=10,  # Manual precision
+            accuracy=10,
             timestamp=datetime.now().isoformat(),
             source='Manual'
         )
@@ -90,14 +87,12 @@ class LocationTracker:
             st.warning(f"No hay ubicaciones para {mobile_number}")
             return None
         
-        # Create map with the last location
         last_location = locations[-1]
         m = folium.Map(
             location=[last_location.latitude, last_location.longitude],
             zoom_start=10
         )
         
-        # Add markers
         for loc in locations:
             folium.Marker(
                 [loc.latitude, loc.longitude],
@@ -108,7 +103,6 @@ class LocationTracker:
                 """
             ).add_to(m)
         
-        # Tracking line
         if len(locations) > 1:
             points = [[loc.latitude, loc.longitude] for loc in locations]
             folium.PolyLine(points, color='red').add_to(m)
@@ -116,7 +110,7 @@ class LocationTracker:
         folium_static(m)
         return locations
 
-def geolocation():
+def run_gps_tracker():
     st.title("🗺️ Rastreador de Ubicación por IP")
     
     # Initialize tracker
@@ -168,6 +162,3 @@ def geolocation():
                     st.dataframe(location_data)
     else:
         st.info("No se han guardado ubicaciones aún")
-
-#if __name__ == "__main__":
-#    main()

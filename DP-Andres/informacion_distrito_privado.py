@@ -1,7 +1,7 @@
 import streamlit as st
 
 def info_dp():
-    st.set_page_config(page_title="Distrito Privado", page_icon="🚚", layout="wide")
+    ##st.set_page_config(page_title="Distrito Privado", page_icon="🚚", layout="wide")
     
     # Title and Introduction
     st.title("Distrito Privado: Servicio Exclusivo de Transporte de Usuarios Asociados")

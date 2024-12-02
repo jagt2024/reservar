@@ -36,7 +36,7 @@ def extract_services(df):
     return pd.DataFrame(services)
 
 # Aplicación Streamlit
-def main_factura():
+def factura():
     st.title("Estadísticas de Servicios")
 
     # Cargar datos

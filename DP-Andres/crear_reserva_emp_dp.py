@@ -630,14 +630,12 @@ def crea_reserva():
 
             #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
             
-            resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-            print(f'resultado {resultado}')
 
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
             if existe_db2:
                resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-               print(f'resultado {resultado}')
+               #print(f'resultado {resultado}')
                if resultado > 0 and resultado <= 90:
                   st.warning("Conductor se encuetra atendiedo un servicio")
                elif resultado >= 60:
@@ -647,6 +645,8 @@ def crea_reserva():
                else:
                   st.success("La reserva está disponible")
             else:
+              resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+              #print(f'resultado {resultado}')
               if resultado < 90:
                 st.warning("No pude agendarse con una fecha y/u  hora vencida")
               else:

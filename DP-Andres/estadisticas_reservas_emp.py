@@ -70,7 +70,7 @@ def load_data():
     return df
 
 # Aplicación Streamlit
-def main_reservas():
+def reservas():
     
     st.title("Estadísticas de Reservas - Servicios y Encargados")
 
