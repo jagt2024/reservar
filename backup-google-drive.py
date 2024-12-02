@@ -111,7 +111,7 @@ def backup_google_drive_sheets(backup_dir):
             )
             client = gspread.authorize(credentials)
 
-            cutoff_date = datetime.now() - timedelta(days=8)
+            cutoff_date = datetime.now() - timedelta(days=68)
 
             sheet_files = client.list_spreadsheet_files()
 
