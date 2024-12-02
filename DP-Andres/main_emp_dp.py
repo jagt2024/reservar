@@ -6,7 +6,7 @@ from crear_reserva_emp_dp import crea_reserva
 from modificar_reserva_emp_dp import modificar_reserva
 from eliminar_reserva_emp_dp import eliminar_reserva
 from servicios_emp_dp import ServiciosEmp
-from informacion_emp_dp import InformacionEmp
+from informacion_distrito_privado import info_dp
 from generar_excel_emp_dp import GenerarExcelEmp
 from generar_qr_emp import GenerarQr
 from consulta_st_excel import ConsultarAgenda
@@ -19,7 +19,7 @@ from estadisticas_reservas_emp import main_reservas
 from estadisticas_facturacion_emp import main_factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-from st_actualizar_token import newtoken
+from mobile_gps_tracker_ip7 import geolocation
 import datetime as dt
 from openpyxl import load_workbook
 import os
@@ -87,7 +87,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20250131')
+fecha_hasta = int('20250228')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -123,6 +123,7 @@ class Model:
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
+  option17 = 'Geolocalizacion'
         
   #def __init__(self):
   #  self.apps=[]
@@ -162,7 +163,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option10,model.option9,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
+                         [model.option1, model.option10,model.option9,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -298,7 +299,7 @@ else:
 
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva" ])
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion" ])
     
         #with tabs[0]:
               
@@ -310,6 +311,10 @@ else:
     
         with tabs[3]:
           eliminar_reserva()
+        
+        with tabs[4]:
+          info_dp()
+
 
         def update_clock_and_calendar():
          while True:
@@ -347,7 +352,7 @@ else:
             if app == model.option5:
               ServiciosEmp().view(ServiciosEmp.Model())
             if app == model.option6:
-              InformacionEmp().view(InformacionEmp.Model())
+              info_dp()
             if app == model.option7:
               GenerarExcelEmp().view(GenerarExcelEmp.Model())
             if app == model.option8:
@@ -402,6 +407,9 @@ else:
               
             if app == model.option16:
                soporte()
+               
+            if app == model.option17:
+               geolocation()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")
