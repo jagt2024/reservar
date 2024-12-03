@@ -19,7 +19,8 @@ from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-from mobile_gps_tracker_ip7 import run_gps_tracker
+from mobile_gps_tracker_ip import main_geolocation
+#from mobile_gps_tracker_ip7 import run_gps_tracker
 import datetime as dt
 from openpyxl import load_workbook
 import os
@@ -242,82 +243,84 @@ else:
         
               time.sleep(1)
               #st.rerun()  
-        
+        """
         st.markdown("""
-        <style>
-          /* Estilos para pantallas grandes */
-          @media (min-width: 768px) {
-          .stTabs [data-baseweb="tab-list"] {
-            gap: 24px;
-              padding: 0px 10px;
-          }
+        #<style>
+        #  /* Estilos para pantallas grandes */
+        #  @media (min-width: 768px) {
+        #  .stTabs [data-baseweb="tab-list"] {
+        #    gap: 24px;
+        #      padding: 0px 10px;
+        #  }
 
-          .stTabs [data-baseweb="tab"] {
-              height: 50px;
-              white-space: pre-wrap;
-              background-color: #f0f2f6;
-              border-radius: 5px;
-              padding: 10px 20px;
-              font-size: 16px;
-              font-weight: 600;
-              color: #31333F;
-          }
+        #  .stTabs [data-baseweb="tab"] {
+        #      height: 50px;
+        #      white-space: pre-wrap;
+        #      background-color: #f0f2f6;
+        #      border-radius: 5px;
+        #      padding: 10px 20px;
+        #      font-size: 16px;
+        #      font-weight: 600;
+        #      color: #31333F;
+        #  }
 
-          .stTabs [data-baseweb="tab"]:hover {
-              background-color: #e0e2e6;
-              color: #1f77b4;
-          }
+        #  .stTabs [data-baseweb="tab"]:hover {
+        #      background-color: #e0e2e6;
+        #      color: #1f77b4;
+        #  }
 
-          .stTabs [data-baseweb="tab"][aria-selected="true"] {
-              background-color: #1f77b4;
-              color: white;
-          }
+        #  .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        #      background-color: #1f77b4;
+        #      color: white;
+        #  }
 
-          .stTabs [data-baseweb="tab"] div {
-              font-size: 20px;
-            }
-          }
+        #  .stTabs [data-baseweb="tab"] div {
+        #      font-size: 20px;
+        #    }
+         # }
 
-          /* Estilos para pantallas pequeñas */
-          @media (max-width: 767px) {
-          .stTabs [data-baseweb="tab-list"] {
-            gap: 3px;
-            padding: 0px 5px;
-          }
+         # /* Estilos para pantallas pequeñas */
+         # @media (max-width: 767px) {
+         # .stTabs [data-baseweb="tab-list"] {
+         #   gap: 3px;
+         #   padding: 0px 5px;
+         # }
 
-          .stTabs [data-baseweb="tab"] {
-              height: 40px;
-              white-space: pre-wrap;
-              background-color: #f0f2f6;
-              border-radius: 5px;
-              padding: 6px 10px;
-              font-size: 10px;
-              font-weight: 300;
-              color: #31333F;
-          }
+         # .stTabs [data-baseweb="tab"] {
+         #     height: 40px;
+         #     white-space: pre-wrap;
+         #     background-color: #f0f2f6;
+         #     border-radius: 5px;
+         #     padding: 6px 10px;
+         #     font-size: 10px;
+         #     font-weight: 300;
+         #     color: #31333F;
+         # }
 
-          .stTabs [data-baseweb="tab"]:hover {
-              background-color: #e0e2e6;
-              color: #1f77b4;
-          }
+         # .stTabs [data-baseweb="tab"]:hover {
+         #     background-color: #e0e2e6;
+         #     color: #1f77b4;
+         # }
 
-          .stTabs [data-baseweb="tab"][aria-selected="true"] {
-              background-color: #1f77b4;
-              color: white;
-          }
+         # .stTabs [data-baseweb="tab"][aria-selected="true"] {
+         #     background-color: #1f77b4;
+         #     color: white;
+         # }
 
-          .stTabs [data-baseweb="tab"] div {
-              font-size: 10px;
-            }
-          }
-        </style>
-        """, unsafe_allow_html=True)
+         # .stTabs [data-baseweb="tab"] div {
+         #     font-size: 10px;
+         #   }
+        #  }
+       # </style>
+       # """, unsafe_allow_html=True)
 
+        
         # Crear los tabs con los estilos personalizados
                
         tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion"])
     
-        #with tabs[0]:
+        with tabs[0]:
+          InicioEmp().view(InicioEmp.Model())
               
         with tabs[1]:
           crea_reserva()
@@ -408,7 +411,7 @@ else:
               soporte()
                
             if app == model.option17:
-              run_gps_tracker()
+              main_geolocation()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")

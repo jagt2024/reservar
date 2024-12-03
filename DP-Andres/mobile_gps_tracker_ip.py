@@ -194,7 +194,7 @@ def handle_location_message(tracker):
             tracker.add_location(msg['locationData'])
     st.session_state.location_messages = []
 
-def main():
+def main_geolocation():
     st.title("Rastreador GPS de Móviles")
     
     # Initialize tracker
@@ -252,5 +252,5 @@ def main():
         for number in st.session_state.tracked_locations.keys():
             st.write(number)
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
