@@ -162,7 +162,7 @@ def show_google_maps_guide():
     - Buenos Aires: -34.6037, -58.3816
     """)
 
-def main():
+def main_geolocation():
     st.title("🗺️ Rastreador de Ubicación Multipropósito")
     
     # Inicializar tracker
@@ -326,5 +326,5 @@ def main():
         else:
             st.info("No hay ubicaciones guardadas para eliminar")
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()
