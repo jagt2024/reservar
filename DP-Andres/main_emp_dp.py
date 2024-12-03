@@ -19,7 +19,7 @@ from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-from mobile_gps_tracker import main_geolocation
+from mobile_gps_tracker2 import main_geolocation
 #from mobile_gps_tracker_ip7 import run_gps_tracker
 import datetime as dt
 from openpyxl import load_workbook
