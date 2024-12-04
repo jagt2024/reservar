@@ -41,6 +41,7 @@ class LocationTracker:
         st.session_state.tracked_locations[mobile_number].append(location)
         st.success(f"Ubicación agregada para {mobile_number}")
     
+    
     def get_ip_location(self):
         """Obtener ubicación basada en dirección IP"""
         try:
@@ -188,62 +189,62 @@ def main_geolocation():
         mobile_number = st.text_input("Número de Móvil (Opcional)", 
                                   placeholder="Puedes dejarlo en blanco",key="number")
     
-        # Add a button to trigger geolocation
+    
         if st.button("Obtener Ubicación Actual"):
-          # JavaScript to get geolocation
-          components.html("""
+            # JavaScript to get geolocation
+            components.html("""
             <script>
             const options = {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 0
             };
 
             function sendLocationToStreamlit(latitude, longitude, accuracy) {
-                // Use Streamlit's custom event to pass location data
-                window.parent.postMessage({
-                    type: 'streamlit:setComponentValue', 
-                    key: 'browser_location', 
-                    value: {
-                        latitude: latitude, 
-                        longitude: longitude, 
-                        accuracy: accuracy
-                    }
-                }, '*');
-            }
+            // Use Streamlit's custom event to pass location data
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue', 
+                key: 'browser_location', 
+                value: {
+                    latitude: latitude, 
+                    longitude: longitude, 
+                    accuracy: accuracy
+                }
+            }, '*');
+        }
 
-            function success(pos) {
-                const crd = pos.coords;
-                sendLocationToStreamlit(crd.latitude, crd.longitude, crd.accuracy);
-            }
+        function success(pos) {
+            const crd = pos.coords;
+            sendLocationToStreamlit(crd.latitude, crd.longitude, crd.accuracy);
+        }
 
-            function error(err) {
-                console.warn(`ERROR(${err.code}): ${err.message}`);
-                window.parent.postMessage({
-                    type: 'streamlit:setComponentValue', 
-                    key: 'browser_location_error', 
-                    value: err.message
-                }, '*');
-            }
+        function error(err) {
+            console.warn(`ERROR(${err.code}): ${err.message}`);
+            window.parent.postMessage({
+                type: 'streamlit:setComponentValue', 
+                key: 'browser_location_error', 
+                value: err.message
+            }, '*');
+        }
 
-            navigator.geolocation.getCurrentPosition(success, error, options);
-            </script>
-            """, height=0)
+        navigator.geolocation.getCurrentPosition(success, error, options);
+        </script>
+        """, height=0)
     
-            # Listen for browser location
+        # Listen for browser location
         browser_location = st.session_state.get('browser_location', None)
         if browser_location:
-          try:
-            location = tracker.browser_location_input(
-                latitude=browser_location['latitude'], 
-                longitude=browser_location['longitude'], 
-                accuracy=browser_location['accuracy']
-            )
-            tracker.add_location(location, mobile_number)
-            # Clear the location to prevent re-adding
-            st.session_state.browser_location = None
-          except Exception as e:
-            st.error(f"Error procesando ubicación: {e}")
+            try:
+                location = tracker.browser_location_input(
+                    latitude=browser_location['latitude'], 
+                    longitude=browser_location['longitude'], 
+                    accuracy=browser_location['accuracy']
+                )
+                tracker.add_location(location, mobile_number)
+                # Clear the location to prevent re-adding
+                st.session_state.browser_location = None
+            except Exception as e:
+                st.error(f"Error procesando ubicación: {e}")
         
         # Método de obtención de ubicación
         metodo = st.selectbox("Método de Ubicación", [
