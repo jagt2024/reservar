@@ -260,7 +260,7 @@ def generar_factura():
     st.write(f"**NIT del Emisor:** {emisor_data['nit']}")
     st.write(f"**Dirección del Emisor:** {emisor_data['direccion']}")
     st.write(f"**Ciudad del Emisor:** {emisor_data['ciudad']}")
-
+    
     st.subheader("Información del Cliente")
     nombre_cliente = st.text_input("Nombre del Cliente", key="nombre_cliente")
     direccion_cliente = st.text_input("Dirección del Cliente", key="direccion_cliente")

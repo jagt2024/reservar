@@ -30,7 +30,7 @@ temperature_font_size = "20px"
 
 [colors]
 clock_color = "red"
-calendar_color = "white"
+calendar_color = "yelow"
 temperature_color = "white"
 
 [update]

@@ -30,7 +30,6 @@ class LocationTracker:
         )
         return location
    
-    
     def get_ip_location(self):
         """Obtener ubicación basada en dirección IP"""
         try:
@@ -122,6 +121,55 @@ class LocationTracker:
         else:
             st.error("Número móvil no encontrado")
 
+def geolocation_script():
+    """Returns JavaScript for browser geolocation"""
+    return """
+    <script>
+    function getLocation() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(showPosition, showError);
+        } else {
+            document.getElementById("location").innerHTML = "Geolocation is not supported by this browser.";
+        }
+    }
+
+    function showPosition(position) {
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        document.getElementById("location").innerHTML = 
+            `Latitude: ${latitude}° <br>Longitude: ${longitude}° 
+            <br><a href='https://www.openstreetmap.org/#map=18/${latitude}/${longitude}' target='_blank'>View on Map</a>`;
+            
+        doSomething(position.latitude, position.longitude);doSomething(position.latitude, position.longitude);    
+    }
+
+    function showError(error) {
+        let errorMessage;
+        switch(error.code) {
+            case error.PERMISSION_DENIED:
+                errorMessage = "User denied the request for Geolocation.";
+                break;
+            case error.POSITION_UNAVAILABLE:
+                errorMessage = "Location information is unavailable.";
+                break;
+            case error.TIMEOUT:
+                errorMessage = "The request to get user location timed out.";
+                break;
+            case error.UNKNOWN_ERROR:
+                errorMessage = "An unknown error occurred.";
+                break;
+        }
+        window.parent.postMessage({
+            type: 'streamlit:setComponentValue', 
+            key: 'browser_location_error', 
+            value: errorMessage
+        }, '*');
+    }
+
+    getLocation();
+    </script>
+    """
+
 def show_google_maps_guide():
     """Mostrar guía detallada para obtener coordenadas en Google Maps"""
     st.markdown("## 📍 Guía para Obtener Coordenadas en Google Maps (Windows)")
@@ -158,11 +206,6 @@ def main_geolocation():
     # Inicializar tracker
     tracker = LocationTracker()
 
-     # Add a new component for browser geolocation
-    st.header("Obtener Ubicación del Navegador")
-    
-    # Input for mobile number
-    
     # Selector de pestañas
     tab1, tab2, tab3, tab4 = st.tabs([
         "Rastrear Ubicación", 
@@ -174,110 +217,44 @@ def main_geolocation():
     with tab1:
         st.header("Obtener y Rastrear Ubicación")
         
-        # Modificación para incluir método de ubicación por número móvil
-        metodo = st.selectbox("Método de Ubicación", [
-            "Seleccionar Método",
-            "Obtener por Dirección IP",
-            "Ingreso Manual de Coordenadas", 
-            "Ubicación por Número Móvil"  # Nuevo método agregado
-        ])
-        
         mobile_number = st.text_input("Número de Móvil", 
                                       placeholder="Ej: +573001234567", 
                                       key="mobile_input")
         
+        # Nuevo botón para obtener ubicación del navegador
+        if st.button("Obtener Ubicación del Navegador"):
+            # Inyectar script de geolocalización
+            components.html(geolocation_script(), height=0)
         
-        if metodo == "Ubicación por Número Móvil":
-           # Button to trigger geolocation
-            if st.button("Obtener Ubicación por Número Móvil"):
-                # Check if geolocation is available
-                if 'mobile_location' in st.session_state:
-                    try:
-                        mobile_location = st.session_state.mobile_location
-                        location = LocationData(
-                            latitude=mobile_location['latitude'],
-                            longitude=mobile_location['longitude'],
-                            accuracy=mobile_location['accuracy'],
-                            timestamp=datetime.now().isoformat(),
-                            source='Mobile Number Geolocation'
-                        )
-                        if location:
-                           tracker.add_location(location, mobile_number)
-                    
-                        # Clear the location to prevent re-adding
-                        #del st.session_state.mobile_location
-                    except Exception as e:
-                        st.error(f"Error procesando ubicación: {e}")
+        # Manejar la ubicación del navegador
+        browser_location = st.session_state.get('browser_location', None)
+        browser_location_error = st.session_state.get('browser_location_error', None)
         
-            # Error handling for geolocation
-            if 'mobile_location_error' in st.session_state:
-                st.error(f"Error de geolocalización: {st.session_state.mobile_location_error}")
-                del st.session_state.mobile_location_error
-    
-            # JavaScript to get geolocation with mobile number context
-            components.html(f"""
-            <script>
-            const mobileNumber = "{mobile_number}";
-            const options = {{
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0
-            }};
-
-            function sendLocationToStreamlit(latitude, longitude, accuracy) {{
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue', 
-                    key: 'mobile_location', 
-                    value: {{
-                        mobile_number: mobileNumber,
-                        latitude: latitude, 
-                        longitude: longitude, 
-                        accuracy: accuracy
-                    }}
-                    }}, '*');
-            }}
-
-            function success(pos) {{
-                const crd = pos.coords;
-                sendLocationToStreamlit(crd.latitude, crd.longitude, crd.accuracy);
-            }}
-
-            function error(err) {{
-                console.warn(`ERROR(${{err.code}}): ${{err.message}}`);
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue', 
-                    key: 'mobile_location_error', 
-                    value: err.message
-                }}, '*');
-            }}
-
-            navigator.geolocation.getCurrentPosition(success, error, options);
-            </script>
-            """, height=0)
-       
-            # Listen for browser location
-            #browser_location = st.session_state.get('browser_location', None)
-            #if browser_location:
-            #  try:
-            #    location = tracker.browser_location_input(
-            #        latitude=browser_location['latitude'], 
-            #        longitude=browser_location['longitude'], 
-            #        accuracy=browser_location['accuracy']
-            #    )
-            #    tracker.add_location(location, mobile_number)
-                # Clear the location to prevent re-adding
-            #    st.session_state.browser_location = None
-            #  except Exception as e:
-            #    st.error(f"Error procesando ubicación: {e}")
+        if browser_location:
+            try:
+                location = tracker.browser_location_input(
+                    latitude=browser_location['latitude'], 
+                    longitude=browser_location['longitude'], 
+                    accuracy=browser_location['accuracy']
+                )
+                tracker.add_location(location, mobile_number)
+                # Limpiar la ubicación para evitar re-agregación
+                del st.session_state.browser_location
+            except Exception as e:
+                st.error(f"Error procesando ubicación: {e}")
         
-        # Método de obtención de ubicación
-        #metodo = st.selectbox("Método de Ubicación", [
-        #    "Seleccionar Método",
-        #    "Obtener por Dirección IP",
-        #    "Ingreso Manual de Coordenadas"
-        #])
+        if browser_location_error:
+            st.error(f"Error de geolocalización: {browser_location_error}")
+            del st.session_state.browser_location_error
         
-        elif metodo == "Obtener por Dirección IP":
+        # Resto del código permanece igual
+        metodo = st.selectbox("Método de Ubicación", [
+            "Seleccionar Método",
+            "Obtener por Dirección IP",
+            "Ingreso Manual de Coordenadas"
+        ])
+        
+        if metodo == "Obtener por Dirección IP":
             if st.button("Obtener Ubicación por IP"):
                 location = tracker.get_ip_location()
                 if location:
