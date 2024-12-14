@@ -256,9 +256,10 @@ else:
                
         tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion", "Servicios" ])
     
-        #with tabs[0]:
+        with tabs[0]:
+          InicioEmp().view(InicioEmp.Model())
               
-        with tabs[1]:
+        with tabs[1] :
           CrearReservaEmp().view(CrearReservaEmp.Model())
     
         with tabs[2]:

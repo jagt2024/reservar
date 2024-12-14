@@ -221,6 +221,8 @@ def main_geolocation():
                                       placeholder="Ej: +573001234567", 
                                       key="mobile_input")
         
+        #st.markdown('''<iframe src="https://www.openstreetmap.org/#map=18/" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
+        
         # Nuevo botón para obtener ubicación del navegador
         if st.button("Obtener Ubicación del Navegador"):
             # Inyectar script de geolocalización
@@ -231,6 +233,8 @@ def main_geolocation():
         browser_location_error = st.session_state.get('browser_location_error', None)
         
         if browser_location:
+            #latitude = 4.283
+            #longitude = -74.218
             try:
                 location = tracker.browser_location_input(
                     latitude=browser_location['latitude'], 

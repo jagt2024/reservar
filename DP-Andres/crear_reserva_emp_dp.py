@@ -517,6 +517,10 @@ def consultar_otros(nombre, fecha, hora):
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False,(f"Error al consultar la reserva: {str(e)}")
 
+def generate_whatsapp_link(phone_number, message):
+    encoded_message = message.replace(' ', '%20')
+    return f"https://wa.me/{phone_number}?text={encoded_message}"
+
 def crea_reserva():
     
   try:
@@ -694,11 +698,13 @@ def crea_reserva():
      #Backend
      if enviar:
         with st.spinner('Cargando...'):
-         if not nombre or not servicio_seleccionado or not encargado or not email:
+         if not nombre or not servicio_seleccionado or not encargado or not email or not direccion:
             st.warning('Se Require completar los campos con * son obligatorios')
         
          elif not validate_email(email):
             st.warning('El email no es valido')
+         elif whatsapp == True and not telefono:
+            st.warning('Se Require el numero del Celular')
         
          else:
             # Create database connection
@@ -774,7 +780,17 @@ def crea_reserva():
                 
                         send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
                                              
-                        st.success('Su solicitud ha sido reservada de forrma exitosa')
+                        st.success('Su solicitud ha sido reservada de forrma exitosa, la confirmacion fue enviada al correo')
+                        
+                        if whatsapp == True:
+                           contact = str(57)+telefono
+                           message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+
+                           phone_number = contact
+                           mensaje = message 
+                           whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                           st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                           time.sleep(5)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
@@ -804,8 +820,18 @@ def crea_reserva():
                 
                         send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado)) 
                      
-                        st.success('Su solicitud ha sido reservada de forrma exitosa')                     
-                        
+                        st.success('Su solicitud ha sido reservada de forrma exitosa, la confirmacion fue enviada al correo')
+
+                        if whatsapp == True:
+                           contact = str(57)+telefono
+                           message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                           phone_number = contact
+                           mensaje = message 
+                           whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                           st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                           time.sleep(5)
+
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
                     finally:

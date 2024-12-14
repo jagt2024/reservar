@@ -383,6 +383,10 @@ def load_credentials_from_toml():
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
 
+def generate_whatsapp_link(phone_number, message):
+    encoded_message = message.replace(' ', '%20')
+    return f"https://wa.me/{phone_number}?text={encoded_message}"
+
 def consultar_reserva(nombre, fecha, hora):
     try:
         # Cargar credenciales
@@ -484,6 +488,53 @@ def consultar_encargado(encargado, fecha, hora):
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
         return False, None
+
+def consultar_otros(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-dp')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if reserva.empty:
+            return False, None
+            
+        # Extraer los campos solicitados
+        datos_reserva = {
+            'UID': reserva['UID'].iloc[0]
+        }
+        
+        return True, datos_reserva
+        
+    except Exception as e:
+        st.error(f"Error al consultar el UID: {str(e)}")
+        return False,(f"Error al consultar el UID: {str(e)}")
 
 def modificar_reserva():
     
@@ -608,7 +659,7 @@ def modificar_reserva():
                             conn.close()
                             return
                         else:
-                            st.success("La reserva está disponible")  
+                            st.success("La reserva está disponible")
 
                     fecha  = st.date_input('Fecha Servicio*: ', key='fecha_new')
                     notas = st.text_area('Nota o Mensaje(Opcional)',key='notas_new',value=st.session_state.notas)
@@ -687,7 +738,7 @@ def modificar_reserva():
               
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
-       #st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
+       st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
 
     with st.form(key='myform1',clear_on_submit=True):
         
@@ -699,8 +750,12 @@ def modificar_reserva():
          if not nombre or not encargado or not email:
             st.warning('Se Require completar los campos para cosulta y Modificcacion')
         
+        
          elif not validate_email(email):
             st.warning('El email no es valido')
+
+         elif whatsapp == True and not telefono:
+            st.warning('Se Require el numero del Celular')
         
          else:
             # Create database connection
@@ -720,9 +775,9 @@ def modificar_reserva():
                 end_hours = add_hour_and_half2(hora)
                 #print(f'end_hours2 : {end_hours}')
           
-            parsed_time2 = dt.datetime.strptime(end_hours, "%H:%M").time()
-            hours2 = parsed_time2.hour
-            minutes2 =  parsed_time2.minute
+            #parsed_time2 = dt.datetime.strptime(end_hours, "%H:%M").time()
+            #hours2 = parsed_time2.hour
+            #minutes2 =  parsed_time2.minute
           
             # Check if reservation already exists in database
             existe_db = consultar_reserva(nombre, str(fecha), hora)
@@ -744,77 +799,101 @@ def modificar_reserva():
                 emailencargado = dataBookEncEmail("encargado",conductor_seleccionado)
                                                   
                 whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado}")
-                
+
+                boton = '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+
                 if servicio_seleccionado == 'Hacia el Aeropuerto':
 
-                    uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
+                   valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                   if valida:
+                
+                    uid = result['UID']
+
+                    #uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
                   
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
 
                     try:
                                           
-                      nuevos_datos = {
-                        'nombre': nombre,
-                        'email': email,
-                        'fecha': fecha,
-                        'hora': hora,
-                        'servicio': servicio_seleccionado,
-                        'precio':precio_serv,
-                        'encargado': conductor_seleccionado,
-                        'email_encargado': str(emailencargado),
-                        'zona': zona_seleccionada,
-                        'direccion': direccion,
-                        'notas': notas,
-                        'uid': uid,
-                        'whatsapp': whatsapp,
-                        'telefono': str(57)+telefono,
-                        'whatsapp_web': whatsappweb
-                      }
+                       #nuevos_datos = {
+                      #  'nombre': nombre,
+                      #  'email': email,
+                      #  'fecha': fecha,
+                      #  'hora': hora,
+                      #  'servicio': servicio_seleccionado,
+                      #  'precio':precio_serv,
+                      #  'encargado': conductor_seleccionado,
+                      #  'email_encargado': str(emailencargado),
+                      #  'zona': str(zona_enc),
+                      #  'direccion': direccion,
+                      #  'notas': notas,
+                      #  'uid': uid,
+                      #  'whatsapp': whatsapp,
+                      #  'telefono': str(57)+telefono,
+                      #  'whatsapp_web': whatsappweb
+                      #}
     
-                      actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+                      #actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
                      
                       gs = GoogleSheet(credentials, document, sheet)
 
                       range = gs.write_data_by_uid(uid, values)
                                                              
-                      send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas='De acuerdo con su solicitud su reserva se reprogramo. Gracias por su atencion.')
-                     
+                      send_email2(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado,  notas)
+                
                       send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
+                                             
+                      st.success('Su solicitud ha sido modificada de forrma exitosa, la confirmacion fue enviada al correo')
 
-                      st.success('Su solicitud ha sido reservada de forrma exitosa')
+                      if whatsapp == True:
+                        contact = str(57)+telefono
+                        message = f'Cordial saludo: Sr(a): {nombre} La Reserva se modifico con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                        phone_number = contact
+                        mensaje = message 
+                        whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                        st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                        time.sleep(5)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
-                    finally:
-                        conn.close()
+                    #finally:
+                    #    conn.close()
                 
                 else:
 
-                    uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
+                   valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                   if valida:
+                
+                    uid = result['UID']
+
+                    #uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
                   
                     values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb)]
 
                     try:
                                           
-                      nuevos_datos = {
-                        'nombre': nombre,
-                        'email': email,
-                        'fecha': fecha,
-                        'hora': hora,
-                        'servicio': servicio_seleccionado,
-                        'precio':precio_serv,
-                        'encargado': conductor_seleccionado,
-                        'email_encargado': str(emailencargado),
-                        'zona': str(zona_enc),
-                        'direccion': direccion,
-                        'notas': notas,
-                        'uid': uid,
-                        'whatsapp': whatsapp,
-                        'telefono': str(57)+telefono,
-                        'whatsapp_web': whatsappweb
-                      }
+                      #nuevos_datos = {
+                      #  'nombre': nombre,
+                      #  'email': email,
+                      #  'fecha': fecha,
+                      #  'hora': hora,
+                      #  'servicio': servicio_seleccionado,
+                      #  'precio':precio_serv,
+                      #  'encargado': conductor_seleccionado,
+                      #  'email_encargado': str(emailencargado),
+                      #  'zona': str(zona_enc),
+                      #  'direccion': direccion,
+                      #  'notas': notas,
+                      #  'uid': uid,
+                      #  'whatsapp': whatsapp,
+                      #  'telefono': str(57)+telefono,
+                      #  'whatsapp_web': whatsappweb
+                      #}
     
-                      actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+                      #actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
                      
                       gs = GoogleSheet(credentials, document, sheet)
 
@@ -824,12 +903,22 @@ def modificar_reserva():
                      
                       send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, precio_serv, conductor_seleccionado, notas, str(emailencargado))
 
-                      st.success('Su solicitud ha sido reservada de forrma exitosa')
+                      st.success('Su solicitud ha sido recibida de forrma exitosa, la confirmacion fue enviada al correo')
+
+                      if whatsapp == True:
+                        contact = str(57)+telefono
+                        message = f'Cordial saludo: Sr(a): {nombre} La Reserva se modifico con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                        phone_number = contact
+                        mensaje = message 
+                        whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                        st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                        time.sleep(5)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
-                    finally:
-                        conn.close()
+                    #finally:
+                    #    conn.close()
                                
                 if limpiar_campos_formulario():
                    st.success('Campos limpiados exitosamente')
@@ -844,7 +933,7 @@ def modificar_reserva():
 
   except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")
-        st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
+        st.error(f"Error crítico en la aplicación. Por favor, contacte al administrador. {str(e)}")
 
 sys.excepthook = global_exception_handler
 

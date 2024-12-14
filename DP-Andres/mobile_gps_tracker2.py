@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import folium
 from streamlit_folium import folium_static
 from dataclasses import dataclass
@@ -18,19 +17,16 @@ class LocationTracker:
         if 'tracked_locations' not in st.session_state:
             st.session_state.tracked_locations = {}
     
-    def browser_location_input(self, latitude, longitude, accurate):
-        """Añadir ubicación desde la geolocalización del navegador"""
+    def add_location(self, latitude, longitude, accuracy, mobile_number):
+        """Añadir ubicación para un número móvil"""
         location = LocationData(
             latitude=latitude,
             longitude=longitude,
-            accurate=accurate,
+            accurate=accuracy,
             timestamp=datetime.now().isoformat(),
             source='Browser'
         )
-        return location
-    
-    def add_location(self, location, mobile_number):
-        """Añadir ubicación para un número móvil"""
+        
         if not mobile_number:
             mobile_number = "Sin Número"
         
@@ -39,40 +35,27 @@ class LocationTracker:
         
         st.session_state.tracked_locations[mobile_number].append(location)
         st.success(f"Ubicación agregada para {mobile_number}")
+        return location
     
-    def visualize_locations(self, mobile_number):
-        """Visualizar ubicaciones en un mapa"""
-        locations = st.session_state.tracked_locations.get(mobile_number, [])
-        
-        if not locations:
-            st.warning(f"No hay ubicaciones para {mobile_number}")
-            return None
-        
-        # Crear mapa con la última ubicación
-        last_location = locations[-1]
+    def visualize_location(self, latitude, longitude, accuracy):
+        """Visualizar ubicación única en un mapa"""
+        # Crear mapa centrado en la ubicación
         m = folium.Map(
-            location=[last_location.latitude, last_location.longitude],
-            zoom_start=10
+            location=[latitude, longitude],
+            zoom_start=15
         )
         
-        # Agregar marcadores
-        for loc in locations:
-            folium.Marker(
-                [loc.latitude, loc.longitude],
-                popup=f"""
-                Fuente: {loc.source}<br>
-                Tiempo: {loc.timestamp}<br>
-                Precisión: {loc.accurate}m
-                """
-            ).add_to(m)
+        # Agregar marcador
+        folium.Marker(
+            [latitude, longitude],
+            popup=f"""
+            Precisión: {accuracy}m<br>
+            Tiempo: {datetime.now().isoformat()}
+            """
+        ).add_to(m)
         
-        # Línea de seguimiento
-        if len(locations) > 1:
-            points = [[loc.latitude, loc.longitude] for loc in locations]
-            folium.PolyLine(points, color='red').add_to(m)
-        
+        # Mostrar mapa en Streamlit
         folium_static(m)
-        return locations
 
 def main_geolocation():
     st.title("🗺️ Rastreador de Ubicación Multipropósito")
@@ -80,91 +63,129 @@ def main_geolocation():
     # Inicializar rastreador
     tracker = LocationTracker()
     
-    # Agregar un nuevo componente para geolocalización del navegador
-    st.header("Obtener Ubicación del Navegador")
+    st.header("Obtener Ubicación")
+    
+    st.info("""
+    Instrucciones para obtener ubicación:
+    1. Haga clic en "Obtener Ubicación Actual"
+    2. Permita el acceso a la ubicación cuando se lo solicite
+    3. Asegúrese de tener conexión a internet
+    4. Verifique que la ubicación de GPS esté habilitada
+    """)
     
     # Entrada para número de móvil
     mobile_number = st.text_input("Número de Móvil (Opcional)", placeholder="Puedes dejarlo en blanco")
     
-    # Agregar un botón para activar la geolocalización
+    # Botón para obtener ubicación
     if st.button("Obtener Ubicación Actual"):
-        # JavaScript para obtener la geolocalización
-        components.html("""
+        st.components.v1.html("""
+        <div id="location-info" style="margin-bottom: 10px;"></div>
+        <div id="debug-info" style="color: gray; font-size: 0.8em;"></div>
         <script>
-        const options = {
-            enableHighAccuracy: true,
-            timeout: 5000,
-            maximumAge: 0
-        };
-
-        function sendLocationToStreamlit(latitude, longitude, precision) {
-            // Usar el evento personalizado de Streamlit para pasar datos de ubicación
-            window.parent.postMessage({
-                type: 'streamlit:setComponentValue',
-                key: 'browser_location',
-                value: {
-                    latitude: latitude,
-                    longitude: longitude,
-                    precision: precision
+        function getLocation() {
+            var locationDiv = document.getElementById('location-info');
+            var debugDiv = document.getElementById('debug-info');
+            
+            debugDiv.innerHTML = "Iniciando solicitud de ubicación...";
+            
+            if (!navigator.geolocation) {
+                locationDiv.innerHTML = "Geolocalización no soportada";
+                debugDiv.innerHTML = "El navegador no soporta geolocalización";
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    var latitude = position.coords.latitude;
+                    var longitude = position.coords.longitude;
+                    var accuracy = position.coords.accuracy;
+                    
+                    locationDiv.innerHTML = 
+                        'Latitud: ' + latitude.toFixed(6) + '° ' +
+                        'Longitud: ' + longitude.toFixed(6) + '° ' +
+                        'Precisión: ' + accuracy.toFixed(2) + 'm';
+                    
+                    debugDiv.innerHTML = 
+                        'Método de ubicación: ' + 
+                        (position.coords.accuracyError ? 'Aproximado' : 'Preciso');
+                    
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        key: 'browser_location',
+                        value: {
+                            latitude: latitude,
+                            longitude: longitude,
+                            accuracy: accuracy
+                        }
+                    }, '*');
+                },
+                function(error) {
+                    var errorMessage = "";
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = "Permiso de ubicación denegado.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = "Información de ubicación no disponible.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = "La solicitud de ubicación expiró.";
+                            break;
+                        case error.UNKNOWN_ERROR:
+                            errorMessage = "Error desconocido.";
+                            break;
+                    }
+                    
+                    locationDiv.innerHTML = errorMessage;
+                    debugDiv.innerHTML = "Código de error: " + error.code;
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 30000,
+                    maximumAge: 0
                 }
-            }, '*');
+            );
         }
-
-        function success(pos) {
-            const crd = pos.coords;
-            sendLocationToStreamlit(crd.latitude, crd.longitude, crd.accuracy);
-        }
-
-        function error(err) {
-            console.warn(`ERROR(${err.code}): ${err.message}`);
-            window.parent.postMessage({
-                type: 'streamlit:setComponentValue',
-                key: 'browser_location_error',
-                value: err.message
-            }, '*');
-        }
-
-        navigator.geolocation.getCurrentPosition(success, error, options);
+        
+        getLocation();
         </script>
-        """, height=0)
+        """, height=250)
     
-    # Escuchar la ubicación del navegador
+    # Procesar ubicación capturada
     browser_location = st.session_state.get('browser_location', None)
+    
     if browser_location:
         try:
-            location = tracker.browser_location_input(
-                latitude=browser_location['latitude'], 
-                longitude=browser_location['longitude'], 
-                accurate=browser_location.get('precision', 0)
+            # Añadir ubicación
+            location = tracker.add_location(
+                latitude=browser_location['latitude'],
+                longitude=browser_location['longitude'],
+                accuracy=browser_location['accuracy'],
+                mobile_number=mobile_number
             )
-            tracker.add_location(location, mobile_number)
-            # Borra la ubicación para evitar volver a agregarla
-            st.session_state.browser_location = None
+            
+            # Mostrar información de ubicación
+            st.write("Detalles de ubicación:")
+            st.json({
+                "Latitud": location.latitude,
+                "Longitud": location.longitude,
+                "Precisión": f"{location.accurate}m",
+                "Timestamp": location.timestamp
+            })
+            
+            # Mostrar mapa
+            st.header("Mapa de Ubicación")
+            tracker.visualize_location(
+                latitude=location.latitude, 
+                longitude=location.longitude, 
+                accuracy=location.accurate
+            )
+            
+            # Mostrar enlace de OpenStreetMap
+            st.markdown(f"[Ver en OpenStreetMap](https://www.openstreetmap.org/#map=18/{location.latitude}/{location.longitude})")
+            
         except Exception as e:
             st.error(f"Error procesando ubicación: {e}")
-    
-    # Sección de ubicaciones guardadas
-    st.header("Ubicaciones Guardadas")
-    if st.session_state.tracked_locations:
-        for number, locations in st.session_state.tracked_locations.items():
-            st.subheader(f"Número: {number}")
-            
-            if st.button(f"Mostrar Mapa - {number}"):
-                tracked_locations = tracker.visualize_locations(number)
-                if tracked_locations:
-                    location_details = [
-                        {
-                            "Fuente": loc.source,
-                            "Timestamp": loc.timestamp,
-                            "Latitud": loc.latitude,
-                            "Longitud": loc.longitude,
-                            "Precisión": f"{loc.accurate}m"
-                        }
-                        for loc in tracked_locations
-                    ]
-                    st.dataframe(location_details)
-    else:
-        st.info("No se han guardado ubicaciones aún")
 
-#if __name__ == "__main__":
-#    main_geolocation()
+if __name__ == "__main__":
+    main_geolocation()

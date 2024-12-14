@@ -114,7 +114,7 @@ class Model:
   option1 = 'Inicio'
   option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda'
-  option5  = 'Nuestros Servicios'
+  #option5  = 'Nuestros Servicios'
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
   option8  = 'Generar Codigo QR'
@@ -164,7 +164,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option10,model.option9,model.option5,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
+                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -351,8 +351,8 @@ else:
       
             if app == model.option1:
               InicioEmp().view(InicioEmp.Model())
-            if app == model.option5:
-              ServiciosEmp().view(ServiciosEmp.Model())
+            #if app == model.option5:
+            #  ServiciosEmp().view(ServiciosEmp.Model())
             if app == model.option6:
               info_dp()
             if app == model.option7:
