@@ -1,9 +1,12 @@
 import streamlit as st
+from google_sheets_emp import GoogleSheet
 import pandas as pd
 from datetime import datetime
 import random
 import qrcode
 import numpy as np
+import uuid
+import toml
 from PIL import Image
 import io
 import base64
@@ -27,7 +30,19 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-datos_book = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("./archivos-dp/parametros_empresa_dp.xlsx", read_only=False)
+
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None
 
 def dataBook(hoja):
     ws1 = datos_book[hoja]
@@ -43,7 +58,7 @@ def dataBook(hoja):
 # Función para cargar datos del emisor desde Excel
 def cargar_datos_emisor():
     try:
-        df = pd.read_excel('./archivos-dp/parametros_empresa.xlsx', sheet_name='emisor')
+        df = pd.read_excel('./archivos-dp/parametros_empresa_dp.xlsx', sheet_name='emisor')
         emisor = df.iloc[0]
         return {
             'nombre': emisor['NOMBRE'],
@@ -54,6 +69,9 @@ def cargar_datos_emisor():
     except Exception as e:
         st.error(f"Error al cargar datos del emisor: {str(e)}")
         return None
+
+def generate_uid():
+    return str(uuid.uuid4())
 
 # Función para inicializar la base de datos
 def init_db():
@@ -82,7 +100,9 @@ def guardar_factura_en_db(numero_factura, fecha_factura, emisor_nombre, emisor_n
     c = conn.cursor()
     c.execute('''INSERT OR REPLACE INTO facturas VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         (numero_factura, fecha_factura, emisor_nombre, emisor_nit, emisor_ciudad,
-         cliente_nombre, cliente_nit, cliente_direccion, cliente_email, json.dumps(servicios), subtotal, iva_total, total))
+         cliente_nombre, cliente_nit, cliente_direccion, cliente_email,json.dumps(servicios), subtotal, iva_total, total))
+
+         
     conn.commit()
     conn.close()
     
@@ -238,6 +258,11 @@ def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_clien
 def generar_factura():
     st.title("Generación de Factura")
 
+    document='gestion-reservas-dp'
+    sheet = 'facturacion'
+    credentials = st.secrets['sheetsemp']['credentials_sheet']
+    time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
+        
     init_db()
 
     # Cargar datos del emisor
@@ -286,13 +311,15 @@ def generar_factura():
             if descripcion and cantidad and precio_unitario_con_iva > 0:
                 precio_unitario_sin_iva = calcular_precio_sin_iva(precio_unitario_con_iva)
                 iva = calcular_iva(precio_unitario_sin_iva)
-                subtotal = cantidad * precio_unitario_con_iva
+                subtotal = cantidad * precio_unitario_sin_iva
+                total = cantidad * precio_unitario_con_iva
                 servicios.append({
                     "descripcion": descripcion,
                     "cantidad": cantidad,
                     "precio_unitario_sin_iva": precio_unitario_sin_iva,
                     "iva": iva * cantidad,
-                    "subtotal": subtotal
+                    "subtotal": subtotal,
+                    "total": total
                 })
     
     if servicios:
@@ -389,8 +416,27 @@ def generar_factura():
           logger.warning("Intento de envío de factura sin dirección de correo electrónico")
     
     if st.button("Confirmar y Guardar Factura"):
+
        fecha_factura = datetime.now().strftime('%Y-%m-%d')
-       guardar_factura_en_db(numero_factura, fecha_factura, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'], nombre_cliente, nit_cliente, direccion_cliente, email_cliente, servicios, subtotal, iva_total, total)
+       nombre = emisor_data['nombre']
+       nit = emisor_data['nit']
+       ciudad = emisor_data['ciudad']
+       subtotal = (f"{subtotal:,.2f}")
+       iva_total = (f"{iva_total:,.2f}")
+       total = (f"{total:,.2f}")
+       
+       uid = generate_uid()
+                    
+       values = [(numero_factura, str(fecha_factura), nombre, str(nit), ciudad, nombre_cliente, str(nit_cliente), direccion_cliente, str(email_cliente), json.dumps(servicios), str(subtotal), str(iva_total), str(total), uid)]
+                
+       gs = GoogleSheet(credentials, document, sheet)
+          
+       rango = gs.get_last_row_range()
+
+       gs.write_data(rango,values)
+
+       #guardar_factura_en_db(numero_factura, fecha_factura, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'], nombre_cliente, nit_cliente, direccion_cliente, email_cliente, servicios, subtotal, iva_total, total)
+
        st.success("Factura guardada en la base de datos exitosamente.")
     
     # Limpiar campos después de generar y descargar la factura

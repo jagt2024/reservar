@@ -320,19 +320,21 @@ else:
         tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion"])
     
         with tabs[0]:
-          InicioEmp().view(InicioEmp.Model())
+          clear_session_state()
+          #st.rerun()
+          #InicioEmp().view(InicioEmp.Model())
               
         with tabs[1]:
           crea_reserva()
     
         with tabs[2]:
-         modificar_reserva()
+          modificar_reserva()
     
         with tabs[3]:
-         eliminar_reserva()
+          eliminar_reserva()
         
         with tabs[4]:
-         info_dp()
+          info_dp()
 
         with st.sidebar:
           st.markdown("---")

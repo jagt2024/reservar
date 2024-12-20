@@ -27,7 +27,7 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos")
+                os.chdir("archivos-dp")
                 for x in df["ENCARGADO"].unique(): 
                   df_temp = df[df["ENCARGADO"] == x ]
                   df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
@@ -55,7 +55,7 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos")
+                os.chdir("archivos-dp")
                 for x in df["SERVICIOS"].unique(): 
                   df_temp = df[df["SERVICIOS"] == x ]
                   df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
@@ -78,7 +78,7 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos")
+                os.chdir("archivos-dp")
                 for x in df["FECHA"].unique(): 
                   df_temp = df[df["FECHA"] == x ]
                   df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
@@ -101,7 +101,7 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos")
+                os.chdir("archivos-dp")
                 for x in df["ZONA"].unique(): 
                   df_temp = df[df["ZONA"] == x ]
                   df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")

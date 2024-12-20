@@ -37,7 +37,7 @@ logging.basicConfig(level=logging.DEBUG, filename='crear_reserva_emp_dp.log', fi
 format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # Cargar el archivo Excel una sola vez
-datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
+datos_book = load_workbook("archivos-dp/parametros_empresa_dp.xlsx", read_only=False)
 
 def dataBook(hoja):
     
@@ -765,11 +765,11 @@ def crea_reserva():
                     values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
-                        reserva_data = (
-                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv, conductor_seleccionado, str(emailencargado), zona_seleccionada, direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
-                        )
+                        #reserva_data = (
+                        #nombre, email, fecha, hora, servicio_seleccionado,precio_serv, #conductor_seleccionado, str(emailencargado), zona_seleccionada, #direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        #)
                      
-                        insert_reserva(conn, reserva_data)
+                        #insert_reserva(conn, reserva_data)
                         
                         gs = GoogleSheet(credentials, document, sheet)
           
@@ -794,8 +794,8 @@ def crea_reserva():
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
-                    finally:
-                        conn.close()
+                    #finally:
+                    #    conn.close()
                 
                 else:
                     
@@ -804,12 +804,12 @@ def crea_reserva():
                     values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio_serv, conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
-                        reserva_data = (
-                        nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
-                        conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
-                        )
+                        ##reserva_data = (
+                        #nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
+                        #conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        #)
                      
-                        insert_reserva(conn, reserva_data)
+                        #insert_reserva(conn, reserva_data)
                     
                         gs = GoogleSheet(credentials, document, sheet)
           
@@ -834,8 +834,8 @@ def crea_reserva():
 
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
-                    finally:
-                        conn.close()
+                    #finally:
+                    #    conn.close()
 
                 if limpiar_campos_formulario():
                    st.success('Campos limpiaddos exitosamente')                 

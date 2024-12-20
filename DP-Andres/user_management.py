@@ -1,47 +1,105 @@
 import streamlit as st
-import sqlite3
 import hashlib
-import os
+import gspread
+from google.oauth2.service_account import Credentials
+import json
+import toml
 
 st.cache_data.clear()
 st.cache_resource.clear()
 
+class TicketGoogleSheets:
+    def __init__(self):
+        self.creds = self.load_credentials()
+        self.sheet_name = 'gestion-reservas-dp'
+        self.worksheet_name = 'users'
+        
+    def load_credentials(self):
+        try:
+            with open('./.streamlit/secrets.toml', 'r') as toml_file:
+                config = toml.load(toml_file)
+                creds = config['sheetsemp']['credentials_sheet']
+                if isinstance(creds, str):
+                    creds = json.loads(creds)
+                return creds
+        except Exception as e:
+            st.error(f"Error al cargar credenciales: {str(e)}")
+            return None
+            
+    def _get_worksheet(self):
+        try:
+            scope = ['https://spreadsheets.google.com/feeds',
+                     'https://www.googleapis.com/auth/drive']
+            credentials = Credentials.from_service_account_info(self.creds, scopes=scope)
+            client = gspread.authorize(credentials)
+            sheet = client.open(self.sheet_name)
+            return sheet.worksheet(self.worksheet_name)
+        except Exception as e:
+            st.error(f"Error al acceder a Google Sheets: {str(e)}")
+            return None
+
 def init_db():
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users 
-                 (username TEXT PRIMARY KEY, password TEXT, role TEXT)''')
+    gs = TicketGoogleSheets()
+    worksheet = gs._get_worksheet()
     
-    c.execute("SELECT * FROM users WHERE username=? AND role=?", ('admin', 'admin'))
-    if not c.fetchone():
-        hashed_password = hashlib.sha256('admin'.encode()).hexdigest()
-        c.execute("INSERT INTO users VALUES (?, ?, ?)", ('admin', hashed_password, 'admin'))
-    
-    conn.commit()
-    conn.close()
+    if worksheet:
+        # Check if headers exist
+        headers = worksheet.row_values(1)
+        if not headers:
+            worksheet.append_row(['username', 'password', 'role'])
+        
+        # Check if admin exists
+        try:
+            cell = worksheet.find('admin')
+            if not cell:
+                hashed_password = hashlib.sha256('admin'.encode()).hexdigest()
+                worksheet.append_row(['admin', hashed_password, 'admin'])
+        except gspread.exceptions.CellNotFound:
+            hashed_password = hashlib.sha256('admin'.encode()).hexdigest()
+            worksheet.append_row(['admin', hashed_password, 'admin'])
 
 def add_user(username, password, role):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    c.execute("INSERT OR REPLACE INTO users VALUES (?, ?, ?)", (username, hashed_password, role))
-    conn.commit()
-    conn.close()
+    gs = TicketGoogleSheets()
+    worksheet = gs._get_worksheet()
+    
+    if worksheet:
+        try:
+            # Check if user exists
+            cell = worksheet.find(username)
+            if cell:
+                # Update existing user
+                row = cell.row
+                hashed_password = hashlib.sha256(password.encode()).hexdigest()
+                worksheet.update(f'A{row}:C{row}', [[username, hashed_password, role]])
+            else:
+                # Add new user
+                hashed_password = hashlib.sha256(password.encode()).hexdigest()
+                worksheet.append_row([username, hashed_password, role])
+            return True
+        except Exception as e:
+            st.error(f"Error al agregar usuario: {str(e)}")
+            return False
 
 def check_credentials(username, password):
-    conn = sqlite3.connect('users.db')
-    c = conn.cursor()
-    hashed_password = hashlib.sha256(password.encode()).hexdigest()
-    c.execute("SELECT role FROM users WHERE username=? AND password=?", (username, hashed_password))
-    result = c.fetchone()
-    conn.close()
-    return result[0] if result else None
+    gs = TicketGoogleSheets()
+    worksheet = gs._get_worksheet()
+    
+    if worksheet:
+        try:
+            cell = worksheet.find(username)
+            if cell:
+                row = worksheet.row_values(cell.row)
+                hashed_password = hashlib.sha256(password.encode()).hexdigest()
+                if row[1] == hashed_password:
+                    return row[2]  # Return role
+        except gspread.exceptions.CellNotFound:
+            pass
+    return None
 
 def login():
     login_container = st.empty()
     
     with login_container.container():
-        
         username = ""
         password = ""
         
@@ -77,21 +135,21 @@ def signup():
 
         if submit_button:
             if new_username and new_password:
-                add_user(new_username, new_password, new_role)
-                st.success("Usuario registrado con éxito.")            
-                
+                if add_user(new_username, new_password, new_role):
+                    st.success("Usuario registrado con éxito.")
+                else:
+                    st.error("Error al registrar el usuario.")
             else:
                 st.error("Por favor, introduzca un nombre de usuario y una contraseña.")
     else:
         st.error("Solo los administradores pueden registrar nuevos usuarios.")
 
 def logout():
-    #st.session_state['logged_in'] = False
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     
-    st.session_state['username'] = "" 
-    st.session_state['passsword'] = ""
+    st.session_state['username'] = ""
+    st.session_state['password'] = ""
     st.rerun()
 
 def user_management_system():
@@ -119,10 +177,9 @@ def user_management_system():
 
     return False
 
-# Ejemplo de uso en la aplicación principal:
-#if __name__ == "__main__":
-#    if user_management_system():
-#        st.write("Acceso concedido a la aplicación principal")
-#        # Aquí iría el código de tu aplicación principal
-#    else:
-#        st.write("Por favor, inicie sesión para acceder a la aplicación")
+if __name__ == "__main__":
+   if user_management_system():
+      st.write("Acceso concedido a la aplicación principal")
+      # Aquí iría el código de tu aplicación principal
+   else:
+      st.write("Por favor, inicie sesión para acceder a la aplicación")

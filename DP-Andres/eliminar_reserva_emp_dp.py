@@ -196,6 +196,10 @@ def sendMessage(numero, mensaje):
   time.sleep(2)
   return response
 
+def generate_whatsapp_link(phone_number, message):
+    encoded_message = message.replace(' ', '%20')
+    return f"https://wa.me/{phone_number}?text={encoded_message}"
+
 #class CrearReservaEmp:
   
 #  class Model:
@@ -723,7 +727,7 @@ def eliminar_reserva():
   
                 #values = [(nombre_c,email,str(fecha_c),hora_c, #servicio_seleccionado_c, '0', encargado, str(emailencargado), #zona, direccion, 'Reserva Cancelada', uid, whatsapp,telefono, #whatsappweb)]
   
-                actualizar_reserva(conn, nombre_c, fecha_c, hora_c,servicio_seleccionado_c, nuevos_datos)
+                #actualizar_reserva(conn, nombre_c, fecha_c, hora_c,#servicio_seleccionado_c, nuevos_datos)
 
                         
                 eliminar_reserva_sheet(nombre_c, str(fecha_c), hora_c)
@@ -735,12 +739,22 @@ def eliminar_reserva():
                      
                 send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
-                st.success('Su solicitud se ha cancelado de forrma exitosa')
+                st.success('Su solicitud ha sido cacelada de forrma exitosa, la confirmacion fue enviada al correo')
+
+                if whatsapp == True:
+                   contact = str(57)+telefono
+                   message = f'Cordial saludo: Sr(a): {nombre_c} La Reserva se modifico con exito para el dia: {fecha_c} a las: {hora_c} con el encargado: {encargado} para realizar el servcio: {servicio_seleccionado_c}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                   phone_number = contact
+                   mensaje = message 
+                   whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                   st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                   time.sleep(5)
                         
              except Exception as e:
                 st.error(f"Error al guardar en la base de datos: {str(e)}")
-             finally:
-                conn.close()
+             #finally:
+             #   conn.close()
              
              if limpiar_campos_formulario():               
                 st.success('Los ccaampos fueron limpiados exitosamente')                                   
@@ -756,8 +770,8 @@ def eliminar_reserva():
 
   except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")
-        st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
-        print(f'Error crítico en la aplicación: {str(e)}')
+        st.error(f"Error crítico en la aplicación. Por favor, contacte al administrador.{str(e)}")
+        #print(f'Error crítico en la aplicación: {str(e)}')
 
 sys.excepthook = global_exception_handler
 
