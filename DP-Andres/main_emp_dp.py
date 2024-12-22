@@ -319,9 +319,8 @@ else:
                
         tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion"])
     
-        with tabs[0]:
-          clear_session_state()
-          #st.rerun()
+        #with tabs[0]:
+        #  InicioEmp()
           #InicioEmp().view(InicioEmp.Model())
               
         with tabs[1]:

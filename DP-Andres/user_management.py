@@ -130,7 +130,7 @@ def signup():
         with st.form("signup_form"):
             new_username = st.text_input("Nuevo nombre de usuario", key="signup_username")
             new_password = st.text_input("Nueva contraseña", type="password", key="signup_password")
-            new_role = st.selectbox("Rol", ["user", "admin"])
+            new_role = st.selectbox("Rol", ["user", "admin", "soporte"])
             submit_button = st.form_submit_button("Registrarse")
 
         if submit_button:

@@ -168,6 +168,13 @@ class TicketApp:
                     st.session_state.is_support = False
                     st.rerun()
 
+    def user_view(self):
+        self.formulario_ticket()
+
+    def support_view(self):
+        self.mostrar_tickets_recientes_abiertos()
+        self.filtro_fechas_y_estadisticas()
+
     def formulario_ticket(self):
         st.header("Agregar Nuevo Ticket")
         col1, col2, col3, col4 = st.columns(4)
@@ -197,13 +204,6 @@ class TicketApp:
             if ticket_id:
                 st.success("Ticket agregado con éxito!")
                 self.enviar_correo_soporte(ticket_id, fecha, hora, prioridad, estado, descripcion, correo)
-
-    def support_view(self):
-        self.mostrar_tickets_recientes_abiertos()
-        self.filtro_fechas_y_estadisticas()
-
-    def user_view(self):
-        self.formulario_ticket()
 
     def enviar_correo_soporte(self, ticket_id, fecha, hora, prioridad, estado, descripcion, correo):
         subject = f"Nuevo Ticket de Soporte #{ticket_id}"

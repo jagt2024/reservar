@@ -199,10 +199,10 @@ def factura():
             # Gráfico de ingresos mensuales
             st.header("Ingresos por Mes")
             filtered_df['mes'] = filtered_df['FECHA_FACTURA'].dt.strftime('%Y-%m')
-            monthly_revenue = filtered_df.groupby('mes')['total'].sum().reset_index()
-            fig = px.line(monthly_revenue, x='mes', y='total',
+            monthly_revenue = filtered_df.groupby('mes')['TOTAL'].sum().reset_index()
+            fig = px.line(monthly_revenue, x='mes', y='TOTAL',
                          title='Ingresos Mensuales',
-                         labels={'mes': 'Mes', 'total': 'Ingresos ($)'})
+                         labels={'mes': 'Mes', 'TOTAL': 'Ingresos ($)'})
             st.plotly_chart(fig)
 
             # Gráfico de distribución de ingresos
@@ -218,9 +218,9 @@ def factura():
             service_summary = services_df.groupby('descripcion').agg({
                 'cantidad': 'sum',
                 'total': 'sum'
-            }).sort_values('subtotal', ascending=False).reset_index()
+            }).sort_values('total', ascending=False).reset_index()
             
-            service_summary['precio_promedio'] = service_summary['subtotal'] / service_summary['cantidad']
+            service_summary['precio_promedio'] = service_summary['total'] / service_summary['cantidad']
             service_summary = service_summary.rename(columns={
                 'descripcion': 'Servicio',
                 'cantidad': 'Cantidad Vendida',
