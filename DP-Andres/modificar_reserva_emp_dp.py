@@ -854,7 +854,7 @@ def modificar_reserva():
                         mensaje = message 
                         whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
                         st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                        time.sleep(5)
+                        time.sleep(10)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
@@ -913,7 +913,7 @@ def modificar_reserva():
                         mensaje = message 
                         whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
                         st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                        time.sleep(5)
+                        time.sleep(10)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")

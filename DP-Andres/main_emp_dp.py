@@ -57,7 +57,7 @@ with open("./.streamlit/config.toml", "r") as f:
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
-logo = Image.open("./assets-dp/dp_andres.png")  
+logo = Image.open("./assets-dp/dp_dp.jpeg")  
 
 datos_book_emp = load_workbook("./archivos-dp/parametros_empresa.xlsx", read_only=False)
 
@@ -212,15 +212,15 @@ else:
           #st.markdown('''<iframe src="https://www.msn.com/es-co/el-tiempo/pronostico/in-Ricaurte,Cundinamarca?loc=eyJsIjoiUmljYXVydGUiLCJyIjoiQ3VuZGluYW1hcmNhIiwicjIiOiJSaWNhdXJ0ZSIsImMiOiJDb2xvbWJpYSIsImkiOiJDTyIsImciOiJlcy1jbyIsIngiOi03NC43NzE4LCJ5Ijo0LjI3Nzd9&weadegreetype=C&ocid=msedgdhp&cvid=CCD5BAAE25564F08A5B252DCA0EEF333&content=TeaserTempRecord_wxnwtsrec" width="300" height="250" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>''',unsafe_allow_html=True)
         
         with col2:
-          st.image(logo, width=150)  # Ajusta el ancho según sea necesario
+          st.image(logo, width=250)  # Ajusta el ancho según sea necesario
         
         # Columna 2: Calendario
         with col3:
           #st.header("Calendario")
-          calendar_placeholder = st.empty()
-          
+          #calendar_placeholder = st.empty()
+          pass
         with col4:
-
+          calendar_placeholder = st.empty()
           with st.form(key='myform4',clear_on_submit=True):
             limpiar = st.form_submit_button("Limpiar Opcion")
             if limpiar:
@@ -317,7 +317,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion"])
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva"])
     
         #with tabs[0]:
         #  InicioEmp()
@@ -332,8 +332,8 @@ else:
         with tabs[3]:
           eliminar_reserva()
         
-        with tabs[4]:
-          info_dp()
+        #with tabs[4]:
+        #  info_dp()
 
         with st.sidebar:
           st.markdown("---")

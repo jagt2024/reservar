@@ -19,7 +19,7 @@ class GenerarExcelEmp:
         
         if opcion == "Encargado":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: temp_gestion_reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -27,16 +27,20 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos-dp")
+                #os.chdir("archivos-dp")
                 for x in df["ENCARGADO"].unique(): 
                   df_temp = df[df["ENCARGADO"] == x ]
-                  df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
-          
+                  #temp_file_path = "./archivos-dp"
+                  df_temp.to_excel(f"./archivos-dp/reservas-{x}.xlsx", index = False, engine="openpyxl")
+                      #df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
+
+                st.write(f"Se han procesado {len(df)} registros válidos.")
+                                
                   #data = os.listdir()
                   #for x in data:
                   #print(data)
                   
-                os.chdir("..")
+                #os.chdir("..")
                 #os.chdir('C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas')
                 st.success('Archivos generados exitosamente')
                 st.balloons()
@@ -47,7 +51,7 @@ class GenerarExcelEmp:
                 
         elif opcion == "Servicio":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: temp_gestion_reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -55,12 +59,16 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos-dp")
+                #os.chdir("archivos-dp")
                 for x in df["SERVICIOS"].unique(): 
                   df_temp = df[df["SERVICIOS"] == x ]
-                  df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
+                  #temp_file_path = "./archivos-dp/"
+                  df_temp.to_excel(f"./archivos-dp/reservas-{x}.xlsx", index = False, engine="openpyxl")
+                      #df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpy//xl")
 
-                os.chdir("..")
+                st.write(f"Se han procesado {len(df)} registros válidos.")
+                 
+                #os.chdir("..")
                 st.success('Archivos generados exitosamente')
                 st.balloons()
              
@@ -70,7 +78,7 @@ class GenerarExcelEmp:
                 
         elif opcion == "Fecha":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: temp_gestion_reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -78,12 +86,16 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos-dp")
+                #os.chdir("archivos-dp")
                 for x in df["FECHA"].unique(): 
                   df_temp = df[df["FECHA"] == x ]
-                  df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
+                  #temp_file_path = "./archivos-dp/"
+                  df_temp.to_excel(f"./archivos-dp/reservas-{x}.xlsx", index = False, engine="openpyxl")
+                      #df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
 
-                os.chdir("..")
+                st.write(f"Se han procesado {len(df)} registros válidos.")
+                  
+                #os.chdir("..")
                 st.success('Archivos generados exitosamente')
                 st.balloons()
              
@@ -93,7 +105,7 @@ class GenerarExcelEmp:
         
         elif opcion == "Zona":
         
-          datos =col2.file_uploader("Ruta para el archivo de datos: gestion-reservas-dp.xlsx")
+          datos =col2.file_uploader("Ruta para el archivo de datos: temp_gestion_reservas-dp.xlsx")
           generar = st.form_submit_button(" Generar ")
   
           if generar:   
@@ -101,16 +113,20 @@ class GenerarExcelEmp:
   
             with st.spinner('Cargando...'): 
               try: 
-                os.chdir("archivos-dp")
+                #os.chdir("archivos-dp")
                 for x in df["ZONA"].unique(): 
                   df_temp = df[df["ZONA"] == x ]
-                  df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
-          
+                  #temp_file_path = "./archivos-dp/"
+                  df_temp.to_excel(f"./archivos-dp/reservas-{x}.xlsx", index = False, engine="openpyxl")
+                      #df_temp.to_excel(f"reservas-{x}.xlsx", index = False, engine="openpyxl")
+
+                st.write(f"Se han procesado {len(df)} registros válidos.")
+                            
                   #data = os.listdir()
                   #for x in data:
                   #print(data)
                   
-                os.chdir("..")
+                #os.chdir("..")
                 #os.chdir('C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas')
                 st.success('Archivos generados exitosamente')
                 st.balloons()

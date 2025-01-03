@@ -627,7 +627,7 @@ def crea_reserva():
                 
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
-            hora = st.selectbox('Hora Servicio: ', horas)
+            hora = st.time_input('Hora Servicio: ')
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
@@ -790,7 +790,7 @@ def crea_reserva():
                            mensaje = message 
                            whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
                            st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                           time.sleep(5)
+                           time.sleep(10)
                         
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
@@ -830,7 +830,7 @@ def crea_reserva():
                            mensaje = message 
                            whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
                            st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                           time.sleep(5)
+                           time.sleep(10)
 
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")

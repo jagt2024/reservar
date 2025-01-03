@@ -1,180 +1,218 @@
-2024-12-22 11:36:15,817 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:15,829 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:36:15,830 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:36:19,726 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:19,727 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:36:19,728 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:19,729 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:36:21,627 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:36:21,919 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:36:22,258 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:36:24,685 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:36:24,696 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:36:26,944 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:36:26,953 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:36:30,974 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:36:31,443 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:36:31,702 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:36:47,156 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:47,157 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:36:47,158 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:36:49,821 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:49,822 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:36:49,826 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:36:49,827 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:36:51,723 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:36:51,873 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:36:51,880 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:36:52,532 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:36:52,542 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:36:53,514 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:36:53,524 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:37:01,121 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:01,449 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:01,850 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:37:28,708 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:28,709 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:37:28,709 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:37:31,776 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:31,778 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:31,779 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:31,779 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:32,953 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:32,954 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:37:32,954 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:37:33,207 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:37:33,534 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:37:33,687 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:37:34,489 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:37:34,500 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:37:34,874 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:34,875 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:34,876 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:34,876 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:36,218 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:37:36,365 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:37:36,372 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:37:36,877 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:37:36,888 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:37:37,950 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:37:37,960 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:37:38,527 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:37:38,536 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:37:38,556 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:38,797 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:41,298 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:41,647 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:41,649 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:37:42,083 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:37:44,099 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:44,100 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:37:44,101 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:37:44,788 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:44,789 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:44,790 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:37:44,791 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:37:45,586 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:37:45,733 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:37:45,742 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:37:46,232 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:37:46,244 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:37:47,218 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:37:47,229 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:37:47,768 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:50,641 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:51,064 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:37:54,703 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:37:54,851 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:37:54,859 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:37:55,249 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:37:55,259 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:37:56,252 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:37:56,261 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:37:59,434 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:37:59,801 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:38:00,111 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27pqrs%27 HTTP/11" 200 None
-2024-12-22 11:38:02,168 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:38:02,458 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:38:02,465 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:38:02,945 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:38:02,954 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:38:05,025 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:38:05,034 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:38:08,191 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:38:08,551 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:38:08,865 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27pqrs%27 HTTP/11" 200 None
-2024-12-22 11:39:33,866 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:33,867 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:39:33,868 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:39:37,083 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:37,084 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:39:37,085 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:37,086 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:39:38,298 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:39:38,447 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:39:38,455 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:39:39,153 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:39:39,164 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:39:43,190 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:39:43,202 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:39:44,123 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:39:46,360 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:39:46,696 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:39:48,577 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:48,578 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:39:48,579 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:39:49,498 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:49,500 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:39:49,501 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:39:49,501 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:39:50,377 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:39:50,525 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:39:50,534 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:39:52,422 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:39:52,433 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:39:55,512 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:39:55,523 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:40:00,932 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:40:01,246 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:40:01,526 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:40:43,481 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:40:43,482 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:40:43,483 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:40:45,518 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:40:45,519 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:40:45,520 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:40:45,521 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:40:46,964 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:40:47,112 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:40:47,120 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:40:53,424 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:40:53,434 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:40:54,510 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:40:54,525 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:40:55,571 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:41:07,034 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:41:07,468 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
-2024-12-22 11:41:21,647 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:21,650 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:41:21,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:41:23,679 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:23,680 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:41:23,681 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:23,682 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:41:24,217 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:24,219 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2024-12-22 11:41:24,220 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 54 8192
-2024-12-22 11:41:25,555 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:25,556 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:41:25,557 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2024-12-22 11:41:25,557 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 65536
-2024-12-22 11:41:28,609 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2024-12-22 11:41:28,762 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2024-12-22 11:41:28,770 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2024-12-22 11:41:29,698 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2024-12-22 11:41:29,708 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2024-12-22 11:41:30,604 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-dp%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2024-12-22 11:41:30,613 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2024-12-22 11:41:34,522 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:41:40,011 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2024-12-22 11:41:40,390 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI/values/%27reservas%27 HTTP/11" 200 None
+2024-12-31 19:17:53,338 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2024-12-31 19:17:54,094 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-12-31 19:17:54,307 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2024-12-31 19:18:06,385 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2024-12-31 19:18:06,400 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2024-12-31 19:54:20,622 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2024-12-31 19:54:21,910 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-12-31 19:54:22,135 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2024-12-31 19:55:35,899 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2024-12-31 19:55:36,045 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-12-31 19:55:36,052 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2024-12-31 20:02:29,597 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2024-12-31 20:02:29,838 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2024-12-31 20:02:29,847 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:18:24,819 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:25,304 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:18:25,358 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:18:25,485 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:25,486 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8F7820>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:25,487 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:18:25,489 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:25,490 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC8BD60>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:25,490 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:18:25,492 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:25,493 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8F7940>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:25,494 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:18:27,111 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:27,315 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:18:27,325 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:18:27,327 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:27,328 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8F7910>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:27,329 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:18:27,332 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:27,333 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ACF7EE0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:27,334 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:18:27,336 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:18:27,336 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC95550>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:18:27,337 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:22:34,674 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:22:34,902 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:22:34,910 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:22:34,911 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:22:34,912 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ACF7C40>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:22:34,913 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:22:34,915 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:22:34,916 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ACF8BE0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:22:34,917 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:22:34,919 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:22:34,920 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AD455E0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:22:34,921 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:24:52,375 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:52,695 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:24:52,702 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:24:52,704 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:52,705 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8E7040>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:52,706 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:24:52,708 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:52,709 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8B9BB0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:52,709 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:24:52,711 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:52,712 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8B9E50>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:52,713 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:24:54,146 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:54,331 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:24:54,353 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:24:54,355 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:54,355 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA07B80>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:54,356 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:24:54,360 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:54,362 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA22040>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:54,364 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:24:54,366 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:24:54,367 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8AE8B0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:24:54,368 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:25:08,799 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:08,948 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:25:08,956 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:25:08,958 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:08,959 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC87220>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:08,961 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:25:08,963 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:08,964 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A5C29D0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:08,965 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:25:08,967 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:08,968 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC87B20>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:08,969 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:25:09,976 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:10,189 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:25:10,200 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:25:10,202 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:10,202 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC9BBB0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:10,203 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:25:10,205 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:10,206 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC9BEE0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:10,207 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:25:10,209 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:10,213 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC9BC10>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:10,214 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:25:37,063 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:37,595 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:25:37,696 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:25:48,927 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:25:48,928 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC96C40>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:25:48,929 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:26:00,729 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:26:00,729 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABB0220>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:26:00,730 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:26:11,930 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:26:11,930 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8B9100>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:26:11,931 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:26:38,869 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:26:39,348 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:26:39,376 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:26:51,555 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:26:51,557 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AB8CB50>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:26:51,557 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:27:03,600 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:03,602 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA39BE0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:03,603 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:27:15,653 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:15,653 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA39C10>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:15,654 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:27:17,330 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:17,585 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:27:17,594 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:27:17,597 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:17,598 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AB8C400>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:17,599 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:27:17,601 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:17,602 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AB8CE50>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:17,603 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:27:17,604 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:17,605 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AB8CE20>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:17,606 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:27:40,649 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:40,824 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:27:40,832 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:27:40,834 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:40,834 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC837C0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:40,835 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:27:40,837 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:40,838 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC834F0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:40,839 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:27:40,841 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:40,841 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC83850>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:40,842 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:27:42,278 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:42,480 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:27:42,492 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:27:42,494 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:42,495 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8DFE50>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:42,496 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:27:42,498 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:42,499 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA39310>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:42,500 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:27:42,505 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:27:42,506 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ACD1CD0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:27:42,507 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:29:16,283 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:16,489 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:29:16,496 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:29:28,598 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:28,599 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABA0550>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:28,600 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:29:28,602 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:28,603 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8C18B0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:28,604 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:29:28,606 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:28,607 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ACF8A60>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:28,608 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:29:29,899 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:30,112 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:29:30,122 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:29:30,124 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:30,125 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA417F0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:30,126 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:29:30,128 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:30,129 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABFD490>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:30,130 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:29:30,132 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:30,135 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABFD6A0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:30,137 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:29:58,422 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:58,617 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:29:58,625 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:29:58,631 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:58,632 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC853A0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:58,633 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:29:58,637 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:58,638 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABB01C0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:58,654 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:29:58,669 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:29:58,671 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39ABB0D90>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:29:58,672 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:31:03,495 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:03,645 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:31:03,652 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:31:15,700 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:15,700 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AB9ADF0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:15,701 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:31:15,703 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:15,704 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8E7D30>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:15,705 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:31:15,707 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:15,707 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A758B50>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:15,708 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
+2025-01-02 14:31:16,904 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:22,215 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-01-02 14:31:22,223 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-01-02 14:31:34,353 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=2, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:34,354 - urllib3.connectionpool - WARNING - Retrying (Retry(total=2, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AC969A0>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:34,355 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (2): oauth2.googleapis.com:443
+2025-01-02 14:31:34,370 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=1, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:34,371 - urllib3.connectionpool - WARNING - Retrying (Retry(total=1, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39AA1DB20>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:34,372 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (3): oauth2.googleapis.com:443
+2025-01-02 14:31:34,374 - urllib3.util.retry - DEBUG - Incremented Retry for (url='/token'): Retry(total=0, connect=None, read=None, redirect=None, status=None)
+2025-01-02 14:31:34,374 - urllib3.connectionpool - WARNING - Retrying (Retry(total=0, connect=None, read=None, redirect=None, status=None)) after connection broken by 'NameResolutionError("<urllib3.connection.HTTPSConnection object at 0x000002B39A8AE130>: Failed to resolve 'oauth2.googleapis.com' ([Errno 11001] getaddrinfo failed)")': /token
+2025-01-02 14:31:34,375 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (4): oauth2.googleapis.com:443
