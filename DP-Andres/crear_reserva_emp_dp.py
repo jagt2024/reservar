@@ -627,7 +627,10 @@ def crea_reserva():
                 
             #hours_blocked = calendar.list_upcoming_events()
             #result_hours = np.setdiff1d(horas, '05:00')
-            hora = st.time_input('Hora Servicio: ')
+            hora = st.selectbox('Hora Servicio: ', horas, key="hora_new")
+            #hora_time = st.time_input('Hora Servicio: ')
+            #horatime2 = str(hora_time)
+            #print(f"horatime2 : {horatime2}, {hora}", type(hora),type(horatime2), type (hora_time))
             
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
