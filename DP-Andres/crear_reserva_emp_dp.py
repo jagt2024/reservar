@@ -635,9 +635,6 @@ def crea_reserva():
             # Check if reservation already exists in database
             #existe_db2 = check_existing_encargado(conn, conductor_seleccionado, #str(fecha), hora)
 
-            #existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
-            
-
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
 
             if existe_db2:

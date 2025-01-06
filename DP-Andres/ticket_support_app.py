@@ -10,6 +10,8 @@ from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from sendemail_ticket import send_email2
+from sendemail_ticket_empresa import send_email_emp
 
 class EmailSender:
     def __init__(self, smtp_server, port, sender_email, password):
@@ -96,7 +98,7 @@ class TicketGoogleSheets:
                 
                 # Convertir fechas
                 df['fecha'] = pd.to_datetime(df['fecha'])
-                fecha_limite = datetime.now() - timedelta(days=5)
+                fecha_limite = datetime.now() - timedelta(days=15)
                 
                 # Filtrar tickets abiertos recientes
                 df = df[
@@ -222,11 +224,19 @@ class TicketApp:
         """
         
         try:
-            self.email_sender.send_email("josegarjagt@gmail.com", subject, body)
-            st.success("Correo de notificación enviado a soporte.")
-            
-            self.email_sender.send_email(str(correo), "Registro solicitud", "Cordial Saludo, hemos recibido su peticion para ser revisada y atendida en el menor tiempo posible por el area de soporte. Gracias por su interes ")
+
+            send_email_emp("josegarjagt@gmail.com", subject, fecha, hora, body, estado, prioridad, descripcion, str(correo))
+
+            #self.email_sender.send_email("josegarjagt@gmail.com", subject, body)
+            #st.success("Correo de notificación enviado a soporte.")
+
+            send_email2(correo, body, fecha, hora, descripcion, estado, prioridad, "Cordial Saludo, hemos recibido su peticion para ser revisada y atendida en el menor tiempo posible por el area de soporte. Gracias por su interes ")
+
             st.success("Correo de notificación enviado al solicitante.")
+
+            
+            #self.email_sender.send_email(str(correo), "Registro solicitud", "Cordial Saludo, hemos recibido su peticion para ser revisada y atendida en el menor tiempo posible por el area de soporte. Gracias por su interes ")
+            #st.success("Correo de notificación enviado al solicitante.")
             
         except Exception as e:
             st.error(f"Error al enviar correo: {str(e)}")

@@ -317,7 +317,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva"])
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Soporte - PQRS"])
     
         #with tabs[0]:
         #  InicioEmp()
@@ -332,8 +332,8 @@ else:
         with tabs[3]:
           eliminar_reserva()
         
-        #with tabs[4]:
-        #  info_dp()
+        with tabs[4]:
+          soporte()
 
         with st.sidebar:
           st.markdown("---")

@@ -3,7 +3,7 @@ from email.message import EmailMessage
 import streamlit as st
 import imghdr
     
-def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas, emailencargado):
+def send_email_emp(email, nombre, fecha, hora, servicio, id, prioridad, notas, emailencargado):
    
   destinatarios = emailencargado
   user = st.secrets['emailsemp']['smtp_user'] 
@@ -15,23 +15,23 @@ def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, nota
   #smtp_password = os.getenv('smtp_password')
     
   msg = EmailMessage()
-  msg["Subject"] = "Reserva de Servicio"
+  msg["Subject"] = "Nuevo Ticket de Soporte"
   msg["From"] = user
   msg["To"] = "josegarjagt@gmail.com"
-  msg["Cc"] = destinatarios
+  #msg["Cc"] = destinatarios
  
   asunto = f"""Se genero reserva, enviada a Email: {email} del Sr(a) : {nombre},
       Fecha: {fecha},
       Hora: {hora},
       Servicio: {servicio},
-      Precio : {precio},
-      Conductor Encargado: {estilista},
+      Id : {id},
+      Prioridad: {prioridad},
       Notas: {notas},
       
       
       Atentamente,
       
-      El Equipo de Agendamiento
+      El Equipo de Soporte
       emil: emresa@xxxx.com
       """
   msg.set_content(asunto)

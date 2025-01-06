@@ -3,11 +3,11 @@ from email.message import EmailMessage
 import streamlit as st
 import imghdr
     
-def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, notas, emailencargado):
+def send_email2(email, nombre, fecha, hora, servicio, id, prioridad, notas):
    
-  destinatarios = emailencargado
-  user = st.secrets['emailsemp']['smtp_user'] 
-  password = st.secrets['emailsemp']['smtp_password']
+  destinatarios = []
+  user = st.secrets['emails']['smtp_user'] 
+  password = st.secrets['emails']['smtp_password']
   smtp_server = 'smtp.gmail.com'
   smtp_port = 465
   
@@ -15,24 +15,37 @@ def send_email_emp(email, nombre, fecha, hora, servicio, precio, estilista, nota
   #smtp_password = os.getenv('smtp_password')
     
   msg = EmailMessage()
-  msg["Subject"] = "Reserva de Servicio"
+  msg["Subject"] = "Ticket de Servicio"
   msg["From"] = user
-  msg["To"] = "josegarjagt@gmail.com"
+  msg["To"] = email
   msg["Cc"] = destinatarios
- 
-  asunto = f"""Se genero reserva, enviada a Email: {email} del Sr(a) : {nombre},
+  
+  #msg.add_alternative("""\
+  #<!DOCTYPE html>
+  #<html>
+  #    <body>
+  #          <h2 style="color:SlateGray;">Su reserva se ha realizado con exito!</h2>
+  #          <p> Un cordial saludo.</p>
+  #    </body>
+  #</html>
+  # """, subtype = "html" )
+  
+  asunto = f"""Cordial saludo Sr(a):
+      Esperando se encuentre bien, queremos confirmar que su solicitud de ticket se ha realizado con exito asi : 
+      
       Fecha: {fecha},
       Hora: {hora},
       Servicio: {servicio},
-      Precio : {precio},
-      Conductor Encargado: {estilista},
+      Id : {id},
+      Prioridad: {prioridad},
       Notas: {notas},
       
+      Si requiere una nuevva atencion de Soporte, le agradecemos ir a las opciones del menu en Soporte-PQRS, o por favor comuniquese a la linea: 3XX YYYYYY. Gracias por confiar en nosotros.
       
       Atentamente,
       
-      El Equipo de Agendamiento
-      emil: emresa@xxxx.com
+      El Equipo de Soporte
+      emil: empresa@xxxx.com
       """
   msg.set_content(asunto)
   
