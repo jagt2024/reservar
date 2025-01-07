@@ -742,7 +742,7 @@ def modificar_reserva():
 
     with st.form(key='myform1',clear_on_submit=True):
         
-     actualizar = st.form_submit_button("Actualizar")
+     actualizar = st.form_submit_button("Actualizar", type="primary")
      
      #Backend
      if actualizar:

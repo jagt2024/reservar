@@ -102,13 +102,15 @@ def backup_google_drive_sheets(backup_dir):
     for attempt in range(max_retries):
         try:
             creds = load_credentials()
-            credentials = Credentials.from_service_account_info(
-                creds, 
-                scopes=[
-                    "https://www.googleapis.com/auth/spreadsheets.readonly",
-                    "https://www.googleapis.com/auth/drive.readonly",
-                ],
-            )
+            #credentials = Credentials.from_service_account_info(
+                #creds,
+            scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+                #scopes=[
+                #    "https://www.googleapis.com/auth/spreadsheets.readonly",
+                #    "https://www.googleapis.com/auth/drive.readonly",],)
+
+            credentials = Credentials.from_service_account_info(creds, scopes=scope)
+
             client = gspread.authorize(credentials)
 
             cutoff_date = datetime.now() - timedelta(days=68)

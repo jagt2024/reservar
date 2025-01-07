@@ -680,7 +680,7 @@ def eliminar_reserva():
 
     with st.form(key='myform6',clear_on_submit=True):
         
-     eliminar = st.form_submit_button("Eliminar")
+     eliminar = st.form_submit_button("Eliminar", type="primary")
      
      #Backend
      if eliminar:

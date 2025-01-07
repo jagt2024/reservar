@@ -15,6 +15,7 @@ from authentication_users import authenticate_user
 from user_management import user_management_system
 from buscar_info import streamlit_app
 from facturacion_servicios_emp import generar_factura
+from backup_google_drive_dp import backup
 from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
@@ -121,6 +122,7 @@ class Model:
   option11 = 'Buscar Informacion'
   option15 = 'Eviar Whatsapp'
   option12 = 'Facturacion'
+  option18 = 'Copia Seguridad Reservas'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
@@ -164,7 +166,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16, model.option17],
+                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option16, model.option17],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -338,7 +340,7 @@ else:
         with st.sidebar:
           st.markdown("---")
           st.text("Version: 0.0.1")
-          st.text("Ano: 2024")
+          st.text("Ano: 2025")
           st.text("Autor: JAGT")
           st.markdown("---")
     
@@ -387,8 +389,10 @@ else:
             if app == model.option11:
               streamlit_app()
             if app == model.option12:
-
               generar_factura()
+
+            if app == model.option18:
+              backup()
                             
             if app == model.option13:
            

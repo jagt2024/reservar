@@ -693,7 +693,7 @@ def crea_reserva():
     
     with st.form(key='myform0',clear_on_submit=True):
     
-     enviar = st.form_submit_button(" Reservar ")
+     enviar = st.form_submit_button(" Reservar ", type="primary")
 
      #Backend
      if enviar:
