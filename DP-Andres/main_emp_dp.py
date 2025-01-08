@@ -20,7 +20,7 @@ from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-from mobile_gps_tracker import main_geolocation
+from localizador_gps import show_gps_tracker
 #from mobile_gps_tracker_ip7 import run_gps_tracker
 import datetime as dt
 from openpyxl import load_workbook
@@ -416,7 +416,7 @@ else:
               soporte()
                
             if app == model.option17:
-              main_geolocation()
+              show_gps_tracker()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")
