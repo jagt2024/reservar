@@ -8,7 +8,7 @@ from eliminar_reserva_emp_dp import eliminar_reserva
 from servicios_emp_dp import ServiciosEmp
 from informacion_distrito_privado import info_dp
 from generar_excel_emp_dp import GenerarExcelEmp
-from generar_qr_emp import GenerarQr
+from generador_qr import codigoqr
 from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
 from authentication_users import authenticate_user
@@ -20,7 +20,9 @@ from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
+from parametros_empresa import parametros
 from localizador_gps import show_gps_tracker
+from ingresos_gastos import control
 #from mobile_gps_tracker_ip7 import run_gps_tracker
 import datetime as dt
 from openpyxl import load_workbook
@@ -89,7 +91,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20250228')
+fecha_hasta = int('20250330')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -122,11 +124,13 @@ class Model:
   option11 = 'Buscar Informacion'
   option15 = 'Eviar Whatsapp'
   option12 = 'Facturacion'
+  option19 = 'Control Ingresos y Gastos'
   option18 = 'Copia Seguridad Reservas'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
   option17 = 'Geolocalizacion'
+  option20 = 'Parametrizacion'
         
   #def __init__(self):
   #  self.apps=[]
@@ -152,7 +156,7 @@ class Model:
 
 if fecha_hasta < fecha_hoy:
   
-   sw_empresa == ['False']
+   sw_empresa == ['FALSO'] or sw_empresa == ['False']
       
    st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
 
@@ -166,7 +170,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option16, model.option17],
+                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -224,7 +228,7 @@ else:
         with col4:
           calendar_placeholder = st.empty()
           with st.form(key='myform4',clear_on_submit=True):
-            limpiar = st.form_submit_button("Limpiar Opcion")
+            limpiar = st.form_submit_button("Limpiar Pantalla")
             if limpiar:
               #st.submit_button("Limpiar Opcion")
               clear_session_state()
@@ -344,7 +348,7 @@ else:
           st.text("Autor: JAGT")
           st.markdown("---")
     
-        if sw_empresa == ['True']:
+        if sw_empresa == ['VERDADERO'] or sw_empresa == ['True']:
           try:
                    
             clave_correcta = cargar_configuracion()
@@ -361,7 +365,7 @@ else:
             if app == model.option7:
               GenerarExcelEmp().view(GenerarExcelEmp.Model())
             if app == model.option8:
-              GenerarQr().view(GenerarQr.Model())
+              codigoqr()
             if app == model.option9:
               ConsultarAgenda().view(ConsultarAgenda.Model())
             if app == model.option10:
@@ -405,6 +409,12 @@ else:
               #if authenticate_user():
           
               factura()
+
+            if app == model.option19:
+           
+              #if authenticate_user():
+          
+              control()
               
             if app == model.option15:
            
@@ -417,6 +427,9 @@ else:
                
             if app == model.option17:
               show_gps_tracker()
+
+            if app == model.option20:
+              parametros()
           
           except Exception as e:
             st.error(f"Ocurrió un error: {e}")

@@ -271,14 +271,14 @@ def generar_factura():
         st.error("No se pudieron cargar los datos del emisor. Por favor, verifique el archivo Excel.")
         return
 
-    logo_path = "./assets-dp/dp_andres.png"
+    logo_path = "./assets-dp/dp_dp.jpeg"
     logo_bytes = None
     if os.path.exists(logo_path):
         with open(logo_path, "rb") as f:
             logo_bytes = f.read()
         st.image(logo_bytes, width=200, caption="Logo de la Empresa")
     else:
-        st.warning("No se encontró el logo en ./assets-dp/dp_andres.png")
+        st.warning("No se encontró el logo en ./assets-dp/dp_dp.jpeg")
 
     st.subheader("Información del Emisor")
     st.write(f"**Nombre del Emisor:** {emisor_data['nombre']}")
