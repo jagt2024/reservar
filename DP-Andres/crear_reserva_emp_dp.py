@@ -656,6 +656,8 @@ def crea_reserva():
               else:
                 st.success("La reserva está disponible")
 
+              print(f"Resultado para la Hora actual : {resultado}")
+
             whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
             telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
 
