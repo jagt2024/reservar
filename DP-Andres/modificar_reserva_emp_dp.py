@@ -696,12 +696,12 @@ def modificar_reserva():
                             
                         elif resultado >= 60:
                             st.warning("Conductor ya tiene agenda para esa fecha y hora")
-                        elif resultado < 180:
+                        elif resultado <= -270:
                             st.warning("No pude agendarse con una fecha y/o  hora vencida")
                         else:
                             st.success("La reserva está disponible")
                     else:
-                        if resultado < 90:
+                        if resultado <= -270:
                             st.warning("No pude agendarse con una fecha y/u  hora vencida")
                         else:
                             st.success("La reserva está disponible")

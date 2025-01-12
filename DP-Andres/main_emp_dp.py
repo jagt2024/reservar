@@ -9,7 +9,8 @@ from servicios_emp_dp import ServiciosEmp
 from informacion_distrito_privado import info_dp
 from generar_excel_emp_dp import GenerarExcelEmp
 from generador_qr import codigoqr
-from consulta_st_excel import ConsultarAgenda
+from consultar_reservas_dp  import consulta_reserva
+#from consulta_st_excel import ConsultarAgenda
 from descargar_agenda_emp import download_and_process_data
 from authentication_users import authenticate_user
 from user_management import user_management_system
@@ -367,7 +368,7 @@ else:
             if app == model.option8:
               codigoqr()
             if app == model.option9:
-              ConsultarAgenda().view(ConsultarAgenda.Model())
+              consulta_reserva()
             if app == model.option10:
                 
               #if 'prev_selection' not in st.session_state or st.session_state.prev_selection != #model.option10:
