@@ -21,9 +21,11 @@ from estadisticas_reservas_emp import reservas
 from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
+from interface_pago_reserva import pago
 from parametros_empresa import parametros
 from localizador_gps import show_gps_tracker
 from ingresos_gastos import control
+from control_bancario import bancos
 #from mobile_gps_tracker_ip7 import run_gps_tracker
 import datetime as dt
 from openpyxl import load_workbook
@@ -126,6 +128,7 @@ class Model:
   option15 = 'Eviar Whatsapp'
   option12 = 'Facturacion'
   option19 = 'Control Ingresos y Gastos'
+  option21 = 'Control Bancario'
   option18 = 'Copia Seguridad Reservas'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
@@ -171,7 +174,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20],
+                         [model.option1, model.option10,model.option9,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          icons=['bi bi-app-indicator',
                                 'bi bi-calendar2-date', 
                                 'bi bi-calendar2-date',
@@ -324,7 +327,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Soporte - PQRS"])
+        tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Registrar Pago", "Soporte - PQRS"])
     
         #with tabs[0]:
         #  InicioEmp()
@@ -340,6 +343,9 @@ else:
           eliminar_reserva()
         
         with tabs[4]:
+          pago()
+        
+         with tabs[5]:
           soporte()
 
         with st.sidebar:
@@ -416,6 +422,9 @@ else:
               #if authenticate_user():
           
               control()
+            
+            if app == model.option21:
+              bancos()
               
             if app == model.option15:
            

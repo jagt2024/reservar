@@ -644,7 +644,7 @@ def crea_reserva():
                   st.warning("Conductor se encuetra atendiedo un servicio")
                elif resultado >= 60:
                   st.warning("Conductor ya tiene agenda para esa fecha y hora")
-               elif resultado <= -270:
+               elif resultado <= -170:
                   st.warning("No pude agendarse con una fecha y/o  hora vencida 1")
                else:
                   st.success("La reserva está disponible")
@@ -655,7 +655,7 @@ def crea_reserva():
               #print(f"Resultado para la Hora actual : {resultado}")
 
               #print(f'resultado {resultado}')
-              if resultado <= -270:
+              if resultado <= -170:
                 st.warning("No pude agendarse con una fecha y/u  hora vencida 2")
               else:
                 st.success("La reserva está disponible")
