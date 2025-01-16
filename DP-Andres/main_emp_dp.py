@@ -345,7 +345,7 @@ else:
         with tabs[4]:
           pago()
         
-         with tabs[5]:
+        with tabs[5]:
           soporte()
 
         with st.sidebar:
