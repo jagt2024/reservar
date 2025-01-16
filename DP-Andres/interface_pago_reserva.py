@@ -133,7 +133,7 @@ def pago():
             fecha_pago = st.date_input('Fecha del Pago:', key=f"fechap")
     # Add debug logging
            
-    logging.debug(f"Valores del formulario - Quien: {quien_registra}, Ref: {reference}, ID: {identificacion}")
+    logging.debug(f"Valores del formulario - Quien: {quien_registra}, Ref: {reference}, ID: {correo}")
 
     # Search section
     st.subheader("Buscar Reserva")
@@ -183,7 +183,7 @@ def pago():
                                 #if registrar:
                                 logging.info("Iniciando proceso de registro de pago")
                             
-                                if not quien_registra or not identificacion or not      reference or not fecha_pago:
+                                if not quien_registra or not correo or not      reference or not fecha_pago:
                                     st.error("Por favor complete todos los campos requeridos.")
                                     logging.warning("Campos incompletos en el formulario")
                         
