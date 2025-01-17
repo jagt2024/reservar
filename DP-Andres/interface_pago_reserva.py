@@ -22,7 +22,7 @@ logging.basicConfig(level=logging.DEBUG, filename='interface_pago_reserva.log', 
 
 # Constants
 RESERVAS_COLUMNS = ['NOMBRE', 'EMAIL', 'FECHA', 'HORA', 'SERVICIOS', 'TELEFONO', 'PRECIO', 'ENCARGADO', 'ZONA']
-PAGOS_COLUMNS = ['Fecha_Pago', 'Nombre', 'Email', 'Fecha_Servicio', 'Hora_Servicio', 'Servicio', 'Valor', 'Estado_Pago', 'Referencia_Pago', 'Encargado', 'Quien_Registra', 'Correo', 'Fecha_Registro']
+PAGOS_COLUMNS = ['Fecha_Pago', 'Nombre', 'Email', 'Fecha_Servicio', 'Hora_Servicio', 'Servicio', 'Valor', 'Estado_Pago', 'Referencia_Pago', 'Encargado', 'Banco', 'Valor_Pagado', 'Fecha_Registro']
 
 def load_credentials_from_toml(file_path):
     """Loads credentials from TOML file"""
@@ -65,7 +65,7 @@ def get_google_sheet_data(creds, sheet_name='reservas'):
         st.error(f"Error al acceder a Google Sheets: {str(e)}")
         return None, None, None
 
-def register_payment(sheet, fecha_pago, estado_pago,reference, reserva_data, quien_registra, correo, fecha_registro):
+def register_payment(sheet, fecha_pago, estado_pago,reference, reserva_data, banco, valor_pagado, fecha_registro):
     """Registers the payment in the payments sheet"""
     try:
         pagos_worksheet = sheet.worksheet('pagos')  # Changed from 'reservas' to 'pagos'
@@ -81,8 +81,8 @@ def register_payment(sheet, fecha_pago, estado_pago,reference, reserva_data, qui
             'PAGADO',
             reference,  
             reserva_data['ENCARGADO'],
-            quien_registra,
-            correo,
+            banco,
+            valor_pagado,
             fecha_registro
         ]
         
@@ -125,15 +125,16 @@ def pago():
     payment_col1, payment_col2 = st.columns(2)
                         
     with payment_col1:
-            quien_registra = st.text_input('Nombre Quien Registra:', key=f"quien")
-            reference = st.text_input('No.Referencia del Pago:', key=f"refer")
-
-    with payment_col2:
-            correo = st.text_input('Correo Electronico:', key=f"correoe")
             fecha_pago = st.date_input('Fecha del Pago:', key=f"fechap")
+            banco = st.selectbox("Banco", ["Banco de Colombia", "Banco Davivienda", "Banco de Bogota", "Banco de Occidente", "Banco Popular", "Banco Colpatria", "Banco BBVA", "Nequi", "Personal"])
+            #quien_registra = st.text_input('Nombre Quien Registra:', key=f"quien")
+    with payment_col2:
+            valor_pagado = st.number_input('Valor Pagado :', min_value=0.0, format="%f", key=f"vpago")
+            reference = st.text_area('Referencias del Pago:', key=f"refer")
+            
     # Add debug logging
            
-    logging.debug(f"Valores del formulario - Quien: {quien_registra}, Ref: {reference}, ID: {correo}")
+    logging.debug(f"Valores del formulario - Banco: {banco}, Ref: {reference}, Valor: {valor_pagado}")
 
     # Search section
     st.subheader("Buscar Reserva")
@@ -153,75 +154,76 @@ def pago():
             st.subheader(f"Resultados encontrados: {len(filtered_df)}")
 
             # Create form for payment registration
+            with st.form("transaction_form"):
             
-            for index, row in filtered_df.iterrows():
-                          with st.expander(f"Reserva: {row['NOMBRE']} - {row['FECHA']}"):
-                            col1, col2, col3 = st.columns(3)
+                for index, row in filtered_df.iterrows():
+                    with st.expander(f"Reserva: {row['NOMBRE']} - {row['FECHA']}"):
+                        col1, col2, col3 = st.columns(3)
                     
-                            with col1:
-                                st.write(f"**Nombre:** {row['NOMBRE']}")
-                                st.write(f"**Email:** {row['EMAIL']}")
-                                st.write(f"**Fecha:** {row['FECHA']}")
+                        with col1:
+                             st.write(f"**Nombre:** {row['NOMBRE']}")
+                             st.write(f"**Email:** {row['EMAIL']}")
+                             st.write(f"**Fecha:** {row['FECHA']}")
                     
-                            with col2:
-                                st.write(f"**Hora:** {row['HORA']}")
-                                st.write(f"**Servicio:** {row['SERVICIOS']}")
-                                st.write(f"**Teléfono:** {row['TELEFONO']}")
-                                st.write(f"**Precio:** ${row['PRECIO']}")
+                        with col2:
+                             st.write(f"**Hora:** {row['HORA']}")
+                             st.write(f"**Servicio:** {row['SERVICIOS']}")
+                             st.write(f"**Teléfono:** {row['TELEFONO']}")
+                             st.write(f"**Precio:** ${row['PRECIO']}")
                     
-                            with col3:
-                                st.write(f"**Encargado:** {row['ENCARGADO']}")
-                                st.write(f"**Zona:** {row['ZONA']}")
+                        with col3:
+                             st.write(f"**Encargado:** {row['ENCARGADO']}")
+                             st.write(f"**Zona:** {row['ZONA']}")
                     
-                            # Payment section
-                            st.divider()
+                        # Payment section
+                        st.divider()
                     
-                            #registrar ='True'
-                            with st.form(key=f'payment_form'):                    
-            
-                                registrar = st.form_submit_button("Registrar Pago", type="primary")
-                                #if registrar:
-                                logging.info("Iniciando proceso de registro de pago")
+                        #registrar = st.form_submit_button("Registrar Pago", type="primary")
+                        #if registrar:
+                        #logging.info("Iniciando proceso de registro de pago")
                             
-                                if not quien_registra or not correo or not      reference or not fecha_pago:
-                                    st.error("Por favor complete todos los campos requeridos.")
-                                    logging.warning("Campos incompletos en el formulario")
+                        if not banco or not fecha_pago or not valor_pagado or not reference:
+                            st.error("Por favor complete todos los campos requeridos.")
+                            logging.warning("Campos incompletos en el formulario")
                         
-                                elif not registrar:
-                                    logging.debug(f"Botón Registrar clickeado: {registrar}")
+                        else:
+                            #submitted = st.form_submit_button("Registrar Pago")
+                
+                            #if submitted:
+                            #    logging.debug(f"Botón Registrar clickeado: {registrar}")
 
-                                    with st.spinner('Procesando pago...'):
-                                     try:
-                                        fecha_registro = datetime.now().strftime('%Y-%m-%d %H:%M')
-                                        estado_pago = "PAGADO"
+                            with st.spinner('Procesando pago...'):
+                                try:
+                                    fecha_registro = datetime.now().strftime('%Y-%m-%d %H:%M')
+                                    estado_pago = "PAGADO"
                                         
-                                        # Add debug logging for precio conversion
-                                        logging.debug(f"Precio original: {row['PRECIO']}")
-                                        precio = float(row['PRECIO'])
+                                    # Add debug logging for precio conversion
+                                    logging.debug(f"Precio original: {row['PRECIO']}")
+                                    precio = float(row['PRECIO'])
                                                                                 
-                                        if register_payment(
-                                            sheet, 
-                                            fecha_pago, 
-                                            estado_pago,
-                                            reference, 
-                                            row, 
-                                            quien_registra, 
-                                            correo, 
-                                            fecha_registro
-                                            ):
-                                            st.success(f"""
+                                    if register_payment(
+                                        sheet, 
+                                        fecha_pago, 
+                                        estado_pago,
+                                        reference, 
+                                        row, 
+                                        banco, 
+                                        valor_pagado, 
+                                        fecha_registro
+                                        ):
+                                        st.success(f"""
                                             ¡Pago registrado exitosamente!
                                             **Referencia:** {reference}
-                                            **Monto:** ${precio:.2f}
+                                            **Monto:** ${valor_pagado:.2f}
                                             """)
-                                            st.balloons()
-                                            logging.info(f"Pago registrado exitosamente. Referencia: {reference}")
-                                        else:
-                                            st.error("Error al registrar el pago. Por favor contacte al administrador.")
-                                            logging.error("Fallo en register_payment")
-                                     except Exception as e:
-                                        st.error(f"Error durante el registro del pago: {str(e)}")
-                                        logging.error(f"Error durante el registro del pago: {str(e)}", exc_info=True)
+                                        st.balloons()
+                                        logging.info(f"Pago registrado exitosamente. ///Referencia: {reference}")
+                                    else:
+                                        st.error("Error al registrar el pago. Por favor contacte al administrador.")
+                                        logging.error("Fallo en register_payment")
+                                except Exception as e:
+                                    st.error(f"Error durante el registro del pago: {str(e)}")
+                                    logging.error(f"Error durante el registro del pago: {str(e)}", exc_info=True)
 
 #if __name__ == "__main__":
 #    pago()
