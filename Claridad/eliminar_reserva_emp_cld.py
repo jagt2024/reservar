@@ -433,16 +433,32 @@ def consultar_otros(nombre, fecha, hora):
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
+
+        # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Realizar la búsqueda
-        reserva = df[
-            (df['NOMBRE'].str.lower() == nombre.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        try:
+        
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) &
+                (df['FECHA'] == fecha) &
+                (df['HORA'] == hora)
+            ]
+
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
         
         # Verificar si se encontró la reserva
         if reserva.empty:
@@ -833,9 +849,9 @@ def eliminar_reserva():
                 #gs = GoogleSheet(credentials, document, sheet)
                 #range = gs.write_data_by_uid(uid, values)
                                                              
-                send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, '', "0", encargado,  notas='De acuerdo con su solicitud su reserva de pedido se cancelo. Gracias por su atencion.')
+                send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', "0", encargado,  notas='De acuerdo con su solicitud su reserva de pedido se cancelo. Gracias por su atencion.')
                      
-                send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, '', '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
+                send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
                 st.success('Su solicitud ha sido cacelada de forrma exitosa, la confirmacion fue enviada al correo')
 

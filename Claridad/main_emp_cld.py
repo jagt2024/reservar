@@ -9,7 +9,7 @@ from catalogo_claridad import catalogo
 #from servicios_emp_dp import ServiciosEmp
 #from informacion_distrito_privado import info_dp
 #from generar_excel_emp_cld import GenerarExcelEmp
-#from consultar_pagos import consulta_pagos
+from consultar_pagos import consulta_pagos
 from generador_qr import codigoqr
 from consultar_reservas_cld  import consulta_reserva
 #from consulta_st_excel import ConsultarAgenda
@@ -23,7 +23,7 @@ from facturacion_servicios_emp import generar_factura
 #from estadisticas_facturacion_emp import factura
 #from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-#from interface_pago_reserva import pago
+from interface_pago_reserva import pago
 #from parametros_empresa import parametros
 #from localizador_gps import show_gps_tracker
 #from ingresos_gastos import control
@@ -130,6 +130,8 @@ class Model:
   #option11 = 'Buscar Informacion'
   #option15 = 'Eviar Whatsapp'
   option12 = 'Facturacion'
+  option22 = 'Cargar Pagos'
+  option23 = 'Cosultar Pagos'
   #option19 = 'Control Ingresos y Gastos'
   #option21 = 'Control Bancario'
   #option18 = 'Copia Seguridad Reservas'
@@ -177,7 +179,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9,model.option8, model.option12      #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9,model.option8, model.option12, model.option22, model.option23                              #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -380,8 +382,10 @@ else:
             #  info_dp()
             #if app == model.option7:
             #  GenerarExcelEmp().view(GenerarExcelEmp.Model())
-            #if app == model.option22:
-            #  consulta_pagos()
+            if app == model.option22:
+              pago()
+            if app == model.option23:
+              consulta_pagos()
             if app == model.option8:
               codigoqr()
             if app == model.option9:

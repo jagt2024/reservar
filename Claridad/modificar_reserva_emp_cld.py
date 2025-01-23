@@ -145,7 +145,7 @@ def get_conductores_por_zona(zona):
         'Sur': 'encargado_sur',
         'Oriente': 'encargado_oriente',
         'Occidente': 'encargado_occidente',
-         'Oficina': 'encargado_oficina'
+        'Oficina': 'encargado_oficina'
     }
     
     try:
@@ -245,6 +245,7 @@ def actualizar_reserva(conn, nombre, fecha, hora, servicio, nuevos_datos):
             'fecha': 'fecha',
             'hora': 'hora',
             'servicio': 'servicio',
+            'producto': 'producto',
             'precio': 'precio',
             'encargado': 'encargado',
             'email_encargado': 'email_encargado',
@@ -300,8 +301,7 @@ def actualizar_reserva(conn, nombre, fecha, hora, servicio, nuevos_datos):
 def check_existing_uuid(conn, nombre, fecha, hora):
     """Check if a reserva already exists for the given name, date and time"""
     sql = '''SELECT uid FROM reservas 
-            WHERE nombre = ? AND fecha = ? AND hora = ?
-            '''    
+            WHERE nombre = ? AND fecha = ? AND hora = ? '''    
     try:
         cursor = conn.cursor()
         cursor.execute(sql, (nombre, fecha, hora))
@@ -523,6 +523,7 @@ def consultar_otros(nombre, fecha, hora):
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()
+
         if not creds:
             st.error("Error al cargar las credenciales")
             return False, None
@@ -534,6 +535,8 @@ def consultar_otros(nombre, fecha, hora):
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         gc = gspread.authorize(credentials)
         
+        # Verificar si hay registros antes de crear el DataFram
+
         # Abrir el archivo y la hoja específica
         workbook = gc.open('gestion-reservas-cld')
         worksheet = workbook.worksheet('reservas')
@@ -541,6 +544,9 @@ def consultar_otros(nombre, fecha, hora):
         # Obtener todos los registros
         registros = worksheet.get_all_records()
         
+        if not registros:
+            return False  # No hay datos en la hoja
+            
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
         
@@ -701,7 +707,7 @@ def modificar_reserva():
                 fecha  = st.date_input('Fecha Servicio*: ', key='fecha_new')
                 notas = st.text_area('Nota de Consulta u Observacion(Opcional)', key='notas_new',value=st.session_state.notas
                                  )
-            with col2:
+               with col2:
 
                 email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_new',value=st.session_state.email
                 )
@@ -801,10 +807,10 @@ def modificar_reserva():
         
          else:
             # Create database connection
-            conn = create_connection()
-            if conn is None:
-                st.error("Error: No se pudo conectar a la base de datos")
-                return
+            #conn = create_connection()
+            #if conn is None:
+            #    st.error("Error: No se pudo conectar a la base de datos")
+            #    return
                     
             # Check if reservation already exists in database
             existe_db = consultar_reserva(nombre, str(fecha), hora)
