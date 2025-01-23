@@ -453,14 +453,16 @@ def consultar_reserva(nombre, fecha, hora):
             st.warning("Error en el formato de los datos")
             return False
         
-        return not reserva.empty
+        #return not reserva.empty
         
-        #if not reserva.empty:
-        #    # Si encuentra la reserva, devuelve True y los detalles
-        #    #detalles_reserva = reserva.iloc[0].to_dict()
-        #    return True #, detalles_reserva
-        #else:
-        #    return False #, None
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
@@ -513,7 +515,16 @@ def consultar_encargado(encargado, fecha, hora):
             st.warning("Error en el formato de los datos")
             return False
         
-        return not encargado_registro.empty
+        if not encargado_registro.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+
+        #return not encargado_registro.empty
+
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
@@ -558,16 +569,19 @@ def consultar_otros(nombre, fecha, hora):
         ]
         
         # Verificar si se encontró la reserva
-        if reserva.empty:
-            return False, None
-            
-        # Extraer los campos solicitados
-        datos_reserva = {
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                    # Extraer los campos solicitados
+            datos_reserva = {
             'UID': reserva['UID'].iloc[0]
-        }
-        
-        return True, datos_reserva
-        
+            }
+
+            return True, reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+            
     except Exception as e:
         st.error(f"Error al consultar el UID: {str(e)}")
         return False,(f"Error al consultar el UID: {str(e)}")
@@ -648,7 +662,7 @@ def modificar_reserva():
             fecha_c  = st.date_input('Fecha Servicio*: ', key='fecha_ant')
             hora_c = st.selectbox('Hora Servicio: ', horas, key='hora_ant')
         
-        if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
 
@@ -785,6 +799,9 @@ def modificar_reserva():
                         st.write(f"{key}: **{value}**")
 
                         #st.warning("No hay conductores disponibles para la selección actual.")            
+            else:
+               st.warning("Solicitud de Cliente No Existe")
+
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
        st.error("Por favor, verifica que el archivo Excel y las hojas existan.")

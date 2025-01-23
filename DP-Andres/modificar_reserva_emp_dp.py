@@ -403,40 +403,53 @@ def consultar_reserva(nombre, fecha, hora):
         gc = gspread.authorize(credentials)
         
         # Abrir el archivo y la hoja específica
-        workbook = gc.open('gestion-reservas-dp')
+        workbook = gc.open('gestion-reservas-cld')
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        # Verificar si hay registros antes de crear el DataFrame
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
+
+        # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Normalizar el formato de fecha y hora para la búsqueda
-        #try:
-        #    fecha_busqueda = datetime.strptime(fecha, '%d-%m-%Y').strftime#('%d-%m-%Y')
-        #    hora_busqueda = datetime.strptime(hora, '%H:%M').strftime('%H:%M')
-        #except ValueError:
-        #    st.error("Formato de fecha u hora inválido")
-        #    return False, None
+        try:
+
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) &
+                (df['FECHA'] == fecha) &
+                (df['HORA'] == hora)
+            ]
+
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
         
-        # Realizar la búsqueda
-        reserva = df[
-            (df['NOMBRE'].str.lower() == nombre.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        #return not reserva.empty
         
         if not reserva.empty:
             # Si encuentra la reserva, devuelve True y los detalles
             #detalles_reserva = reserva.iloc[0].to_dict()
-            return True    #, detalles_reserva
+            return True #, detalles_reserva
         else:
+
+            #st.warning("Solicitud de Cliente No Existe")
             return False #, None
             
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
-        return False, None
+        return False
 
 def consultar_encargado(encargado, fecha, hora):
     try:
@@ -454,45 +467,57 @@ def consultar_encargado(encargado, fecha, hora):
         gc = gspread.authorize(credentials)
         
         # Abrir el archivo y la hoja específica
-        workbook = gc.open('gestion-reservas-dp')
+        workbook = gc.open('gestion-reservas-cld')
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
         
-        # Convertir a DataFrame para facilitar la búsqueda
+        # Verificar si hay registros antes de crear el DataFrame
+        if not registros:
+            return False  # No hay datos en la hoja
+        
+        # Convertir a DataFrame solo si hay registros
         df = pd.DataFrame(registros)
         
-        # Normalizar el formato de fecha y hora para la búsqueda
-        #try:
-        #    fecha_busqueda = datetime.strptime(fecha, '%d/%m/%Y').strftime('%d/#%m/%Y')
-        #    hora_busqueda = datetime.strptime(hora, '%H:%M').strftime('%H:%M')
-        #except ValueError:
-        #    st.error("Formato de fecha u hora inválido")
-        #    return False, None
+        # Verificar si las columnas necesarias existen
+        required_columns = ['ENCARGADO', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Realizar la búsqueda
-        encargado_registro = df[
-            (df['ENCARGADO'].str.lower() == encargado.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        # Realizar la búsqueda asegurándose de que no haya valores nulos
+        try:
+            encargado_registro = df[
+                (df['ENCARGADO'].fillna('').str.lower() == encargado.lower()) &
+                (df['FECHA'].fillna('') == fecha) &
+                (df['HORA'].fillna('') == hora)
+            ]
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
         
         if not encargado_registro.empty:
-            # Si encuentra el encargado, devuelve True y los detalles
-            detalles_encargado = encargado_registro.iloc[0].to_dict()
-            return True #, detalles_encargado
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
         else:
+            #st.warning("Solicitud de Cliente No Existe")
             return False #, None
+
+        #return not encargado_registro.empty
+
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
-        return False, None
+        return False
 
 def consultar_otros(nombre, fecha, hora):
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()
+
         if not creds:
             st.error("Error al cargar las credenciales")
             return False, None
@@ -504,13 +529,18 @@ def consultar_otros(nombre, fecha, hora):
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         gc = gspread.authorize(credentials)
         
+        # Verificar si hay registros antes de crear el DataFram
+
         # Abrir el archivo y la hoja específica
-        workbook = gc.open('gestion-reservas-dp')
+        workbook = gc.open('gestion-reservas-cld')
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
         
+        if not registros:
+            return False  # No hay datos en la hoja
+            
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
         
@@ -522,16 +552,73 @@ def consultar_otros(nombre, fecha, hora):
         ]
         
         # Verificar si se encontró la reserva
-        if reserva.empty:
-            return False, None
-            
-        # Extraer los campos solicitados
-        datos_reserva = {
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                    # Extraer los campos solicitados
+            datos_reserva = {
             'UID': reserva['UID'].iloc[0]
-        }
+            }
+
+            return True, datos_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+            
+    except Exception as e:
+        st.error(f"Error al consultar el UID: {str(e)}")
+        return False,(f"Error al consultar el UID: {str(e)}")def consultar_otros(nombre, fecha, hora):
+    try:
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
         
-        return True, datos_reserva
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
         
+        # Verificar si hay registros antes de crear el DataFram
+
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-cld')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        if not registros:
+            return False  # No hay datos en la hoja
+            
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                    # Extraer los campos solicitados
+            datos_reserva = {
+            'UID': reserva['UID'].iloc[0]
+            }
+
+            return True, datos_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+            
     except Exception as e:
         st.error(f"Error al consultar el UID: {str(e)}")
         return False,(f"Error al consultar el UID: {str(e)}")
@@ -600,7 +687,7 @@ def modificar_reserva():
             fecha_c  = st.date_input('Fecha Servicio*: ', key='fecha_ant')
             hora_c = st.selectbox('Hora Servicio: ', horas, key='hora_ant')
         
-        if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
 

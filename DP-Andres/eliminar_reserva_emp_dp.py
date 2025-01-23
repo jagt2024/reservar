@@ -430,6 +430,10 @@ def consultar_otros(nombre, fecha, hora):
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        # Verificar si hay registros antes de crear el DataFrame
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
@@ -442,19 +446,20 @@ def consultar_otros(nombre, fecha, hora):
         ]
         
         # Verificar si se encontró la reserva
-        if reserva.empty:
-            return False, None
-            
-        # Extraer los campos solicitados
-        datos_reserva = {
-            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
-            'ZONA': reserva['ZONA'].iloc[0],
-            'TELEFONO': reserva['TELEFONO'].iloc[0],
-            'DIRECCION': reserva['DIRECCION'].iloc[0],
-            'WHATSAPP': reserva['WHATSAPP'].iloc[0]
-        }
-        
-        return True, datos_reserva
+        if not reserva.empty:
+
+            # Extraer los campos solicitados
+            datos_reserva = {
+                'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+                'ZONA': reserva['ZONA'].iloc[0],
+                'TELEFONO': reserva['TELEFONO'].iloc[0],
+                'DIRECCION': reserva['DIRECCION'].iloc[0],
+                'WHATSAPP': reserva['WHATSAPP'].iloc[0]
+            }
+            return True, datos_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
         
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
@@ -481,22 +486,40 @@ def consultar_reserva(nombre, fecha, hora):
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        # Verificar si hay registros antes de crear el DataFrame
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
+
+        # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Realizar la búsqueda
-        reserva = df[
-            (df['NOMBRE'].str.lower() == nombre.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        try:
         
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) &
+                (df['FECHA'] == fecha) &
+                (df['HORA'] == hora)
+            ]
+        
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
+
         if not reserva.empty:
             # Si encuentra la reserva, devuelve True y los detalles
             #detalles_reserva = reserva.iloc[0].to_dict()
             return True #, detalles_reserva
         else:
+            #st.warning("Solicitud de Cliente No Existe")
             return False #, None
             
     except Exception as e:
@@ -524,16 +547,27 @@ def eliminar_reserva_sheet(nombre, fecha, hora):
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
+
+         # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Realizar la búsqueda
-        reserva = df[
-            (df['NOMBRE'].str.lower() == nombre.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        try:
+        
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) &
+                (df['FECHA'] == fecha) &
+                (df['HORA'] == hora)
+            ]
         
         # Verificar si se encontró la reserva
         if reserva.empty:
@@ -618,31 +652,33 @@ def eliminar_reserva():
             hora_c = st.selectbox('Hora Servicio: ', horas,  key='hora_del')
             email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_del', value=st.session_state.email)
         
-        if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
                
             # Check if reservation already exists in database
 
             #existe_db2 = check_existing_reserva(conn, nombre_c, str(fecha_c), hora_c)
-            
-            valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
-
-            if valida:
-                
-               encargado = result['ENCARGADO']
-               zona = result['ZONA']
-               telefono = result['TELEFONO']
-               direccion = result['DIRECCION']
-               whatsapp = result['WHATSAPP']      
-
-            else:
-               # Si hay error, result será un diccionario
-               print(f"Error: {result['message']}")
 
             existe_db2 = consultar_reserva(nombre_c, str(fecha_c), hora_c)
 
             if existe_db2:
+
+                valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                if valida:
+                
+                    encargado = result['ENCARGADO']
+                    zona = result['ZONA']
+                    telefono = result['TELEFONO']
+                    direccion = result['DIRECCION']
+                    whatsapp = result['WHATSAPP']      
+
+                else:
+                    # Si hay error, result será un diccionario
+                    st.warning("Solicitud de Cliente No Existe")
+                    #print(f"Error: {result['message']}")
+
                 resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
                 #print(f'resultado {resultado}')
                 if resultado < 0:

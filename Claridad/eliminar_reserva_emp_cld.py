@@ -461,20 +461,25 @@ def consultar_otros(nombre, fecha, hora):
             return False
         
         # Verificar si se encontró la reserva
-        if reserva.empty:
-            return False, None
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                        # Extraer los campos solicitados
+            datos_reserva = {
+                'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+                'ZONA': reserva['ZONA'].iloc[0],
+                'TELEFONO': reserva['TELEFONO'].iloc[0],
+                'DIRECCION': reserva['DIRECCION'].iloc[0],
+                'WHATSAPP': reserva['WHATSAPP'].iloc[0]
+            }
+
+            return True, datos_reserva
+
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
             
-        # Extraer los campos solicitados
-        datos_reserva = {
-            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
-            'ZONA': reserva['ZONA'].iloc[0],
-            'TELEFONO': reserva['TELEFONO'].iloc[0],
-            'DIRECCION': reserva['DIRECCION'].iloc[0],
-            'WHATSAPP': reserva['WHATSAPP'].iloc[0]
-        }
-        
-        return True, datos_reserva
-        
+      
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False,(f"Error al consultar la reserva: {str(e)}")
@@ -528,15 +533,15 @@ def consultar_reserva(nombre, fecha, hora):
             st.warning("Error en el formato de los datos")
             return False
         
-        return not reserva.empty
-        
-        #if not reserva.empty:
-        #    # Si encuentra la reserva, devuelve True y los detalles
-        #    #detalles_reserva = reserva.iloc[0].to_dict()
-        #    return True #, detalles_reserva
-        #else:
-        #    return False #, None
-            
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+                   
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
@@ -578,7 +583,7 @@ def consultar_encargado(encargado, fecha, hora):
         
         # Realizar la búsqueda asegurándose de que no haya valores nulos
         try:
-            encargado_registro = df[
+            sencargado_registro = df[
                 (df['ENCARGADO'].fillna('').str.lower() == encargado.lower()) &
                 (df['FECHA'].fillna('') == fecha) &
                 (df['HORA'].fillna('') == hora)
@@ -588,7 +593,15 @@ def consultar_encargado(encargado, fecha, hora):
             st.warning("Error en el formato de los datos")
             return False
         
-        return not encargado_registro.empty
+        if not encargado_registro.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+            #return not encargado_registro.empty
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
@@ -731,7 +744,7 @@ def eliminar_reserva():
             hora_c = st.selectbox('Hora Servicio: ', horas,  key='hora_del')
             email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_del', value=st.session_state.email)
         
-        if nombre_c and hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
                
@@ -739,23 +752,26 @@ def eliminar_reserva():
 
             #existe_db2 = check_existing_reserva(conn, nombre_c, str(fecha_c), hora_c)
             
-            valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
-
-            if valida:
-                
-               encargado = result['ENCARGADO']
-               zona = result['ZONA']
-               telefono = result['TELEFONO']
-               direccion = result['DIRECCION']
-               whatsapp = result['WHATSAPP']      
-
-            else:
-               # Si hay error, result será un diccionario
-               print(f"Error: {result['message']}")
-
             existe_db2 = consultar_reserva(nombre_c, str(fecha_c), hora_c)
 
             if existe_db2:
+              
+                valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                if valida:
+                
+                    encargado = result['ENCARGADO']
+                    zona = result['ZONA']
+                    telefono = result['TELEFONO']
+                    direccion = result['DIRECCION']
+                    whatsapp = result['WHATSAPP']      
+
+                else:
+                    # Si hay error, result será un diccionario
+                    st.warning("Solicitud de Cliente No Existe")
+                    #print(f"Error: {result['message']}")
+
+
                 resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
                 #print(f'resultado {resultado}')
                 if resultado < 0:
@@ -807,10 +823,12 @@ def eliminar_reserva():
 
          else:
             # Create database connection
-            conn = create_connection()
-            if conn is None:
-                st.error("Error: No se pudo conectar a la base de datos")
-                return
+
+            st.warning("Solicitud de Cliente No Existe")
+            #conn = create_connection()
+            #if conn is None:
+            #    st.error("Error: No se pudo conectar a la base de datos")
+            #return
 
             #precio = dataBookPrecio("precios", servicio_seleccionado_c)
             result_precio = np.setdiff1d(precio,'')
@@ -818,7 +836,7 @@ def eliminar_reserva():
                
             emailencargado = dataBookEncEmail("encargado",encargado)
             #uid = check_existing_uuid(conn, nombre_c, fecha_c, hora_c)
-                   
+                  
             whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre_c} De acuerdo co  su  solicitud,  la Resserva fue Cancelada con exito para el servicio de movilizacion: {servicio_seleccionado_c}")
             
             resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
@@ -829,15 +847,15 @@ def eliminar_reserva():
                       
              try:
                                           
-                nuevos_datos = {
+                #nuevos_datos = {
                              
-                   'nombre': nombre_c,
-                   'fecha': fecha_c,
-                   'hora': hora_c,
-                   'servicio': servicio_seleccionado_c,
-                   'preecio': '0',
-                   'notas': 'Reserva Cancelada'
-                }
+                #   'nombre': nombre_c,
+                #   'fecha': fecha_c,
+                #   'hora': hora_c,
+                #   'servicio': servicio_seleccionado_c,
+                #   'preecio': '0',
+                #   'notas': 'Reserva Cancelada'
+                #}
   
                 #values = [(nombre_c,email,str(fecha_c),hora_c, #servicio_seleccionado_c, '0', encargado, str(emailencargado), #zona, direccion, 'Reserva Cancelada', uid, whatsapp,telefono, #whatsappweb)]
   
