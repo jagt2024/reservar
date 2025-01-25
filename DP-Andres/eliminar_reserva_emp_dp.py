@@ -40,6 +40,17 @@ format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # Cargar el archivo Excel una sola vez
 datos_book = load_workbook("archivos-dp/parametros_empresa.xlsx", read_only=False)
 
+def api_call_handler(func):
+  # Number of retries
+  for i in range(0, 10):
+    try:
+      return func()
+    except Exception as e:
+      print(e)
+      time.sleep(2 ** i)
+  print("The program couldn't connect to the Google Spreadsheet API for 10 times. Give up and check it manually.")
+  raise SystemError
+
 def dataBook(hoja):
     
     ws1 = datos_book[hoja]
@@ -485,7 +496,7 @@ def consultar_reserva(nombre, fecha, hora):
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
-        registros = worksheet.get_all_records()
+        registros = api_call_handler(lambda:worksheet.get_all_records())
 
         # Verificar si hay registros antes de crear el DataFrame
         if not registros:

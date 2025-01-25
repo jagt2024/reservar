@@ -40,6 +40,17 @@ format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 # Cargar el archivo Excel una sola vez
 datos_book = load_workbook("./archivos-cld/parametros_empresa.xlsx", read_only=False)
 
+def api_call_handler(func):
+  # Number of retries
+  for i in range(0, 10):
+    try:
+      return func()
+    except Exception as e:
+      print(e)
+      time.sleep(2 ** i)
+  print("The program couldn't connect to the Google Spreadsheet API for 10 times. Give up and check it manually.")
+  raise SystemError
+
 def dataBook(hoja):
     
     ws1 = datos_book[hoja]
@@ -420,11 +431,12 @@ def consultar_reserva(nombre, fecha, hora):
         gc = gspread.authorize(credentials)
         
         # Abrir el archivo y la hoja específica
+        
         workbook = gc.open('gestion-reservas-cld')
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
-        registros = worksheet.get_all_records()
+        registros = api_call_handler(lambda:worksheet.get_all_records())
 
         # Verificar si hay registros antes de crear el DataFrame
         if not registros:
@@ -488,7 +500,7 @@ def consultar_encargado(encargado, fecha, hora):
         worksheet = workbook.worksheet('reservas')
         
         # Obtener todos los registros
-        registros = worksheet.get_all_records()
+        registros = api_call_handler(lambda:worksheet.get_all_records())
         
         # Verificar si hay registros antes de crear el DataFrame
         if not registros:
@@ -577,7 +589,7 @@ def consultar_otros(nombre, fecha, hora):
             'UID': reserva['UID'].iloc[0]
             }
 
-            return True, reserva
+            return True, datos_reserva
         else:
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
@@ -858,7 +870,7 @@ def modificar_reserva():
                     
                     uid = result['UID']
                     
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, str(precio), conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         #reserva_data = (
@@ -868,7 +880,7 @@ def modificar_reserva():
                         #insert_reserva(conn, reserva_data)
                         
                         gs = GoogleSheet(credentials, document, sheet)
-          
+
                         range = gs.write_data_by_uid(uid, values)
                         #gs.write_data(range,values)
 
@@ -901,7 +913,7 @@ def modificar_reserva():
                     
                     #uid = generate_uid()
                     
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, str(precio), conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         ##reserva_data = (
