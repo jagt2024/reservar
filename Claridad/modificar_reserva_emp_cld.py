@@ -870,7 +870,7 @@ def modificar_reserva():
                     
                     uid = result['UID']
                     
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, str(precio), conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         #reserva_data = (
@@ -913,7 +913,7 @@ def modificar_reserva():
                     
                     #uid = generate_uid()
                     
-                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, str(precio), conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
                   
                     try:
                         ##reserva_data = (

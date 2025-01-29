@@ -4,6 +4,18 @@ from datetime import datetime
 from google.oauth2.service_account import Credentials
 import gspread
 import toml
+import time
+
+def api_call_handler(func):
+  # Number of retries
+  for i in range(0, 10):
+    try:
+      return func()
+    except Exception as e:
+      print(e)
+      time.sleep(2 ** i)
+  print("The program couldn't connect to the Google Spreadsheet API for 10 times. Give up and check it manually.")
+  raise SystemError
 
 def load_credentials_from_toml(file_path):
     with open(file_path, 'r') as toml_file:
@@ -18,7 +30,7 @@ def get_google_sheet_data(creds):
         client = gspread.authorize(credentials)
         sheet = client.open('gestion-reservas-cld')
         worksheet = sheet.worksheet('reservas')
-        data = worksheet.get_all_values()
+        data = api_call_handler(lambda:worksheet.get_all_values())
         
         if not data:
             st.error("No se encontraron datos en la hoja de cálculo.")
