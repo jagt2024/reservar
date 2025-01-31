@@ -17,7 +17,7 @@ class InicioEmp:
   
   class Model:
     
-   pageTitle = ('***CLARIDAD***') 
+   pageTitle = ('***BRILLOL***') 
  
   def view(self,model):
     st.title(model.pageTitle)

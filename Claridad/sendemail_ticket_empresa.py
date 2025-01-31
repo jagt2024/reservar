@@ -38,7 +38,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, id, prioridad, notas, e
   
   if user in destinatarios:
         
-    with open("./assets-cld/logo_claridad.png","rb") as f:
+    with open("./assets-cld/brillol.png","rb") as f:
     #with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/gestion-reservas.xlsx","rb") as f:
       
       file_data = f.read()
@@ -55,7 +55,7 @@ def send_email_emp(email, nombre, fecha, hora, servicio, id, prioridad, notas, e
   
   elif email not in destinatarios:
     
-    with open("./assets-cld/logo_claridad.png","rb") as f1:
+    with open("./assets-cld/brillol.png","rb") as f1:
           
       file_data = f1.read()
       file_type1 = imghdr.what(f1.name)

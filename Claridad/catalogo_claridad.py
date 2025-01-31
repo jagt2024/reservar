@@ -65,7 +65,7 @@ def catalogo():
             "prices": ["$95.000", "$25.000", "$15.000"],
             "...": "Con formula generadora de espuma que limpia, desifecta y humecta la piel.",
             "icon": "🍽️",
-            "image_path": "./assets-cld/image5.jpg"
+            "image_path": "./assets-cld/image7.jpg"
         },
         "Detergente Líquido para Lavadora": {
             "sizes": ["20.000 cc", "3.800 cc", "2.000 cc"],
@@ -132,7 +132,7 @@ def catalogo():
     
     for product_name, product_info in products.items():
         with st.expander(f"{product_info['icon']} {product_name}"):
-            col1, col2 = st.columns([1, 2])
+            col1, col2 = st.columns([1, 1])
             
             with col1:
                 # Image upload in admin mode
@@ -177,7 +177,7 @@ def catalogo():
     st.markdown("""
     Para nosotros es un gusto atenderte y ser el proveedor de tus productos de aseo.
     
-    **Línea de atención:** 320 4402014
+    **Línea de atención:** 317 6997723
     """)
 
 #if __name__ == "__main__":

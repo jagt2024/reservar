@@ -33,13 +33,13 @@ class GoogleSheet:
   def write_data_by_uid(self, uid, values):
     cell = self.sheet.find(uid)
     row_index = cell.row
-    self.sheet.update(f'A{row_index}:Q{row_index}', values)
+    self.sheet.update(f'A{row_index}:R{row_index}', values)
 
   def delete_data_by_uid(self, uid, values):
       cell = self.sheet.find(uid)
       row_index = cell.row
       print(f'row index {row_index}')
-      self.sheet.delete_rows(f'A{row_index}:Q{row_index}', values)
+      self.sheet.delete_rows(f'A{row_index}:R{row_index}', values)
             
   def get_last_row_range(self):
     last_row = len(self.sheet.get_all_values()) +1

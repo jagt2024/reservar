@@ -566,29 +566,73 @@ def generate_whatsapp_link(phone_number, message):
     return f"https://wa.me/{phone_number}?text={encoded_message}"
 
 def crea_reserva():
+    
+  try:
+     
+    st.title('Generar Reserva del Servicio')
+    
+    st.write("---")
+       
     try:
-        st.title('Generar Reserva del Servicio')
-        st.write("---")
-        
-        # Load initial data
+                
         horas = dataBook("horario")
+        #print(f'horas {horas}')
+
+        #zonas = dataBook("zonas")
+        #result_zonas = np.setdiff1d(zonas,'')
+        #print(f'zona {zona} {result_zonas}')
+      
         servicios = dataBook("servicio")
+        result_serv = np.setdiff1d(servicios,'')
+
         producto = dataBook("precios")
+        result_prod =  np.setdiff1d(producto,'')
+
+        precio = dataBookPrecio("precios",producto)
+        result_precio = np.setdiff1d(precio,'')
+
+        #encargado = dataBook("encargado")
+        #encargado = np.setdiff1d(nencargado,'')
         
+        #zona_enc = dataBookZonaEnc("zonas", encargado)
+        #result_zonaencc = np.setdiff1d(zona_enc,'')
+        #print(f'servicio2 {servicio2}')
+            
+        #servicio2 = dataBookServicio2("servicio", 'Hacia el Aeropuerto')
+        #result_serv2 = np.setdiff1d(servicio2,'')
+        #print(f'servicio2 {servicio2}')
+           
+        servicioprecio = dataBookServicio("servicio")
+        #print(f'servicio Precio {servicioprecio}')
+        muestra = (f'servicio precio; {servicioprecio}')
+        #print(f'(muestra= {muestra})')
+        #result_servpre = np.setdiff1d(servicioprecio,'')
+    
+        #print(f'encargado {encargado}, {result_estil}') 
+                            
+        document='gestion-reservas-cld'
+        sheet = 'reservas'
+        credentials = st.secrets['sheetsemp']['credentials_sheet']
+        time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
+        
+        #calendar = GoogleCalendar() #credentials, idcalendar
+                       
         # Inicializar valores por defecto
         inicializar_valores_default()
-        
-        # Inicializar lista de productos si no existe
-        if 'productos_seleccionados' not in st.session_state:
-            st.session_state.productos_seleccionados = []
         
         # Crear columnas para organizar la interfaz
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre', 
-                                   value=st.session_state.nombre)
             
+            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre',value=st.session_state.nombre
+                    ) # label_visibility='hidden')
+                        
+            # Lista de servicios disponibles
+            #servicios = selectbox('Servicios*: ',result_serv)
+            #productos = selectbox('Productos:', result_prod)
+
+            #producto = dataBookProducto("precios", producto)
             # Selector de servicio
             servicio_seleccionado = st.selectbox(
                 'Seleccione el servicio:',
@@ -596,8 +640,10 @@ def crea_reserva():
                 key='servicio_selector'
             )
             
-            # Manejo de zonas para ciertos servicios
-            if servicio_seleccionado in ['Entrega', 'Cambio', 'Pedido']:
+            # Si es hacia el aeropuerto, mostrar selector de zona
+            if servicio_seleccionado == 'Entrega' or servicio_seleccionado == 'Cambio' or servicio_seleccionado == 'Pedido':
+                #precio_serv ='35.000'
+                cantidad = st.number_input('Cantidad', key='cant')
                 zonas = ['Norte', 'Sur', 'Oriente', 'Occidente', 'Oficina']
                 zona_seleccionada = st.selectbox(
                     'Seleccione la zona:',
@@ -607,14 +653,30 @@ def crea_reserva():
                 
                 # Obtener conductores según la zona
                 encargado = get_conductores_por_zona(zona_seleccionada)
-            else:
+                            
+            elif servicio_seleccionado == 'Consulta':
+                #precio_serv ='30.000'
+                              
                 # Para otros servicios, mostrar lista general de conductores
                 encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
-
-            direccion = st.text_input('Direccion Ubicacion solicitante:',placeholder='Direccion', key='direccion', value=st.session_state.direccion)
-            fecha = st.date_input('Fecha Servicio*: ')
+                
             hora = st.selectbox('Hora Servicio: ', horas, key="hora_new")
+            direccion = st.text_input('Direccion Ubicacion solicitante :', placeholder='Direccion', key='direccion',value=st.session_state.direccion)
             
+            notas = st.text_area('Nota de Consulta u Observacion(Opcional)', key='notas'
+                                 ,value=st.session_state.notas)
+        with col2:
+
+            email  = st.text_input('Email Solicitante:', placeholder='Email', key='email',value=st.session_state.email
+            )
+            # Selector de producto
+            producto_seleccionado = st.selectbox(
+                'Seleccione el producto:',
+                producto,
+                key='producto_selector'
+            )
+            fecha  = st.date_input('Fecha Servicio*: ')             
+                        
             # Mostrar selector de conductor si hay conductores disponibles
             if encargado:
                 conductor_seleccionado = st.selectbox(
@@ -623,200 +685,211 @@ def crea_reserva():
                     key='conductor_selector'
                 )
             
-            notas = st.text_area('Nota de Consulta u Observacion(Opcional)', 
-                                 key='notas', value=st.session_state.notas)
-        
-        with col2:
-            email = st.text_input('Email Solicitante:', placeholder='Email', 
-                                  key='email', value=st.session_state.email)
-            
-            # Sección para agregar productos
-            st.write("### Agregar Productos")
-            
-            # Selector de producto
-            producto_seleccionado = st.selectbox(
-                'Seleccione el producto:',
-                producto,
-                key='producto_selector'
-            )
-            
-            # Cantidad e información del producto
-            cantidad = st.number_input('Cantidad', min_value=1, key='cant')
-            precio = dataBookPrecio("precios", producto_seleccionado)
-            
-            # Botón para agregar producto
-            if st.button('Agregar Producto'):
-                producto_info = {
-                    'producto': producto_seleccionado,
-                    'cantidad': cantidad,
-                    'precio': precio
-                }
-                st.session_state.productos_seleccionados.append(producto_info)
-            
-            # Mostrar productos seleccionados
-            if st.session_state.productos_seleccionados:
-                st.write("### Productos Seleccionados:")
-                total_productos = 0
-                for idx, prod in enumerate(st.session_state.productos_seleccionados):
-                    subtotal = prod['cantidad'] * prod['precio']
-                    total_productos += subtotal
-                    st.write(f"{idx+1}. {prod['producto']} - Cantidad: {prod['cantidad']} - Subtotal: ${subtotal:,.0f}")
-                
-                st.write(f"**Total: ${total_productos:,.0f}**")
-                
-                # Opción de eliminar productos
-                if st.button('Limpiar Lista de Productos'):
-                    st.session_state.productos_seleccionados = []
-            
-            # Validaciones existentes de disponibilidad
             existe_db2 = consultar_encargado(conductor_seleccionado, str(fecha), hora)
-            
+
             if existe_db2:
-                resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-                if resultado > 0 and resultado <= 90:
-                    st.warning("Encargado se encuentra atendiendo un servicio")
-                elif resultado >= 60:
-                    st.warning("Encargado ya tiene agenda para esa fecha y hora")
-                elif resultado <= -170:
-                    st.warning("No puede agendarse con una fecha y hora vencida")
-                else:
-                    st.success("La Hora de solicitud está disponible")
+               resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+               #print(f'fecha y hora {fecha} {hora}')
+               if resultado > 0 and resultado <= 90:
+                  st.warning("Encargado se encuetra atendiedo un servicio")
+               elif resultado >= 60:
+                  st.warning("Encargado ya tiene agenda para esa fecha y hora")
+               elif resultado <= -170:
+                  st.warning("No pude agendarse con una fecha y/o  hora vencida")
+               else:
+                  st.success("La Hora de solicitud está disponible")
             else:
-                resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
-                if resultado <= -170:
-                    st.warning("No puede agendarse con una fecha y hora vencida")
-                else:
-                    st.success("La Hora de solicitud está disponible")
-            
+             # print(f'fecha y hora reserva {fecha} {hora}, fecha_hora_actual {datetime.now()}')
+              resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
+
+              #print(f"Resultado para la Hora actual : {resultado}")
+
+              #print(f'resultado {resultado}')
+              if resultado <= -170:
+                st.warning("No pude agendarse con una fecha y/u  hora vencida")
+              else:
+                st.success("La Hora de solicitud está disponible")
+
             whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
-            telefono = st.text_input('Nro. Telefono', key='telefono', value=st.session_state.telefono)
-        
-        st.write("---")
-        st.write("### Resumen de Solicitud:")
-        
-        # Create columns for horizontal summary
-        if st.session_state.productos_seleccionados:
-            num_productos = len(st.session_state.productos_seleccionados)
-            cols = st.columns(min(num_productos, 4))  # Max 4 products per row
-            
-            total_pedido = 0
-            for idx, producto in enumerate(st.session_state.productos_seleccionados):
-                col_idx = idx % 4
-                with cols[col_idx]:
-                    st.markdown(f"""
-                    🛍️ **Producto {idx + 1}**
-                    - Item: {producto['producto']}
-                    - Cantidad: {producto['cantidad']}
-                    - Precio: ${producto['precio']:,.0f}
-                    - Subtotal: ${(producto['cantidad'] * producto['precio']):,.0f}
-                    """)
-                total_pedido += producto['cantidad'] * producto['precio']
-            
-            # Show service details after products
+            telefono = st.text_input('Nro. Telefono', key='telefono',value=st.session_state.telefono)
+
+            precio = dataBookPrecio("precios", producto_seleccionado)
+            # Mostrar resumen de la selección
             st.write("---")
-            col1, col2, col3 = st.columns(3)
+            st.write("### Resumen de Solicitud:")
             
-            with col1:
-                st.markdown(f"""
-                **Detalles del Servicio:**
-                - 🚗 Encargado: {conductor_seleccionado}
-                - 🎯 Servicio: {servicio_seleccionado}
-                """)
+            info = {
+                    "🚗 Encargado entrega": conductor_seleccionado,   "🎯 Servicio": servicio_seleccionado, "Producto": producto_seleccionado, "Cantidad": cantidad,"Precio Unitario": precio, "Fecha": fecha, "Hora":  hora
+                }
             
-            with col2:
-                st.markdown(f"""
-                **Detalles de Entrega:**
-                - 📅 Fecha: {fecha}
-                - 🕒 Hora: {hora}
-                """)
-            
-            with col3:
-                st.markdown(f"""
-                **Resumen del Pedido:**
-                - 📦 Total Productos: {num_productos}
-                - 💰 Total a Pagar: ${total_pedido:,.0f}
-                """)
+            if servicio_seleccionado == 'Entrega' or servicio_seleccionado == 'Cambio' or servicio_seleccionado == 'Pedido':
 
-            if servicio_seleccionado in ['Entrega', 'Cambio', 'Pedido']:
-                st.info(f"📍 Zona de Entrega: {zona_seleccionada}")
+                info["📍 Zona"] = zona_seleccionada
+                
+                for key, value in info.items():
+                    st.write(f"{key}: **{value}**")
 
+            else:
+               encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
+               
+               zona_enc = dataBookZonaEnc("encargado", conductor_seleccionado)
+               
+               info["📍 Zona"] = zona_enc
+                
+               for key, value in info.items():
+                  st.write(f"{key}: **{value}**")
 
-        st.write("---")
-        
-        with st.form(key='myform0', clear_on_submit=True):
-            enviar = st.form_submit_button(" Reservar ", type="primary")
-            
-            if enviar:
-                with st.spinner('Cargando...'):
-                    # Validaciones
-                    if not nombre or not servicio_seleccionado or not encargado or not email or not direccion:
-                        st.warning('Se requiere completar los campos con * son obligatorios')
-                    elif not validate_email(email):
-                        st.warning('El email no es valido')
-                    elif whatsapp and not telefono:
-                        st.warning('Se requiere el numero del Celular')
-                    elif not st.session_state.productos_seleccionados:
-                        st.warning('Debe seleccionar al menos un producto')
-                    else:
-                        # Preparar información de productos para guardar
-                        productos_str = "; ".join([
-                            f"{p['producto']}:{p['cantidad']}:{p['precio']}" 
-                            for p in st.session_state.productos_seleccionados
-                        ])
-                        
-                        # Calcular precio total
-                        precio_total = sum(p['cantidad'] * p['precio'] for p in st.session_state.productos_seleccionados)
-                        
-                        # Obtener email del encargado
-                        emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
-                        
-                        # Generar UID
-                        uid = generate_uid()
-                        
-                        # Preparar valores para guardar
-                        values = [(
-                            nombre, email, str(fecha), hora, servicio_seleccionado, 
-                            precio_total, conductor_seleccionado, str(emailencargado), 
-                            zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
-                            direccion, notas, uid, whatsapp, str(57)+telefono, 
-                            f"web.whatsapp.com/send?phone=&text=Reserva para {nombre}", 
-                            '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
-                        )]
-                        
-                        try:
-                            # Guardar en Google Sheets
-                            gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
-                            range = gs.get_last_row_range()
-                            gs.write_data(range, values)
-                            
-                            # Enviar emails
-                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, 
-                                        productos_str, precio_total, conductor_seleccionado, notas)
-                            
-                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, 
-                                           productos_str, precio_total, conductor_seleccionado, 
-                                           notas, str(emailencargado))
-                            
-                            st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
-                            
-                            # Envío por WhatsApp (si aplica)
-                            if whatsapp == True:
-                                contact = str(57)+telefono
-                                message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Reservas y Agendamiento.'
-                                
-                                whatsapp_link = generate_whatsapp_link(contact, message)
-                                st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                                time.sleep(10)
-                        
-                        except Exception as e:
-                            st.error(f"Error al guardar la reserva: {str(e)}")
-    
-                # Limpiar campos
-                if limpiar_campos_formulario():
-                   st.session_state.productos_seleccionados = []
-                   st.success('Campos limpiados exitosamente')
-
+               #st.warning("No hay conductores disponibles para la selección actual.")
+                 
     except Exception as e:
+       st.error(f"Error en la aplicación: {str(e)}")
+       st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
+
+    st.write("---")
+    
+    with st.form(key='myform0',clear_on_submit=True):
+    
+     enviar = st.form_submit_button(" Reservar ", type="primary")
+
+     #Backend
+     if enviar:
+        with st.spinner('Cargando...'):
+         if not nombre or not servicio_seleccionado or not encargado or not email or not direccion:
+            st.warning('Se Require completar los campos con * son obligatorios')
+        
+         elif not validate_email(email):
+            st.warning('El email no es valido')
+         elif whatsapp == True and not telefono:
+            st.warning('Se Require el numero del Celular')
+        
+         else:
+            # Create database connection
+            conn = create_connection()
+            if conn is None:
+                st.error("Error: No se pudo conectar a la base de datos")
+                return
+                
+            # Create tables if they don't exist
+            #create_tables(conn)
+                         
+            # Check if reservation already exists in database
+            existe_db = consultar_reserva(nombre, str(fecha), hora)
+
+            if existe_db:
+               existe = True
+               st.warning("Ciente Ya tiene agenda para esa fecha y hora")
+            else:
+               #gs = GoogleSheet(credentials, document, sheet)
+               existe = False
+              
+            if existe == False:
+                
+                precio = dataBookPrecio("precios", producto_seleccionado)
+                result_precio = np.setdiff1d(precio,'')
+                #print(f'Precio = {precio} result_precio = {result_precio}')
+               
+                emailencargado = dataBookEncEmail("encargado",conductor_seleccionado)
+                #result_email = np.setdiff1d(emailencargado,'') 
+                #print(f'Emailencargado = {emailencargado}, result_email ={result_email}')
+      
+                #st.text(muestra)
+                       
+                whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre} La Resserva se realizo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio de : {servicio_seleccionado} con el producto: {producto_seleccionado}")
+                 
+                boton = '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                 
+                if servicio_seleccionado != 'Consulta':
+                    
+                    uid = generate_uid()
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, cantidad,direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                  
+                    try:
+                        #reserva_data = (
+                        #nombre, email, fecha, hora, servicio_seleccionado,precio_serv, #conductor_seleccionado, str(emailencargado), zona_seleccionada, #direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        #)
+                     
+                        #insert_reserva(conn, reserva_data)
+                        
+                        gs = GoogleSheet(credentials, document, sheet)
+          
+                        range = gs.get_last_row_range()
+                        gs.write_data(range,values)
+
+                        send_email2(email, nombre, fecha, hora, servicio_seleccionado, producto_seleccionado,precio*cantidad, conductor_seleccionado,  notas)
+                
+                        send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, producto_seleccionado,precio*cantidad, conductor_seleccionado, notas, str(emailencargado))
+                                             
+                        st.success('Su solicitud ha sido reservada de forrma exitosa, la confirmacion fue enviada al correo')
+                        
+                        if whatsapp == True:
+                           contact = str(57)+telefono
+                           message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}") para el producto:{producto_seleccionado}. Cordialmente aplicacion de Reservas y Agendamiento.'
+
+                           phone_number = contact
+                           mensaje = message 
+                           whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                           st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                           time.sleep(10)
+                        
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    #finally:
+                    #    conn.close()
+                
+                else:
+                    
+                    uid = generate_uid()
+                    
+                    values = [(nombre,email,str(fecha),hora, servicio_seleccionado, precio, conductor_seleccionado, str(emailencargado), zona_seleccionada, producto_seleccionado, cantidad, direccion, notas, uid, whatsapp,str(57)+telefono, whatsappweb, boton)]
+                  
+                    try:
+                        ##reserva_data = (
+                        #nombre, email, fecha, hora, servicio_seleccionado,precio_serv,
+                        #conductor_seleccionado, str(emailencargado), str(zona_enc), direccion, notas, uid, whatsapp, str(57)+telefono, whatsappweb
+                        #)
+                     
+                        #insert_reserva(conn, reserva_data)
+                    
+                        gs = GoogleSheet(credentials, document, sheet)
+          
+                        range = gs.get_last_row_range()
+                        gs.write_data(range,values)
+                
+                        send_email2(email, nombre, fecha, hora, servicio_seleccionado, producto_seleccionado, precio*cantidad, conductor_seleccionado,  notas)
+                
+                        send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, producto_seleccionado,precio*cantidad, conductor_seleccionado, notas, str(emailencargado)) 
+                     
+                        st.success('Su solicitud ha sido reservada de forrma exitosa, la confirmacion fue enviada al correo')
+
+                        if whatsapp == True:
+                           contact = str(57)+telefono
+                           message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creo con exito para el dia: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para realizar el servcio: {servicio_seleccionado}") para el producto: {producto_seleccionado}. Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                           phone_number = contact
+                           mensaje = message 
+                           whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                           st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                           time.sleep(10)
+
+                    except Exception as e:
+                        st.error(f"Error al guardar en la base de datos: {str(e)}")
+                    #finally:
+                    #    conn.close()
+
+                if limpiar_campos_formulario():
+                   st.success('Campos limpiaddos exitosamente')                 
+                
+                  #calendar.create_event(servicios+". "+nombre, 
+                  #start_time, end_time, time_zone, attendees=result_email)   
+
+                  #if whatsapp == True:
+                  #  contact = str(57)+telefono
+                  #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                                          
+                  #  sendMessage(contact, message)
+                  #  sendMessage(str(57)+str(telefonoencargado), message)
+
+  except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")
         st.error("Error crítico en la aplicación. Por favor, contacte al administrador.")
 

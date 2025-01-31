@@ -65,7 +65,7 @@ with open("./.streamlit/config.toml", "r") as f:
 os.environ["REQUESTS_CONNECT_TIMEOUT"] = "5"
 os.environ["REQUESTS_READ_TIMEOUT"] = "5"
 
-logo = Image.open("./assets-cld/logo_claridad.png")  
+logo = Image.open("./assets-cld/brillol.png")  
 
 datos_book_emp = load_workbook("./archivos-cld/parametros_empresa.xlsx", read_only=False)
 
@@ -110,7 +110,7 @@ result_emp = np.setdiff1d(empresa,'')
 sw_empresa = result_emp
   
 page_title = 'Agenda Actividad' 
-page_icon= "assets/logo_claridad.png" 
+page_icon= "assets/brillol.png" 
 title="Resevas"
 layout = 'centered'
 
@@ -118,7 +118,7 @@ st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   
-  menuTitle = "Solicite y Agende en Linea"
+  menuTitle = "Programe y Solicite Productos"
   option1 = 'Inicio'
   #option10 = 'Descargar Agenda'
   option9  = 'Consultar Solicitudes'
@@ -334,7 +334,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Reserva","Eliminar Reserva", "Catalogo Productos", "Soporte - PQRS"
+        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Eliminar Solicitud", "Catalogo Productos", "Soporte - PQRS"
         #, "Registrar Pago", "Soporte - PQRS"])
         ])
             
