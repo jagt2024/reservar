@@ -17,6 +17,7 @@ from sqlite3 import Error
 import os 
 import sys
 import logging
+import  time
 from typing import List, Optional
 #import ntplib
 #from ntplib import NTPClient
@@ -578,7 +579,7 @@ def consultar_otros(nombre, fecha, hora):
             
     except Exception as e:
         st.error(f"Error al consultar el UID: {str(e)}")
-        return False,(f"Error al consultar el UID: {str(e)}")def consultar_otros(nombre, fecha, hora):
+        return False,(f"Error al consultar el UID: {str(e)}")
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()

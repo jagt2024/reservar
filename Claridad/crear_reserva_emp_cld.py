@@ -645,7 +645,7 @@ def crea_reserva():
             precio = dataBookPrecio("precios", producto_seleccionado)
             
             # Botón para agregar producto
-            if st.button('Agregar Producto'):
+            if st.button('Agregar Producto', type="primary"):
                 producto_info = {
                     'producto': producto_seleccionado,
                     'cantidad': cantidad,
@@ -665,7 +665,7 @@ def crea_reserva():
                 st.write(f"**Total: ${total_productos:,.0f}**")
                 
                 # Opción de eliminar productos
-                if st.button('Limpiar Lista de Productos'):
+                if st.button('Limpiar Lista de Productos', type="primary"):
                     st.session_state.productos_seleccionados = []
             
             # Validaciones existentes de disponibilidad
@@ -744,7 +744,7 @@ def crea_reserva():
         st.write("---")
         
         with st.form(key='myform0', clear_on_submit=True):
-            enviar = st.form_submit_button(" Reservar ", type="primary")
+            enviar = st.form_submit_button(" Solicitar Productos", type="primary")
             
             if enviar:
                 with st.spinner('Cargando...'):
@@ -760,7 +760,7 @@ def crea_reserva():
                     else:
                         # Preparar información de productos para guardar
                         productos_str = "; ".join([
-                            f"{p['producto']}:{p['cantidad']}:{p['precio']}" 
+                            f"Prod.-{p['producto']}: Cant.{p['cantidad']}: Precio-{p['precio']}" 
                             for p in st.session_state.productos_seleccionados
                         ])
                         
@@ -789,20 +789,17 @@ def crea_reserva():
                             range = gs.get_last_row_range()
                             gs.write_data(range, values)
                             
-                            # Enviar emails
-                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, 
-                                        productos_str, precio_total, conductor_seleccionado, notas)
-                            
-                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, 
-                                           productos_str, precio_total, conductor_seleccionado, 
-                                           notas, str(emailencargado))
-                            
                             st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
+                            # Enviar emails
+                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
+                            
+                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
+                            
                             # Envío por WhatsApp (si aplica)
-                            if whatsapp == True:
+                            if whatsapp == True or whatsapp == 'Verdadero':
                                 contact = str(57)+telefono
-                                message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Reservas y Agendamiento.'
+                                message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Solicitudes y Despachos.'
                                 
                                 whatsapp_link = generate_whatsapp_link(contact, message)
                                 st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")

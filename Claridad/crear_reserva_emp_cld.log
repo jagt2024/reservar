@@ -1,39 +1,311 @@
-2025-01-31 17:13:19,782 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-01-31 17:13:19,839 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-01-31 17:13:19,840 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-01-31 17:13:19,840 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-01-31 17:13:19,841 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
-2025-01-31 17:13:21,520 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-01-31 17:13:21,522 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
-2025-01-31 17:13:21,523 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-01-31 17:13:21,526 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
-2025-01-31 17:13:25,331 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-01-31 17:13:25,926 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-01-31 17:13:26,046 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-01-31 17:13:27,720 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-01-31 17:13:27,729 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-01-31 17:13:28,648 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-01-31 17:13:28,657 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-01-31 17:13:29,429 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:29,680 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:29,962 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
-2025-01-31 17:13:31,803 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-01-31 17:13:31,980 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-01-31 17:13:31,989 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-01-31 17:13:32,474 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-01-31 17:13:32,485 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-01-31 17:13:33,261 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-01-31 17:13:33,270 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-01-31 17:13:33,823 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:34,078 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:34,351 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
-2025-01-31 17:13:35,730 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-01-31 17:13:35,969 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-01-31 17:13:35,978 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-01-31 17:13:36,385 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-01-31 17:13:36,399 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-01-31 17:13:37,140 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-01-31 17:13:37,148 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-01-31 17:13:37,660 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:37,914 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-01-31 17:13:38,217 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:09:12,384 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:09:12,395 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:09:12,396 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:09:12,397 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:09:12,397 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:09:14,103 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:09:14,104 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:09:14,105 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:09:14,106 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:09:17,282 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:09:17,832 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:09:18,029 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:09:19,763 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:09:19,763 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:09:20,779 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:09:20,779 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:09:21,842 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:22,092 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:22,373 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:09:24,351 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:09:24,538 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:09:24,538 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:09:25,038 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:09:25,054 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:09:25,757 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:09:25,772 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:09:26,273 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:26,601 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:26,851 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:09:27,797 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:09:27,937 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:09:27,953 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:09:28,500 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:09:28,500 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:09:29,188 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:09:29,203 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:09:29,734 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:30,015 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:09:30,281 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:10:48,901 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:48,902 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:10:48,903 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:10:48,903 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:10:48,906 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:10:52,277 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:52,277 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:10:52,293 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:52,293 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:10:54,241 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:10:54,464 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:10:54,473 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:10:54,942 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:10:54,958 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:10:55,786 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:10:55,786 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:10:56,441 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:10:56,708 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:10:56,974 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:56,977 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:10:56,977 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:10:56,978 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:10:56,978 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:10:57,026 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:10:58,862 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:58,863 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:10:58,863 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:10:58,864 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:00,145 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:00,146 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:11:00,147 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:11:00,147 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:11:00,148 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:11:01,363 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:01,375 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:01,376 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:01,377 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:03,437 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:03,593 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:03,608 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:04,125 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:04,125 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:04,969 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:04,985 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:05,581 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:05,908 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:06,167 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:07,953 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:08,351 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:08,359 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:08,889 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:08,904 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:09,720 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:09,735 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:10,242 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:10,445 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:10,447 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:11:10,447 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:11:10,448 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:11:10,448 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:11:10,522 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:10,998 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:12,102 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:12,103 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:12,104 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:12,104 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:15,204 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:15,366 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:15,366 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:15,866 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:15,881 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:16,589 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:16,605 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:17,163 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:17,533 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:17,832 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:19,118 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:19,352 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:19,358 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:11:19,359 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:11:19,359 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:11:19,360 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:11:19,368 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:19,662 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:20,889 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:20,900 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:20,907 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:20,908 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:20,909 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:20,909 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:24,216 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:24,216 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:24,360 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:24,361 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:11:24,362 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:11:24,364 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:11:24,366 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:11:25,274 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:25,524 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:25,775 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:26,228 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:26,585 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:26,601 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:27,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:27,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:27,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:27,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:28,396 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:28,413 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:29,511 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:29,641 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:29,672 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:29,672 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:29,672 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:30,432 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:30,439 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:30,456 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:30,709 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:31,056 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:31,535 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:31,551 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:32,100 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:32,354 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:32,464 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:32,465 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:11:32,465 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:11:32,466 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:11:32,466 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:11:32,627 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:33,429 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:33,429 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:33,430 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:11:33,431 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:11:35,901 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:36,058 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:36,058 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:36,466 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:36,481 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:37,235 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:37,246 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:37,813 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:38,182 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:38,504 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:39,821 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:39,978 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:39,993 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:40,556 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:40,556 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:41,596 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:41,596 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:42,112 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:42,440 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:42,722 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:11:43,832 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:11:44,047 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:11:44,055 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:11:44,530 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:11:44,543 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:11:45,304 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:11:45,316 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:11:45,858 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:46,092 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:11:46,366 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:07,565 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:07,565 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:12:07,565 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:12:07,565 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:12:07,565 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:12:09,828 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:09,828 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:09,828 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:09,828 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:11,971 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:12,128 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:12,143 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:12,593 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:12,607 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:15,306 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:15,322 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:22,147 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:22,412 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:22,693 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:26,101 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:26,335 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:26,335 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:26,773 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:26,788 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:27,586 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:27,586 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:28,145 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:28,516 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:28,782 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:30,352 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:30,579 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:30,594 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:31,056 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:31,071 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:31,853 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:31,871 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:32,374 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:32,807 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:32,872 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:32,873 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:12:32,873 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:12:32,874 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:12:32,874 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:12:33,124 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:34,366 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:34,367 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:34,368 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:34,368 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:36,484 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:36,625 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:36,625 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:37,078 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:37,078 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:37,766 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:37,781 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:38,313 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:38,547 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:38,859 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:39,673 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:39,953 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:39,953 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:40,408 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:40,418 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:41,130 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:41,141 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:41,658 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:41,916 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:42,308 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:42,568 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:42,942 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "PUT /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27%21A13%3AR13?valueInputOption=RAW HTTP/11" 200 None
+2025-02-01 12:12:54,827 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:54,843 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-01 12:12:54,843 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-01 12:12:54,843 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-01 12:12:54,843 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 65445
+2025-02-01 12:12:55,155 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:55,155 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:55,155 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-01 12:12:55,155 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 63398
+2025-02-01 12:12:55,900 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:56,041 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:56,056 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:12:56,556 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:12:56,556 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:12:57,510 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:12:57,525 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:12:58,041 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:58,322 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:12:58,635 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:12:59,478 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:12:59,635 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:12:59,635 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:13:00,057 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:13:00,072 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:13:00,849 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:13:00,863 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:13:01,423 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:13:01,819 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:13:02,120 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None
+2025-02-01 12:13:03,630 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-01 12:13:03,786 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-01 12:13:03,786 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-01 12:13:04,348 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-01 12:13:04,348 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-01 12:13:05,114 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-cld%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-01 12:13:05,161 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-01 12:13:05,739 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:13:06,114 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-02-01 12:13:06,521 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg/values/%27reservas%27 HTTP/11" 200 None

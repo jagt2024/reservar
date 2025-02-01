@@ -580,8 +580,12 @@ def eliminar_reserva_sheet(nombre, fecha, hora):
                 (df['HORA'] == hora)
             ]
         
-        # Verificar si se encontró la reserva
-        if reserva.empty:
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
+
+        if not reserva.empty:
             st.warning("No se encontró la reserva a eliminar.")
             return False
         

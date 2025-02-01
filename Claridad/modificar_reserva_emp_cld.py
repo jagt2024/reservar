@@ -758,7 +758,7 @@ def modificar_reserva():
                     precio = dataBookPrecio("precios", producto_seleccionado)
             
                     # Botón para agregar producto
-                    if st.button('Agregar Producto', key='boton'):
+                    if st.button('Agregar Producto', type="primary", key='boton'):
                         producto_info = {
                             'producto': producto_seleccionado,
                             'cantidad': cantidad,
@@ -779,7 +779,7 @@ def modificar_reserva():
                         st.write(f"**Total: ${total_productos:,.0f}**")
                 
                         # Opción de eliminar productos
-                        if st.button('Limpiar Lista de Productos', key='l_boton'):
+                        if st.button('Limpiar Lista de Productos', type="primary", key='l_boton'):
                             st.session_state.productos_seleccionados = []
             
                     # Validaciones existentes de disponibilidad
@@ -879,7 +879,7 @@ def modificar_reserva():
                     else:
                         # Preparar información de productos para guardar
                         productos_str = "; ".join([
-                            f"{p['producto']}:{p['cantidad']}:{p['precio']}" 
+                            f"Prod.-{p['producto']}: Cant.{p['cantidad']}: Precio-{p['precio']}" 
                             for p in st.session_state.productos_seleccionados
                         ])
                         
@@ -907,14 +907,13 @@ def modificar_reserva():
                             gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
                             range = gs.get_last_row_range()
                             gs.write_data(range, values)
+
+                            st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
                             # Enviar emails
-                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, 
-                                        productos_str, precio_total, conductor_seleccionado, notas)
+                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
                             
-                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, 
-                                           productos_str, precio_total, conductor_seleccionado, 
-                                           notas, str(emailencargado))
+                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
                             
                             st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
