@@ -25,14 +25,14 @@ def send_email_emp(email, nombre, fecha, hora, servicio, producto, precio, encar
       Hora: {hora},
       Servicio: {servicio},
       Producto: {producto}
-      Precio : {precio},
-      Conductor Encargado: {encargado},
+      Total : {precio},
+      Encargado Entrega: {encargado},
       Notas: {notas},
       
       
       Atentamente,
       
-      El Equipo de Agendamiento
+      El Equipo de Solicitudes y Desspachos
       emil: emresa@xxxx.com
       """
   msg.set_content(asunto)

@@ -18,7 +18,7 @@ from consultar_reservas_cld  import consulta_reserva
 #from user_management import user_management_system
 #from buscar_info import streamlit_app
 from facturacion_servicios_emp import generar_factura
-#from backup_google_drive_dp import backup
+from backup_google_drive_cdl import backup
 #from estadisticas_reservas_emp import reservas
 #from estadisticas_facturacion_emp import factura
 #from whatsapp_sender_st import whatsapp_sender
@@ -109,16 +109,16 @@ result_emp = np.setdiff1d(empresa,'')
 
 sw_empresa = result_emp
   
-page_title = 'Agenda Actividad' 
+page_title = 'Servicio Actividad' 
 page_icon= "assets/brillol.png" 
-title="Resevas"
+title="Solicitudes"
 layout = 'centered'
 
 st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   
-  menuTitle = "Programe y Solicite Productos"
+  menuTitle = "Programe y Solicite sus Productos"
   option1 = 'Inicio'
   #option10 = 'Descargar Agenda'
   option9  = 'Consultar Solicitudes'
@@ -134,7 +134,7 @@ class Model:
   option23 = 'Cosultar Pagos'
   #option19 = 'Control Ingresos y Gastos'
   #option21 = 'Control Bancario'
-  #option18 = 'Copia Seguridad Reservas'
+  option18 = 'Copia de Seguridad Solicitudes'
   #option13 = 'Estadisticas de Resservas'
   #option14 = 'Estadisticas de Facturacion'
   #option16 = 'Soporte - PQRS'
@@ -179,7 +179,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9,model.option8, model.option12, model.option22, model.option23                              #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9,model.option8, model.option12, model.option22, model.option23, model.option18                 #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -417,8 +417,8 @@ else:
             if app == model.option12:
               generar_factura()
 
-            #if app == model.option18:
-            #  backup()
+            if app == model.option18:
+              backup()
                             
             #if app == model.option13:
            
