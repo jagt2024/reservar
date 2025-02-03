@@ -128,11 +128,11 @@ def backup_specific_sheets(backup_dir):
     raise Exception("Error inesperado en la función backup_specific_sheets")
 
 def backup():
-    st.title("📊 Backup de Archivos de Reservas")
+    st.title("📊 Backup de Archivos de Solicitudes")
     
     st.markdown("""
     Esta aplicación realiza un backup de los siguientes archivos de Excel de Google Drive:
-    - gestion-reservas-dp
+    - gestion-reservas-cld
      
     El archivo se descargará en formato XLSX y se empaquetará en un archivo ZIP.
     """)

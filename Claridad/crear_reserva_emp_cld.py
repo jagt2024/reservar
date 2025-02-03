@@ -340,11 +340,13 @@ def limpiar_campos_formulario():
     try:
         # Lista de campos a limpiar
          valores_default = {
-            'nombre': '',
+            'nuevo_nombre': '',
+            'selection_option': '',
             'email': '',
             'direccion': '',
             'telefono': '',
             'notas': '',
+            'productos_str': ''
             #'fecha',
             #'hora',
             #'servicio_selector'
@@ -369,17 +371,45 @@ def limpiar_campos_formulario():
 def inicializar_valores_default():
     
     valores_default = {
-            'nombre': '',
+            'nuevo_nombre': '',
+            'selection_option': '',
             'email': '',
             'direccion': '',
             'telefono': '',
             'notas': '',
+            'productos_str': ''
     }
     
     for campo, valor in valores_default.items():
         if campo not in st.session_state:
             st.session_state[campo] = valor
 
+
+def poblar_campos_formulario(email,  direccion,  telefono ):
+    
+    try:
+        # Lista de campos a limpiar
+         valores_default = {
+            'email': 'email',
+            'direccion': 'direccion',
+            'telefono': 'telfono'            
+         }
+        
+         # Actualizar el session state con los valores por defecto
+         for campo, valor in valores_default.items():
+            if campo not in st.session_state:
+                st.session_state[campo] = valor
+        
+         # Forzar la recarga de la página para reiniciar los widgets
+         st.rerun()
+        
+         return True
+        
+    except Exception as e:
+        st.error(f"Error al poblar los campos del formulario: {str(e)}")
+        logging.error(f"Error en poblar_campos_formulario: {str(e)}")
+        return False
+        
 def load_credentials_from_toml():
     try:
         with open('./.streamlit/secrets.toml', 'r') as toml_file:
@@ -391,6 +421,29 @@ def load_credentials_from_toml():
     except Exception as e:
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
+
+def add_new_client(creds, nombre):
+    """Añade un nuevo cliente a la hoja de Google Sheets"""
+    try:
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
+        worksheet = sheet.worksheet('clientes')
+        
+        # Obtiene el último ID y añade 1
+        last_row = len(worksheet.get_all_values())
+        new_id = last_row  # Asumiendo que la primera fila es encabezado
+        
+        # Añade la nueva fila
+        worksheet.append_row([new_id, nombre])
+        
+        st.success(f"Cliente '{nombre}' añadido exitosamente!")
+        return True
+    
+    except Exception as e:
+        st.error(f"Error al añadir el cliente: {str(e)}")
+        return False
 
 def consultar_reserva(nombre, fecha, hora):
     try:
@@ -457,6 +510,31 @@ def consultar_reserva(nombre, fecha, hora):
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
 
+def get_google_sheet_data(creds):
+    try:
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
+        worksheet = sheet.worksheet('clientes')  # Cambiado a 'clientes' en lugar de 'reservas'
+        data = api_call_handler(lambda: worksheet.get_all_values())
+        
+        if not data:
+            st.error("No se encontraron datos en la hoja de cálculo.")
+            return None
+        
+        df = pd.DataFrame(data[1:], columns=data[0])
+        
+        if df.empty:
+            st.error("El DataFrame está vacío después de cargar los datos.")
+            return None
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"Error al cargar los datos: {str(e)}")
+        return None
+
 def consultar_encargado(encargado, fecha, hora):
     try:
         # Cargar credenciales
@@ -510,7 +588,7 @@ def consultar_encargado(encargado, fecha, hora):
         st.error(f"Error al consultar encargado: {str(e)}")
         return False
 
-def consultar_otros(nombre, fecha, hora):
+def consultar_otros(nombre):
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()
@@ -527,39 +605,53 @@ def consultar_otros(nombre, fecha, hora):
         
         # Abrir el archivo y la hoja específica
         workbook = gc.open('gestion-reservas-cld')
-        worksheet = workbook.worksheet('reservas')
+        worksheet = workbook.worksheet('clientes')
         
         # Obtener todos los registros
         registros = worksheet.get_all_records()
+
+        if not registros:
+            return False  # No hay datos en la hoja
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
+
+        # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-        # Realizar la búsqueda
-        reserva = df[
-            (df['NOMBRE'].str.lower() == nombre.lower()) &
-            (df['FECHA'] == fecha) &
-            (df['HORA'] == hora)
-        ]
+        try:
+        
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) ]
+
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
         
         # Verificar si se encontró la reserva
-        if reserva.empty:
-            return False, None
-            
-        # Extraer los campos solicitados
-        datos_reserva = {
-            'NOMBRE': reserva['NOMBRE'].iloc[0],
-            'ENCARGADO': reserva['ENCARGADO'].iloc[0],
-            'ZONA': reserva['ZONA'].iloc[0],
-            'FECHA': reserva['FECHA'].iloc[0],
-            'HORA': reserva['HORA'].iloc[0]
-        }
-        
-        return True, datos_reserva
-        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                        # Extraer los campos solicitados
+            datos_reserva = {
+                'EMAIL': reserva['EMAIL'].iloc[0],
+                'TELEFONO': reserva['TELEFONO'].iloc[0],
+                'DIRECCION': reserva['DIRECCION'].iloc[0]
+            }
+
+            return True, datos_reserva
+
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+
     except Exception as e:
-        st.error(f"Error al consultar la reserva: {str(e)}")
-        return False,(f"Error al consultar la reserva: {str(e)}")
+        st.error(f"Error en la aplicación: {str(e)}")
 
 def generate_whatsapp_link(phone_number, message):
     encoded_message = message.replace(' ', '%20')
@@ -586,8 +678,62 @@ def crea_reserva():
         col1, col2 = st.columns([1, 1])
         
         with col1:
-            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre', 
-                                   value=st.session_state.nombre)
+            try:
+                # Cargar credenciales
+                creds = load_credentials_from_toml()
+        
+                # Carga inicial de datos
+                df = get_google_sheet_data(creds)
+        
+                if df is not None and not df.empty:
+                    # Lista de nombres existentes
+                    nombres_existentes = df['NOMBRE'].tolist() if 'NOMBRE' in df.columns else []
+            
+                    # Crea el selectbox con opción para añadir nuevo
+                    selected_option = st.selectbox(
+                         "Seleccione un cliente",
+                        options=['-- Añadir Nuevo Cliente --'] + nombres_existentes
+                    )
+            
+                    # Si se selecciona añadir nuevo
+                    if selected_option == '-- Añadir Nuevo Cliente --':
+                        #with st.form("nuevo_cliente"):
+                            nuevo_nombre = st.text_input("Ingrese el nombre del nuevo cliente")
+                            #submitted = st.form_submit_button("Añadir Cliente")
+                    
+                            if nuevo_nombre:
+                                if nuevo_nombre in nombres_existentes:
+                                    st.warning("Este cliente ya existe en la lista.")
+                                else:
+                                    pass                                 
+                                    #if add_new_client(creds, nuevo_nombre):
+                                    #    st.rerun()  # Recarga la página para  actualizar la lista
+                    else:
+                        
+                        st.write(f"Cliente seleccionado: {selected_option}")
+                        
+                        #valida, result = consultar_otros(selected_option)
+
+                        #if valida:
+                            
+                        #    email_e = result['EMAIL']
+                        #    telefono_e = result['TELEFONO']
+                        #    direccion_e = result['DIRECCION']   
+
+                        #    poblar_campos_formulario(email_e,  direccion_e,  telefono_e)
+
+                        #else:
+                            # Si hay error, result será un diccionario
+                        #    st.warning("Cliente No Existe")
+                            #print(f"Error: {result['message']}")
+
+                else:
+                    st.error("No se pudieron cargar los datos. Por favor, verifica la conexión.")
+
+            except Exception as e:
+                st.error(f"Error en la aplicación: {str(e)}")
+
+            #nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre',  value=st.session_state.nombre)
             
             # Selector de servicio
             servicio_seleccionado = st.selectbox(
@@ -749,7 +895,7 @@ def crea_reserva():
             if enviar:
                 with st.spinner('Cargando...'):
                     # Validaciones
-                    if not nombre or not servicio_seleccionado or not encargado or not email or not direccion:
+                    if not  selected_option or not servicio_seleccionado or not encargado or not email or not direccion:
                         st.warning('Se requiere completar los campos con * son obligatorios')
                     elif not validate_email(email):
                         st.warning('El email no es valido')
@@ -769,44 +915,94 @@ def crea_reserva():
                         
                         # Obtener email del encargado
                         emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
+
+                        if selected_option == '-- Añadir Nuevo Cliente --':        
+
+                          try:
+
+                            values2 = [(nuevo_nombre, email, direccion, telefono, zona_seleccionada, productos_str,  str(datetime.now()))] 
+                            
+                            gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'clientes')
+                            range = gs.get_last_row_range()
+                            gs.write_data(range, values2)
+
+                            # Generar UID
+                            uid = generate_uid()
                         
-                        # Generar UID
-                        uid = generate_uid()
-                        
-                        # Preparar valores para guardar
-                        values = [(
-                            nombre, email, str(fecha), hora, servicio_seleccionado, 
-                            precio_total, conductor_seleccionado, str(emailencargado), 
-                            zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
-                            direccion, notas, uid, whatsapp, str(57)+telefono, 
-                            f"web.whatsapp.com/send?phone=&text=Reserva para {nombre}", 
-                            '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
-                        )]
-                        
-                        try:
+                            # Preparar valores para guardar
+                            values = [(
+                                nuevo_nombre, email, str(fecha), hora, servicio_seleccionado, 
+                                precio_total, conductor_seleccionado, str(emailencargado), 
+                                zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
+                                direccion, notas, uid, whatsapp, str(57)+telefono, 
+                                f"web.whatsapp.com/send?phone=&text=Reserva para { selected_option}", 
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                            )]
+
                             # Guardar en Google Sheets
                             gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
                             range = gs.get_last_row_range()
                             gs.write_data(range, values)
-                            
+
                             st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
                             # Enviar emails
-                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
+                            send_email2(email,  nuevo_nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
                             
-                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
+                            send_email_emp(email,  nuevo_nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
                             
                             # Envío por WhatsApp (si aplica)
                             if whatsapp == True or whatsapp == 'Verdadero':
                                 contact = str(57)+telefono
-                                message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Solicitudes y Despachos.'
-                                
+                                message = f'Cordial saludo: Sr(a): {nuevo_nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Solicitudes y Despachos.'
+
                                 whatsapp_link = generate_whatsapp_link(contact, message)
                                 st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
                                 time.sleep(10)
+
+                          except Exception as e:
+                             st.error(f"Error al guardar la reserva: {str(e)}")   
+
+                        else:
+
+                            # Generar UID
+                            uid = generate_uid()
                         
-                        except Exception as e:
-                            st.error(f"Error al guardar la reserva: {str(e)}")
+                            # Preparar valores para guardar
+                            values = [(
+                                selected_option, email, str(fecha), hora, servicio_seleccionado, 
+                                precio_total, conductor_seleccionado, str(emailencargado), 
+                                zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
+                                direccion, notas, uid, whatsapp, str(57)+telefono, 
+                                f"web.whatsapp.com/send?phone=&text=Reserva para { selected_option}", 
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                            )]
+                        
+                            try:                            
+
+                                # Guardar en Google Sheets
+                                gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
+                                range = gs.get_last_row_range()
+                                gs.write_data(range, values)
+                            
+                                st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
+                            
+                                # Enviar emails
+                                send_email2(email,  selected_option, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
+                            
+                                send_email_emp(email,  selected_option, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
+                            
+                                # Envío por WhatsApp (si aplica)
+                                if whatsapp == True or whatsapp == 'Verdadero':
+                                    contact = str(57)+telefono
+                                    message = f'Cordial saludo: Sr(a): { selected_option} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Solicitudes y Despachos.'
+                                
+                                    whatsapp_link = generate_whatsapp_link(contact, message)
+                                    st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                                    time.sleep(10)
+                        
+                            except Exception as e:
+                                st.error(f"Error al guardar la reserva: {str(e)}")
     
                 # Limpiar campos
                 if limpiar_campos_formulario():

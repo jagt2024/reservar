@@ -392,6 +392,29 @@ def load_credentials_from_toml():
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
 
+def add_new_client(creds, nombre):
+    """Añade un nuevo cliente a la hoja de Google Sheets"""
+    try:
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
+        worksheet = sheet.worksheet('clientes')
+        
+        # Obtiene el último ID y añade 1
+        last_row = len(worksheet.get_all_values())
+        new_id = last_row  # Asumiendo que la primera fila es encabezado
+        
+        # Añade la nueva fila
+        worksheet.append_row([new_id, nombre])
+        
+        st.success(f"Cliente '{nombre}' añadido exitosamente!")
+        return True
+    
+    except Exception as e:
+        st.error(f"Error al añadir el cliente: {str(e)}")
+        return False
+
 def consultar_reserva(nombre, fecha, hora):
     try:
         # Cargar credenciales
@@ -624,9 +647,44 @@ def crea_reserva():
         col1, col2 = st.columns([1, 1])
         
         with col1:
+            # Cargar credenciales
+            creds = load_credentials_from_toml('./.streamlit/secrets.toml')
+        
+            # Carga inicial de datos
+            df = get_google_sheet_data(creds)
+        
+            if df is not None and not df.empty:
+              # Lista de nombres existentes
+              nombres_existentes = df['NOMBRE'].tolist() if 'NOMBRE' in df.columns else []
             
-            nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre',value=st.session_state.nombre
-                    ) # label_visibility='hidden')
+              # Crea el selectbox con opción para añadir nuevo
+              selected_option = st.selectbox(
+                  "Seleccione un cliente",
+                  options=['-- Añadir Nuevo Cliente --'] + nombres_existentes
+              )
+            
+              # Si se selecciona añadir nuevo
+              if selected_option == '-- Añadir Nuevo Cliente --':
+                 with st.form("nuevo_cliente"):
+                     nuevo_nombre = st.text_input("Ingrese el nombre del nuevo cliente")
+                     submitted = st.form_submit_button("Añadir Cliente", key='b2')
+                    
+                     if submitted and nuevo_nombre:
+                         if nuevo_nombre in nombres_existentes:
+                             st.warning("Este cliente ya existe en la lista.")
+                         else:
+                             if add_new_client(creds, nuevo_nombre):
+                                st.rerun()  # Recarga la página para  actualizar la lista
+            
+              else:
+                 st.write(f"Cliente seleccionado: {selected_option}")
+
+            else:
+                st.error("No se pudieron cargar los datos. Por favor, verifica la conexión.")
+    
+         
+            #nombre = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', #key='nombre',value=st.session_state.nombre
+            #        ) # label_visibility='hidden')
                         
             # Lista de servicios disponibles
             #servicios = selectbox('Servicios*: ',result_serv)

@@ -355,16 +355,14 @@ def limpiar_campos_formulario():
     try:
         # Lista de campos a limpiar
          valores_default = {
-            'nombre_c': '',
-            'nombre': '',
+            'nuevo_nombre': '',
+            'selection_option': '',
             'email': '',
             'direccion': '',
             'telefono': '',
             'notas': '',
+            'productos_str': '',
             'whatsapp': ''
-            #'fecha',
-            #'hora',
-            #'servicio_selector'
          }
         
          # Actualizar el session state con los valores por defecto
@@ -386,12 +384,13 @@ def limpiar_campos_formulario():
 def inicializar_valores_default():
     
     valores_default = {
-            'nombre_c': '',
-            'nombre': '',
+            'nuevo_nombre': '',
+            'selection_option': '',
             'email': '',
             'direccion': '',
             'telefono': '',
             'notas': '',
+            'productos_str': '',
             'whatsapp': ''
     }
     
@@ -885,49 +884,66 @@ def modificar_reserva():
                         
                         # Calcular precio total
                         precio_total = sum(p['cantidad'] * p['precio'] for p in st.session_state.productos_seleccionados)
-                        
-                        # Obtener email del encargado
-                        emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
-                        
-                        # Generar UID
-                        uid = generate_uid()
-                        
-                        # Preparar valores para guardar
-                        values = [(
-                            nombre, email, str(fecha), hora, servicio_seleccionado, 
-                            precio_total, conductor_seleccionado, str(emailencargado), 
-                            zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
-                            direccion, notas, uid, whatsapp, str(57)+telefono, 
-                            f"web.whatsapp.com/send?phone=&text=Reserva para {nombre}", 
-                            '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
-                        )]
-                        
-                        try:
-                            # Guardar en Google Sheets
-                            gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
-                            range = gs.get_last_row_range()
-                            gs.write_data(range, values)
+                                                
+                        existe_db = consultar_reserva(nombre, str(fecha), hora)
 
-                            st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
-                            
-                            # Enviar emails
-                            send_email2(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
-                            
-                            send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
-                            
-                            st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
-                            
-                            # Envío por WhatsApp (si aplica)
-                            if whatsapp == True:
-                                contact = str(57)+telefono
-                                message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Reservas y Agendamiento.'
-                                
-                                whatsapp_link = generate_whatsapp_link(contact, message)
-                                st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                                time.sleep(10)
+                        if existe_db:
+                            existe = True
+                            st.warning("Ciente Ya tiene agenda para esa fecha y hora")
+            
+                        else:
+                            #gs = GoogleSheet(credentials, document, sheet)
+                            existe = False
+
+                        if existe == False:
+
+                            # Obtener email del encargado
+                            emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
+
+                            valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                            if valida:
+                
+                               uid = result['UID']
+                    
+                               # Preparar valores para guardar
+                               values = [(
+                                nombre, email, str(fecha), hora, servicio_seleccionado, 
+                                precio_total, conductor_seleccionado, str(emailencargado), 
+                                zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
+                                direccion, notas, uid, whatsapp, str(57)+telefono, 
+                                f"web.whatsapp.com/send?phone=&text=Reserva para {nombre}", 
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                               )]
                         
-                        except Exception as e:
-                            st.error(f"Error al guardar la reserva: {str(e)}")
+                               try:
+                                # Guardar en Google Sheets
+                                gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
+                                range = gs.write_data_by_uid(uid, values)
+                                #gs.write_data(range, values)
+
+                                st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
+                            
+                                # Enviar emails
+                                send_email2(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas)
+                            
+                                send_email_emp(email, nombre, fecha, hora, servicio_seleccionado, productos_str, precio_total, conductor_seleccionado, notas, str(emailencargado))
+                            
+                                st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
+                            
+                                # Envío por WhatsApp (si aplica)
+                                if whatsapp == True:
+                                    contact = str(57)+telefono
+                                    message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Reservas y Agendamiento.'
+                                
+                                    whatsapp_link = generate_whatsapp_link(contact, message)
+                                    st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                                    time.sleep(10)
+
+                                    st.session_state.productos_seleccionados = []
+                        
+                               except Exception as e:
+                                  st.error(f"Error al guardar la reserva: {str(e)}")
     
                         # Limpiar campos
         if limpiar_campos_formulario():
