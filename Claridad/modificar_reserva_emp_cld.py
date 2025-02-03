@@ -355,6 +355,7 @@ def limpiar_campos_formulario():
     try:
         # Lista de campos a limpiar
          valores_default = {
+            'nombre_c': '',
             'nuevo_nombre': '',
             'selection_option': '',
             'email': '',
@@ -384,6 +385,7 @@ def limpiar_campos_formulario():
 def inicializar_valores_default():
     
     valores_default = {
+            'nombre_c': '',
             'nuevo_nombre': '',
             'selection_option': '',
             'email': '',
@@ -939,8 +941,6 @@ def modificar_reserva():
                                     whatsapp_link = generate_whatsapp_link(contact, message)
                                     st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
                                     time.sleep(10)
-
-                                    st.session_state.productos_seleccionados = []
                         
                                except Exception as e:
                                   st.error(f"Error al guardar la reserva: {str(e)}")
