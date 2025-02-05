@@ -6,6 +6,7 @@ from crear_reserva_emp_cld import crea_reserva
 from modificar_reserva_emp_cld import modificar_reserva
 from eliminar_reserva_emp_cld import eliminar_reserva
 from catalogo_claridad import catalogo
+from carga_archivo_clientes import carga
 #from servicios_emp_dp import ServiciosEmp
 #from informacion_distrito_privado import info_dp
 #from generar_excel_emp_cld import GenerarExcelEmp
@@ -18,6 +19,7 @@ from consultar_reservas_cld  import consulta_reserva
 #from user_management import user_management_system
 #from buscar_info import streamlit_app
 from facturacion_servicios_emp import generar_factura
+from consultar_facturas import consulta_facturas
 from backup_google_drive_cld import backup
 #from estadisticas_reservas_emp import reservas
 #from estadisticas_facturacion_emp import factura
@@ -129,12 +131,14 @@ class Model:
   option8  = 'Generar Codigo QR'
   #option11 = 'Buscar Informacion'
   #option15 = 'Eviar Whatsapp'
+  option25 = 'Consultar Facturas'
   option12 = 'Facturacion'
   option22 = 'Cargar Pagos'
   option23 = 'Cosultar Pagos'
   #option19 = 'Control Ingresos y Gastos'
   #option21 = 'Control Bancario'
   option18 = 'Copia de Seguridad Solicitudes'
+  option24 = 'Carga Archivo Nuevos Clientes'
   #option13 = 'Estadisticas de Resservas'
   #option14 = 'Estadisticas de Facturacion'
   #option16 = 'Soporte - PQRS'
@@ -179,7 +183,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9,model.option8, model.option12, model.option22, model.option23, model.option18                 #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9,model.option8, model.option25, model.option12, model.option22, model.option23, model.option18, model.option24                                                #model.option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -414,11 +418,17 @@ else:
 
             #if app == model.option11:
             #  streamlit_app()
+            if app == model.option25:
+              consulta_facturas()
+
             if app == model.option12:
               generar_factura()
 
             if app == model.option18:
               backup()
+
+            if app == model.option24:
+              carga()
                             
             #if app == model.option13:
            

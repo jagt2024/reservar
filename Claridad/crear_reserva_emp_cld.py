@@ -743,13 +743,14 @@ def crea_reserva():
             )
             
             # Manejo de zonas para ciertos servicios
-            if servicio_seleccionado in ['Entrega', 'Cambio', 'Pedido']:
+            if servicio_seleccionado in ['Entrega max. 2 dias', 'Cambio Produco', 'Programar Pedido']:
                 zonas = ['Norte', 'Sur', 'Oriente', 'Occidente', 'Oficina']
                 zona_seleccionada = st.selectbox(
                     'Seleccione la zona:',
                     zonas,
                     key='zona_selector'
                 )
+                
                 
                 # Obtener conductores según la zona
                 encargado = get_conductores_por_zona(zona_seleccionada)
@@ -894,8 +895,9 @@ def crea_reserva():
             
             if enviar:
                 with st.spinner('Cargando...'):
+                 if servicio_seleccionado != 'Consulta en General':
                     # Validaciones
-                    if not  selected_option or not servicio_seleccionado or not encargado or not email or not direccion:
+                    if not selected_option or not encargado or not email or not direccion:
                         st.warning('Se requiere completar los campos con * son obligatorios')
                     elif not validate_email(email):
                         st.warning('El email no es valido')
@@ -959,7 +961,7 @@ def crea_reserva():
                                 whatsapp_link = generate_whatsapp_link(contact, message)
                                 st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
                                 time.sleep(10)
-
+                
                           except Exception as e:
                              st.error(f"Error al guardar la reserva: {str(e)}")   
 
@@ -1003,8 +1005,17 @@ def crea_reserva():
                         
                             except Exception as e:
                                 st.error(f"Error al guardar la reserva: {str(e)}")
-    
-                # Limpiar campos
+                                # Limpiar campos
+                 else:
+                    if selected_option == '-- Añadir Nuevo Cliente --':
+                        send_email_emp(email,  nuevo_nombre, fecha, hora, servicio_seleccionado, '', '',  '', notas, '')
+
+                        st.success('Su Consulta ha sido enviada de forma exitosa')
+                    else:
+                        send_email_emp(email,  selected_option, fecha, hora, servicio_seleccionado, '', '',  '', notas, '')
+
+                        st.success('Su Consulta ha sido enviada de forma exitosa')
+
                 if limpiar_campos_formulario():
                    st.session_state.productos_seleccionados = []
                    st.success('Campos limpiados exitosamente')

@@ -10,6 +10,8 @@ import toml
 from PIL import Image
 import io
 import base64
+import gspread
+from google.oauth2.service_account import Credentials
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
@@ -70,6 +72,61 @@ def cargar_datos_emisor():
         st.error(f"Error al cargar datos del emisor: {str(e)}")
         return None
 
+def get_clientes_from_sheets():
+    creds = st.secrets['sheetsemp']['credentials_sheet']
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(creds, scopes=scope)
+    client = gspread.authorize(credentials)
+    sheet = client.open('gestion-reservas-cld')
+    
+    # Get reservations data
+    reservas_ws = sheet.worksheet('reservas')
+    reservas_data = reservas_ws.get_all_records()
+    df_reservas = pd.DataFrame(reservas_data)
+    
+    # Get payments data
+    pagos_ws = sheet.worksheet('pagos')
+    pagos_data = pagos_ws.get_all_records()
+    df_pagos = pd.DataFrame(pagos_data)
+    
+    # Filter clients not in payments sheet
+    clientes_sin_pago = df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
+    
+    return clientes_sin_pago[['NOMBRE', 'DIRECCION', 'EMAIL']].drop_duplicates()
+
+def get_data_from_sheets():
+    creds = st.secrets['sheetsemp']['credentials_sheet']
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(creds, scopes=scope)
+    client = gspread.authorize(credentials)
+    sheet = client.open('gestion-reservas-cld')
+    
+    # Get both sheets' data
+    reservas_ws = sheet.worksheet('reservas')
+    reservas_data = reservas_ws.get_all_records()
+    df_reservas = pd.DataFrame(reservas_data)
+    
+    pagos_ws = sheet.worksheet('pagos')
+    pagos_data = pagos_ws.get_all_records()
+    df_pagos = pd.DataFrame(pagos_data)
+    
+    # Filter out records that exist in payments
+    return df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
+
+def cargar_datos_cliente(nombre_seleccionado, df_clientes):
+    cliente = df_clientes[df_clientes['NOMBRE'] == nombre_seleccionado].iloc[0]
+    return {
+        'direccion': cliente['DIRECCION'],
+        'email': cliente['EMAIL']
+    }
+
+def get_productos_cliente(nombre_cliente, df):
+    productos_cliente = df[df['NOMBRE'] == nombre_cliente]
+    # Aseguramos que los valores numéricos sean válidos
+    productos_cliente['CANTIDAD'] = pd.to_numeric(productos_cliente['CANTIDAD'], errors='coerce').fillna(0)
+    productos_cliente['PRECIO'] = pd.to_numeric(productos_cliente['PRECIO'], errors='coerce').fillna(0)
+    return productos_cliente[['PRODUCTO', 'CANTIDAD', 'PRECIO']].drop_duplicates()
+
 def generate_uid():
     return str(uuid.uuid4())
 
@@ -101,7 +158,7 @@ def guardar_factura_en_db(numero_factura, fecha_factura, emisor_nombre, emisor_n
     c = conn.cursor()
     c.execute('''INSERT OR REPLACE INTO facturas VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         (numero_factura, fecha_factura, emisor_nombre, emisor_nit, emisor_ciudad,
-         cliente_nombre, cliente_nit, cliente_direccion, servicios, cliente_email,json.dumps(productos), subtotal, iva_total, total))
+         cliente_nombre, cliente_nit, cliente_direccion, producto, cliente_email,json.dumps(productos), subtotal, iva_total, total))
 
          
     conn.commit()
@@ -178,6 +235,12 @@ def calcular_iva(precio):
 def calcular_precio_sin_iva(precio_con_iva):
     return precio_con_iva / 1.19
 
+def calcular_totales(productos):
+    subtotal = sum(p['subtotal'] for p in productos)
+    iva_total = sum(p['iva'] for p in productos)
+    total = sum(p['total'] for p in productos)
+    return subtotal, iva_total, total
+
 def generar_qr(datos):
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
     qr.add_data(datos)
@@ -215,14 +278,15 @@ def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_clien
     elements.append(Paragraph(f"Email: {email_cliente}", styles['Normal']))
     elements.append(Spacer(1, 12))
 
-    data = [['Descripción', 'Cantidad', 'Precio Unitario (sin IVA)', 'IVA', 'Subtotal (con IVA)']]
+    data = [['Descripción', 'Cantidad', 'Precio Unitario (sin IVA)', 'IVA', 'Subtotal (con IVA)', 'Iva Total']]
     for servicio in productos:
         data.append([
             servicio['descripcion'],
             str(servicio['cantidad']),
             f"${servicio['precio_unitario_sin_iva']:,.2f}",
             f"${servicio['iva']:,.2f}",
-            f"${servicio['subtotal']:,.2f}"
+            f"${servicio['subtotal']:,.2f}",
+            f"${servicio['iva_total']:,.2f}"
         ])
     
     table = Table(data)
@@ -286,48 +350,78 @@ def generar_factura():
     st.write(f"**NIT del Emisor:** {emisor_data['nit']}")
     st.write(f"**Dirección del Emisor:** {emisor_data['direccion']}")
     st.write(f"**Ciudad del Emisor:** {emisor_data['ciudad']}")
+
+    # Fetch all data from sheets
+    df_completo = get_data_from_sheets()
+    df_clientes = get_clientes_from_sheets()
+    nombres_clientes = df_clientes['NOMBRE'].tolist()
     
     st.subheader("Información del Cliente")
-    nombre_cliente = st.text_input("Nombre del Cliente", key="nombre_cliente")
-    direccion_cliente = st.text_input("Dirección del Cliente", key="direccion_cliente")
-    nit_cliente = st.text_input("NIT/Cédula del Cliente", key="nit_cliente")
-    email_cliente = st.text_input("Correo Electrónico del Cliente", key="email_cliente")
-
-    st.subheader("Número de Factura")
-    numero_factura = st.text_input("Número de Factura", value=generar_numero_factura(), key="numero_factura")
+    nombre_cliente = st.selectbox("Seleccione el Cliente", nombres_clientes, key="nombre_cliente")
     
-    servicio = dataBook("precios")
-    result_serv = np.setdiff1d(servicio,'')
+    # Auto-fill client information when selected
+    if nombre_cliente:
+        datos_cliente = cargar_datos_cliente(nombre_cliente, df_clientes)
+        direccion_cliente = st.text_input("Dirección del Cliente", value=datos_cliente['direccion'], key="direccion_cliente")
+        email_cliente = st.text_input("Correo Electrónico del Cliente", value=datos_cliente['email'], key="email_cliente")
+        nit_cliente = st.text_input("NIT/Cédula del Cliente", key="nit_cliente")
 
-    st.subheader("Productos")
-    productos = []
+        st.subheader("Número de Factura")
+        numero_factura = st.text_input("Número de Factura", value=generar_numero_factura(), key="numero_factura")
         
-    for i in range(10):  # Limit to 10 services for this example
-        with st.expander(f"Producto {i + 1}", expanded=i == 0):
-            descripcion = st.selectbox('Descripcion del Producto: ', result_serv, key=f"desc_{i}")
-            #st.text_input(f"Descripción del Servicio", key=f"desc_{i}")
-            cantidad = st.number_input(f"Cantidad", min_value=1, value=1, step=1, key=f"cant_{i}")
-            precio_unitario_con_iva = st.number_input(f"Precio Unitario (con IVA)", min_value=0.0, value=0.0, step=1000.0, key=f"precio_{i}")
+        # Get products associated with the selected client
+        productos_cliente = get_productos_cliente(nombre_cliente, df_completo)
         
-            if descripcion and cantidad and precio_unitario_con_iva > 0:
-                precio_unitario_sin_iva = calcular_precio_sin_iva(precio_unitario_con_iva)
-                iva = calcular_iva(precio_unitario_sin_iva)
-                subtotal = cantidad * precio_unitario_sin_iva
-                total = cantidad * precio_unitario_con_iva
-                productos.append({
-                    "descripcion": descripcion,
-                    "cantidad": cantidad,
-                    "precio_unitario_sin_iva": precio_unitario_sin_iva,
-                    "iva": iva * cantidad,
-                    "subtotal": subtotal,
-                    "total": total
-                })
+        st.subheader("Productos")
+        productos = []
+        for i, (index, producto) in enumerate(productos_cliente.iterrows()):
+            with st.expander(f"Producto {i + 1}", expanded=i == 0):
+                descripcion = st.text_input("Descripción del Producto", 
+                                  value=producto['PRODUCTO'], 
+                                  key=f"desc_{i}", 
+                                  disabled=True)
+        
+                # Convertir y validar la cantidad
+                try:
+                    cantidad = int(producto['CANTIDAD']) if pd.notna(producto['CANTIDAD']) else 0
+                except (ValueError, TypeError):
+                    cantidad = 0
+            
+                cantidad = st.number_input("Cantidad", 
+                                 value=cantidad,
+                                 key=f"cant_{i}", 
+                                 disabled=True)
+        
+                # Convertir y validar el precio
+                try:
+                    precio = float(producto['PRECIO']) if pd.notna(producto['PRECIO']) else 0.0
+                except (ValueError, TypeError):
+                    precio = 0.0
+            
+                precio_unitario_con_iva = st.number_input("Precio Unitario (con IVA)", 
+                                                 value=precio,
+                                                 key=f"precio_{i}", 
+                                                 disabled=True)
+        
+                if descripcion and cantidad > 0 and precio_unitario_con_iva > 0:
+                    precio_unitario_sin_iva = calcular_precio_sin_iva(precio_unitario_con_iva)
+                    iva = calcular_iva(precio_unitario_sin_iva)
+                    subtotal = cantidad * precio_unitario_sin_iva
+                    total = cantidad * precio_unitario_con_iva
+                    iva_total = iva * cantidad
+                    productos.append({
+                        "descripcion": descripcion,
+                        "cantidad": cantidad,
+                        "precio_unitario_sin_iva": precio_unitario_sin_iva,
+                        "iva": iva,
+                        "iva_total": iva_total,
+                        "subtotal": subtotal * (1 + 0.19),
+                        "total": total
+                    })
+
+                if productos:
+                   subtotal, iva_total, total = calcular_totales(productos)
     
-    if productos:
-        subtotal = sum(servicio["precio_unitario_sin_iva"] * servicio["cantidad"] for servicio in productos)
-        iva_total = sum(servicio["iva"] for servicio in productos)
-        total = sum(servicio["subtotal"] for servicio in productos)
-     
         if st.button("Generar Factura", key="generar_factura"):
             fecha_factura = datetime.now().strftime('%Y-%m-%d')
             
@@ -391,8 +485,11 @@ def generar_factura():
 
             except Exception as e:
                 st.error(f"Error al generar el PDF o guardar en la base de datos: {str(e)}")
+
     else:
-        st.warning("Por favor, agregue al menos un servicio para generar la factura.")
+        st.warning("Por favor seleccione un cliente para ver sus productos asociados.")
+    #else:
+    #    st.warning("Por favor, agregue al menos un servicio para generar la factura.")
 
     #Opción para enviar la factura por correo electrónico
     if st.button("Enviar Factura por Correo Electrónico"):
