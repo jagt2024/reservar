@@ -618,6 +618,57 @@ def consultar_encargado(encargado, fecha, hora):
         st.error(f"Error al consultar encargado: {str(e)}")
         return False
 
+def get_data_from_sheets(nombre, fecha, hora):
+    creds = st.secrets['sheetsemp']['credentials_sheet']
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(creds, scopes=scope)
+    client = gspread.authorize(credentials)
+    sheet = client.open('gestion-reservas-cld')
+      
+    pagos_ws = sheet.worksheet('pagos')
+    #pagos_data = pagos_ws.get_all_records()
+    #df_pagos = pd.DataFrame(pagos_data)
+    
+    # Obtener todos los registros
+    registros = api_call_handler(lambda:pagos_ws.get_all_records())
+
+    # Verificar si hay registros antes de crear el DataFrame
+    if not registros:
+       return False  # No hay datos en la hoja
+        
+    # Convertir a DataFrame para facilitar la búsqueda
+    df = pd.DataFrame(registros)
+
+    # Verificar si las columnas necesarias existen
+    required_columns = ['Nombre', 'Fecha_Servicio', 'Hora_Servicio']
+    if not all(col in df.columns for col in required_columns):
+       st.warning("La hoja no contiene todas las columnas necesarias")
+       return False
+        
+    try:
+
+        # Realizar la búsqueda
+        reserva = df[
+        (df['Nombre'].str.lower() == nombre.lower()) &
+        (df['Fecha_Servicio'] == fecha) &
+        (df['Hora_Servicio'] == hora)
+        ]
+
+    except AttributeError:
+        # En caso de que alguna columna no sea del tipo esperado
+        st.warning("Error en el formato de los datos")
+        return False
+        
+    #return not reserva.empty
+        
+    if not reserva.empty:
+       # Si encuentra la reserva, devuelve True y los detalles
+       #detalles_reserva = reserva.iloc[0].to_dict()
+       return True #, detalles_reserva
+    else:
+       #st.warning("Solicitud de Cliente No Existe")
+       return False #, None
+
 def eliminar_reserva_sheet(nombre, fecha, hora):
     try:
         # Cargar credenciales
@@ -682,6 +733,7 @@ def eliminar_reserva_sheet(nombre, fecha, hora):
         
     except Exception as e:
         st.error(f"Error al eliminar la reserva: {str(e)}")
+        
         return False
 
 def eliminar_reserva():
@@ -755,7 +807,12 @@ def eliminar_reserva():
             hora_c = st.selectbox('Hora Servicio: ', horas,  key='hora_del')
             email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_del', value=st.session_state.email)
         
-        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+
+        df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
+
+        if df_clientes == False:     
+
+          if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
                
@@ -767,9 +824,9 @@ def eliminar_reserva():
 
             if existe_db2:
               
-                valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+               valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
 
-                if valida:
+               if valida:
                 
                     encargado = result['ENCARGADO']
                     zona = result['ZONA']
@@ -777,28 +834,28 @@ def eliminar_reserva():
                     direccion = result['DIRECCION']
                     whatsapp = result['WHATSAPP']      
 
-                else:
+               else:
                     # Si hay error, result será un diccionario
                     st.warning("Solicitud de Cliente No Existe")
                     #print(f"Error: {result['message']}")
 
 
-                resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
-                #print(f'resultado {resultado}')
-                if resultado < 0:
-                    st.warning("No sepuede eliminar un servicio ya vencido")
-                    #conn.close()
-                    #return
+               resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
+               #print(f'resultado {resultado}')
+               if resultado > 0:
+                   
             
                 # Mostrar resumen de la selección
                 st.write("---")
                 st.write("### Resumen de Solicitud a Eliminar:")
             
                 info = {
-                     "🚗 Conductor Encargado": encargado,"🎯 Servicio": servicio_seleccionado_c, "Fecha": fecha_c, "Hora":  hora_c
+                     "Cliente": nombre_c,
+                     "🎯 Servicio": servicio_seleccionado_c, "Fecha": fecha_c, "Hora":  hora_c,
+                     "🚗 Conductor Encargado": encargado
                  }
                  
-                if servicio_seleccionado_c == 'Entrega' or servicio_seleccionado_c == 'Cambio' or servicio_seleccionado_c == 'Pedido':
+                if servicio_seleccionado_c == 'Entrega max. 2 dias' or  servicio_seleccionado_c == 'Cambio Producto' or servicio_seleccionado_c == 'Programado Pedido':
 
                    info["📍 Zona"] = zona
                                    
@@ -812,8 +869,15 @@ def eliminar_reserva():
                         st.write(f"{key}: **{value}**")
 
                         #st.warning("No hay conductores disponibles para la selección actual.")
+
+               else: st.warning("No sepuede eliminar un servicio ya vencido")
+                    #conn.close()
+                    #return
             else:    
-              st.warning("El servicio No existe Favor verficar")
+              st.warning("La solicitud No existe Favor verficar")
+
+        else:
+            st.warning("Solicitud de Cliente No se puede eliminar tiene Pago Asociado")
 
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
@@ -852,8 +916,11 @@ def eliminar_reserva():
             
             resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
             #print(f'resultado {resultado}')
-            if resultado < 0:
-               st.warning("No sepuede eliminar un servicio ya vencido")
+
+            df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
+
+            if resultado < 0 or df_clientes == False:
+               st.warning("No sepuede eliminar un servicio ya vencido o con Pago  Asociado')
             else:
                       
              try:

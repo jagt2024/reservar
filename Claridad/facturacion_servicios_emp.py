@@ -123,8 +123,8 @@ def cargar_datos_cliente(nombre_seleccionado, df_clientes):
 def get_productos_cliente(nombre_cliente, df):
     productos_cliente = df[df['NOMBRE'] == nombre_cliente]
     # Aseguramos que los valores numéricos sean válidos
-    productos_cliente['CANTIDAD'] = pd.to_numeric(productos_cliente['CANTIDAD'], errors='coerce').fillna(0)
-    productos_cliente['PRECIO'] = pd.to_numeric(productos_cliente['PRECIO'], errors='coerce').fillna(0)
+    productos_cliente['CANTIDAD'] 
+    productos_cliente['PRECIO'] 
     return productos_cliente[['PRODUCTO', 'CANTIDAD', 'PRECIO']].drop_duplicates()
 
 def generate_uid():
@@ -147,18 +147,18 @@ def init_db():
                   servicios TEXT,
                   producto TEXT,
                   subtotal REAL,
-                  iva_total REAL,
-                  total REAL)''')
+                  iva_total_producto REAL,
+                  total_producto REAL)''')
     conn.commit()
     conn.close()
 
 # Función para guardar la factura en la base de datos
-def guardar_factura_en_db(numero_factura, fecha_factura, emisor_nombre, emisor_nit, emisor_ciudad, cliente_nombre, cliente_nit, cliente_direccion, cliente_email, productos, producto, subtotal, iva_total, total):
+def guardar_factura_en_db(numero_factura, fecha_factura, emisor_nombre, emisor_nit, emisor_ciudad, cliente_nombre, cliente_nit, cliente_direccion, cliente_email, productos, producto, subtotal, iva_total_producto, total_producto):
     conn = sqlite3.connect('facturas.db')
     c = conn.cursor()
     c.execute('''INSERT OR REPLACE INTO facturas VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
         (numero_factura, fecha_factura, emisor_nombre, emisor_nit, emisor_ciudad,
-         cliente_nombre, cliente_nit, cliente_direccion, producto, cliente_email,json.dumps(productos), subtotal, iva_total, total))
+         cliente_nombre, cliente_nit, cliente_direccion, producto, cliente_email,json.dumps(productos), subtotal, iva_total_producto, total_producto))
 
          
     conn.commit()
@@ -207,26 +207,26 @@ def generar_numero_factura():
 def limpiar_campos():
     st.session_state.numero_factura = generar_numero_factura()
     if 'nombre_cliente' in st.session_state:
-        del st.session_state.nombre_cliente
+        #del st.session_state.nombre_cliente
         st.session_state.nombre_cliente = ''
     if 'direccion_cliente' in st.session_state:
-        del st.session_state.direccion_cliente
+        #del st.session_state.direccion_cliente
         st.session_state.direccion_cliente=''
     if 'email_cliente' in st.session_state:
-        del st.session_state.email_cliente
+        #del st.session_state.email_cliente
         st.session_state.email_cliente=''
     if 'nit_cliente' in st.session_state:
         del st.session_state.nit_cliente
         st.session_state.nit_cliente = ''
     for i in range(10):
         if f"desc_{i}" in st.session_state:
-            del st.session_state[f"desc_{i}"]
+            #del st.session_state[f"desc_{i}"]
             st.session_state[f"desc_{i}"] = ''
         if f"cant_{i}" in st.session_state:
-            del st.session_state[f"cant_{i}"]
+            #del st.session_state[f"cant_{i}"]
             st.session_state[f"cant_{i}"] = 0
         if f"precio_{i}" in st.session_state:
-            del st.session_state[f"precio_{i}"]
+            #del st.session_state[f"precio_{i}"]
             st.session_state[f"precio_{i}"]= 0
 
 def calcular_iva(precio):
@@ -237,9 +237,9 @@ def calcular_precio_sin_iva(precio_con_iva):
 
 def calcular_totales(productos):
     subtotal = sum(p['subtotal'] for p in productos)
-    iva_total = sum(p['iva'] for p in productos)
-    total = sum(p['total'] for p in productos)
-    return subtotal, iva_total, total
+    iva_total_producto = sum(p['iva'] for p in productos)
+    total_producto = sum(p['total_producto'] for p in productos)
+    return subtotal, iva_total_producto, total_producto
 
 def generar_qr(datos):
     qr = qrcode.QRCode(version=1, box_size=10, border=5)
@@ -254,7 +254,7 @@ def img_to_bytes(img):
     buf.seek(0)
     return buf.getvalue()
 
-def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_nombre, emisor_nit, emisor_ciudad):
+def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total_producto, total_producto, logo_bytes, qr_bytes, emisor_nombre, emisor_nit, emisor_ciudad):
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=letter)
     elements = []
@@ -286,7 +286,7 @@ def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_clien
             f"${servicio['precio_unitario_sin_iva']:,.2f}",
             f"${servicio['iva']:,.2f}",
             f"${servicio['subtotal']:,.2f}",
-            f"${servicio['iva_total']:,.2f}"
+            f"${servicio['iva_total_producto']:,.2f}"
         ])
     
     table = Table(data)
@@ -310,8 +310,8 @@ def generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_clien
 
     elements.append(Spacer(1, 12))
     elements.append(Paragraph(f"Subtotal (sin IVA): ${subtotal:,.2f}", styles['Normal']))
-    elements.append(Paragraph(f"IVA Total: ${iva_total:,.2f}", styles['Normal']))
-    elements.append(Paragraph(f"Total: ${total:,.2f}", styles['Normal']))
+    elements.append(Paragraph(f"IVA Total: ${iva_total_producto:,.2f}", styles['Normal']))
+    elements.append(Paragraph(f"Total: ${total_producto:,.2f}", styles['Normal']))
 
     qr_image = ReportLabImage(io.BytesIO(qr_bytes), width=2*inch, height=2*inch)
     elements.append(qr_image)
@@ -328,7 +328,7 @@ def generar_factura():
     credentials = st.secrets['sheetsemp']['credentials_sheet']
     time_zone = 'America/Bogota' #'GMT-05:00' # 'South America'
         
-    init_db()
+    #init_db()
 
     # Cargar datos del emisor
     emisor_data = cargar_datos_emisor()
@@ -377,51 +377,64 @@ def generar_factura():
         for i, (index, producto) in enumerate(productos_cliente.iterrows()):
             with st.expander(f"Producto {i + 1}", expanded=i == 0):
                 descripcion = st.text_input("Descripción del Producto", 
-                                  value=producto['PRODUCTO'], 
-                                  key=f"desc_{i}", 
-                                  disabled=True)
-        
-                # Convertir y validar la cantidad
+                              value=producto['PRODUCTO'], 
+                              key=f"desc_{i}", 
+                              disabled=True)
+    
                 try:
                     cantidad = int(producto['CANTIDAD']) if pd.notna(producto['CANTIDAD']) else 0
                 except (ValueError, TypeError):
                     cantidad = 0
-            
-                cantidad = st.number_input("Cantidad", 
-                                 value=cantidad,
-                                 key=f"cant_{i}", 
-                                 disabled=True)
         
-                # Convertir y validar el precio
+                cantidad = st.number_input("Cantidad", 
+                             value=cantidad,
+                             key=f"cant_{i}", 
+                             disabled=True)
+    
                 try:
-                    precio = float(producto['PRECIO']) if pd.notna(producto['PRECIO']) else 0.0
+                    precio = producto['PRECIO']*1000 if pd.notna(producto['PRECIO']) else 0.0
                 except (ValueError, TypeError):
                     precio = 0.0
-            
-                precio_unitario_con_iva = st.number_input("Precio Unitario (con IVA)", 
-                                                 value=precio,
-                                                 key=f"precio_{i}", 
-                                                 disabled=True)
         
+                precio_unitario_con_iva = st.number_input("Precio Unitario (con IVA)", 
+                                             value=precio,
+                                             format="%.2f",
+                                             key=f"precio_{i}", 
+                                             disabled=True)
+    
                 if descripcion and cantidad > 0 and precio_unitario_con_iva > 0:
-                    precio_unitario_sin_iva = calcular_precio_sin_iva(precio_unitario_con_iva)
-                    iva = calcular_iva(precio_unitario_sin_iva)
-                    subtotal = cantidad * precio_unitario_sin_iva
-                    total = cantidad * precio_unitario_con_iva
-                    iva_total = iva * cantidad
+                    precio_unitario_sin_iva = round(calcular_precio_sin_iva(precio_unitario_con_iva), 2)
+                    iva = round(calcular_iva(precio_unitario_sin_iva), 2)
+                    subtotal = round(precio_unitario_sin_iva, 2)
+                    iva_total_producto = round(iva, 2)
+                    total_producto = round(precio_unitario_con_iva, 2)
+                
                     productos.append({
                         "descripcion": descripcion,
                         "cantidad": cantidad,
-                        "precio_unitario_sin_iva": precio_unitario_sin_iva,
-                        "iva": iva,
-                        "iva_total": iva_total,
-                        "subtotal": subtotal * (1 + 0.19),
-                        "total": total
+                        "precio_unitario_sin_iva": round(precio_unitario_sin_iva, 2),
+                        "iva": round(iva, 2),
+                        "iva_total_producto": round(iva_total_producto, 2),
+                        "subtotal": round(subtotal, 2),
+                        "total_producto": round(total_producto, 2)
                     })
 
-                if productos:
-                   subtotal, iva_total, total = calcular_totales(productos)
+                    # Calcular totales fuera del loop
+                    if productos:
+                        st.write(f"**Subtotal (sin IVA):** ${subtotal:,.2f} COP")
+                        st.write(f"**IVA Total:** ${iva_total_producto:,.2f} COP")
+                        st.write(f"**Total:** ${total_producto:,.2f} COP")
+                    else:
+                        subtotal = iva_total_producto = total_producto = 0.0
     
+            # Calcular totales fuera del loop
+            if productos:
+                subtotal = round(sum(p['subtotal'] for p in productos), 2)
+                iva_total_producto = round(sum(p['iva_total_producto'] for p in productos), 2)
+                total_producto = round(sum(p['total_producto'] for p in productos), 2)
+            else:
+                subtotal = iva_total_producto = total_producto = 0.0
+
         if st.button("Generar Factura", key="generar_factura"):
             fecha_factura = datetime.now().strftime('%Y-%m-%d')
             
@@ -448,17 +461,17 @@ def generar_factura():
             st.table(df_productos)
 
             st.write(f"**Subtotal (sin IVA):** ${subtotal:,.2f} COP")
-            st.write(f"**IVA Total:** ${iva_total:,.2f} COP")
-            st.write(f"**Total:** ${total:,.2f} COP")
+            st.write(f"**IVA Total:** ${iva_total_producto:,.2f} COP")
+            st.write(f"**Total:** ${total_producto:,.2f} COP")
 
-            datos_qr = f"Factura: {numero_factura}\nFecha: {fecha_factura}\nEmisor: {emisor_data['nombre']}\nCliente: {nombre_cliente}\nTotal: ${total:,.2f} COP"
+            datos_qr = f"Factura: {numero_factura}\nFecha: {fecha_factura}\nEmisor: {emisor_data['nombre']}\nCliente: {nombre_cliente}\nTotal: ${total_producto:,.2f} COP"
             qr_bytes = generar_qr(datos_qr)
             
             st.image(qr_bytes, caption='Código QR de la Factura', width=300)
             
             try:
                
-                pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
+                pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total_producto, total_producto, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
 
                 st.download_button(
                 label="Descargar Factura como PDF",
@@ -495,11 +508,11 @@ def generar_factura():
     if st.button("Enviar Factura por Correo Electrónico"):
        if email_cliente:
           fecha_factura = datetime.now().strftime('%Y-%m-%d')
-          datos_qr = f"Factura: {numero_factura}\nFecha: {fecha_factura}\nEmisor: {emisor_data['nombre']}\nCliente: {nombre_cliente}\nTotal: ${total:,.2f} COP"
+          datos_qr = f"Factura: {numero_factura}\nFecha: {fecha_factura}\nEmisor: {emisor_data['nombre']}\nCliente: {nombre_cliente}\nTotal: ${total_producto:,.2f} COP"
           qr_bytes = generar_qr(datos_qr)
           with st.spinner("Enviando factura por correo electrónico..."):
             logger.info(f"Generando PDF para factura {numero_factura}")
-            pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total, total, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
+            pdf_buffer = generar_pdf_factura(numero_factura, fecha_factura, nombre_cliente, nit_cliente, direccion_cliente, email_cliente, productos, subtotal, iva_total_producto, total_producto, logo_bytes, qr_bytes, emisor_data['nombre'], emisor_data['nit'], emisor_data['ciudad'])
             logger.info("PDF generado correctamente")
                     
             logger.info(f"Intentando enviar correo a {email_cliente}")
@@ -520,12 +533,12 @@ def generar_factura():
        nit = emisor_data['nit']
        ciudad = emisor_data['ciudad']
        subtotal = (f"{subtotal:,.2f}")
-       iva_total = (f"{iva_total:,.2f}")
-       total = (f"{total:,.2f}")
+       iva_total_producto = (f"{iva_total_producto:,.2f}")
+       total_producto = (f"{total_producto:,.2f}")
        
        uid = generate_uid()
                     
-       values = [(numero_factura, str(fecha_factura), nombre, str(nit), ciudad, nombre_cliente, str(nit_cliente), direccion_cliente, str(email_cliente), json.dumps(productos), str(subtotal), str(iva_total), str(total), uid)]
+       values = [(numero_factura, str(fecha_factura), nombre, str(nit), ciudad, nombre_cliente, str(nit_cliente), direccion_cliente, str(email_cliente), json.dumps(productos), subtotal, iva_total_producto, total_producto, uid)]
                 
        gs = GoogleSheet(credentials, document, sheet)
           
@@ -538,7 +551,7 @@ def generar_factura():
        st.success("Factura guardada en la base de datos exitosamente.")
     
     # Limpiar campos después de generar y descargar la factura
-    st.button("Limpiar campos y generar nueva factura", on_click=limpiar_campos)
+    #st.button("Limpiar campos y generar nueva factura", on_click=limpiar_campos)
 
 #if __name__ == "__main__":
 #    generar_factura()

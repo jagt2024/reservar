@@ -897,8 +897,8 @@ def crea_reserva():
                 with st.spinner('Cargando...'):
                  if servicio_seleccionado != 'Consulta en General':
                     # Validaciones
-                    if not selected_option or not encargado or not email or not direccion:
-                        st.warning('Se requiere completar los campos con * son obligatorios')
+                    if  not email or not direccion:
+                        st.warning('Se requiere completar los campos de  Email y Direccion son obligatorios')
                     elif not validate_email(email):
                         st.warning('El email no es valido')
                     elif whatsapp and not telefono:

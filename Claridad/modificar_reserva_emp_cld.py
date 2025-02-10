@@ -293,9 +293,9 @@ def actualizar_reserva(conn, nombre, fecha, hora, servicio, nuevos_datos):
         params.extend([nombre, fecha, hora, servicio])
         
         # Ejecutar la consulta
-        cursor = conn.cursor()
-        cursor.execute(sql, params)
-        conn.commit()
+        #cursor = conn.cursor()
+        #cursor.execute(sql, params)
+        #conn.commit()
         
         # Retornar el número de filas afectadas
         rows_affected = cursor.rowcount
@@ -356,8 +356,8 @@ def limpiar_campos_formulario():
         # Lista de campos a limpiar
          valores_default = {
             'nombre_c': '',
-            'nuevo_nombre': '',
-            'selection_option': '',
+            'nombre': '',
+            'servicio_seleccionado': '',
             'email': '',
             'direccion': '',
             'telefono': '',
@@ -386,8 +386,8 @@ def inicializar_valores_default():
     
     valores_default = {
             'nombre_c': '',
-            'nuevo_nombre': '',
-            'selection_option': '',
+            'nombre': '',
+            'servicio_seleccionado': '',
             'email': '',
             'direccion': '',
             'telefono': '',
@@ -599,6 +599,58 @@ def consultar_otros(nombre, fecha, hora):
         st.error(f"Error al consultar el UID: {str(e)}")
         return False,(f"Error al consultar el UID: {str(e)}")
 
+def get_data_from_sheets(nombre, fecha, hora):
+    creds = st.secrets['sheetsemp']['credentials_sheet']
+    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials = Credentials.from_service_account_info(creds, scopes=scope)
+    client = gspread.authorize(credentials)
+    sheet = client.open('gestion-reservas-cld')
+      
+    pagos_ws = sheet.worksheet('pagos')
+    #pagos_data = pagos_ws.get_all_records()
+    #df_pagos = pd.DataFrame(pagos_data)
+    
+    # Obtener todos los registros
+    registros = api_call_handler(lambda:pagos_ws.get_all_records())
+
+    # Verificar si hay registros antes de crear el DataFrame
+    if not registros:
+       return False  # No hay datos en la hoja
+        
+    # Convertir a DataFrame para facilitar la búsqueda
+    df = pd.DataFrame(registros)
+
+    # Verificar si las columnas necesarias existen
+    required_columns = ['Nombre', 'Fecha_Servicio', 'Hora_Servicio']
+    if not all(col in df.columns for col in required_columns):
+       st.warning("La hoja no contiene todas las columnas necesarias")
+       return False
+        
+    try:
+
+        # Realizar la búsqueda
+        reserva = df[
+        (df['Nombre'].str.lower() == nombre.lower()) &
+        (df['Fecha_Servicio'] == fecha) &
+        (df['Hora_Servicio'] == hora)
+        ]
+
+    except AttributeError:
+        # En caso de que alguna columna no sea del tipo esperado
+        st.warning("Error en el formato de los datos")
+        return False
+        
+    #return not reserva.empty
+        
+    if not reserva.empty:
+       # Si encuentra la reserva, devuelve True y los detalles
+       #detalles_reserva = reserva.iloc[0].to_dict()
+       return True #, detalles_reserva
+    else:
+       #st.warning("Solicitud de Cliente No Existe")
+       return False #, None
+
+
 def modificar_reserva():
     
   try:
@@ -675,7 +727,11 @@ def modificar_reserva():
             fecha_c  = st.date_input('Fecha Servicio*: ', key='fecha_ant')
             hora_c = st.selectbox('Hora Servicio: ', horas, key='hora_ant')
         
-        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
+
+        if df_clientes == False:
+
+          if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
 
@@ -687,7 +743,7 @@ def modificar_reserva():
                #print(f'resultado {resultado}')
                if resultado < 0:
                    st.warning("No sepuede modificar un servicio ya vencido")
-                   conn.close()
+                   #conn.close()
                    return
             
                st.write("---")
@@ -711,7 +767,7 @@ def modificar_reserva():
                     )
             
                     # Manejo de zonas para ciertos servicios
-                    if servicio_seleccionado in ['Entrega', 'Cambio', 'Pedido']:
+                    if servicio_seleccionado in ['Entrega max. 2 dias', 'Cambio Producto', 'Programar Pedido']:
                         zonas = ['Norte', 'Sur', 'Oriente', 'Occidente', 'Oficina']
                         zona_seleccionada = st.selectbox(
                             'Seleccione la zona:',
@@ -852,10 +908,13 @@ def modificar_reserva():
                         - 💰 Total a Pagar: ${total_pedido:,.0f}
                         """)
 
-                    if servicio_seleccionado in ['Entrega', 'Cambio', 'Pedido']:
+                    if servicio_seleccionado in ['Entrega max. 2 dias', 'Cambio Producto', 'Programar Pedido']:
                         st.info(f"📍 Zona de Entrega: {zona_seleccionada}")            
                     else:
                         st.warning("Solicitud de Cliente No Existe")
+
+        else:
+            st.warning("Solicitud de Cliente No se puede Mdificar tiene Pago Asociado")
 
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
