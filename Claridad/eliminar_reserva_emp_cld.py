@@ -920,7 +920,7 @@ def eliminar_reserva():
             df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
 
             if resultado < 0 or df_clientes == False:
-               st.warning("No sepuede eliminar un servicio ya vencido o con Pago  Asociado')
+               st.warning("No sepuede eliminar un servicio ya vencido o con Pago  Asociado")
             else:
                       
              try:
