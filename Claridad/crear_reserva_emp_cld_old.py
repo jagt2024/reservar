@@ -665,17 +665,17 @@ def crea_reserva():
             
               # Si se selecciona añadir nuevo
               if selected_option == '-- Añadir Nuevo Cliente --':
-                 with st.form("nuevo_cliente"):
-                     nuevo_nombre = st.text_input("Ingrese el nombre del nuevo cliente")
-                     submitted = st.form_submit_button("Añadir Cliente", key='b2')
-                    
-                     if submitted and nuevo_nombre:
-                         if nuevo_nombre in nombres_existentes:
-                             st.warning("Este cliente ya existe en la lista.")
-                         else:
-                             if add_new_client(creds, nuevo_nombre):
-                                st.rerun()  # Recarga la página para  actualizar la lista
-            
+                 #with st.form("nuevo_cliente"):
+                 nuevo_nombre = st.text_input("Ingrese el nombre del nuevo cliente")
+                 #submitted = st.form_submit_button("Añadir Cliente", key='b2')
+                   
+                 #if submitted and nuevo_nombre:
+                  if nuevo_nombre in nombres_existentes:
+                     st.warning("Este cliente ya existe en la lista.")
+                  else:
+                    pass
+                    # if add_new_client(creds, nuevo_nombre):
+                        #st.rerun()  # Recarga la página para  actualizar la lista
               else:
                  st.write(f"Cliente seleccionado: {selected_option}")
 
