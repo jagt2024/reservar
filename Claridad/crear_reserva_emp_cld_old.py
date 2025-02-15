@@ -29,6 +29,34 @@ import json
 st.cache_data.clear()
 st.cache_resource.clear()
 
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+#SPREADSHEET_ID = 'TU-ID-DE-SPREADSHEET'  # Reemplaza con tu ID
+#SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
+        
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
@@ -392,8 +420,10 @@ def load_credentials_from_toml():
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
 
+@st.cache_data(ttl=300)  # Cache de 5 minutos
 def add_new_client(creds, nombre):
     """Añade un nuevo cliente a la hoja de Google Sheets"""
+  for intento in range(MAX_RETRIES):  
     try:
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
@@ -411,11 +441,26 @@ def add_new_client(creds, nombre):
         st.success(f"Cliente '{nombre}' añadido exitosamente!")
         return True
     
+     except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al añadir el cliente: {str(e)}")
         return False
 
+@st.cache_data(ttl=300)  # Cache de 5 minutos
 def consultar_reserva(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()
@@ -475,12 +520,27 @@ def consultar_reserva(nombre, fecha, hora):
 
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
-            
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
 
+@st.cache_data(ttl=300)  # Cache de 5 minutos@st.cache_data(ttl=300)  # Cache de 5 minutos
 def consultar_encargado(encargado, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
         # Cargar credenciales
         creds = load_credentials_from_toml()
@@ -528,6 +588,19 @@ def consultar_encargado(encargado, fecha, hora):
             return False
         
         return not encargado_registro.empty
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
             
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
@@ -798,7 +871,19 @@ def crea_reserva():
                   st.write(f"{key}: **{value}**")
 
                #st.warning("No hay conductores disponibles para la selección actual.")
-                 
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            
+
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
        st.error("Por favor, verifica que el archivo Excel y las hojas existan.")
@@ -889,6 +974,18 @@ def crea_reserva():
                            st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
                            time.sleep(10)
                         
+                    except HttpError as error:
+                        if error.resp.status == 429:  # Error de cuota excedida
+                            if intento < MAX_RETRIES - 1:
+                                delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                                st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                                time.sleep(delay)
+                                continue
+                            else:
+                                st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+                        else:
+                            st.error(f"Error de la API: {str(error)}")
+
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
                     #finally:
@@ -929,6 +1026,18 @@ def crea_reserva():
                            st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
                            time.sleep(10)
 
+                    except HttpError as error:
+                        if error.resp.status == 429:  # Error de cuota excedida
+                            if intento < MAX_RETRIES - 1:
+                                delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                                st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                                time.sleep(delay)
+                                continue
+                            else:
+                                st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+                        else:
+                            st.error(f"Error de la API: {str(error)}")
+                            
                     except Exception as e:
                         st.error(f"Error al guardar en la base de datos: {str(e)}")
                     #finally:
@@ -955,3 +1064,6 @@ sys.excepthook = global_exception_handler
 
 #if __name__ == "__main__":
 #   crea_reserva()
+
+
+##Error al cargar los datos: APIError: [429]: Quota exceeded for quota metric 'Read #requests' and limit 'Read requests per minute per user' of service 'sheets.googleapis.#com' for consumer 'project_number:719348869159'.

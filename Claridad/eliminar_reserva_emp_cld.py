@@ -6,6 +6,8 @@ from sendemail import send_email2
 from sendemail_empresa import send_email_emp
 import numpy as np
 from datetime import datetime, timedelta
+from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build
 import datetime as dt
 import re
 import uuid
@@ -29,6 +31,33 @@ import json
 
 st.cache_data.clear()
 st.cache_resource.clear()
+
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
@@ -232,6 +261,7 @@ def create_connection():
         print(f"Error connecting to database: {e}")
         return None
 
+
 def actualizar_reserva(conn, nombre, fecha, hora, servicio, nuevos_datos):
     from sqlite3 import Error
     
@@ -424,7 +454,9 @@ def load_credentials_from_toml():
         return None
 
 def consultar_otros(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -490,13 +522,27 @@ def consultar_otros(nombre, fecha, hora):
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
             
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
       
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False,(f"Error al consultar la reserva: {str(e)}")
 
 def consultar_reserva(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -552,13 +598,28 @@ def consultar_reserva(nombre, fecha, hora):
 
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
-                   
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False               
+
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
 
 def consultar_encargado(encargado, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -614,63 +675,94 @@ def consultar_encargado(encargado, fecha, hora):
             return False #, None
             #return not encargado_registro.empty
             
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
         return False
 
 def get_data_from_sheets(nombre, fecha, hora):
-    creds = st.secrets['sheetsemp']['credentials_sheet']
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    credentials = Credentials.from_service_account_info(creds, scopes=scope)
-    client = gspread.authorize(credentials)
-    sheet = client.open('gestion-reservas-cld')
-      
-    pagos_ws = sheet.worksheet('pagos')
-    #pagos_data = pagos_ws.get_all_records()
-    #df_pagos = pd.DataFrame(pagos_data)
-    
-    # Obtener todos los registros
-    registros = api_call_handler(lambda:pagos_ws.get_all_records())
-
-    # Verificar si hay registros antes de crear el DataFrame
-    if not registros:
-       return False  # No hay datos en la hoja
-        
-    # Convertir a DataFrame para facilitar la búsqueda
-    df = pd.DataFrame(registros)
-
-    # Verificar si las columnas necesarias existen
-    required_columns = ['Nombre', 'Fecha_Servicio', 'Hora_Servicio']
-    if not all(col in df.columns for col in required_columns):
-       st.warning("La hoja no contiene todas las columnas necesarias")
-       return False
-        
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+        creds = st.secrets['sheetsemp']['credentials_sheet']
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
+      
+        pagos_ws = sheet.worksheet('pagos')
+        #pagos_data = pagos_ws.get_all_records()
+        #df_pagos = pd.DataFrame(pagos_data)
+    
+        # Obtener todos los registros
+        registros = api_call_handler(lambda:pagos_ws.get_all_records())
 
-        # Realizar la búsqueda
-        reserva = df[
-        (df['Nombre'].str.lower() == nombre.lower()) &
-        (df['Fecha_Servicio'] == fecha) &
-        (df['Hora_Servicio'] == hora)
-        ]
+        # Verificar si hay registros antes de crear el DataFrame
+        if not registros:
+            return False  # No hay datos en la hoja
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
 
-    except AttributeError:
-        # En caso de que alguna columna no sea del tipo esperado
-        st.warning("Error en el formato de los datos")
-        return False
+        # Verificar si las columnas necesarias existen
+        required_columns = ['Nombre', 'Fecha_Servicio', 'Hora_Servicio']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
         
-    #return not reserva.empty
+        try:
+
+            # Realizar la búsqueda
+            reserva = df[
+            (df['Nombre'].str.lower() == nombre.lower()) &
+            (df['Fecha_Servicio'] == fecha) &
+            (df['Hora_Servicio'] == hora)
+            ]
+
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
         
-    if not reserva.empty:
-       # Si encuentra la reserva, devuelve True y los detalles
-       #detalles_reserva = reserva.iloc[0].to_dict()
-       return True #, detalles_reserva
-    else:
-       #st.warning("Solicitud de Cliente No Existe")
-       return False #, None
+        #return not reserva.empty
+        
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+            return True #, detalles_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
 
 def eliminar_reserva_sheet(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -730,7 +822,20 @@ def eliminar_reserva_sheet(nombre, fecha, hora):
         
         st.success("Reserva eliminada exitosamente.")
         return True
-        
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al eliminar la reserva: {str(e)}")
         

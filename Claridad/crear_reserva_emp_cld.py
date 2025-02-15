@@ -20,6 +20,8 @@ import logging
 #import ntplib
 #from ntplib import NTPClient
 from openpyxl import load_workbook
+from googleapiclient.errors import HttpError
+from googleapiclient.discovery import build
 import gspread
 from google.oauth2.service_account import Credentials
 import pandas as pd
@@ -28,6 +30,35 @@ import json
 
 st.cache_data.clear()
 st.cache_resource.clear()
+
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+#SPREADSHEET_ID = 'TU-ID-DE-SPREADSHEET'  # Reemplaza con tu ID
+#SCOPE = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
@@ -422,9 +453,12 @@ def load_credentials_from_toml():
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def add_new_client(creds, nombre):
-    """Añade un nuevo cliente a la hoja de Google Sheets"""
+  """Añade un nuevo cliente a la hoja de Google Sheets"""
+  for intento in range(MAX_RETRIES):
     try:
+     with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         client = gspread.authorize(credentials)
@@ -441,12 +475,28 @@ def add_new_client(creds, nombre):
         st.success(f"Cliente '{nombre}' añadido exitosamente!")
         return True
     
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al añadir el cliente: {str(e)}")
         return False
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def consultar_reserva(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -506,12 +556,28 @@ def consultar_reserva(nombre, fecha, hora):
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
             
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def get_google_sheet_data(creds):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         client = gspread.authorize(credentials)
@@ -530,13 +596,29 @@ def get_google_sheet_data(creds):
             return None
         
         return df
-        
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al cargar los datos: {str(e)}")
         return None
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def consultar_encargado(encargado, fecha, hora):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -584,12 +666,28 @@ def consultar_encargado(encargado, fecha, hora):
         
         return not encargado_registro.empty
             
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error al consultar encargado: {str(e)}")
         return False
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def consultar_otros(nombre):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         # Cargar credenciales
         creds = load_credentials_from_toml()
         if not creds:
@@ -650,6 +748,19 @@ def consultar_otros(nombre):
             #st.warning("Solicitud de Cliente No Existe")
             return False #, None
 
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error en la aplicación: {str(e)}")
 
@@ -657,8 +768,11 @@ def generate_whatsapp_link(phone_number, message):
     encoded_message = message.replace(' ', '%20')
     return f"https://wa.me/{phone_number}?text={encoded_message}"
 
+#@st.cache_data(ttl=300)  # Cache de 5 minutos
 def crea_reserva():
+  #for intento in range(MAX_RETRIES):
     try:
+      #with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         st.title('Generar Reserva del Servicio')
         st.write("---")
         
@@ -678,7 +792,9 @@ def crea_reserva():
         col1, col2 = st.columns([1, 1])
         
         with col1:
+          #for intento in range(MAX_RETRIES):
             try:
+             #with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
                 # Cargar credenciales
                 creds = load_credentials_from_toml()
         
@@ -730,6 +846,7 @@ def crea_reserva():
                 else:
                     st.error("No se pudieron cargar los datos. Por favor, verifica la conexión.")
 
+    
             except Exception as e:
                 st.error(f"Error en la aplicación: {str(e)}")
 
@@ -919,14 +1036,14 @@ def crea_reserva():
                         emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
 
                         if selected_option == '-- Añadir Nuevo Cliente --':        
-
+                         
                           try:
-
+                           
                             values2 = [(nuevo_nombre, email, direccion, telefono, zona_seleccionada, productos_str,  str(datetime.now()))] 
                             
                             gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'clientes')
-                            range = gs.get_last_row_range()
-                            gs.write_data(range, values2)
+                            range2 = gs.get_last_row_range()
+                            gs.write_data(range2, values2)
 
                             # Generar UID
                             uid = generate_uid()
@@ -943,8 +1060,8 @@ def crea_reserva():
 
                             # Guardar en Google Sheets
                             gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
-                            range = gs.get_last_row_range()
-                            gs.write_data(range, values)
+                            range2 = gs.get_last_row_range()
+                            gs.write_data(range2, values)
 
                             st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
@@ -960,8 +1077,8 @@ def crea_reserva():
 
                                 whatsapp_link = generate_whatsapp_link(contact, message)
                                 st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                                time.sleep(10)
-                
+                                time.sleep(10)                       
+                                     
                           except Exception as e:
                              st.error(f"Error al guardar la reserva: {str(e)}")   
 
@@ -979,13 +1096,13 @@ def crea_reserva():
                                 f"web.whatsapp.com/send?phone=&text=Reserva para { selected_option}", 
                                 '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
                             )]
+                            
+                            try:           
                         
-                            try:                            
-
                                 # Guardar en Google Sheets
                                 gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-cld', 'reservas')
-                                range = gs.get_last_row_range()
-                                gs.write_data(range, values)
+                                range2 = gs.get_last_row_range()
+                                gs.write_data(range2, values)
                             
                                 st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
@@ -1004,8 +1121,8 @@ def crea_reserva():
                                     time.sleep(10)
                         
                             except Exception as e:
-                                st.error(f"Error al guardar la reserva: {str(e)}")
-                                # Limpiar campos
+                               st.error(f"Error al guardar la reserva: {str(e)}")
+                               # Limpiar campos
                  else:
                     if selected_option == '-- Añadir Nuevo Cliente --':
                         send_email_emp(email,  nuevo_nombre, fecha, hora, servicio_seleccionado, '', '',  '', notas, '')
@@ -1019,6 +1136,19 @@ def crea_reserva():
                 if limpiar_campos_formulario():
                    st.session_state.productos_seleccionados = []
                    st.success('Campos limpiados exitosamente')
+
+
+    #except HttpError as error:
+    #    if error.resp.status == 429:  # Error de cuota excedida
+    #       if intento < MAX_RETRIES - 1:
+    #          delay = INITIAL_RETRY_DELAY * (2 ** intento)
+    #          st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+    #          time.sleep(delay)
+    #          continue
+    #       else:
+    #          st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+    #    else:
+    #        st.error(f"Error de la API: {str(error)}")
 
     except Exception as e:
         logging.error(f"Error crítico en la aplicación: {str(e)}")
