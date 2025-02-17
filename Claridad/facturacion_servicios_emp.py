@@ -1,7 +1,7 @@
 import streamlit as st
 from google_sheets_emp import GoogleSheet
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import qrcode
 import numpy as np
@@ -12,6 +12,7 @@ import io
 import base64
 import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.errors import HttpError
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as ReportLabImage
@@ -23,10 +24,41 @@ import sqlite3
 import json
 from openpyxl import load_workbook
 import smtplib
+import time
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 import logging
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 # Configurar logging
 logging.basicConfig(level=logging.DEBUG)
@@ -73,45 +105,85 @@ def cargar_datos_emisor():
         return None
 
 def get_clientes_from_sheets():
-    creds = st.secrets['sheetsemp']['credentials_sheet']
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    credentials = Credentials.from_service_account_info(creds, scopes=scope)
-    client = gspread.authorize(credentials)
-    sheet = client.open('gestion-reservas-cld')
+  for intento in range(MAX_RETRIES):
+    try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+        creds = st.secrets['sheetsemp']['credentials_sheet']
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
     
-    # Get reservations data
-    reservas_ws = sheet.worksheet('reservas')
-    reservas_data = reservas_ws.get_all_records()
-    df_reservas = pd.DataFrame(reservas_data)
+        # Get reservations data
+        reservas_ws = sheet.worksheet('reservas')
+        reservas_data = reservas_ws.get_all_records()
+        df_reservas = pd.DataFrame(reservas_data)
     
-    # Get payments data
-    pagos_ws = sheet.worksheet('pagos')
-    pagos_data = pagos_ws.get_all_records()
-    df_pagos = pd.DataFrame(pagos_data)
+        # Get payments data
+        pagos_ws = sheet.worksheet('pagos')
+        pagos_data = pagos_ws.get_all_records()
+        df_pagos = pd.DataFrame(pagos_data)
     
-    # Filter clients not in payments sheet
-    clientes_sin_pago = df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
+        # Filter clients not in payments sheet
+        clientes_sin_pago = df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
     
-    return clientes_sin_pago[['NOMBRE', 'DIRECCION', 'EMAIL']].drop_duplicates()
+        return clientes_sin_pago[['NOMBRE', 'DIRECCION', 'EMAIL']].drop_duplicates()
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return None
+
+    except Exception as e:
+        st.error(f"Error al cargar los datos: {str(e)}")
+        return None
 
 def get_data_from_sheets():
-    creds = st.secrets['sheetsemp']['credentials_sheet']
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-    credentials = Credentials.from_service_account_info(creds, scopes=scope)
-    client = gspread.authorize(credentials)
-    sheet = client.open('gestion-reservas-cld')
+  for intento in range(MAX_RETRIES):
+    try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+        creds = st.secrets['sheetsemp']['credentials_sheet']
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        sheet = client.open('gestion-reservas-cld')
     
-    # Get both sheets' data
-    reservas_ws = sheet.worksheet('reservas')
-    reservas_data = reservas_ws.get_all_records()
-    df_reservas = pd.DataFrame(reservas_data)
+        # Get both sheets' data
+        reservas_ws = sheet.worksheet('reservas')
+        reservas_data = reservas_ws.get_all_records()
+        df_reservas = pd.DataFrame(reservas_data)
     
-    pagos_ws = sheet.worksheet('pagos')
-    pagos_data = pagos_ws.get_all_records()
-    df_pagos = pd.DataFrame(pagos_data)
+        pagos_ws = sheet.worksheet('pagos')
+        pagos_data = pagos_ws.get_all_records()
+        df_pagos = pd.DataFrame(pagos_data)
     
-    # Filter out records that exist in payments
-    return df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
+        # Filter out records that exist in payments
+        return df_reservas[~df_reservas.apply(lambda row: any((df_pagos['Nombre'] == row['NOMBRE']) & (df_pagos['Producto'] == row['PRODUCTO'])), axis=1)]
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return None
+
+    except Exception as e:
+        st.error(f"Error al cargar los datos: {str(e)}")
+        return None
 
 def cargar_datos_cliente(nombre_seleccionado, df_clientes):
     cliente = df_clientes[df_clientes['NOMBRE'] == nombre_seleccionado].iloc[0]

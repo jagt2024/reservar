@@ -3,11 +3,42 @@ import pandas as pd
 import numpy as np
 import toml
 import json
+import time
 import gspread
 from google.oauth2.service_account import Credentials
+from googleapiclient.errors import HttpError
 from datetime import datetime
 import tempfile
 import os
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 # Configurar página
 #st.set_page_config(page_title="Carga de Clientes", layout="wide")
@@ -128,7 +159,10 @@ def read_file(uploaded_file, file_type):
         return None
 
 def upload_to_sheets(creds, df):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         client = gspread.authorize(credentials)
@@ -180,6 +214,19 @@ def upload_to_sheets(creds, df):
         else:
             return False, "No hay registros nuevos para cargar."
             
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         return False, f"Error al subir datos: {str(e)}"
 

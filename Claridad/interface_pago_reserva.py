@@ -3,17 +3,45 @@ import pandas as pd
 import toml
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import string
 import os
 from google.oauth2 import service_account
+from googleapiclient.errors import HttpError
 import sys
 import logging
 import time
 
 st.cache_data.clear()
 st.cache_resource.clear()
+
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
@@ -56,8 +84,11 @@ def load_credentials_from_toml(file_path):
     return credentials
 
 def get_google_sheet_data(creds, sheet_name='reservas'):
-    """Gets data from Google Sheets"""
+  """Gets data from Google Sheets"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = service_account.Credentials.from_service_account_info(creds, scopes=scope)
         client = gspread.authorize(credentials)
@@ -75,6 +106,20 @@ def get_google_sheet_data(creds, sheet_name='reservas'):
             df = pd.DataFrame(data[1:], columns=data[0])
             
         return sheet, worksheet, df
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return None, None, None    
+
     except Exception as e:
         st.error(f"Error al acceder a Google Sheets: {str(e)}")
         return None, None, None

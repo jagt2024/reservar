@@ -1,10 +1,41 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from google.oauth2.service_account import Credentials
+from googleapiclient.errors import HttpError
 import gspread
 import toml
 import time
+
+st.cache_data.clear()
+st.cache_resource.clear()
+
+# Constantes
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 1
+
+# Configuración de caché
+class Cache:
+    def __init__(self, ttl_minutes=5):
+        self.data = None
+        self.last_fetch = None
+        self.ttl = timedelta(minutes=ttl_minutes)
+
+    def is_valid(self):
+        if self.last_fetch is None or self.data is None:
+            return False
+        return datetime.now() - self.last_fetch < self.ttl
+
+    def set_data(self, data):
+        self.data = data
+        self.last_fetch = datetime.now()
+
+    def get_data(self):
+        return self.data
+
+# Inicializar caché en session state
+if 'cache' not in st.session_state:
+    st.session_state.cache = Cache()
 
 PAGOS_COLUMNS = [
     'Fecha_Pago', 'Nombre', 'Email', 'Fecha_Servicio', 'Hora_Servicio','Servicio',
@@ -30,7 +61,9 @@ def load_credentials_from_toml(file_path):
     return credentials
 
 def get_google_sheet_data(creds):
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         credentials = Credentials.from_service_account_info(creds, scopes=scope)
         client = gspread.authorize(credentials)
@@ -57,7 +90,20 @@ def get_google_sheet_data(creds):
         df['Valor_Pagado'] = pd.to_numeric(df['Valor_Pagado'], errors='coerce')
         
         return df
-        
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return None
+
     except Exception as e:
         st.error(f"Error al cargar los datos: {str(e)}")
         return None
@@ -127,7 +173,7 @@ def consulta_pagos():
         )
         
         if productos:
-            mask &= df['Producto'].isin(servicios)
+            mask &= df['Producto'].isin(productos)
         if estados:
             mask &= df['Estado_Pago'].isin(estados)
         if encargados:
