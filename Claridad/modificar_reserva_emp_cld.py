@@ -322,9 +322,9 @@ def actualizar_reserva(conn, nombre, fecha, hora, servicio, nuevos_datos):
         params.extend([nombre, fecha, hora, servicio])
         
         # Ejecutar la consulta
-        #cursor = conn.cursor()
-        #cursor.execute(sql, params)
-        #conn.commit()
+        cursor = conn.cursor()
+        cursor.execute(sql, params)
+        conn.commit()
         
         # Retornar el número de filas afectadas
         rows_affected = cursor.rowcount

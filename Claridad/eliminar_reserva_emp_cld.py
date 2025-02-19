@@ -655,7 +655,7 @@ def consultar_encargado(encargado, fecha, hora):
         
         # Realizar la búsqueda asegurándose de que no haya valores nulos
         try:
-            sencargado_registro = df[
+            encargado_registro = df[
                 (df['ENCARGADO'].fillna('').str.lower() == encargado.lower()) &
                 (df['FECHA'].fillna('') == fecha) &
                 (df['HORA'].fillna('') == hora)

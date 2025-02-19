@@ -36,9 +36,9 @@ def send_email2(email, nombre, fecha, hora, servicio, producto, precio, encargad
       Fecha: {fecha},
       Hora: {hora},
       Tramite o Servicio: {servicio},
-      Prodcto: {producto}
+      Especialidad: {producto}
       Total : {precio},
-      Encargado Entrega: {encargado},
+      Encargado: {encargado},
       Notas: {notas},
       
       Si necesita cancelar o reprogramar su cita, le agradecemos ir a las opciones del menu de rervas, asi mismo si tiene alguna pregunta o inquietud por favor comuniquese a la linea: 3XX YYYYYY. Gracias por confiar en nosotros.
@@ -52,7 +52,7 @@ def send_email2(email, nombre, fecha, hora, servicio, producto, precio, encargad
   
   if user in destinatarios:
         
-    with open("./assets-cld/brillol.png","rb") as f:
+    with open("./assets-amo/logo-clinica.png","rb") as f:
     #with open("C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/gestion-reservas.xlsx","rb") as f:
       
       file_data = f.read()
@@ -69,7 +69,7 @@ def send_email2(email, nombre, fecha, hora, servicio, producto, precio, encargad
   
   elif email not in destinatarios:
     
-    with open("./assets-cld/brillol.png","rb") as f1:
+    with open("./assets-amo/logo-clinica.png","rb") as f1:
           
       file_data = f1.read()
       file_type1 = imghdr.what(f1.name)

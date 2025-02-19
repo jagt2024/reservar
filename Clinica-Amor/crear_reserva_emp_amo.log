@@ -1,0 +1,177 @@
+2025-02-19 08:21:18,684 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:18,773 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:18,773 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:18,778 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:18,778 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 40054
+2025-02-19 08:21:20,284 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:20,285 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:20,285 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:20,286 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:20,286 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 40054
+2025-02-19 08:21:20,289 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:20,289 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:20,294 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:20,294 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:20,295 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 40054
+2025-02-19 08:21:21,654 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:21,654 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 43723
+2025-02-19 08:21:21,670 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:21,670 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 43723
+2025-02-19 08:21:24,778 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:25,474 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:25,696 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:28,358 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:28,371 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:29,172 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:29,188 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:30,009 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:30,337 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:30,618 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27clientes%27 HTTP/11" 200 None
+2025-02-19 08:21:32,978 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:33,150 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:33,150 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:33,634 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:33,634 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:34,677 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:34,677 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:35,276 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:35,554 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:35,851 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27reservas%27 HTTP/11" 200 None
+2025-02-19 08:21:38,686 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:38,858 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:38,858 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:39,281 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:39,301 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:39,983 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:39,998 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:40,532 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:40,798 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:41,126 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27pagos%27 HTTP/11" 200 None
+2025-02-19 08:21:41,920 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:42,157 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:42,172 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:42,548 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:42,563 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:43,263 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:43,273 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:43,829 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:44,104 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:44,427 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27reservas%27 HTTP/11" 200 None
+2025-02-19 08:21:45,503 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:45,701 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:45,701 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:46,123 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:46,123 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:46,951 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:46,967 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:47,467 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:47,748 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:48,030 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27pagos%27 HTTP/11" 200 None
+2025-02-19 08:21:49,183 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-02-19 08:21:49,325 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-02-19 08:21:49,325 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-02-19 08:21:49,764 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-02-19 08:21:49,764 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-02-19 08:21:53,705 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-reservas-amo%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-02-19 08:21:53,720 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-02-19 08:21:54,767 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:55,064 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-02-19 08:21:55,392 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4/values/%27reservas%27 HTTP/11" 200 None
+2025-02-19 08:21:57,777 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:57,781 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:57,782 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:57,783 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:57,783 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 9888
+2025-02-19 08:21:57,808 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:57,808 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:57,809 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:57,809 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:57,810 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 9888
+2025-02-19 08:21:57,979 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 9888
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-02-19 08:21:57,980 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 9888
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: ImageWidth (256) - type: short (3) - value: b'\x00\x0f'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: ImageLength (257) - type: short (3) - value: b'\x80\x16'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: BitsPerSample (258) - type: short (3) Tag Location: 46 - Data Location: 182 - value: b'\x08\x00\x08\x00\x08\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: PhotometricInterpretation (262) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: Make (271) - type: string (2) Tag Location: 70 - Data Location: 188 - value: b'Canon\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: Model (272) - type: string (2) Tag Location: 82 - Data Location: 194 - value: b'Canon EOS 5D Mark III\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: SamplesPerPixel (277) - type: short (3) - value: b'\x03\x00'
+2025-02-19 08:22:01,054 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 118 - Data Location: 216 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 130 - Data Location: 224 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 154 - Data Location: 232 - value: <table: 33 bytes>
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 166 - Data Location: 265 - value: b'2023:02:28 10:23:10\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b' \x01\x00\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ImageWidth (256) - type: short (3) - value: b'\x00\x0f'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ImageLength (257) - type: short (3) - value: b'\x80\x16'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: BitsPerSample (258) - type: short (3) Tag Location: 46 - Data Location: 182 - value: b'\x08\x00\x08\x00\x08\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: PhotometricInterpretation (262) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: Make (271) - type: string (2) Tag Location: 70 - Data Location: 188 - value: b'Canon\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: Model (272) - type: string (2) Tag Location: 82 - Data Location: 194 - value: b'Canon EOS 5D Mark III\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: SamplesPerPixel (277) - type: short (3) - value: b'\x03\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 118 - Data Location: 216 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 130 - Data Location: 224 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 154 - Data Location: 232 - value: <table: 33 bytes>
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 166 - Data Location: 265 - value: b'2023:02:28 10:23:10\x00'
+2025-02-19 08:22:01,069 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b' \x01\x00\x00'
+2025-02-19 08:22:12,085 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 22 - Data Location: 26 - value: <table: 39 bytes>
+2025-02-19 08:22:12,086 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 22 - Data Location: 26 - value: <table: 39 bytes>
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: Make (271) - type: string (2) Tag Location: 22 - Data Location: 146 - value: b'Canon\x00'
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: Model (272) - type: string (2) Tag Location: 34 - Data Location: 152 - value: b'Canon EOS-1D X\x00'
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 58 - Data Location: 167 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 70 - Data Location: 175 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 94 - Data Location: 183 - value: <table: 33 bytes>
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 106 - Data Location: 216 - value: b'2023:11:29 09:49:43\x00'
+2025-02-19 08:22:15,038 - PIL.TiffImagePlugin - DEBUG - tag: Artist (315) - type: string (2) Tag Location: 118 - Data Location: 236 - value: b'Dmytro Sheremeta\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 130 - Data Location: 253 - value: b'Dmytro Sheremeta\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b'\x10\x01\x00\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Make (271) - type: string (2) Tag Location: 22 - Data Location: 146 - value: b'Canon\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Model (272) - type: string (2) Tag Location: 34 - Data Location: 152 - value: b'Canon EOS-1D X\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 58 - Data Location: 167 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 70 - Data Location: 175 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 94 - Data Location: 183 - value: <table: 33 bytes>
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 106 - Data Location: 216 - value: b'2023:11:29 09:49:43\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Artist (315) - type: string (2) Tag Location: 118 - Data Location: 236 - value: b'Dmytro Sheremeta\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 130 - Data Location: 253 - value: b'Dmytro Sheremeta\x00'
+2025-02-19 08:22:15,053 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b'\x10\x01\x00\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: ImageWidth (256) - type: short (3) - value: b' \x17'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: ImageLength (257) - type: short (3) - value: b'c\x0f'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: BitsPerSample (258) - type: short (3) Tag Location: 46 - Data Location: 158 - value: b'\x08\x00\x08\x00\x08\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: PhotometricInterpretation (262) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: SamplesPerPixel (277) - type: short (3) - value: b'\x03\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 94 - Data Location: 164 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 106 - Data Location: 172 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 130 - Data Location: 180 - value: b'Adobe Photoshop 21.2 (Windows)\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 142 - Data Location: 211 - value: b'2021:12:10 10:05:59\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b'\xe8\x00\x00\x00'
+2025-02-19 08:22:20,075 - PIL.TiffImagePlugin - DEBUG - tag: ImageWidth (256) - type: short (3) - value: b' \x17'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: ImageLength (257) - type: short (3) - value: b'c\x0f'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: BitsPerSample (258) - type: short (3) Tag Location: 46 - Data Location: 158 - value: b'\x08\x00\x08\x00\x08\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: PhotometricInterpretation (262) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: Orientation (274) - type: short (3) - value: b'\x01\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: SamplesPerPixel (277) - type: short (3) - value: b'\x03\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: XResolution (282) - type: rational (5) Tag Location: 94 - Data Location: 164 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: YResolution (283) - type: rational (5) Tag Location: 106 - Data Location: 172 - value: b"\xc0\xc6-\x00\x10'\x00\x00"
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: ResolutionUnit (296) - type: short (3) - value: b'\x02\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: Software (305) - type: string (2) Tag Location: 130 - Data Location: 180 - value: b'Adobe Photoshop 21.2 (Windows)\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: DateTime (306) - type: string (2) Tag Location: 142 - Data Location: 211 - value: b'2021:12:10 10:05:59\x00'
+2025-02-19 08:22:20,090 - PIL.TiffImagePlugin - DEBUG - tag: ExifIFD (34665) - type: long (4) - value: b'\xe8\x00\x00\x00'
+2025-02-19 08:22:22,514 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 22 - Data Location: 26 - value: <table: 39 bytes>
+2025-02-19 08:22:22,514 - PIL.TiffImagePlugin - DEBUG - tag: Copyright (33432) - type: string (2) Tag Location: 22 - Data Location: 26 - value: <table: 39 bytes>
