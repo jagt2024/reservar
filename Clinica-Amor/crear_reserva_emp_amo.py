@@ -183,7 +183,7 @@ def get_conductores_por_zona(zona):
     # Mapeo de zonas a nombres de hojas
     mapping = {
         'Psicología': 'encargado_psicologia',
-        'Consultoría': 'encargado_consultoria',
+        'Consultoría Social': 'encargado_consultoria',
         'Terapia': 'encargado_terapia',
         'Inscripciones': 'encargado_inscripciones',
         'Cursos': 'encargado_cursos'
