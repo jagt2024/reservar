@@ -183,7 +183,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1                                                        #, model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9                                        #, model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -336,7 +336,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Eliminar Solicitud", "Catalogo Productos", "Soporte - PQRS"
+        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Eliminar Solicitud", "Nuestros Servicios", "Soporte - PQRS"
         #, "Registrar Pago", "Soporte - PQRS"])
         ])
             

@@ -41,11 +41,11 @@ def send_email2(email, nombre, fecha, hora, servicio, producto, precio, encargad
       Encargado: {encargado},
       Notas: {notas},
       
-      Si necesita cancelar o reprogramar su cita, le agradecemos ir a las opciones del menu de rervas, asi mismo si tiene alguna pregunta o inquietud por favor comuniquese a la linea: 3XX YYYYYY. Gracias por confiar en nosotros.
+      Si necesita cancelar o reprogramar su cita, le agradecemos ir a las opciones del menu de reservas, asi mismo si tiene alguna pregunta o inquietud por favor comuniquese a la linea: 3XX YYYYYY. Gracias por confiar en nosotros.
       
       Atentamente,
       
-      El Equipo de Solicitudes y Despachos
+      El Equipo de Servicios
       emil: empresa@xxxx.com
       """
   msg.set_content(asunto)

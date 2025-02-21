@@ -181,11 +181,11 @@ def get_conductores_por_zona(zona):
     
     # Mapeo de zonas a nombres de hojas
     mapping = {
-        'Citas': 'encargado_citas',
-        'Consutoria': 'encargado_consultoria',
+        'Psicología': 'encargado_psicologia',
+        'Consultoría': 'encargado_consultoria',
         'Terapia': 'encargado_terapia',
-        'Inscripciones': 'encargado_inscripcioes',
-        'Solicitudes': 'encargado_solicitudes'
+        'Inscripciones': 'encargado_inscripciones',
+        'Cursos': 'encargado_cursos'
     }
     
     try:
@@ -855,11 +855,11 @@ def modificar_reserva():
                     )
             
                     # Manejo de zonas para ciertos servicios
-                    if servicio_seleccionado in ['Programar Cita', 'Consultoría Psicosocial', 'Terapia', 'Consulta en General']:
-                        zonas = ['Citas', 'Consultoría', 'Terapia', 'Inscripciones', 'Solicitudes']
+                    if servicio_seleccionado in ['Psicología', 'Consultoría Social', 'Terapia', 'Cursos']:
+                        zonas = ['Psicología', 'Consultoría', 'Terapia', 'Inscripciones', 'Cursos']
                         zona_seleccionada = st.selectbox(
                             'Seleccione el area:',
-                            zonas,
+                            servicio_seleccionado,
                             key='zona_selector_new'
                         )
                 
@@ -903,7 +903,7 @@ def modificar_reserva():
                     precio = dataBookPrecio("precios", producto_seleccionado)
             
                     # Botón para agregar producto
-                    if st.button('Agregar Especialidad', type="primary", key='boton'):
+                    if st.button('Aceptar Seleccion', type="primary", key='boton'):
                         producto_info = {
                             'producto': producto_seleccionado,
                             'cantidad': cantidad,
@@ -924,7 +924,7 @@ def modificar_reserva():
                         st.write(f"**Total: ${total_productos:,.0f}**")
                 
                         # Opción de eliminar productos
-                        if st.button('Limpiar Lista de Productos', type="primary", key='l_boton'):
+                        if st.button('Limpiar Seleccion', type="primary", key='l_boton'):
                             st.session_state.productos_seleccionados = []
             
                     # Validaciones existentes de disponibilidad
@@ -996,7 +996,7 @@ def modificar_reserva():
                         - 💰 Total a Pagar: ${total_pedido:,.0f}
                         """)
 
-                    if servicio_seleccionado in ['Programar Cita', 'Consultoría Psicosocial', 'Terapia', 'Consulta en General']:
+                    if servicio_seleccionado in ['Psicologia', 'Consultoría Psicosocial', 'Terapia', 'Cursos', 'Inscripcion']:
                         st.info(f"📍 Zona de Entrega: {zona_seleccionada}")            
                     else:
                         st.warning("Solicitud de Cliente No Existe")
@@ -1083,7 +1083,7 @@ def modificar_reserva():
                                 # Envío por WhatsApp (si aplica)
                                 if whatsapp == True:
                                     contact = str(57)+telefono
-                                    message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Reservas y Agendamiento.'
+                                    message = f'Cordial saludo: Sr(a): {nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Productos: {productos_str}. Cordialmente, aplicación de Servicios.'
                                 
                                     whatsapp_link = generate_whatsapp_link(contact, message)
                                     st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
@@ -1100,7 +1100,7 @@ def modificar_reserva():
 
         #if whatsapp == True:
                 #  contact = str(57)+telefono
-                #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                #  message = f'Cordial saludo: Sr(a): Proceso {nombre} La Agenda se creo con exito para el dia: {fecha} a las: {hora} con el abogado encargado: {encargado} para el servicio de : {servicios} para realizar {acciones}"). Cordialmente aplicacion de Servicios.'
                                           
                 #  sendMessage(contact, message)
                 #  sendMessage(str(57)+str(telefonoencargado), message)

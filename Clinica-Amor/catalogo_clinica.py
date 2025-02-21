@@ -27,49 +27,49 @@ def catalogo():
     # Create product data with matched array lengths
     products = {
         "Psicologia": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Miercoles", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Ansiedad - Depresion",
             "icon": "🧪",
             "image_path": "./assets-amo/psico2.jpg"
         },
         "Duelo por Separacion": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Martes", "Jueves"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Por Engano, Sin Amor, Falta de Confianza, Adicciones etc.",
             "icon": "🌺",
             "image_path": "./assets-amo/psico3.jpg"
         },
         "Dependencia en Adicciones": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Miercoles", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Alcohol, Tabaco, Juegos, Drogas etc. ",
             "icon": "✨",
             "image_path": "./assets-amo/imagen6.jpg"
         },
         "Dependencia Emocionnal": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Martes", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Inseguridad, Vacios, Amor Propio etc. ",
             "icon": "🍽️",
             "image_path": "./assets-amo/psico7.jpg"
         },
         "Problemas de Aprendizaje Infantil ": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Martes", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Trastornos del Sueno, Vision, TDAH , etc.",
             "icon": "🍽️",
             "image_path": "./assets-amo/psico8.jpg"
         },
         "Conflictos de Relacion de Pareja ": {
-            "Numero Sesiones": ["2", "3", "4"],
+            "Dia de Sesiones": ["Lunes", "Martes", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Comunicacion, Confianza, Dinero etc.",
             "icon": "🍽️",
             "image_path": "./assets-amo/psico5.jpg"
         },
         "Manejo de Celos": {
-           "Numero Sesiones": ["2", "3", "4"],
+           "Dia de Sesiones": ["Lunes", "Martes", "Viernes"],
             "Tiempo": ["8:30", "9:45", "10:30"],
             "...": "Inseguridades, Dominio, Confianza etc.",
             "icon": "🍽️",
@@ -143,7 +143,7 @@ def catalogo():
                 
                 # Create a price table with matched lengths
                 data = {
-                    "No. Sesiones": product_info["Numero Sesiones"],
+                    "Dias para Sesiones": product_info["Dia de Sesiones"],
                     "Horario": product_info["Tiempo"]
                 }
                 df = pd.DataFrame(data)

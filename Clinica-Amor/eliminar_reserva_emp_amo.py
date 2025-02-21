@@ -181,11 +181,11 @@ def get_conductores_por_zona(zona):
     
     # Mapeo de zonas a nombres de hojas
     mapping = {
-        'Norte': 'encargado_norte',
-        'Sur': 'encargado_sur',
-        'Oriente': 'encargado_oriente',
-        'Occidente': 'encargado_occidente',
-        'Oficina': 'encargado_oficina'
+        'Psicología': 'encargado_psicologia',
+        'Consultoría': 'encargado_consultoria',
+        'Terapia': 'encargado_terapia',
+        'Inscripciones': 'encargado_inscripciones',
+        'Cursos': 'encargado_cursos'
     }
     
     try:
@@ -1050,7 +1050,7 @@ def eliminar_reserva():
                 #gs = GoogleSheet(credentials, document, sheet)
                 #range = gs.write_data_by_uid(uid, values)
                                                              
-                send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', "0", encargado,  notas='De acuerdo con su solicitud su reserva de pedido se cancelo. Gracias por su atencion.')
+                send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', "0", encargado,  notas='De acuerdo con su solicitud su reserva de servicio se cancelo. Gracias por su atencion.')
                      
                 send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
@@ -1058,7 +1058,7 @@ def eliminar_reserva():
 
                 if whatsapp == True:
                    contact = str(57)+telefono
-                   message = f'Cordial saludo: Sr(a): {nombre_c} De acuerdo con su solicitud su reserva de pedido se cacelo, para el dia: {fecha_c} a las: {hora_c} con el encargado: {encargado} para realizar el servcio: {servicio_seleccionado_c}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                   message = f'Cordial saludo: Sr(a): {nombre_c} De acuerdo con su solicitud su reserva se cacelo, para el dia: {fecha_c} a las: {hora_c} con el encargado: {encargado} para realizar el servcio: {servicio_seleccionado_c}"). Cordialmente aplicacion de Reservas y Agendamiento.'
                                           
                    phone_number = contact
                    mensaje = message 
