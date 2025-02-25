@@ -129,6 +129,20 @@ def dataBookZonaEnc(hoja, encargado):
        break
   return data
 
+def dataBookTelEnc(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       data = _row[2]
+       break
+  return data
+
 def dataBookProducto(hoja,producto):
   ws1 = datos_book[hoja]
   data = []
@@ -950,11 +964,18 @@ def modificar_reserva():
                     whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)', key='what_new')
                     telefono = st.text_input('Nro. Telefono', key='telefono_new', value=st.session_state.telefono)
         
-               st.write("---")
-               st.write("### Resumen de Solicitud:")
+               existe_cliente = consultar_reserva(nombre, str(fecha), hora)
+
+               if existe_cliente:
+                    st.warning("El Cliente ya tiene agenda para esa fecha y hora")
+                    return
+               else:
+
+                 st.write("---")
+                 st.write("### Resumen de Solicitud:")
         
-               # Create columns for horizontal summary
-               if st.session_state.productos_seleccionados:
+                 # Create columns for horizontal summary
+                 if st.session_state.productos_seleccionados:
                     num_productos = len(st.session_state.productos_seleccionados)
                     cols = st.columns(min(num_productos, 4))  # Max 4 products per row
             
@@ -1049,6 +1070,8 @@ def modificar_reserva():
                             # Obtener email del encargado
                             emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
 
+                            tel_encargado = dataBookTelEnc("encargado", conductor_seleccionado)
+
                             valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
 
                             if valida:
@@ -1071,6 +1094,14 @@ def modificar_reserva():
                                 range = gs.write_data_by_uid(uid, values)
                                 #gs.write_data(range, values)
 
+                                values3 = [(
+                                nombre, email, str(fecha), hora, servicio_seleccionado, 
+                                conductor_seleccionado, zona_seleccionada, productos_str  )]
+
+                                gs2 = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-amo', 'asistencia')
+                                range2 = gs2.get_last_row_range()
+                                gs2.write_data(range2, values3)
+
                                 st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
                                 # Enviar emails
@@ -1087,6 +1118,11 @@ def modificar_reserva():
                                 
                                     whatsapp_link = generate_whatsapp_link(contact, message)
                                     st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+
+                                    contact2 =  str(57)+str(tel_encargado)
+                                    whatsapp_link = generate_whatsapp_link(contact, message)
+                                    (f'{whatsapp_link}')
+                                    
                                     time.sleep(10)
                         
                                except Exception as e:

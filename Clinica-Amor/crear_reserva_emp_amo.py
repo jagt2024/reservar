@@ -130,6 +130,20 @@ def dataBookZonaEnc(hoja, encargado):
        break
   return data
 
+def dataBookTelEnc(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       data = _row[2]
+       break
+  return data
+
 def dataBookProducto(hoja,producto):
   ws1 = datos_book[hoja]
   data = []
@@ -968,18 +982,26 @@ def crea_reserva():
                     st.warning("No puede agendarse con una fecha y hora vencida")
                 else:
                     st.success("La Hora de solicitud está disponible")
+            
             else:
+                
                 resultado = calcular_diferencia_tiempo(f'{fecha} {hora}')
                 if resultado <= -170:
                     st.warning("No puede agendarse con una fecha y hora vencida")
                 else:
                     st.success("La Hora de solicitud está disponible")
-            
-        st.write("---")
-        st.write("### Resumen de Solicitud:")
         
-        # Create columns for horizontal summary
-        if st.session_state.productos_seleccionados:
+        existe_cliente = consultar_reserva(selected_option, str(fecha), hora)
+
+        if existe_cliente:
+          st.warning("El Cliente ya tiene agenda para esa fecha y hora")
+          return
+        else:
+          st.write("---")
+          st.write("### Resumen de Solicitud:")
+        
+          # Create columns for horizontal summary
+          if st.session_state.productos_seleccionados:
             num_productos = len(st.session_state.productos_seleccionados)
             cols = st.columns(min(num_productos, 4))  # Max 4 products per row
             
@@ -1045,7 +1067,7 @@ def crea_reserva():
                     else:
                         # Preparar información de productos para guardar
                         productos_str = "; ".join([
-                            f"Especial.-{p['producto']}: Cant.{p['cantidad']}: Costo-{p['precio']}" 
+                            f"Servicio.-{p['producto']}: Cant.-{p['cantidad']}: Costo-{p['precio']}" 
                             for p in st.session_state.productos_seleccionados
                         ])
                         
@@ -1056,6 +1078,7 @@ def crea_reserva():
                         emailencargado = dataBookEncEmail("encargado", conductor_seleccionado)
                         #result_email = np.setdiff1d(emailencargado,'')
 
+                        tel_encargado = dataBookTelEnc("encargado", conductor_seleccionado)
 
                         if selected_option == '-- Añadir Nuevo Cliente --':        
                          
@@ -1085,6 +1108,14 @@ def crea_reserva():
                             range2 = gs.get_last_row_range()
                             gs.write_data(range2, values)
 
+                            values3 = [(
+                                nuevo_nombre, email, str(fecha), hora, servicio_seleccionado, 
+                                conductor_seleccionado, zona_seleccionada, productos_str  )]
+
+                            gs2 = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-amo', 'asistencia')
+                            range2 = gs2.get_last_row_range()
+                            gs2.write_data(range2, values3)
+
                             st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
                             # Enviar emails
@@ -1097,8 +1128,10 @@ def crea_reserva():
                                 contact = str(57)+telefono
                                 message = f'Cordial saludo: Sr(a): {nuevo_nombre} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Especialidad: {productos_str}. Cordialmente, aplicación de Servicios.'
 
-                                whatsapp_link = generate_whatsapp_link(contact, message)
-                                st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                                contact2 =  str(57)+str(tel_encargado)
+                                whatsapp_link = generate_whatsapp_link(contact2, message)
+                                st.markdown(f"Click en enlace si desea Enviar Whatsapp {whatsapp_link}")
+                                
                                 time.sleep(10)                       
                                      
                           except Exception as e:
@@ -1125,6 +1158,13 @@ def crea_reserva():
                                 gs = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-amo', 'reservas')
                                 range2 = gs.get_last_row_range()
                                 gs.write_data(range2, values)
+                                
+                                values3 = [(
+                                selected_option, email, str(fecha), hora, servicio_seleccionado, conductor_seleccionado, zona_seleccionada, productos_str  )]
+
+                                gs2 = GoogleSheet(st.secrets['sheetsemp']['credentials_sheet'], 'gestion-reservas-amo', 'asistencia')
+                                range2 = gs2.get_last_row_range()
+                                gs2.write_data(range2, values3)
                             
                                 st.success('Su solicitud ha sido reservada de forma exitosa, la confirmación fue enviada al correo')
                             
@@ -1136,10 +1176,15 @@ def crea_reserva():
                                 # Envío por WhatsApp (si aplica)
                                 if whatsapp == True or whatsapp == 'Verdadero':
                                     contact = str(57)+telefono
-                                    message = f'Cordial saludo: Sr(a): { selected_option} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Especialidad: {productos_str}. Cordialmente, aplicación de Servicios.'
+                                    message = f'Cordial saludo: Sr(a): { selected_option} La Reserva se creó con éxito para el día: {fecha} a las: {hora} con el encargado: {conductor_seleccionado} para el servicio: {servicio_seleccionado}. Especialidad: {productos_str}. Cordialmente, Clinica del Amor.'
                                 
                                     whatsapp_link = generate_whatsapp_link(contact, message)
-                                    st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                                    st.markdown(f"Click en el enlace si desea Enviar Whatsapp {whatsapp_link}")
+                                    
+                                    contact2 =  str(57)+str(tel_encargado)
+                                    whatsapp_link = generate_whatsapp_link(contact, message)
+                                    (f'{whatsapp_link}')
+
                                     time.sleep(10)
                         
                             except Exception as e:

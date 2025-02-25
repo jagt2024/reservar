@@ -13,6 +13,7 @@ from catalogo_clinica import catalogo
 #from consultar_pagos import consulta_pagos
 #from generador_qr import codigoqr
 from consultar_reservas_amo  import consulta_reserva
+from consultar_asistencia_amo import consulta_asistencia
 #from consulta_st_excel import ConsultarAgenda
 #from descargar_agenda_emp import download_and_process_data
 #from authentication_users import authenticate_user
@@ -20,7 +21,7 @@ from consultar_reservas_amo  import consulta_reserva
 #from buscar_info import streamlit_app
 #from facturacion_servicios_emp import generar_factura
 #from consultar_facturas import consulta_facturas
-#from backup_google_drive_cld import backup
+from backup_google_drive_amo import backup
 #from estadisticas_reservas_emp import reservas
 #from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
@@ -124,6 +125,8 @@ class Model:
   option1 = 'Inicio'
   #option10 = 'Descargar Agenda'
   option9  = 'Consultar Solicitudes'
+  option2  = 'Control Asistencias'
+  option3  = 'Copia de Seguridad'
   #option22 = 'Consulta Pagos'
   #option5  = 'Nuestros Servicios'
   #option6  = 'Mas Informacion'
@@ -183,7 +186,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9                                        #, model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9, model.option2, model.option3         #,model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -392,6 +395,13 @@ else:
             #  codigoqr()
             if app == model.option9:
               consulta_reserva()
+
+            if app == model.option2:
+              consulta_asistencia()
+              
+            if app == model.option3:
+              backup()
+
             #if app == model.option10:
                 
               #if 'prev_selection' not in st.session_state or st.session_state.prev_selection != #model.option10:
