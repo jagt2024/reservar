@@ -21,3 +21,5 @@ pyzbar
 plotly
 psutil
 folium==0.18.0
+pywhatkit
+
