@@ -272,7 +272,7 @@ def verificar_citas(df_citas, worksheet, config):
                     mensaje_encargado = f"""
                     Estimado/a {cita['ENCARGADO']},
                 
-                    Le recordamos que tiene una cita programada para mañana {fecha_cita.strftime#('%d/%m/%Y')} a las {hora_cita} con el/la paciente {cita['NOMBRE']}.
+                    Le recordamos que tiene una cita programada para mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el/la paciente {cita['NOMBRE']}.
                 
                     Servicio: {cita['SERVICIO']}
                 
