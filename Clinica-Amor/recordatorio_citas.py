@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import os
-import pywhatkit
+#import pywhatkit
 import schedule
 import threading
 from google.oauth2.service_account import Credentials
@@ -175,15 +175,16 @@ def enviar_whatsapp(numero, mensaje):
         # Nota: Esto requiere que WhatsApp Web ya esté abierto y conectado
         try:
             # Esto intenta enviar un mensaje sin abrir el navegador y sin espera
-            pywhatkit.sendwhatmsg_instantly(
-                f"+{numero}", 
-                mensaje, 
-                tab_close=True,
-                close_time=10,  # Cerrar después de 5 segundos
-                wait_time=20  # Esperar solo 10 segundos para cargar
-            )
-            log_activity(f"WhatsApp enviado correctamente a +{numero}")
-            return True
+            pass
+            #pywhatkit.sendwhatmsg_instantly(
+            #    f"+{numero}", 
+            #    mensaje, 
+            #    tab_close=True,
+            #    close_time=10,  # Cerrar después de 5 segundos
+            #    wait_time=20  # Esperar solo 10 segundos para cargar
+            #)
+            #log_activity(f"WhatsApp enviado correctamente a +{numero}")
+            #return True
         except Exception as e1:
             # Si falla, intentar con el método tradicional
             log_activity(f"Error con método rápido de WhatsApp: {str(e1)}", error=True)
@@ -199,16 +200,16 @@ def enviar_whatsapp(numero, mensaje):
                 minuto -= 60
             
             # Usar pywhatkit tradicional
-            pywhatkit.sendwhatmsg(
-                f"+{numero}", 
-                mensaje, 
-                hora, 
-                minuto, 
-                wait_time=60,  # Aumentar tiempo de espera
-                tab_close=True
-            )
-            log_activity(f"WhatsApp enviado con método tradicional a +{numero}")
-            return True
+            #pywhatkit.sendwhatmsg(
+            #    f"+{numero}", 
+            #    mensaje, 
+            #    hora, 
+            #    minuto, 
+            #    wait_time=60,  # Aumentar tiempo de espera
+            #    tab_close=True
+            #)
+            #log_activity(f"WhatsApp enviado con método tradicional a +{numero}")
+            #return True
     except Exception as e:
         log_activity(f"Error al enviar WhatsApp a +{numero}: {str(e)}", error=True)
         return False
@@ -231,7 +232,7 @@ def verificar_citas(df_citas, worksheet, config):
             fecha_cita = cita['FECHA'].date() if isinstance(cita['FECHA'], datetime) else datetime.strptime(cita['FECHA'], '%Y-%m-%d').date()
             hora_cita = cita['HORA']
             
-            # CORREGIDO: Obtener teléfono del encargado
+            # Obtener teléfono del encargado
             nombre_encargado = cita['ENCARGADO']
             tel_encargado = obtener_telefono_encargado(worksheet, nombre_encargado)
             
@@ -294,7 +295,7 @@ def verificar_citas(df_citas, worksheet, config):
                         errores += 1
 
                 # Recordatorio por WhatsApp
-                if config['whatsapp_activo'] and cita['TELEFONO']:
+                #if config['whatsapp_activo'] and cita['TELEFONO']:
                     # Mensaje al paciente
                 #    mensaje_whatsapp_paciente = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} para el servicio de {cita['SERVICIOS']} con el encargado {cita['ENCARGADO']}. {config['nombre_clinica']}"
                 #    exito = enviar_whatsapp(cita['TELEFONO'], mensaje_whatsapp_paciente)
@@ -305,14 +306,14 @@ def verificar_citas(df_citas, worksheet, config):
                 #        errores += 1
                     
                     # Mensaje al encargado
-                    if tel_encargado:
-                        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
-                        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
+                #    if tel_encargado:
+                #        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+                #        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
                         
-                        if exito:
-                            mensajes_enviados += 1
-                        else:
-                            errores += 1
+                #        if exito:
+                #            mensajes_enviados += 1
+                #        else:
+                #            errores += 1
             
             # Citas para hoy - enviar recordatorio hoy temprano
             elif fecha_cita == ahora.date() and ahora.hour < 10:  # Antes de las 10 PM
@@ -343,7 +344,7 @@ def verificar_citas(df_citas, worksheet, config):
                         errores += 1
                 
                 # Recordatorio por WhatsApp
-                if config['whatsapp_activo'] and cita['TELEFONO']:
+                #if config['whatsapp_activo'] and cita['TELEFONO']:
                 #    # Mensaje al paciente
                 #    mensaje_whatsapp_paciente = f"Recordatorio: Tiene una cita HOY {fecha_cita.#strftime('%d/%m/%Y')} a las {hora_cita} para el servicio de {cita#['SERVICIOS']} con el encargado {cita['ENCARGADO']}. {config['nombre_clinica']}"
                 #    exito = enviar_whatsapp(cita['TELEFONO'], mensaje_whatsapp_paciente)
@@ -354,14 +355,14 @@ def verificar_citas(df_citas, worksheet, config):
                 #        errores += 1
                     
                     # Mensaje al encargado
-                    if tel_encargado:
-                        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita HOY {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
-                        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
+                #    if tel_encargado:
+                #        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita HOY {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+                #        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
                         
-                        if exito:
-                            mensajes_enviados += 1
-                        else:
-                            errores += 1
+                #        if exito:
+                #            mensajes_enviados += 1
+                #        else:
+                #            errores += 1
         except Exception as e:
             log_activity(f"Error al procesar cita para {cita.get('NOMBRE', 'desconocido')}: {str(e)}", error=True)
             errores += 1
