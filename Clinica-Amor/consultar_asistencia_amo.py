@@ -166,7 +166,12 @@ def consulta_asistencia():
                 st.write(f"Encargado: {row_data['ENCARGADO']}")
                 
                 # Campos editables
+                new_identificacion = st.text_input("No.IDENTIFICACION", value=row_data.get('IDENTIFICACION', ''))
+
+                new_edad = st.text_input("EDAD", value=row_data.get('EDAD', ''))
+
                 new_asistencia = st.text_input("ASISTENCIA Si/No", value=row_data.get('ASISTENCIA', ''))
+
                 new_num_sesion = st.text_input("NÚMERO DE SESIÓN(1,2,3...)", value=row_data.get('NUMERO_SESION', ''))
                 
                 new_observacion = st.text_input("OBSERVACIONES", value=row_data.get('OBSERVACIONES', ''))
@@ -177,6 +182,8 @@ def consulta_asistencia():
                 if submit_button:
                     # Actualizar los valores en la hoja de cálculo
                     cols_to_update = {
+                        'IDENTIFICACION': new_identificacion,
+                        'EDAD': new_edad,
                         'ASISTENCIA': new_asistencia,
                         'NUMERO_SESION': new_num_sesion,
                         'OBSERVACIONES': new_observacion

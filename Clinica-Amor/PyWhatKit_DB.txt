@@ -1,0 +1,25 @@
+Date: 26/2/2025
+Time: 14:8
+Phone Number: +3205511091
+Message: PRUEBA - Sistema de Recordatorio de Citas: CLINICA DEL AMOR
+--------------------
+Date: 26/2/2025
+Time: 14:10
+Phone Number: +573205511091
+Message: Recordatorio: Tiene una cita mañana 27/02/2025 a las 12:30 para el servicio de Consultoría Social con el encargado Encargado5. CLINICA DEL AMOR
+--------------------
+Date: 26/2/2025
+Time: 14:58
+Phone Number: +573205511091
+Message: Recordatorio: Tiene una cita HOY 26/02/2025 a las 15:00 para el servicio de Consultoría Social con el encargado Encargado5. CLINICA DEL AMOR
+--------------------
+Date: 26/2/2025
+Time: 15:0
+Phone Number: +573205511091
+Message: Recordatorio: Tiene una cita mañana 27/02/2025 a las 12:30 para el servicio de Consultoría Social con el encargado Encargado5. CLINICA DEL AMOR
+--------------------
+Date: 26/2/2025
+Time: 15:1
+Phone Number: +573205511091
+Message: Recordatorio: Tiene una cita mañana 27/02/2025 a las 12:30 para el servicio de Consultoría Social con el encargado Encargado5. CLINICA DEL AMOR
+--------------------
