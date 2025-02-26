@@ -26,7 +26,7 @@ from backup_google_drive_amo import backup
 #from estadisticas_facturacion_emp import factura
 from whatsapp_sender_st import whatsapp_sender
 from ticket_support_app import soporte
-from recordatorio_citas import rcordatorio
+from recordatorio_citas import recordatorio
 #from interface_pago_reserva import pago
 #from parametros_empresa import parametros
 #from localizador_gps import show_gps_tracker
