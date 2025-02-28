@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 import os
 #import pywhatkit
+from openpyxl import load_workbook
 import schedule
 import threading
 from google.oauth2.service_account import Credentials
@@ -24,6 +25,8 @@ from googleapiclient.errors import HttpError
 # Constantes para reintentos
 MAX_RETRIES = 5
 INITIAL_RETRY_DELAY = 1
+
+datos_book = load_workbook("./archivos-amo/parametros_empresa.xlsx", read_only=False)
 
 # Configuración de logs
 def log_activity(message, error=False):
@@ -56,6 +59,24 @@ def api_call_handler(func):
             log_activity(f"Error de API: {str(e)}", error=True)
             raise e
 
+def dataBookTelEnc(hoja, encargado):
+  ws1 = datos_book[hoja]
+  data = []
+  for row in range(1,ws1.max_row):
+    _row=[]
+    for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+        data.append(_row) 
+    #print(f'El encargado es {_row[0]}, su correo es {_row[1]}')
+    if _row[0] == encargado:
+       data = _row[2]
+       break
+  return data
+
+def generate_whatsapp_link(phone_number, message):
+    encoded_message = message.replace(' ', '%20')
+    return f"https://wa.me/{phone_number}?text={encoded_message}"
+
 # Función para obtener teléfono del encargado desde Google Sheets
 def obtener_telefono_encargado(worksheet, nombre_encargado):
     try:
@@ -64,7 +85,7 @@ def obtener_telefono_encargado(worksheet, nombre_encargado):
         try:
             ws_encargados = sheet.worksheet('encargado')
         except:
-            log_activity(f"No se encontró la hoja 'encargados'. Verificar el nombre de la hoja.", error=True)
+            log_activity(f"No se encontró la hoja 'encargado'. Verificar el nombre de la hoja.", error=True)
             return None
         
         # Buscar el encargado por nombre
@@ -234,7 +255,8 @@ def verificar_citas(df_citas, worksheet, config):
             
             # Obtener teléfono del encargado
             nombre_encargado = cita['ENCARGADO']
-            tel_encargado = obtener_telefono_encargado(worksheet, nombre_encargado)
+            tel_encargado = dataBookTelEnc("encargado", nombre_encargado)
+            #tel_encargado = obtener_telefono_encargado(worksheet, nombre_encargado)
             
             if tel_encargado is None:
                 log_activity(f"No se encontró teléfono para el encargado {nombre_encargado}", error=True)
@@ -275,14 +297,14 @@ def verificar_citas(df_citas, worksheet, config):
                 
                     Le recordamos que tiene una cita programada para mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el/la paciente {cita['NOMBRE']}.
                 
-                    Servicio: {cita['SERVICIO']}
+                    Servicio: {cita['SERVICIOS']}
                 
                     Saludos cordiales,
                     {config['nombre_clinica']}
                     """
                 
                     exito = enviar_correo(
-                        cita['CORREO_ENCARGADO'], 
+                        cita['CORREO ENCARGADO'], 
                         f"Recordatorio de Cita - {config['nombre_clinica']}", 
                         mensaje_encargado,
                         config['correo_remitente'],
@@ -295,7 +317,7 @@ def verificar_citas(df_citas, worksheet, config):
                         errores += 1
 
                 # Recordatorio por WhatsApp
-                #if config['whatsapp_activo'] and cita['TELEFONO']:
+                if config['whatsapp_activo'] and cita['TELEFONO']:
                     # Mensaje al paciente
                 #    mensaje_whatsapp_paciente = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} para el servicio de {cita['SERVICIOS']} con el encargado {cita['ENCARGADO']}. {config['nombre_clinica']}"
                 #    exito = enviar_whatsapp(cita['TELEFONO'], mensaje_whatsapp_paciente)
@@ -306,14 +328,18 @@ def verificar_citas(df_citas, worksheet, config):
                 #        errores += 1
                     
                     # Mensaje al encargado
-                #    if tel_encargado:
-                #        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
-                #        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
+                    if tel_encargado:
+                        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+
+                        whatsapp_link = generate_whatsapp_link(tel_encargado, mensaje_whatsapp_encargado)
+                        st.markdown(f"Click en el enlace para Enviar Whatsapp {whatsapp_link}")
+                         
+                        exito = generate_whatsapp_link(tel_encargado, mensaje_whatsapp_encargado)
                         
-                #        if exito:
-                #            mensajes_enviados += 1
-                #        else:
-                #            errores += 1
+                        if exito:
+                            mensajes_enviados += 1
+                        else:
+                            errores += 1
             
             # Citas para hoy - enviar recordatorio hoy temprano
             elif fecha_cita == ahora.date() and ahora.hour < 10:  # Antes de las 10 PM
@@ -344,7 +370,7 @@ def verificar_citas(df_citas, worksheet, config):
                         errores += 1
                 
                 # Recordatorio por WhatsApp
-                #if config['whatsapp_activo'] and cita['TELEFONO']:
+                if config['whatsapp_activo'] and cita['TELEFONO']:
                 #    # Mensaje al paciente
                 #    mensaje_whatsapp_paciente = f"Recordatorio: Tiene una cita HOY {fecha_cita.#strftime('%d/%m/%Y')} a las {hora_cita} para el servicio de {cita#['SERVICIOS']} con el encargado {cita['ENCARGADO']}. {config['nombre_clinica']}"
                 #    exito = enviar_whatsapp(cita['TELEFONO'], mensaje_whatsapp_paciente)
@@ -355,8 +381,19 @@ def verificar_citas(df_citas, worksheet, config):
                 #        errores += 1
                     
                     # Mensaje al encargado
-                #    if tel_encargado:
-                #        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita HOY {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+                    if tel_encargado:
+                        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita HOY {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+                        
+                        whatsapp_link = generate_whatsapp_link(tel_encargado, mensaje_whatsapp_encargado)
+                        st.markdown(f"Click en el enlace para Enviar Whatsapp {whatsapp_link}")
+                         
+                        exito = generate_whatsapp_link(tel_encargado, mensaje_whatsapp_encargado)
+                        
+                        if exito:
+                            mensajes_enviados += 1
+                        else:
+                            errores += 1
+
                 #        exito = enviar_whatsapp(tel_encargado, mensaje_whatsapp_encargado)
                         
                 #        if exito:
@@ -535,14 +572,12 @@ def recordatorio():
             #        st.write(resultado)
             
             # Botón para probar conexión
-            if col2.button("Probar Conexión"):
-                with st.spinner("Conectando con Google Sheets..."):
-                    df, _ = get_google_sheet_data(creds)
-                    if df is not None:
-                        st.success("¡Conexión exitosa! Se encontraron datos en la hoja.")
-            
-            st.markdown("---")
-            
+            #if col2.button("Probar Conexión"):
+            #    with st.spinner("Conectando con Google Sheets..."):
+            #        df, _ = get_google_sheet_data(creds)
+            #        if df is not None:
+            #            st.success("¡Conexión exitosa! Se encontraron datos en la hoja.")
+                       
             # Botones para iniciar/detener sistema
             if st.session_state['thread_recordatorios_activo']:
                 if st.button("Detener Sistema"):
@@ -626,20 +661,25 @@ def recordatorio():
                         st.info("No hay citas programadas para hoy ni mañana.")
             
             # Log de actividad del sistema
-            st.subheader("Log de Actividad")
+            #st.subheader("Log de Actividad")
             
             # Botón para limpiar log
-            if st.button("Limpiar Log"):
-                st.session_state['system_logs'] = []
-                st.success("Log limpiado correctamente.")
+            #if st.button("Limpiar Log"):
+            #    st.session_state['system_logs'] = []
+            #    st.success("Log limpiado correctamente.")
             
             # Mostrar los últimos logs
-            for log_entry in st.session_state['system_logs']:
-                if "ERROR" in log_entry:
-                    st.error(log_entry)
-                else:
-                    st.text(log_entry)
+            #for log_entry in st.session_state['system_logs']:
+            #    if "ERROR" in log_entry:
+            #        st.error(log_entry)
+            #    else:
+            #        st.text(log_entry)
         
+            if st.session_state['thread_recordatorios_activo']:
+                if st.button("Detener Sistema", key='det_sys'):
+                    detener_sistema_recordatorios()
+                    st.success("Sistema marcado para detener.")
+    
         with tab3:
             st.header("Ayuda y Guía de Uso")
             

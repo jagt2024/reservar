@@ -127,7 +127,7 @@ class Model:
   #option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda Citas'
   option2  = 'Control Asistencias'
-  option4  = 'Iiniciar Recordatorio Citas'
+  option4  = 'Iniciar Recordatorio Citas'
   option3  = 'Copia de Seguridad'
   #option22 = 'Consulta Pagos'
   #option5  = 'Nuestros Servicios'
