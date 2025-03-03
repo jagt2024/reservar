@@ -235,11 +235,15 @@ def enviar_whatsapp(numero, mensaje):
 
 def generate_whatsapp_link(telefono, mensaje):
     # Genera un enlace para iniciar un chat de WhatsApp con un número y mensaje predefinido
-    mensaje_codificado = urllib.parse.quote(mensaje)
+    encoded_message = mensaje.replace(' ', '%20')
+    
+    #mensaje_codificado = urllib.parse.quote(mensaje)
     # Asegurarse de que el teléfono no tenga el signo +
-    if isinstance(telefono, str) and telefono.startswith('+'):
-        telefono = telefono[1:]
-    return f"https://wa.me/{telefono}?text={mensaje_codificado}"
+    #if isinstance(telefono, str) and telefono.startswith('+'):
+    #    telefono = telefono[1:]
+
+    return f"https://wa.me/{telefono}?text={encoded_message}"
+    #return f"https://wa.me/{telefono}?text={mensaje_codificado}"
 
 # Nueva función para generar y almacenar enlaces de WhatsApp para todas las citas
 def generar_enlaces_whatsapp(df_citas, config):
@@ -256,6 +260,7 @@ def generar_enlaces_whatsapp(df_citas, config):
             # Obtener teléfono del encargado
             nombre_encargado = cita['ENCARGADO']
             result_telenc = dataBookTelEnc("encargado", nombre_encargado)
+            #print(f'result_telefono : {result_telenc}')
             
             # Fix: Better type handling for telephone number
             tel_encargado = None
@@ -281,19 +286,22 @@ def generar_enlaces_whatsapp(df_citas, config):
                 continue
                 
             # Remove any non-numeric characters from the phone number
-            tel_encargado = ''.join(filter(str.isdigit, tel_encargado))
+            tel_encargado = ''.join(filter(str.isdigit, tel_encargado))[:12]
+            #print(f'tel_encargado1 : {tel_encargado}' )
             
             if not tel_encargado:
                 log_activity(f"Teléfono sin dígitos válidos para el encargado {nombre_encargado}", error=True)
                 continue
                 
             # Generar identificador único para esta cita
-            cita_id = f"Paciente: {cita['NOMBRE']}_{fecha_cita}_{hora_cita} Encargado:{nombre_encargado}"
+            cita_id = f"{cita['NOMBRE']}_{fecha_cita}_{hora_cita}_{nombre_encargado}"
             
             # Citas para mañana
             if fecha_cita == (ahora + timedelta(days=1)).date():
                 mensaje = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
                 enlace = generate_whatsapp_link(tel_encargado, mensaje)
+                #st.markdown(f"Click en el enlace si desea Enviar Whatsapp {enlace}")
+                
                 st.session_state['whatsapp_links'][cita_id] = {
                     'enlace': enlace,
                     'encargado': nombre_encargado,
@@ -305,11 +313,12 @@ def generar_enlaces_whatsapp(df_citas, config):
                     'hora': hora_cita,
                     'servicio': cita['SERVICIOS']
                 }
-            
+                            
             # Citas para hoy
             elif fecha_cita == ahora.date():
                 mensaje = f"Recordatorio: Tiene una cita HOY {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
                 enlace = generate_whatsapp_link(tel_encargado, mensaje)
+                #st.markdown(f"Click en el enlace si desea Enviar Whatsapp {enlace}")
                 st.session_state['whatsapp_links'][cita_id] = {
                     'enlace': enlace,
                     'encargado': nombre_encargado,
@@ -340,7 +349,7 @@ def verificar_citas(df_citas, worksheet, config):
 
     # Generar enlaces de WhatsApp para todas las citas
     generar_enlaces_whatsapp(df_citas, config)
-    
+        
     #tel_encargado = dataBookTelEnc("encargado", nombre_encargado)
     # Filtrar citas para hoy y mañana
     for _, cita in df_citas.iterrows():
@@ -421,7 +430,7 @@ def verificar_citas(df_citas, worksheet, config):
                     
                     # Mensaje al encargado
                 #    if tel_encargado:
-                #        mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
+                #mensaje_whatsapp_encargado = f"Recordatorio: Tiene una cita mañana {fecha_cita.strftime('%d/%m/%Y')} a las {hora_cita} con el paciente {cita['NOMBRE']} para el servicio de {cita['SERVICIOS']}. {config['nombre_clinica']}"
 
                  #       whatsapp_link = generate_whatsapp_link(str(tel_encargado), mensaje_whatsapp_encargado)
 
@@ -441,7 +450,7 @@ def verificar_citas(df_citas, worksheet, config):
                     #    st.info("No hay un Telefono para el Encargado")
 
             # Citas para hoy - enviar recordatorio hoy temprano
-            elif fecha_cita == ahora.date() and ahora.hour < 10:  # Antes de las 10 PM
+            elif fecha_cita == ahora.date() and ahora.hour < 19:  # Antes de las 10 PM
                 log_activity(f"Procesando recordatorio para HOY: {cita['NOMBRE']} - {fecha_cita}")
                 
                 # Recordatorio al paciente por correo
@@ -778,7 +787,7 @@ def recordatorio():
                             st.write(f"**Teléfono del encargado:** {info['telefono']}")
                             st.write(f"**Mensaje:**\n{info['mensaje']}")
                             st.markdown(f"[📱 Enviar WhatsApp al Encargado]({info['enlace']})", unsafe_allow_html=True)
-            
+                            
             with col_manana:
                 st.subheader("Citas para MAÑANA")
                 if not enlaces_manana:
@@ -794,7 +803,6 @@ def recordatorio():
                             st.write(f"**Mensaje:**\n{info['mensaje']}")
                             st.markdown(f"[📱 Enviar WhatsApp al Encargado]({info['enlace']})", unsafe_allow_html=True)
 
-                        
             # Log de actividad del sistema
             #st.subheader("Log de Actividad")
             
@@ -848,5 +856,5 @@ def recordatorio():
     else:
         st.error("No se pudieron cargar las credenciales desde .streamlit/secrets.toml")
         
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    recordatorio()

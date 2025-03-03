@@ -104,7 +104,7 @@ def get_google_sheet_data(creds):
         return None
 
 def consulta_facturas():
-  st.title('Sistema de Consulta de Facturas')   
+    st.title('Sistema de Consulta de Facturas')   
     try:
         creds = load_credentials_from_toml('./.streamlit/secrets.toml')
         df = get_google_sheet_data(creds)
