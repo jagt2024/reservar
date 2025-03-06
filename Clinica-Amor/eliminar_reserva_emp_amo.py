@@ -174,6 +174,33 @@ def dataBookEncEmail(hoja, encargado):
        #print(f'su correo es {_row[1]}')
   return data
 
+def convert_numpy_to_native(value):
+    """
+    Convert NumPy types to native Python types
+    
+    Args:
+        value: Input value potentially containing NumPy types
+    
+    Returns:
+        Converted value with native Python types
+    """
+    import numpy as np
+    
+    if isinstance(value, np.integer):
+        return int(value)
+    elif isinstance(value, np.floating):
+        return float(value)
+    elif isinstance(value, np.ndarray):
+        return value.tolist()
+    elif isinstance(value, list):
+        return [convert_numpy_to_native(item) for item in value]
+    elif isinstance(value, tuple):
+        return tuple(convert_numpy_to_native(list(value)))
+    elif isinstance(value, dict):
+        return {k: convert_numpy_to_native(v) for k, v in value.items()}
+    else:
+        return value
+
 def get_conductores_por_zona(zona):
     
     if not zona:
@@ -410,8 +437,9 @@ def limpiar_campos_formulario():
     try:
         # Definir los valores por defecto para cada campo
         valores_default = {
-            'nombre_ant': '',
-            'email': ''
+            'nombre_c': '',
+            'email': '',
+            'notas': ''
         }
         
         # Actualizar el session state con los valores por defecto
@@ -433,8 +461,9 @@ def limpiar_campos_formulario():
 def inicializar_valores_default():
     
     valores_default = {
-        'nombre_ant': '',
-        'email': ''
+        'nombre_c': '',
+        'email': '',
+        'notas': ''
     }
     
     for campo, valor in valores_default.items():
@@ -453,7 +482,7 @@ def load_credentials_from_toml():
         st.error(f"Error al cargar credenciales: {str(e)}")
         return None
 
-def consultar_otros(nombre, fecha, hora):
+def actualizar_estado(nombre, fecha, hora, notas):
   for intento in range(MAX_RETRIES):
     try:
       with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
@@ -478,66 +507,75 @@ def consultar_otros(nombre, fecha, hora):
         registros = worksheet.get_all_records()
 
         if not registros:
-            return False  # No hay datos en la hoja
+            st.error("No hay datos en la hoja")
+            return False
         
         # Convertir a DataFrame para facilitar la búsqueda
         df = pd.DataFrame(registros)
 
-        # Verificar si las columnas necesarias existen
-        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        # Verificar que existan las columnas necesarias
+        required_columns = ['NOMBRE', 'FECHA', 'HORA', 'NOTAS', 'ESTADO']
         if not all(col in df.columns for col in required_columns):
-            st.warning("La hoja no contiene todas las columnas necesarias")
+            st.error("La hoja no contiene todas las columnas necesarias")
             return False
         
-        try:
+        # Realizar la búsqueda del registro específico
+        registro_encontrado = False
         
-            # Realizar la búsqueda
-            reserva = df[
-                (df['NOMBRE'].str.lower() == nombre.lower()) &
-                (df['FECHA'] == fecha) &
-                (df['HORA'] == hora)
-            ]
+        # Obtener los índices de las columnas necesarias
+        encabezados = worksheet.row_values(1)
+        col_estado_idx = encabezados.index('ESTADO') + 1  # +1 porque gspread usa índices desde 1
+        col_notas_idx = encabezados.index('NOTAS') + 1 
 
-        except AttributeError:
-            # En caso de que alguna columna no sea del tipo esperado
-            st.warning("Error en el formato de los datos")
-            return False
-        
-        # Verificar si se encontró la reserva
-        if not reserva.empty:
-            # Si encuentra la reserva, devuelve True y los detalles
-            #detalles_reserva = reserva.iloc[0].to_dict()
-                        # Extraer los campos solicitados
-            datos_reserva = {
-                'ENCARGADO': reserva['ENCARGADO'].iloc[0],
-                'ZONA': reserva['ZONA'].iloc[0],
-                'TELEFONO': reserva['TELEFONO'].iloc[0],
-                'DIRECCION': reserva['DIRECCION'].iloc[0],
-                'WHATSAPP': reserva['WHATSAPP'].iloc[0]
-            }
-
-            return True, datos_reserva
-
-        else:
-            #st.warning("Solicitud de Cliente No Existe")
-            return False #, None
+        # Iterar sobre cada registro para encontrar la coincidencia exacta
+        for i, fila in enumerate(registros, start=2):  # start=2 para saltar el encabezado
+            nombre_c = fila.get('NOMBRE', '')
+            fecha_c = str(fila.get('FECHA', ''))
+            hora_c = fila.get('HORA', '')
             
-    except HttpError as error:
-            if error.resp.status == 429:  # Error de cuota excedida
-                if intento < MAX_RETRIES - 1:
-                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
-                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
-                    time.sleep(delay)
-                    continue
+            # Verificar coincidencia exacta con los parámetros proporcionados
+            if (nombre_c.lower() == nombre.lower() and 
+                fecha_c == str(fecha) and 
+                hora_c == hora):
+                
+                estado_actual = fila.get('ESTADO', '')
+                
+                # Verificar si el estado ya es "Cancelado"
+                if estado_actual != "Cancelado":
+                    # Actualizar el estado
+                    worksheet.update_cell(i, col_estado_idx, "Cancelado")
+                    # Actualizar las notas
+                    worksheet.update_cell(i, col_notas_idx, notas)
+                    
+                    registro_encontrado = True
+                    st.success(f"Reserva cancelada: {nombre}, {fecha}, {hora}")
+                    break
                 else:
-                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
-            else:
-                st.error(f"Error de la API: {str(error)}")
+                    st.warning("Esta reserva ya se encuentra cancelada")
+                    return False
+        
+        if not registro_encontrado:
+            st.warning("No se encontró la reserva especificada")
             return False
+            
+        return True
+                
+    except HttpError as error:
+        if error.resp.status == 429:  # Error de cuota excedida
+            if intento < MAX_RETRIES - 1:
+                delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                time.sleep(delay)
+                continue
+            else:
+                st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+        else:
+            st.error(f"Error de la API: {str(error)}")
+        return False
       
     except Exception as e:
-        st.error(f"Error al consultar la reserva: {str(e)}")
-        return False,(f"Error al consultar la reserva: {str(e)}")
+        st.error(f"Error al actualizar Estado: {str(e)}")
+        return False
 
 def consultar_reserva(nombre, fecha, hora):
   for intento in range(MAX_RETRIES):
@@ -615,6 +653,93 @@ def consultar_reserva(nombre, fecha, hora):
     except Exception as e:
         st.error(f"Error al consultar la reserva: {str(e)}")
         return False
+
+def consultar_otros(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
+    try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-amo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+
+        if not registros:
+            return False  # No hay datos en la hoja
+        
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+
+        # Verificar si las columnas necesarias existen
+        # Verificar si las columnas necesarias existen
+        required_columns = ['NOMBRE', 'FECHA', 'HORA']
+        if not all(col in df.columns for col in required_columns):
+            st.warning("La hoja no contiene todas las columnas necesarias")
+            return False
+        
+        try:
+
+            # Realizar la búsqueda
+            reserva = df[
+                (df['NOMBRE'].str.lower() == nombre.lower()) &
+                (df['FECHA'] == fecha) &
+                (df['HORA'] == hora)
+            ]
+
+        except AttributeError:
+            # En caso de que alguna columna no sea del tipo esperado
+            st.warning("Error en el formato de los datos")
+            return False
+        
+        # Verificar si se encontró la reserva
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                        # Extraer los campos solicitados
+            datos_reserva = {
+                'ENCARGADO': reserva['ENCARGADO'].iloc[0],
+                'ZONA': reserva['ZONA'].iloc[0],
+                'EMAIL': reserva['EMAIL'].iloc[0],
+                'TELEFONO': reserva['TELEFONO'].iloc[0],
+                'DIRECCION': reserva['DIRECCION'].iloc[0],
+                'WHATSAPP': reserva['WHATSAPP'].iloc[0]
+            }
+
+            return True, datos_reserva
+
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
+    except Exception as e:
+        st.error(f"Error en la aplicación: {str(e)}")
 
 def consultar_encargado(encargado, fecha, hora):
   for intento in range(MAX_RETRIES):
@@ -759,6 +884,77 @@ def get_data_from_sheets(nombre, fecha, hora):
                 st.error(f"Error de la API: {str(error)}")
             return False
 
+def consultar_uid(nombre, fecha, hora):
+  for intento in range(MAX_RETRIES):
+    try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+        # Cargar credenciales
+        creds = load_credentials_from_toml()
+
+        if not creds:
+            st.error("Error al cargar las credenciales")
+            return False, None
+
+        # Configurar el alcance y autenticación
+        scope = ['https://spreadsheets.google.com/feeds',
+                'https://www.googleapis.com/auth/drive']
+        
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        gc = gspread.authorize(credentials)
+        
+        # Verificar si hay registros antes de crear el DataFram
+
+        # Abrir el archivo y la hoja específica
+        workbook = gc.open('gestion-reservas-amo')
+        worksheet = workbook.worksheet('reservas')
+        
+        # Obtener todos los registros
+        registros = worksheet.get_all_records()
+        
+        if not registros:
+            return False  # No hay datos en la hoja
+            
+        # Convertir a DataFrame para facilitar la búsqueda
+        df = pd.DataFrame(registros)
+        
+        # Realizar la búsqueda
+        reserva = df[
+            (df['NOMBRE'].str.lower() == nombre.lower()) &
+            (df['FECHA'] == fecha) &
+            (df['HORA'] == hora)
+        ]
+        
+        # Verificar si se encontró la reserva
+        if not reserva.empty:
+            # Si encuentra la reserva, devuelve True y los detalles
+            #detalles_reserva = reserva.iloc[0].to_dict()
+                    # Extraer los campos solicitados
+            datos_reserva = {
+            'UID': reserva['UID'].iloc[0]
+            }
+
+            return True, datos_reserva
+        else:
+            #st.warning("Solicitud de Cliente No Existe")
+            return False #, None
+            
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
+    except Exception as e:
+        st.error(f"Error al consultar el UID: {str(e)}")
+        return False,(f"Error al consultar el UID: {str(e)}")
+
 def eliminar_reserva_sheet(nombre, fecha, hora):
   for intento in range(MAX_RETRIES):
     try:
@@ -845,7 +1041,7 @@ def eliminar_reserva():
     
   try:
      
-    st.title('Eliminar Reserva de Servicio')
+    st.title('Cancelar Reserva de Servicio')
        
     try:
                 
@@ -905,6 +1101,8 @@ def eliminar_reserva():
                 servicios_c,
                 key='servicio_selector_ant'
             )
+            notas = st.text_area('Motivo de Cancelacion(Opcional)', 
+                                 key='notas_new', value=st.session_state.notas)
 
         with colum2:
             
@@ -913,11 +1111,11 @@ def eliminar_reserva():
             email  = st.text_input('Email Solicitante:', placeholder='Email', key='email_del', value=st.session_state.email)
         
 
-        df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
+        #df_clientes = consultar_reserva(nombre_c, str(fecha_c), hora_c)
 
-        if df_clientes == False:     
+        #if df_clientes == False:
 
-          if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
+        if hora_c !=  dt.datetime.utcnow().strftime("%H%M"):
          
             #conn = create_connection()
                
@@ -944,7 +1142,6 @@ def eliminar_reserva():
                     st.warning("Solicitud de Cliente No Existe")
                     #print(f"Error: {result['message']}")
 
-
                resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
                #print(f'resultado {resultado}')
                if resultado > 0:
@@ -957,12 +1154,12 @@ def eliminar_reserva():
                 info = {
                      "Cliente": nombre_c,
                      "🎯 Servicio": servicio_seleccionado_c, "Fecha": fecha_c, "Hora":  hora_c,
-                     "🚗 Conductor Encargado": encargado
+                     "Profesional Encargado": encargado
                  }
                  
-                if servicio_seleccionado_c == 'Entrega max. 2 dias' or  servicio_seleccionado_c == 'Cambio Producto' or servicio_seleccionado_c == 'Programado Pedido':
+                if servicio_seleccionado_c in ['Psicología', 'Consultoría Social', 'Terapia', 'Cursos']:
 
-                   info["📍 Zona"] = zona
+                   info["📍 Area Servvicio"] = zona
                                    
                    for key, value in info.items():
                        st.write(f"{key}: **{value}**")
@@ -981,8 +1178,8 @@ def eliminar_reserva():
             else:    
               st.warning("La solicitud No existe Favor verficar")
 
-        else:
-            st.warning("Solicitud de Cliente No se puede eliminar tiene Pago Asociado")
+        #else:
+        #    st.warning("Solicitud de Cliente No se puede eliminar tiene Pago Asociado")
 
     except Exception as e:
        st.error(f"Error en la aplicación: {str(e)}")
@@ -990,7 +1187,7 @@ def eliminar_reserva():
 
     with st.form(key='myform6',clear_on_submit=True):
         
-     eliminar = st.form_submit_button("Eliminar", type="primary")
+     eliminar = st.form_submit_button("Cancelar Cita", type="primary")
      
      #Backend
      if eliminar:
@@ -1000,11 +1197,7 @@ def eliminar_reserva():
 
          elif not validate_email(email):
             st.warning('El email no es valido')
-
          else:
-            # Create database connection
-
-            st.warning("Solicitud de Cliente No Existe")
             #conn = create_connection()
             #if conn is None:
             #    st.error("Error: No se pudo conectar a la base de datos")
@@ -1019,13 +1212,13 @@ def eliminar_reserva():
                   
             whatsappweb = (f"web.whatsapp.com/send?phone=&text= Sr(a). {nombre_c} De acuerdo co  su  solicitud,  la Resserva fue Cancelada con exito para el servicio de movilizacion: {servicio_seleccionado_c}")
             
-            resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
+            #resultado = calcular_diferencia_tiempo(f'{fecha_c} {hora_c}')
             #print(f'resultado {resultado}')
 
-            df_clientes = get_data_from_sheets(nombre_c, str(fecha_c), hora_c)
+            df_clientes = consultar_reserva(nombre_c, str(fecha_c), hora_c)
 
-            if resultado < 0 or df_clientes == False:
-               st.warning("No sepuede eliminar un servicio ya vencido o con Pago  Asociado")
+            if df_clientes == False:
+               st.warning("Reserva de Cliente No Existe")
             else:
                       
              try:
@@ -1043,36 +1236,54 @@ def eliminar_reserva():
                 #values = [(nombre_c,email,str(fecha_c),hora_c, #servicio_seleccionado_c, '0', encargado, str(emailencargado), #zona, direccion, 'Reserva Cancelada', uid, whatsapp,telefono, #whatsappweb)]
   
                 #actualizar_reserva(conn, nombre_c, fecha_c, hora_c,#servicio_seleccionado_c, nuevos_datos)
+                #valida, result = consultar_uid(nombre_c, str(fecha_c), hora_c)
+                
+                #if valida:
+                #    uid = result['UID']
 
-                        
-                eliminar_reserva_sheet(nombre_c, str(fecha_c), hora_c)
+                actualizar_estado(nombre_c, str(fecha_c), hora_c, notas)
+                       
+                #eliminar_reserva_sheet(nombre_c, str(fecha_c), hora_c)
                     
                 #gs = GoogleSheet(credentials, document, sheet)
                 #range = gs.write_data_by_uid(uid, values)
                                                              
-                send_email2(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', "0", encargado,  notas='De acuerdo con su solicitud su reserva de servicio se cancelo. Gracias por su atencion.')
+                send_email2(email, nombre_c, str(fecha_c), hora_c, servicio_seleccionado_c, ' ', "0", encargado,  'De acuerdo con su solicitud su reserva de servicio se cancelo. Gracias por su atencion.')
                      
-                send_email_emp(email, nombre_c, fecha_c, hora_c, servicio_seleccionado_c, ' ', '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
+                send_email_emp(email, nombre_c, str(fecha_c), hora_c, servicio_seleccionado_c, ' ', '0', encargado, 'Reserva Cancelada', str(emailencargado)) 
 
                 st.success('Su solicitud ha sido cacelada de forrma exitosa, la confirmacion fue enviada al correo')
 
-                if whatsapp == True:
-                   contact = str(57)+telefono
-                   message = f'Cordial saludo: Sr(a): {nombre_c} De acuerdo con su solicitud su reserva se cacelo, para el dia: {fecha_c} a las: {hora_c} con el encargado: {encargado} para realizar el servcio: {servicio_seleccionado_c}"). Cordialmente aplicacion de Reservas y Agendamiento.'
+                valida, result = consultar_otros(nombre_c, str(fecha_c), hora_c)
+
+                if valida:
+                   
+                    telefono = result['TELEFONO']
+                    direccion = result['DIRECCION']
+                    whatsapp = result['WHATSAPP']
+
+                    contact = telefono
+                    message = f'Cordial saludo: Sr(a): {nombre_c} De acuerdo con su solicitud su reserva se cancelo, para el dia: {fecha_c} a las: {hora_c} con el encargado: {encargado} para realizar el servcio: {servicio_seleccionado_c}"). Cordialmente aplicacion de Reservas y Agendamiento.'
                                           
-                   phone_number = contact
-                   mensaje = message 
-                   whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
-                   st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
-                   time.sleep(5)
+                    phone_number = contact
+                    mensaje = message
+                    whatsapp_link = generate_whatsapp_link(phone_number, mensaje)
+                    st.markdown(f"Click si desea Enviar a su Whatsapp {whatsapp_link}")
+                    time.sleep(8)
+
+                else:
+                    # Si hay error, result será un diccionario
+                    st.warning("Solicitud de Cliente No Existe")
+                    #print(f"Error: {result['message']}")
+               
                         
              except Exception as e:
                 st.error(f"Error al guardar en la base de datos: {str(e)}")
-             #finally:
-             #   conn.close()
+                #finally:
+                #   conn.close()
              
-             if limpiar_campos_formulario():               
-                st.success('Los ccaampos fueron limpiados exitosamente')                                   
+        if limpiar_campos_formulario():               
+           st.success('Los ccaampos fueron limpiados exitosamente')                                   
                   #calendar.create_event(servicios+". "+nombre, 
                   #start_time, end_time, time_zone, attendees=result_email)   
 

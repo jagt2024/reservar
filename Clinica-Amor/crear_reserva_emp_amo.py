@@ -896,7 +896,7 @@ def crea_reserva():
             whatsapp = st.checkbox('Envio a WhatsApp Si/No (Opcional)')
             telefono = st.text_input('Nro. Telefono', key='telefono', value=st.session_state.telefono)
 
-            notas = st.text_area('Nota de Consulta u Observacion(Opcional)', 
+            notas = st.text_area('Nota de Consulta o Motivo Especial(Opcional)', 
                                  key='notas', value=st.session_state.notas)
 
         with col2:
@@ -908,11 +908,12 @@ def crea_reserva():
             )
             if servicio_seleccionado in ['Psicología', 'Consultoría Social', 'Terapia', 'Cursos']:
                 zonas = ['Psicología', 'Consultoría Social', 'Terapia', 'Inscripciones', 'Cursos']
-                zona_seleccionada = st.selectbox(
-                    'Seleccione el Area:',
-                    servicio_seleccionado,
-                    key='zona_selector'
+                zona_seleccionada = st.info(f'Area de Servicio: {servicio_seleccionado}'
+                    #skey='zona_selector'
+                    #label_visibility='hidden'
                 )
+
+                zona_seleccionada = servicio_seleccionado
                 encargado = get_conductores_por_zona(zona_seleccionada)
             else:
                 encargado = [c for c in dataBook("encargado") if c != 'X' and c is not None]
@@ -1100,7 +1101,7 @@ def crea_reserva():
                                 zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
                                 direccion, notas, uid, whatsapp, str(57)+telefono, 
                                 f"web.whatsapp.com/send?phone=&text=Reserva para { selected_option}", 
-                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))','Reservado'
                             )]
 
                             # Guardar en Google Sheets
@@ -1149,7 +1150,7 @@ def crea_reserva():
                                 zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
                                 direccion, notas, uid, whatsapp, str(57)+telefono, 
                                 f"web.whatsapp.com/send?phone=&text=Reserva para { selected_option}", 
-                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))','Reservado'
                             )]
                             
                             try:           

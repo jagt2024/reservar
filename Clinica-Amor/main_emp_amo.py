@@ -100,7 +100,24 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20250330')
+def dataBook_fecha(hoja):
+    ws1 = datos_book_emp[hoja]
+    data2 = []
+    for row in range(1,ws1.max_row):
+      _row=[]
+      for col in ws1.iter_cols(1,ws1.max_column):
+        _row.append(col[row].value)
+      data2.append(_row[1])
+      #print(f'data {data}')
+    return data2
+
+#fecha1 = dataBook_fecha("sw")
+#fecha_h = np.setdiff1d(fecha1,'')
+#print(f'fecha_h {fecha_h}')
+fecha_hasta = int('20250430')
+#print(f'fecha_h2 {fecha_hasta}')
+#fecha_hasta = int(fecha_h2)
+
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -341,7 +358,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Eliminar Solicitud", "Nuestros Servicios", "Soporte - PQRS"
+        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Cancelar Solicitud", "Nuestros Servicios", "Soporte - PQRS"
         #, "Registrar Pago", "Soporte - PQRS"])
         ])
             

@@ -895,9 +895,8 @@ def modificar_reserva():
                             key='conductor_selector_new'
                         )
             
-                    notas = st.text_area('Nota de Consulta u Observacion(Opcional)', 
-                                 key='notas_new', value=st.session_state.notas)
-        
+                    notas = st.text_area('Nota de Consulta o Motivo Especial (Opcional)', 
+                                 key='notas_new', value=st.session_state.notas)        
                with col2:
                     email = st.text_input('Email Solicitante:', placeholder='Email', 
                                   key='email_new', value=st.session_state.email)
@@ -1085,7 +1084,7 @@ def modificar_reserva():
                                 zona_seleccionada, productos_str, len(st.session_state.productos_seleccionados), 
                                 direccion, notas, uid, whatsapp, str(57)+telefono, 
                                 f"web.whatsapp.com/send?phone=&text=Reserva para {nombre}", 
-                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))'
+                                '=ArrayFormula(SI(M3=VERDADERO;HIPERVINCULO(O3;"Enviar");"No Enviar"))','Modificado'
                                )]
                         
                                try:

@@ -262,7 +262,7 @@ def consulta_asistencia():
                         new_edad = st.text_input("EDAD", value=row_data.get('EDAD', ''), key=f"edad_{i}")
                         new_asistencia = st.text_input("ASISTENCIA Si/No", value=row_data.get('ASISTENCIA', ''), key=f"asist_{i}")
                         new_num_sesion = st.text_input("NÚMERO DE SESIÓN(1,2,3...)", value=row_data.get('NUMERO_SESION', ''), key=f"sesion_{i}")
-                        new_observacion = st.text_input("OBSERVACIONES", value=row_data.get('OBSERVACIONES', ''), key=f"obs_{i}")
+                        new_observacion = st.text_area("OBSERVACIONES", value=row_data.get('OBSERVACIONES', ''), key=f"obs_{i}")
                         
                         col1, col2 = st.columns(2)
                         with col1:
