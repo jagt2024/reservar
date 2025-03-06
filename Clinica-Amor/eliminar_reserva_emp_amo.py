@@ -1092,7 +1092,7 @@ def eliminar_reserva():
         
         with colum1:
         
-            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_nom', value=st.session_state.nombre_ant) 
+            nombre_c = st.text_input('Nombre Solicitante*: ', placeholder='Nombre', key='nombre_nom', value=st.session_state.nombre_c)
                        
             # Lista de servicios disponibles
             #servicios_c = ['Hacia el Aeropuerto', 'Desde el Aeropuerto ']
