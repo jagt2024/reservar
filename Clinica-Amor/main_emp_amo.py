@@ -285,80 +285,79 @@ else:
               time.sleep(1)
               #st.rerun()  
        
-        #st.markdown("""
-        #<style>
-        #  /* Estilos para pantallas grandes */
-        #  @media (min-width: 768px) {
-        #  .stTabs [data-baseweb="tab-list"] {
-        #    gap: 24px;
-        #      padding: 0px 10px;
-        #  }
+        st.markdown("""
+        <style>
+          /* Estilos para pantallas grandes */
+          @media (min-width: 768px) {
+          .stTabs [data-baseweb="tab-list"] {
+            gap: 20px;
+              padding: 0px 8px;
+          }
 
-        #  .stTabs [data-baseweb="tab"] {
-        #      height: 50px;
-        #      white-space: pre-wrap;
-        #      background-color: #f0f2f6;
-        #      border-radius: 5px;
-        #      padding: 10px 20px;
-        #      font-size: 16px;
-        #      font-weight: 600;
-        #      color: #31333F;
-        #  }
+          .stTabs [data-baseweb="tab"] {
+              height: 50px;
+              white-space: pre-wrap;
+              background-color: #f0f2f6;
+              border-radius: 5px;
+              padding: 10px 20px;
+              font-size: 16px;
+              font-weight: 600;
+              color: #31333F;
+          }
 
-        #  .stTabs [data-baseweb="tab"]:hover {
-        #      background-color: #e0e2e6;
-        #      color: #1f77b4;
-        #  }
+          .stTabs [data-baseweb="tab"]:hover {
+              background-color: #e0e2e6;
+              color: #1f77b4;
+          }
 
-        #  .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        #      background-color: #1f77b4;
-        #      color: white;
-        #  }
+          .stTabs [data-baseweb="tab"][aria-selected="true"] {
+              background-color: #1f77b4;
+              color: white;
+          }
 
-        #  .stTabs [data-baseweb="tab"] div {
-        #      font-size: 20px;
-        #    }
-         # }
+          .stTabs [data-baseweb="tab"] div {
+              font-size: 12px;
+            }
+          }
 
          # /* Estilos para pantallas pequeñas */
-         # @media (max-width: 767px) {
-         # .stTabs [data-baseweb="tab-list"] {
-         #   gap: 3px;
-         #   padding: 0px 5px;
-         # }
+          @media (max-width: 767px) {
+          .stTabs [data-baseweb="tab-list"] {
+            gap: 3px;
+            padding: 0px 10px;
+          }
 
-         # .stTabs [data-baseweb="tab"] {
-         #     height: 40px;
-         #     white-space: pre-wrap;
-         #     background-color: #f0f2f6;
-         #     border-radius: 5px;
-         #     padding: 6px 10px;
-         #     font-size: 10px;
-         #     font-weight: 300;
-         #     color: #31333F;
-         # }
+          .stTabs [data-baseweb="tab"] {
+              height: 40px;
+              white-space: pre-wrap;
+              background-color: #f0f2f6;
+              border-radius: 5px;
+              padding: 0px 10px;
+              font-size: 10px;
+              font-weight: 300;
+              color: #31333F;
+          }
+          .stTabs [data-baseweb="tab"]:hover {
+              background-color: #e0e2e6;
+              color: #1f77b4;
+          }
 
-         # .stTabs [data-baseweb="tab"]:hover {
-         #     background-color: #e0e2e6;
-         #     color: #1f77b4;
-         # }
+          .stTabs [data-baseweb="tab"][aria-selected="true"] {
+              background-color: #1f77b4;
+              color: white;
+          }
 
-         # .stTabs [data-baseweb="tab"][aria-selected="true"] {
-         #     background-color: #1f77b4;
-         #     color: white;
-         # }
-
-         # .stTabs [data-baseweb="tab"] div {
-         #     font-size: 10px;
-         #   }
-        #  }
-       # </style>
-       # """, unsafe_allow_html=True)
+          .stTabs [data-baseweb="tab"] div {
+              font-size: 12px;
+           }
+          }
+        </style>
+        """, unsafe_allow_html=True)
 
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Cancelar Solicitud", "Nuestros Servicios", "Soporte - PQRS"
+        tabs = st.tabs(["Ir a Inicio", "Crea Solicitud", "Modifica Solicitud","Cancela Solicitud", "Nuestros Servicios", "Soporte - PQRS"
         #, "Registrar Pago", "Soporte - PQRS"])
         ])
             

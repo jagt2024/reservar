@@ -391,7 +391,8 @@ def limpiar_campos_formulario():
             'direccion': '',
             'telefono': '',
             'notas': '',
-            'productos_str': ''
+            'productos_str': '',
+            'whatsapp': ''
             #'fecha',
             #'hora',
             #'servicio_selector'
@@ -422,7 +423,8 @@ def inicializar_valores_default():
             'direccion': '',
             'telefono': '',
             'notas': '',
-            'productos_str': ''
+            'productos_str': '',
+            'whatsapp': ''
     }
     
     for campo, valor in valores_default.items():
