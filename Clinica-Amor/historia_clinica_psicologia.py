@@ -1,72 +1,120 @@
 import streamlit as st
 import pandas as pd
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
+from googleapiclient.errors import HttpError
 from datetime import datetime
 import time
+import json
+import toml
+
+# Configuración para reintentos de conexión
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 2
 
 # Configuración de la página
-st.set_page_config(
-    page_title="Historia Clínica Psicológica",
-    page_icon="🧠",
-    layout="wide"
-)
+#st.set_page_config(
+#    page_title="Historia Clínica Psicológica",
+#    page_icon="🧠",
+#    layout="wide"
+#)
 
 # Estilos CSS personalizados
-st.markdown("""
-<style>
-    .main {
-        padding: 2rem;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: #f0f2f6;
-        border-radius: 4px 4px 0px 0px;
-        padding: 10px 16px;
-        font-weight: 600;
-    }
-    .stTabs [aria-selected="true"] {
-        background-color: #4e89ae;
-        color: white;
-    }
-    .header-container {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 1rem;
-    }
-    .section-title {
-        background-color: #f0f2f6;
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 10px;
-    }
-</style>
-""", unsafe_allow_html=True)
+#st.markdown("""
+#<style>
+#    .main {
+#        padding: 2rem;
+#    }
+#    .stTabs [data-baseweb="tab-list"] {
+#        gap: 10px;
+#    }
+#    .stTabs [data-baseweb="tab"] {
+#        background-color: #f0f2f6;
+#        border-radius: 4px 4px 0px 0px;
+#        padding: 10px 16px;
+#        font-weight: 600;
+#    }
+#    .stTabs [aria-selected="true"] {
+#        background-color: #4e89ae;
+#        color: white;
+#    }
+#    .header-container {
+#        display: flex;
+#        align-items: center;
+#        justify-content: space-between;
+#        margin-bottom: 1rem;
+#    }
+#    .section-title {
+#        background-color: #f0f2f6;
+#        padding: 10px;
+#        border-radius: 5px;
+#        margin-bottom: 10px;
+#    }
+#</style>
+#""", unsafe_allow_html=True)
+
+# Initialize the state for the editing form
+if 'editing' not in st.session_state:
+    st.session_state.editing = False
+if 'edit_index' not in st.session_state:
+    st.session_state.edit_index = None
+if 'patient' not in st.session_state:
+    st.session_state.patient = {}
+
+# Función para cargar credenciales desde el archivo .toml
+def load_credentials_from_toml():
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds
+    except Exception as e:
+        st.error(f"Error al cargar credenciales: {str(e)}")
+        return None
 
 # Función para conectar con Google Sheets
-@st.cache_resource
+#@st.cache_resource
 def connect_to_gsheets():
     try:
+        # Cargar credenciales desde el archivo .toml
+        creds = load_credentials_from_toml()
+        if not creds:
+            return None
+        
         # Definir el alcance
-        scope = ['https://spreadsheets.google.com/feeds',
-                'https://www.googleapis.com/auth/drive']
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
         
-        # Añadir credenciales a la cuenta
-        # NOTA: Necesitarás un archivo JSON con las credenciales de servicio de Google
-        # Deberás crear este archivo siguiendo las instrucciones en la documentación de Google Cloud
-        creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
+        # Crear credenciales
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
         
-        # Autorizar la clientela
-        client = gspread.authorize(creds)
+        # Autorizar el cliente
+        client = gspread.authorize(credentials)
         
-        # Abrir la hoja existente
-        spreadsheet = client.open('gestion-resservas-amo')
+        # Abrir la hoja existente - Usar el nombre correcto según tu función add_new_client
+        spreadsheet = client.open('gestion-reservas-amo')
         
-        # Obtener la hoja específica
-        sheet = spreadsheet.worksheet('historia_clinica')
+        # Obtener o crear la hoja específica
+        try:
+            sheet = spreadsheet.worksheet('historia_clinica')
+        except gspread.exceptions.WorksheetNotFound:
+            # Si la hoja no existe, crearla
+            sheet = spreadsheet.add_worksheet(title='historia_clinica', rows=1000, cols=50)
+            
+            # Añadir encabezados
+            headers = [
+                'ID', 'Nombre', 'Sexo', 'Edad', 'Estudios', 'Origen',
+                'Ocupacion', 'Estado civil', 'Religion', 'Progenitores',
+                'Motivo Consulta', 'Fecha Inicio Sintomas', 'Antecedentes',
+                'Desarrollo Psicomotor', 'Alimentacion', 'Habitos de sueño', 'Perfil Social','otros',
+                #'Perfil social', 'Personalidad', 'Historia familiar',
+                #'Apariencia', 'Estado de conciencia', 'Estado de ánimo', 'Actividad motora',
+               # 'Lenguaje', 'Contenido de ideas', 'Sensorium', 'Memoria', 'Pensamiento',
+                'Resultado Examen', 'Diagnostico', 'Objetivos Tratamiento', 'Tecnicas', 
+                'Fecha Consulta', 'Terapeuta', 'Fecha Registro'
+            ]
+            sheet.append_row(headers)
         
         return sheet
     except Exception as e:
@@ -75,46 +123,130 @@ def connect_to_gsheets():
 
 # Función para cargar datos existentes
 def load_data():
+    for intento in range(MAX_RETRIES):
+        try:
+            with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+                sheet = connect_to_gsheets()
+                if sheet:
+                    # Obtener todos los datos
+                    data = sheet.get_all_records()
+                    return pd.DataFrame(data)
+                return pd.DataFrame()
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return pd.DataFrame()
+        except Exception as e:
+            st.error(f"Error al cargar datos: {e}")
+            return pd.DataFrame()
+
+# Función para guardar datos modificados
+def save_data(df, sheet):
     try:
-        sheet = connect_to_gsheets()
-        if sheet:
-            # Obtener todos los datos
-            data = sheet.get_all_records()
-            return pd.DataFrame(data)
-        return pd.DataFrame()
+        with st.spinner('Guardando cambios...'):
+            # Convertir el DataFrame a una lista de listas
+            data_to_save = [df.columns.tolist()] + df.values.tolist()
+            
+            # Limpiar la hoja actual
+            sheet.clear()
+            
+            # Actualizar con los nuevos datos
+            sheet.update(data_to_save)
+            
+        st.success('Datos guardados correctamente')
+        return True
     except Exception as e:
-        st.error(f"Error al cargar datos: {e}")
-        return pd.DataFrame()
+        st.error(f"Error al guardar datos: {e}")
+        return False# Función para guardar datos modificados
+def save_data(df, sheet):
+    try:
+        with st.spinner('Guardando cambios...'):
+            # Convertir el DataFrame a una lista de listas
+            data_to_save = [df.columns.tolist()] + df.values.tolist()
+            
+            # Limpiar la hoja actual
+            sheet.clear()
+            
+            # Actualizar con los nuevos datos
+            sheet.update(data_to_save)
+            
+        st.success('Datos guardados correctamente')
+        return True
+    except Exception as e:
+        st.error(f"Error al guardar datos: {e}")
+        return False
+
+# Función para filtrar datos por ID o Nombre
+def filter_data(df, search_term):
+    if not search_term:
+        return df
+        
+    # Asegurar que los tipos de datos sean compatibles para la búsqueda
+    df_copy = df.copy()
+    df_copy['ID'] = df_copy['ID'].astype(str)
+    
+    # Buscar coincidencias parciales en ID o Nombre
+    mask = (
+        df_copy['ID'].str.contains(search_term, case=False, na=False) | 
+        df_copy['Nombre'].str.contains(search_term, case=False, na=False)
+    )
+    
+    return df_copy[mask]
 
 # Función para guardar nueva historia clínica
 def save_history(patient_data):
-    try:
-        sheet = connect_to_gsheets()
-        if sheet:
-            # Verificar si la columna ID existe
-            headers = sheet.row_values(1)
-            if 'ID' not in headers:
-                # Añadir encabezados si el archivo está vacío
-                all_headers = ['ID'] + list(patient_data.keys())
-                sheet.append_row(all_headers)
-                new_id = 1
-            else:
-                # Obtener el último ID y calcular el siguiente
-                df = pd.DataFrame(sheet.get_all_records())
-                if df.empty:
-                    new_id = 1
+    for intento in range(MAX_RETRIES):
+        try:
+            with st.spinner(f'Guardando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+                sheet = connect_to_gsheets()
+                if sheet:
+                    # Verificar si la columna ID existe
+                    headers = sheet.row_values(1)
+                    if 'ID' not in headers:
+                        # Añadir encabezados si el archivo está vacío
+                        all_headers = ['ID'] + list(patient_data.keys())
+                        sheet.append_row(all_headers)
+                        new_id = 1
+                    else:
+                        # Obtener el último ID y calcular el siguiente
+                        df = pd.DataFrame(sheet.get_all_records())
+                        #if df.empty:
+                        #    new_id = ['ID']
+                        #else:
+                        #    try:
+                        #        new_id = int(df['ID'].max()) + 1
+                        #    except:
+                        #        new_id = len(df) + 1
+                    
+                    # Preparar la fila a añadir
+                    row_data = list(patient_data.values())
+                    sheet.append_row(row_data)
+                    
+                    return True #, new_id
+                return False #,  None
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
                 else:
-                    new_id = int(df['ID'].max()) + 1
-            
-            # Preparar la fila a añadir
-            row_data = [new_id] + list(patient_data.values())
-            sheet.append_row(row_data)
-            
-            return True, new_id
-        return False, None
-    except Exception as e:
-        st.error(f"Error al guardar datos: {e}")
-        return False, None
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False #, None
+        except Exception as e:
+            st.error(f"Error al guardar datos: {e}")
+            return False #, None
 
 # Función para buscar paciente
 def search_patient(search_term, search_type):
@@ -129,44 +261,75 @@ def search_patient(search_term, search_type):
         except:
             return pd.DataFrame()
     else:  # Por nombre
-        result = df[df['Nombre y apellidos'].str.contains(search_term, case=False, na=False)]
+        result = df[df['Nombre'].str.contains(search_term, case=False, na=False)]
     
     return result
 
 # Función para actualizar historia clínica
-def update_history(id, updated_data):
-    try:
-        sheet = connect_to_gsheets()
-        if sheet:
-            # Obtener todos los datos
-            df = pd.DataFrame(sheet.get_all_records())
-            
-            # Obtener los encabezados
-            headers = sheet.row_values(1)
-            
-            # Encontrar la fila que corresponde al ID
-            row_to_update = df[df['ID'] == id].index[0] + 2  # +2 porque la fila 1 son los encabezados
-            
-            # Actualizar cada celda
-            for col, value in updated_data.items():
-                if col in headers:
-                    col_index = headers.index(col) + 1  # +1 porque gspread es 1-indexed
-                    sheet.update_cell(row_to_update, col_index, value)
-            
-            return True
-        return False
-    except Exception as e:
-        st.error(f"Error al actualizar datos: {e}")
-        return False
+def update_history(id, patient_data):
+    for intento in range(MAX_RETRIES):
+        try:
+            with st.spinner(f'Actualizando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+                sheet = connect_to_gsheets()
+                if sheet:
+                    # Obtener todos los datos
+                    df = pd.DataFrame(sheet.get_all_records())
+                    
+                    # Obtener los encabezados
+                    headers = sheet.row_values(1)
+                    
+                    # Encontrar la fila que corresponde al ID
+                    try:
+                        row_to_update = df[df['ID'] == id].index[0] + 2  # +2 porque la fila 1 son los encabezados
+                    except:
+                        st.error("No se encontró la Identificacion del paciente")
+                        return False
+                    
+                    # Actualizar cada celda
+                    for col, value in patient_data.items():
+                        if col in headers:
+                            col_index = headers.index(col) + 1  # +1 porque gspread es 1-indexed
+                            sheet.update_cell(row_to_update, col_index, value)
+                    
+                    return True
+                return False
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+        except Exception as e:
+            st.error(f"Error al actualizar datos: {e}")
+            return False
 
-# Título principal y descripción
-st.title("🧠 Sistema de Gestión de Historias Clínicas Psicológicas")
-st.markdown("Sistema para crear y gestionar historias clínicas de pacientes en una clínica de psicología.")
+# Función para iniciar el modo de edición
+# Helper function to start editing mode
+def start_editing(patient_id):
+    st.session_state.editing = True
+    st.session_state.edit_index = patient_id
+    
+# Helper function to cancel editing mode
+def cancel_editing():
+    st.session_state.editing = False
+    st.session_state.edit_index = None
+    st.session_state.patient = {}
 
-# Pestañas principales
-tab1, tab2, tab3 = st.tabs(["📝 Crear Historia Clínica", "🔍 Buscar Paciente", "📊 Estadísticas"])
+def consulta_historia():
+  # Título principal y descripción
+  #st.title("🧠 Sistema de Gestión de Historias Clínicas Psicológicas")
+  st.markdown("Sistema para crear y gestionar historias clínicas de pacientes de psicología.")
 
-with tab1:
+  # Pestañas principales
+  tab1, tab2, tab3 = st.tabs(["📝 Crear Historia Clínica", "🔍 Buscar Paciente", "📊 Estadísticas"])
+
+  with tab1:
     st.header("Nueva Historia Clínica")
     
     # Creamos un formulario con todos los campos necesarios
@@ -176,17 +339,23 @@ with tab1:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            nombre = st.text_input("Nombre y apellidos*")
-            edad = st.number_input("Edad*", min_value=0, max_value=120, step=1)
-            origen = st.text_input("Origen y procedencia")
+            new_id = st.text_input("Identificacion*")
+
+            edad = st.number_input("Edad*", min_value=0, max_value=120, step=1) 
+
+            ocupacion = st.text_input("Ocupación")            
         
         with col2:
-            sexo = st.selectbox("Sexo*", ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"])
-            estudios = st.selectbox("Nivel de estudios", ["", "Sin estudios", "Primaria", "Secundaria", "Bachillerato", "Formación Profesional", "Universidad", "Posgrado"])
-            ocupacion = st.text_input("Ocupación")
-        
-        with col3:
+            nombre = st.text_input("Nombre y apellidos*")
+                   
             estado_civil = st.selectbox("Estado civil", ["", "Soltero/a", "Casado/a", "Unión libre", "Separado/a", "Divorciado/a", "Viudo/a"])
+
+            estudios = st.selectbox("Nivel de estudios", ["", "Sin estudios", "Primaria", "Secundaria", "Bachillerato", "Formación Profesional", "Universidad", "Postgrado"])
+            
+        with col3:
+            sexo = st.selectbox("Sexo*", ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"])
+            origen = st.text_input("Origen y procedencia")
+          
             religion = st.text_input("Religión")
             datos_progenitores = st.text_area("Datos de los progenitores", height=100)
         
@@ -214,29 +383,29 @@ with tab1:
         
         # Sección: Personalidad
         st.markdown('<div class="section-title"><h3>Personalidad</h3></div>', unsafe_allow_html=True)
-        personalidad = st.text_area("Características psicológicas relevantes", height=150, help="Características psicológicas más relevantes del paciente, algo que se va desgranando a través de las entrevistas psicológicas.")
+        otros = st.text_area("Características psicológicas relevantes, Personalidad, Historia Familiar, apariencia, conciencia, animo, motor  etc.", height=150, help="Características psicológicas más relevantes del paciente, algo que se va desgranando a través de las entrevistas psicológicas.")
         
         # Sección: Historia familiar
-        st.markdown('<div class="section-title"><h3>Historia Familiar</h3></div>', unsafe_allow_html=True)
-        historia_familiar = st.text_area("Datos relevantes sobre la familia del paciente", height=150)
+        #st.markdown('<div class="section-title"><h3>Historia Familiar</h3></div>', unsafe_allow_html=True)
+        #historia_familiar = st.text_area("Datos relevantes sobre la familia del paciente", height=150)
         
         # Sección: Examen mental
         st.markdown('<div class="section-title"><h3>Examen Mental</h3></div>', unsafe_allow_html=True)
-        col1, col2 = st.columns(2)
+        #col1, col2 = st.columns(2)
         
-        with col1:
-            apariencia = st.text_area("Apariencia general y actitud", height=80)
-            conciencia = st.text_area("Estado de conciencia", height=80)
-            animo = st.text_area("Estado de ánimo", height=80)
-            motor = st.text_area("Actividad motora", height=80)
+        #with col1:
+        #    apariencia = st.text_area("Apariencia general y actitud", height=80)
+        #    conciencia = st.text_area("Estado de conciencia", height=80)
+        #    animo = st.text_area("Estado de ánimo", height=80)
+        #    motor = st.text_area("Actividad motora", height=80)
         
-        with col2:
-            lenguaje = st.text_area("Asociación y flujo de ideas y características del lenguaje", height=80)
-            contenido_ideas = st.text_area("Contenido de ideas", height=80)
-            sensorium = st.text_area("Sensorium", height=80)
-            memoria = st.text_area("Memoria", height=80)
+        #with col2:
+        #    lenguaje = st.text_area("Asociación y flujo de ideas y características del lenguaje", height=80)
+        #    contenido_ideas = st.text_area("Contenido de ideas", height=80)
+        #    sensorium = st.text_area("Sensorium", height=80)
+        #    memoria = st.text_area("Memoria", height=80)
         
-        pensamiento = st.text_area("Pensamiento", height=100)
+        #pensamiento = st.text_area("Pensamiento", height=100)
         resultado_examen = st.text_area("Resultado del examen", height=100)
         
         # Sección: Diagnóstico
@@ -259,180 +428,186 @@ with tab1:
         # Verificar campos obligatorios y guardar
         if submit_button:
             # Validaciones
-            if not nombre or not edad or not sexo or not motivo_consulta or not diagnostico or not terapeuta:
+            if not new_id or not nombre or not edad or not sexo or not motivo_consulta or not diagnostico or not terapeuta:
                 st.error("Por favor, complete todos los campos marcados con *")
             else:
                 # Crear diccionario con todos los datos
                 patient_data = {
-                    "Nombre y apellidos": nombre,
+                    "ID": new_id,
+                    "Nombre": nombre,
                     "Sexo": sexo,
                     "Edad": edad,
                     "Estudios": estudios,
-                    "Origen y procedencia": origen,
-                    "Ocupación": ocupacion,
-                    "Estado civil": estado_civil,
-                    "Religión": religion,
-                    "Datos de los progenitores": datos_progenitores,
-                    "Motivo de la consulta": motivo_consulta,
-                    "Fecha inicio síntomas": fecha_inicio_sintomas.strftime('%Y-%m-%d'),
+                    "Origen": origen,
+                    "Ocupacion": ocupacion,
+                    "Estado Civil": estado_civil,
+                    "Religion": religion,
+                    "Progenitores": datos_progenitores,
+                    "Motivo Consulta": motivo_consulta,
+                    "Fecha Inicio Sintomas": fecha_inicio_sintomas.strftime('%Y-%m-%d'),
                     "Antecedentes": antecedentes,
-                    "Desarrollo psicomotor": desarrollo_psicomotor,
-                    "Alimentación": habitos_alimentacion,
-                    "Hábitos de sueño": habitos_sueno,
-                    "Perfil social": perfil_social,
-                    "Personalidad": personalidad,
-                    "Historia familiar": historia_familiar,
-                    "Apariencia": apariencia,
-                    "Estado de conciencia": conciencia,
-                    "Estado de ánimo": animo,
-                    "Actividad motora": motor,
-                    "Lenguaje": lenguaje,
-                    "Contenido de ideas": contenido_ideas,
-                    "Sensorium": sensorium,
-                    "Memoria": memoria,
-                    "Pensamiento": pensamiento,
-                    "Resultado examen": resultado_examen,
+                    "Desarrollo Psicomotor": desarrollo_psicomotor,
+                    "Alimentacion": habitos_alimentacion,
+                    "Hábitos de Sueño": habitos_sueno,
+                    "Perfil Social": perfil_social,
+                    "Otros": otros,
+                    #"Personalidad": personalidad,
+                    #"Historia familiar": historia_familiar,
+                    #"Apariencia": apariencia,
+                    #"Estado de conciencia": conciencia,
+                    #"Estado de ánimo": animo,
+                    #"Actividad motora": motor,
+                    #"Lenguaje": lenguaje,
+                    #"Contenido de ideas": contenido_ideas,
+                    #"Sensorium": sensorium,
+                    #"Memoria": memoria,
+                    #"Pensamiento": pensamiento,
+                    "Resultado Examen": resultado_examen,
                     "Diagnóstico": diagnostico,
-                    "Objetivos tratamiento": objetivos,
-                    "Técnicas": tecnicas,
-                    "Fecha consulta": fecha_consulta.strftime('%Y-%m-%d'),
+                    "Objetivos Tratamiento": objetivos,
+                    "Tecnicas": tecnicas,
+                    "Fecha Consulta": fecha_consulta.strftime('%Y-%m-%d'),
                     "Terapeuta": terapeuta,
-                    "Fecha registro": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    "Fecha Registro": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
                 
-                with st.spinner("Guardando datos..."):
-                    success, new_id = save_history(patient_data)
-                    if success:
-                        st.success(f"Historia clínica guardada correctamente con ID: {new_id}")
-                        time.sleep(2)
-                        st.experimental_rerun()
-                    else:
-                        st.error("Error al guardar la historia clínica. Verifique la conexión a Google Drive.")
-
-with tab2:
-    st.header("Buscar Paciente")
-    
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        search_term = st.text_input("Buscar paciente", placeholder="Ingrese ID o nombre del paciente")
-    with col2:
-        search_type = st.selectbox("Buscar por", ["Nombre", "ID"])
-    
-    if st.button("Buscar"):
-        if not search_term:
-            st.warning("Por favor ingrese un término de búsqueda")
-        else:
-            with st.spinner("Buscando..."):
-                results = search_patient(search_term, search_type)
-                
-                if results.empty:
-                    st.warning("No se encontraron resultados")
+                success = save_history(patient_data)
+                if success:
+                    st.success(f"Historia clínica guardada correctamente")
+                    time.sleep(2)
+                    st.rerun()
                 else:
-                    st.success(f"Se encontraron {len(results)} resultados")
-                    
-                    # Mostrar resultados en tabla
-                    st.dataframe(results[['ID', 'Nombre y apellidos', 'Edad', 'Diagnóstico', 'Fecha consulta']])
-                    
-                    # Seleccionar paciente para ver detalles
-                    if not results.empty:
-                        selected_id = st.selectbox("Seleccione un paciente para ver detalles", 
-                                               options=results['ID'].tolist(),
-                                               format_func=lambda x: f"ID: {x} - {results[results['ID']==x]['Nombre y apellidos'].values[0]}")
-                        
-                        if selected_id:
-                            patient = results[results['ID'] == selected_id].iloc[0].to_dict()
-                            
-                            # Mostrar detalles del paciente
-                            with st.expander("Datos generales", expanded=True):
-                                col1, col2, col3 = st.columns(3)
-                                with col1:
-                                    st.write(f"**Nombre:** {patient['Nombre y apellidos']}")
-                                    st.write(f"**Edad:** {patient['Edad']}")
-                                    st.write(f"**Origen:** {patient['Origen y procedencia']}")
-                                with col2:
-                                    st.write(f"**Sexo:** {patient['Sexo']}")
-                                    st.write(f"**Estudios:** {patient['Estudios']}")
-                                    st.write(f"**Ocupación:** {patient['Ocupación']}")
-                                with col3:
-                                    st.write(f"**Estado civil:** {patient['Estado civil']}")
-                                    st.write(f"**Religión:** {patient['Religión']}")
-                            
-                            with st.expander("Motivo de consulta"):
-                                st.write(f"**Motivo:** {patient['Motivo de la consulta']}")
-                                st.write(f"**Fecha inicio síntomas:** {patient['Fecha inicio síntomas']}")
-                            
-                            with st.expander("Diagnóstico y plan"):
-                                st.write(f"**Diagnóstico:** {patient['Diagnóstico']}")
-                                st.write(f"**Objetivos tratamiento:** {patient['Objetivos tratamiento']}")
-                                st.write(f"**Técnicas:** {patient['Técnicas']}")
-                            
-                            # Botón para editar paciente
-                            if st.button("Editar paciente"):
-                                st.session_state['editing_patient'] = patient
-                                st.session_state['editing_mode'] = True
-                            
-                            # Mostrar formulario de edición si está en modo edición
-                            if st.session_state.get('editing_mode', False) and st.session_state.get('editing_patient', {}).get('ID') == selected_id:
-                                with st.form(key="edit_historia_form"):
-                                    st.subheader(f"Editar historia clínica - {patient['Nombre y apellidos']}")
-                                    
-                                    # Recrear el formulario pero con los valores actuales
-                                    edited_data = {}
-                                    
-                                    # Datos generales (ejemplo, puedes expandir según necesites)
-                                    st.markdown('<div class="section-title"><h3>Datos Generales</h3></div>', unsafe_allow_html=True)
-                                    col1, col2, col3 = st.columns(3)
-                                    
-                                    with col1:
-                                        edited_data["Nombre y apellidos"] = st.text_input("Nombre y apellidos*", value=patient['Nombre y apellidos'])
-                                        edited_data["Edad"] = st.number_input("Edad*", min_value=0, max_value=120, step=1, value=int(patient['Edad']))
-                                        edited_data["Origen y procedencia"] = st.text_input("Origen y procedencia", value=patient['Origen y procedencia'])
-                                    
-                                    with col2:
-                                        edited_data["Sexo"] = st.selectbox("Sexo*", ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"], index=["", "Masculino", "Femenino", "No binario", "Prefiere no decir"].index(patient['Sexo']) if patient['Sexo'] in ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"] else 0)
-                                        edited_data["Estudios"] = st.text_input("Estudios", value=patient['Estudios'])
-                                        edited_data["Ocupación"] = st.text_input("Ocupación", value=patient['Ocupación'])
-                                    
-                                    with col3:
-                                        edited_data["Estado civil"] = st.text_input("Estado civil", value=patient['Estado civil'])
-                                        edited_data["Religión"] = st.text_input("Religión", value=patient['Religión'])
-                                    
-                                    # Motivo de consulta
-                                    st.markdown('<div class="section-title"><h3>Motivo de Consulta</h3></div>', unsafe_allow_html=True)
-                                    edited_data["Motivo de la consulta"] = st.text_area("Motivo de la consulta*", value=patient['Motivo de la consulta'], height=150)
-                                    
-                                    # Diagnóstico
-                                    st.markdown('<div class="section-title"><h3>Diagnóstico</h3></div>', unsafe_allow_html=True)
-                                    edited_data["Diagnóstico"] = st.text_area("Diagnóstico del paciente*", value=patient['Diagnóstico'], height=150)
-                                    
-                                    # Plan
-                                    st.markdown('<div class="section-title"><h3>Plan de Orientación</h3></div>', unsafe_allow_html=True)
-                                    edited_data["Objetivos tratamiento"] = st.text_area("Objetivos del tratamiento", value=patient['Objetivos tratamiento'], height=100)
-                                    edited_data["Técnicas"] = st.text_area("Técnicas a emplear", value=patient['Técnicas'], height=100)
-                                    
-                                    # Actualizar botón
-                                    update_button = st.form_submit_button(label="Actualizar Historia Clínica")
-                                    
-                                    if update_button:
-                                        # Validaciones
-                                        if not edited_data["Nombre y apellidos"] or not edited_data["Edad"] or not edited_data["Sexo"] or not edited_data["Motivo de la consulta"] or not edited_data["Diagnóstico"]:
-                                            st.error("Por favor, complete todos los campos marcados con *")
-                                        else:
-                                            with st.spinner("Actualizando datos..."):
-                                                success = update_history(selected_id, edited_data)
-                                                if success:
-                                                    st.success("Historia clínica actualizada correctamente")
-                                                    st.session_state['editing_mode'] = False
-                                                    time.sleep(2)
-                                                    st.experimental_rerun()
-                                                else:
-                                                    st.error("Error al actualizar la historia clínica")
-                                
-                                if st.button("Cancelar edición"):
-                                    st.session_state['editing_mode'] = False
-                                    st.experimental_rerun()
+                    st.error("Error al guardar la historia clínica. Verifique la conexión a Google Drive.")
 
-with tab3:
+  with tab2:
+
+    # Inicializar la conexión y cargar datos
+        sheet = connect_to_gsheets()
+        if sheet:
+            df = load_data()
+            st.header("Buscar Paciente")
+    
+            # Selector de paciente con búsqueda
+            st.write("Buscar paciente específico:")
+            search_patient = st.text_input("Búsqueda de paciente", "", key="search_patient",  placeholder="Ingrese ID o Nombre del paciente", label_visibility="collapsed")
+            
+            # Filtrar las opciones del selector basado en la búsqueda
+            df_copy = df.copy()
+            df_copy['ID'] = df_copy['ID'].astype(str)
+            
+            if search_patient:
+                filtered_patients = df_copy[
+                    df_copy['ID'].str.contains(search_patient, case=False, na=False) | 
+                    df_copy['Nombre'].str.contains(search_patient, case=False, na=False)
+                ]
+            else:
+                filtered_patients = df_copy
+            
+            # Crear opciones para el selector
+            pacientes_opciones = []
+            for _, paciente in filtered_patients.iterrows():
+                pacientes_opciones.append(f"{paciente['ID']} - {paciente['Nombre']}")
+            
+            # Selector de paciente
+            seleccion = st.selectbox(
+                "Seleccionar paciente:",
+                [""] + pacientes_opciones,
+                key="patient_selector"
+            )
+            
+            if seleccion:
+                # Extraer el ID del paciente seleccionado
+                paciente_id = seleccion.split(" - ")[0]
+                
+                # Filtrar el DataFrame para obtener solo el paciente seleccionado
+                paciente_df = df[df['ID'].astype(str) == paciente_id]
+                
+                if not paciente_df.empty:
+                    paciente = paciente_df.iloc[0]
+                    paciente_index = paciente_df.index[0]
+                    
+                    # Crear formularios para cada campo
+                    col1, col2, col3 = st.columns(3)
+                    
+                    # Primera columna - Datos personales
+                    with col1:
+                        st.markdown("### Datos Personales")
+
+                        id = st.text_input("Identificacion", paciente["ID"])
+                        nombre = st.text_input("Nombre", paciente["Nombre"])
+                        sexo = st.selectbox("Sexo", ["Masculino", "Femenino", "Otro"], 
+                                           index=["Masculino", "Femenino", "Otro"].index(paciente["Sexo"]) if paciente["Sexo"] in ["Masculino", "Femenino", "Otro"] else 0)
+                        edad = st.number_input("Edad", min_value=0, value=int(paciente["Edad"]) if pd.notnull(paciente["Edad"]) else 0)
+                        estudios = st.text_input("Estudios", paciente["Estudios"] if pd.notnull(paciente["Estudios"]) else "")
+                        origen = st.text_input("Origen", paciente["Origen"] if pd.notnull(paciente["Origen"]) else "")
+                        ocupacion = st.text_input("Ocupación", paciente["Ocupacion"] if pd.notnull(paciente["Ocupacion"]) else "")
+                        estado_civil = st.text_input("Estado Civil", paciente["Estado Civil"] if pd.notnull(paciente["Estado Civil"]) else "")
+                        religion = st.text_input("Religión", paciente["Religion"] if pd.notnull(paciente["Religion"]) else "")
+                        progenitores = st.text_input("Progenitores", paciente["Progenitores"] if pd.notnull(paciente["Progenitores"]) else "")
+                    
+                    # Segunda columna - Historia clínica
+                    with col2:
+                        st.markdown("### Historia Clínica")
+                        motivo = st.text_area("Motivo de Consulta", paciente["Motivo Consulta"] if pd.notnull(paciente["Motivo Consulta"]) else "", height=100)
+                        fecha_inicio = st.text_input("Fecha Inicio Síntomas", paciente["Fecha Inicio Sintomas"] if pd.notnull(paciente["Fecha Inicio Sintomas"]) else "")
+                        antecedentes = st.text_area("Antecedentes", paciente["Antecedentes"] if pd.notnull(paciente["Antecedentes"]) else "", height=100)
+                        desarrollo = st.text_area("Desarrollo Psicomotor", paciente["Desarrollo Psicomotor"] if pd.notnull(paciente["Desarrollo Psicomotor"]) else "", height=100)
+                        alimentacion = st.text_area("Alimentación", paciente["Alimentacion"] if pd.notnull(paciente["Alimentacion"]) else "", height=100)
+                        sueno = st.text_area("Hábitos de Sueño", paciente["Habitos de Sueño"] if pd.notnull(paciente["Habitos de Sueño"]) else "", height=100)
+                    
+                    # Tercera columna - Diagnóstico y tratamiento
+                    with col3:
+                        st.markdown("### Evaluación y Tratamiento")
+                        perfil_social = st.text_area("Perfil Social", paciente["Perfil Social"] if pd.notnull(paciente["Perfil Social"]) else "", height=100)
+                        otros = st.text_area("Otros", paciente["Otros"] if pd.notnull(paciente["Otros"]) else "", height=100)
+                        resultado = st.text_area("Resultado Examen", paciente["Resultado Examen"] if pd.notnull(paciente["Resultado Examen"]) else "", height=100)
+                        diagnostico = st.text_area("Diagnóstico", paciente["Diagnostico"] if pd.notnull(paciente["Diagnostico"]) else "", height=100)
+                        objetivos = st.text_area("Objetivos Tratamiento", paciente["Objetivos Tratamiento"] if pd.notnull(paciente["Objetivos Tratamiento"]) else "", height=100)
+                        tecnicas = st.text_area("Técnicas", paciente["Tecnicas"] if pd.notnull(paciente["Tecnicas"]) else "", height=100)
+                        fecha_consulta = st.text_input("Fecha Consulta", paciente["Fecha Consulta"] if pd.notnull(paciente["Fecha Consulta"]) else "")
+                        terapeuta = st.text_input("Terapeuta", paciente["Terapeuta"] if pd.notnull(paciente["Terapeuta"]) else "")
+                    
+                    # Botón para guardar cambios
+                    if st.button("Guardar cambios", key="save_individual"):
+                        # Actualizar los datos en el DataFrame
+                        df.at[paciente_index, "Nombre"] = nombre
+                        df.at[paciente_index, "Sexo"] = sexo
+                        df.at[paciente_index, "Edad"] = edad
+                        df.at[paciente_index, "Estudios"] = estudios
+                        df.at[paciente_index, "Origen"] = origen
+                        df.at[paciente_index, "Ocupacion"] = ocupacion
+                        df.at[paciente_index, "Estado Civil"] = estado_civil
+                        df.at[paciente_index, "Religion"] = religion
+                        df.at[paciente_index, "Progenitores"] = progenitores
+                        df.at[paciente_index, "Motivo Consulta"] = motivo
+                        df.at[paciente_index, "Fecha Inicio Sintomas"] = fecha_inicio
+                        df.at[paciente_index, "Antecedentes"] = antecedentes
+                        df.at[paciente_index, "Desarrollo Psicomotor"] = desarrollo
+                        df.at[paciente_index, "Alimentacion"] = alimentacion
+                        df.at[paciente_index, "Habitos de Sueño"] = sueno
+                        df.at[paciente_index, "Perfil Social"] = perfil_social
+                        df.at[paciente_index, "Otros"] = otros
+                        df.at[paciente_index, "Resultado Examen"] = resultado
+                        df.at[paciente_index, "Diagnostico"] = diagnostico
+                        df.at[paciente_index, "Objetivos Tratamiento"] = objetivos
+                        df.at[paciente_index, "Tecnicas"] = tecnicas
+                        df.at[paciente_index, "Fecha Consulta"] = fecha_consulta
+                        df.at[paciente_index, "Terapeuta"] = terapeuta
+                        df.at[paciente_index, 'Fecha Modificacion'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+      
+                        st.success("¡Cambios guardados exitosamente!")
+    
+                        if save_data(df, sheet):
+                            # Recargar datos para reflejar los cambios
+                            df = load_data()
+                            st.success(f"Datos del paciente {nombre} actualizados correctamente")
+                                
+            #Provide a cancel button outside the form as a backup option
+            #if st.button("Cancelar edición", key="cancel_outside_form"):
+            #   cancel_editing()
+            #   st.rerun()
+
+  with tab3:
     st.header("Estadísticas")
     
     # Cargar datos para estadísticas
@@ -467,12 +642,12 @@ with tab3:
             with col1:
                 st.subheader("Motivos de consulta más comunes")
                 # Esta es una simplificación, idealmente usarías NLP
-                if 'Motivo de la consulta' in data.columns:
+                if 'Motivo Consulta' in data.columns:
                     keywords = ['ansiedad', 'depresión', 'estrés', 'pareja', 'familiar', 'fobia', 'trauma']
                     motivo_counts = {}
                     
                     for keyword in keywords:
-                        count = data['Motivo de la consulta'].str.contains(keyword, case=False, na=False).sum()
+                        count = data['Motivo Consulta'].str.contains(keyword, case=False, na=False).sum()
                         if count > 0:
                             motivo_counts[keyword] = count
                     
@@ -484,32 +659,15 @@ with tab3:
             
             with col2:
                 st.subheader("Consultas por mes")
-                if 'Fecha consulta' in data.columns:
-                    data['Fecha consulta'] = pd.to_datetime(data['Fecha consulta'], errors='coerce')
-                    data['Mes'] = data['Fecha consulta'].dt.strftime('%Y-%m')
+                if 'Fecha Consulta' in data.columns:
+                    data['Fecha Consulta'] = pd.to_datetime(data['Fecha Consulta'], errors='coerce')
+                    data['Mes'] = data['Fecha Consulta'].dt.strftime('%Y-%m')
                     mes_counts = data['Mes'].value_counts().sort_index()
                     st.line_chart(mes_counts)
 
-# Instrucciones de instalación y uso
-with st.expander("Instrucciones de instalación y uso"):
-    st.markdown("""
-    ### Requisitos previos
-    1. Tener una cuenta de Google
-    2. Crear un proyecto en Google Cloud Platform
-    3. Habilitar la API de Google Sheets
-    4. Crear credenciales de servicio y descargar el archivo JSON
-    
-    ### Instalación
-    1. Clone este repositorio
-    2. Instale las dependencias: `pip install streamlit pandas gspread oauth2client`
-    3. Coloque el archivo de credenciales `credentials.json` en el mismo directorio que este script
-    4. Asegúrese de tener una hoja de cálculo en Google Sheets llamada "gestion-resservas-amo" con una hoja llamada "historia_clinica"
-    5. Comparta su hoja de cálculo con la dirección de correo que aparece en su archivo de credenciales
-    
-    ### Ejecución
-    Ejecute el script con: `streamlit run app.py`
-    """)
+  # Footer
+  st.markdown("---")
+  st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
 
-# Footer
-st.markdown("---")
-st.markdown("© 2025 Clínica de Psicología - Sistema de Gestión de Historias Clínicas")
+#if __name__ == '__main__':
+#    consulta_historia()

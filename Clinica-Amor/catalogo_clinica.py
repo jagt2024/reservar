@@ -98,19 +98,18 @@ def catalogo():
             st.image("./assets-amo/lugar.png", width=300)
     
     with col2:
-        st.subheader("Tecnicas Psicologicas")
+        st.subheader("Libro EL JUEGO PERFECTO")
         st.markdown("""
-        - En Terapias
-        - Conciencias 
-        - Sanacion de Adicciones
+           - Todo en adicciones afectivas ,comportamentales y sustanciales basado en 8 años de investigación en centros de restauración y casinos ,recopilando experiencias en técnicas psicológicas  espirituales.
+        
         """)
         if admin_mode:
             uploaded_file = st.file_uploader("Subir imagen 2", key="image3")
             if uploaded_file:
                 save_uploaded_image(uploaded_file, "image3")
         
-        if os.path.exists("./assets-amo/lugar.png"):
-            st.image("./assets-amo/lugar.png", width=300)
+        if os.path.exists("./assets-amo/libroJP.png"):
+            st.image("./assets-amo/libroJP.png", width=300)
     
     # Products Display
     st.header("🛍️ Nuestros Servicios")

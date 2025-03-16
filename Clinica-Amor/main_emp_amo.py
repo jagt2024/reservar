@@ -6,6 +6,7 @@ from crear_reserva_emp_amo import crea_reserva
 from modificar_reserva_emp_amo import modificar_reserva
 from eliminar_reserva_emp_amo import eliminar_reserva
 from catalogo_clinica import catalogo
+from historia_clinica_psicologia import consulta_historia
 #from carga_archivo_clientes import carga
 #from servicios_emp_dp import ServiciosEmp
 #from informacion_distrito_privado import info_dp
@@ -144,6 +145,7 @@ class Model:
   #option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda Citas'
   option2  = 'Control Asistencias'
+  option5  = 'Historias Clinicas'
   option4  = 'Iniciar Recordatorio Citas'
   option3  = 'Copia de Seguridad'
   #option22 = 'Consulta Pagos'
@@ -205,7 +207,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9, model.option2, model.option3, model.option4                                                                #,model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9, model.option2, model.option5, model.option3, model.option4                                              #,model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -416,6 +418,9 @@ else:
 
             if app == model.option2:
               consulta_asistencia()
+
+            if app == model.option5:
+              consulta_historia()
               
             if app == model.option4:
               recordatorio()

@@ -13,11 +13,11 @@ MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
 
 # Configuración de la página
-st.set_page_config(
-    page_title="Historia Clínica Psicológica",
-    page_icon="🧠",
-    layout="wide"
-)
+#st.set_page_config(
+#    page_title="Historia Clínica Psicológica",
+#    page_icon="🧠",
+#    layout="wide"
+#)
 
 # Estilos CSS personalizados
 st.markdown("""
@@ -165,20 +165,20 @@ def save_history(patient_data):
                     else:
                         # Obtener el último ID y calcular el siguiente
                         df = pd.DataFrame(sheet.get_all_records())
-                        if df.empty:
-                            new_id = 1
-                        else:
-                            try:
-                                new_id = int(df['ID'].max()) + 1
-                            except:
-                                new_id = len(df) + 1
+                        #if df.empty:
+                        #    new_id = ['ID']
+                        #else:
+                        #    try:
+                        #        new_id = int(df['ID'].max()) + 1
+                        #    except:
+                        #        new_id = len(df) + 1
                     
                     # Preparar la fila a añadir
-                    row_data = [new_id] + list(patient_data.values())
+                    row_data = list(patient_data.values())
                     sheet.append_row(row_data)
                     
-                    return True, new_id
-                return False, None
+                    return True #, new_id
+                return False #,  None
         except HttpError as error:
             if error.resp.status == 429:  # Error de cuota excedida
                 if intento < MAX_RETRIES - 1:
@@ -190,10 +190,10 @@ def save_history(patient_data):
                     st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
             else:
                 st.error(f"Error de la API: {str(error)}")
-            return False, None
+            return False #, None
         except Exception as e:
             st.error(f"Error al guardar datos: {e}")
-            return False, None
+            return False #, None
 
 # Función para buscar paciente
 def search_patient(search_term, search_type):
@@ -213,7 +213,7 @@ def search_patient(search_term, search_type):
     return result
 
 # Función para actualizar historia clínica
-def update_history(id, updated_data):
+def update_history(id, patient_data):
     for intento in range(MAX_RETRIES):
         try:
             with st.spinner(f'Actualizando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
@@ -229,11 +229,11 @@ def update_history(id, updated_data):
                     try:
                         row_to_update = df[df['ID'] == id].index[0] + 2  # +2 porque la fila 1 son los encabezados
                     except:
-                        st.error("No se encontró el ID del paciente")
+                        st.error("No se encontró la Identificacion del paciente")
                         return False
                     
                     # Actualizar cada celda
-                    for col, value in updated_data.items():
+                    for col, value in patient_data.items():
                         if col in headers:
                             col_index = headers.index(col) + 1  # +1 porque gspread es 1-indexed
                             sheet.update_cell(row_to_update, col_index, value)
@@ -285,17 +285,23 @@ with tab1:
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            nombre = st.text_input("Nombre y apellidos*")
-            edad = st.number_input("Edad*", min_value=0, max_value=120, step=1)
-            origen = st.text_input("Origen y procedencia")
+            new_id = st.text_input("Identificacion*")
+
+            edad = st.number_input("Edad*", min_value=0, max_value=120, step=1) 
+
+            ocupacion = st.text_input("Ocupación")            
         
         with col2:
-            sexo = st.selectbox("Sexo*", ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"])
-            estudios = st.selectbox("Nivel de estudios", ["", "Sin estudios", "Primaria", "Secundaria", "Bachillerato", "Formación Profesional", "Universidad", "Postgrado"])
-            ocupacion = st.text_input("Ocupación")
-        
-        with col3:
+            nombre = st.text_input("Nombre y apellidos*")
+                   
             estado_civil = st.selectbox("Estado civil", ["", "Soltero/a", "Casado/a", "Unión libre", "Separado/a", "Divorciado/a", "Viudo/a"])
+
+            estudios = st.selectbox("Nivel de estudios", ["", "Sin estudios", "Primaria", "Secundaria", "Bachillerato", "Formación Profesional", "Universidad", "Postgrado"])
+            
+        with col3:
+            sexo = st.selectbox("Sexo*", ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"])
+            origen = st.text_input("Origen y procedencia")
+          
             religion = st.text_input("Religión")
             datos_progenitores = st.text_area("Datos de los progenitores", height=100)
         
@@ -323,7 +329,7 @@ with tab1:
         
         # Sección: Personalidad
         st.markdown('<div class="section-title"><h3>Personalidad</h3></div>', unsafe_allow_html=True)
-        otros = st.text_area("Características psicológicas relevantes, Personalidad, Historia Familiar, apariencia, conciencia, animo, motor  etc.", height=250, help="Características psicológicas más relevantes del paciente, algo que se va desgranando a través de las entrevistas psicológicas.")
+        otros = st.text_area("Características psicológicas relevantes, Personalidad, Historia Familiar, apariencia, conciencia, animo, motor  etc.", height=150, help="Características psicológicas más relevantes del paciente, algo que se va desgranando a través de las entrevistas psicológicas.")
         
         # Sección: Historia familiar
         #st.markdown('<div class="section-title"><h3>Historia Familiar</h3></div>', unsafe_allow_html=True)
@@ -368,11 +374,12 @@ with tab1:
         # Verificar campos obligatorios y guardar
         if submit_button:
             # Validaciones
-            if not nombre or not edad or not sexo or not motivo_consulta or not diagnostico or not terapeuta:
+            if not new_id or not nombre or not edad or not sexo or not motivo_consulta or not diagnostico or not terapeuta:
                 st.error("Por favor, complete todos los campos marcados con *")
             else:
                 # Crear diccionario con todos los datos
                 patient_data = {
+                    "ID": new_id,
                     "Nombre": nombre,
                     "Sexo": sexo,
                     "Edad": edad,
@@ -410,9 +417,9 @@ with tab1:
                     "Fecha Registro": datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 }
                 
-                success, new_id = save_history(patient_data)
+                success = save_history(patient_data)
                 if success:
-                    st.success(f"Historia clínica guardada correctamente con ID: {new_id}")
+                    st.success(f"Historia clínica guardada correctamente")
                     time.sleep(2)
                     st.rerun()
                 else:
@@ -423,7 +430,7 @@ with tab2:
     
     col1, col2 = st.columns([3, 1])
     with col1:
-        search_term = st.text_input("Buscar paciente", placeholder="Ingrese ID o nombre del paciente")
+        search_term = st.text_input("Buscar paciente", placeholder="Ingrese Identificacion o nombre del paciente")
     with col2:
         search_type = st.selectbox("Buscar por", ["Nombre", "ID"])
     
@@ -454,14 +461,17 @@ with tab2:
                             with st.expander("Datos generales", expanded=True):
                                 col1, col2, col3 = st.columns(3)
                                 with col1:
+                                    st.write(f"**Identificacion:** {patient['ID']}")
                                     st.write(f"**Nombre:** {patient['Nombre']}")
                                     st.write(f"**Edad:** {patient['Edad']}")
-                                    st.write(f"**Origen:** {patient['Origen']}")
+                                    
                                 with col2:
+                                    st.write(f"**Origen:** {patient['Origen']}")
                                     st.write(f"**Sexo:** {patient['Sexo']}")
                                     st.write(f"**Estudios:** {patient['Estudios']}")
-                                    st.write(f"**Ocupación:** {patient['Ocupacion']}")
+                                    
                                 with col3:
+                                    st.write(f"**Ocupación:** {patient['Ocupacion']}")
                                     st.write(f"**Estado civil:** {patient['Estado Civil']}")
                                     st.write(f"**Religión:** {patient['Religion']}")
                             
@@ -476,25 +486,29 @@ with tab2:
 
                             # Botón para editar paciente
                             if not st.session_state.editing:
-                               if st.button("Retornar a Consulta"):
-                                 #st.session_state['patient'] = patient
-                                 #st.session_state['editing'] = True
-                                 start_editing(selected_id)
+                                if st.button("Editar Consulta", key='ed_consul'):
+                                    start_editing(selected_id)
+                                    # Initialize the patient with the current patient data
+                                    st.session_state.patient = patient.copy()
+                                    # st.rerun() - Comentado para evitar bucles
 
-                                 # Initialize the patient with the current patient data
-                                 st.session_state.patient = patient.copy()
-                                 st.rerun()     
-
-                            #st.write("Debug - Patient data keys 1:", list(patient.keys()))
-
-                            # Mostrar formulario de edición si está en modo edición
-                            
-                            #if st.session_state.editing and st.session_state.edit_index == selected_id:
-
-                            #    patient = st.session_state.patient
-                                #st.write("Debug - Patient data keys 2:", list(patient.keys()))
-
+                                # Si está en modo edición, mostrar el formulario
+                                #if st.session_state.editing and st.session_state.edit_index == selected_id:
                             with st.form(key="edit_historia_form"):
+
+                                    #st.rerun()     
+
+                                    #st.write("Debug - Patient data keys 1:", list(patient.keys()))
+
+                                    # Mostrar formulario de edición si está en modo edición
+                            
+                                    #if st.session_state.edit_index == selected_id:
+                                    #st.session_state.patient and  
+
+                                    #    patient = st.session_state.patient
+                                    #st.write("Debug - Patient data keys 2:", list(patient.keys()))
+
+                                    #with st.form(key="edit_historia_form"):
                                     #st.subheader(f"Editar historia clínica - {patient['Nombre']}")
                                     
                                     # Recrear el formulario pero con los valores actuales
@@ -505,6 +519,8 @@ with tab2:
                                     col1, col2, col3 = st.columns(3)
         
                                     with col1:
+                                        patient["ID"] = st.text_input("Identificacion*", value=patient.get('ID'))
+                                        
                                         patient["Nombre"] = st.text_input("Nombre y apellidos*", value=patient.get('Nombre'))
                                         
                                         patient["Edad"] = st.number_input(
@@ -513,10 +529,10 @@ with tab2:
                                             max_value=120, 
                                             step=1,
                                             value=int(patient.get('Edad', 0)) if patient.get('Edad') else 0)
-                                        
-                                        patient["Origen"] = st.text_input("Origen y procedencia", value=patient.get('Origen', ''))
         
                                     with col2:
+                                        patient["Origen"] = st.text_input("Origen y procedencia", value=patient.get('Origen', ''))
+                                        
                                         sexo_options = ["", "Masculino", "Femenino", "No binario", "Prefiere no decir"]
                                         sexo_index = 0
                                         if patient.get('Sexo', '') in sexo_options:
@@ -529,10 +545,10 @@ with tab2:
                                             if patient.get('Estudios', '') in estudios_options:
                                                 estudios_index = estudios_options.index(patient.get('Estudios', ''))
                                                 patient["Estudios"] = st.selectbox("Estudios", estudios_options, index=estudios_index)
-            
-                                            patient["Ocupacion"] = st.text_input("Ocupación", value=patient.get('Ocupacion', ''))
         
                                     with col3:
+                                        patient["Ocupacion"] = st.text_input("Ocupación", value=patient.get('Ocupacion', ''))
+
                                         estado_civil_options = ["", "Soltero/a", "Casado/a", "Unión libre", "Separado/a", 
                                         "Divorciado/a", "Viudo/a"]
                                         estado_civil_index = 0
@@ -542,6 +558,7 @@ with tab2:
                                                      index=estado_civil_index)
             
                                         patient["Religion"] = st.text_input("Religión", value=patient.get('Religion', ''))
+                                        
                                         patient["Progenitores"] = st.text_area("Datos de los progenitores", 
                                         value=patient.get('Progenitores', ''), height=100)
         
@@ -612,48 +629,58 @@ with tab2:
 
                                     patient["Terapeuta"] = st.text_input("Nombre del terapeuta*", 
                                     value=patient.get('Terapeuta', ''))
-        
-                                    # Update button
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                            update_button = st.form_submit_button(label="Actualizar Historia Clínica")
-                                    with col2:
-                                            cancel_button = st.form_submit_button(label="Cancelar Edición")
-                                    
-                                    if update_button:
-                                                # Validations
-                                                required_fields = ["Nombre", "Edad", "Sexo", "Motivo Consulta", "Diagnostico", "Terapeuta"]
-                                                missing_fields = [field for field in required_fields if not patient.get(field)]
-                                        
-                                                if missing_fields:
-                                                    st.error(f"Por favor, complete todos los campos marcados con *: {', '.join(missing_fields)}")
+
+                                    patient["Fecha Modificacion"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                                    st.session_state.patient = patient
+
+                                    # Botón para editar paciente
+                                    update_button = st.form_submit_button(label="Actualizar Historia Clínica")
+       
+                            if update_button:
+                                # Validaciones
+                                if not patient["ID"] or not patient["Nombre"] or not patient["Edad"]or not patient["Sexo"] or not patient["Motivo Consulta"] or not patient["Terapeuta"]:
+
+                                    st.error("Por favor, Copmlete los camposco * y guarde los cambios *")              
+                                else: 
+
+                                            # Actualizar los datos del paciente usando la función existente
+                                            with st.spinner("Actualizando historia clínica..."):
+                                                success = update_history(selected_id, patient)
+                                                if success:
+                                                    st.success("Historia clínica actualizada correctamente")
+                                                    # Salir del modo edición
+                                                    st.session_state.editing = False
+                                                    st.session_state.edit_index = None
+                                                    st.session_state.patient = None
+                                                    time.sleep(1.5)
+                                                    st.rerun()
                                                 else:
-                                                    # Update registration date
-                                                    patient["Fecha Modificacion"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                                            
+                                                    st.error("Error al actualizar la historia clínica. Compruebe la conexión.")
+
+                                          
                                                     # Save to session state to preserve on rerun
-                                                    st.session_state.patient = patient
+                                                    #st.session_state.patient = patient_data
                                             
-                                                    with st.spinner("Actualizando historia clínica..."):
-                                                        success = update_history(selected_id, patient)
-                                                        if success:
-                                                            st.success("Historia clínica actualizada correctamente")
+                                                   #     success = update_history(selected_id, patient)
+                                                   #     if success:
+                                                   #         st.success("Historia clínica actualizada correctamente")
                                                     
                                                             # Exit edit mode after successful update
-                                                            cancel_editing()
-                                                            time.sleep(2)
-                                                            st.rerun()
-                                                        else:
-                                                            st.error("Error al actualizar la historia clínica")
+                                                    #        cancel_editing()
+                                                    #        time.sleep(2)
+                                                    #        st.rerun()
+                                                    #    else:
+                                                    #        st.error("Error al actualizar la historia clínica")
                                     
-                                    elif cancel_button:
-                                            cancel_editing()
-                                            st.rerun()
+                            if st.button("Cancelar edición"):
+                               cancel_editing()
+                               st.rerun()
                                 
-                            # Provide a cancel button outside the form as a backup option
-                            #if st.button("Cancelar edición", key="cancel_outside_form"):
-                            #        cancel_editing()
-                            #        st.rerun()
+            #Provide a cancel button outside the form as a backup option
+            #if st.button("Cancelar edición", key="cancel_outside_form"):
+            #   cancel_editing()
+            #   st.rerun()
 
 with tab3:
     st.header("Estadísticas")
