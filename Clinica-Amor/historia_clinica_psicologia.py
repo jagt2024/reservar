@@ -476,6 +476,17 @@ def consulta_historia():
                     st.success(f"Historia clínica guardada correctamente")
                     time.sleep(2)
                     st.rerun()
+
+                    # Generar PDF y crear botón de descarga
+                    pdf_bytes = generate_patient_pdf(patient_data)
+                    st.download_button(
+                            label="Descargar Historia Clínica (PDF)",
+                            data=pdf_bytes,
+                            file_name=f"historia_clinica_{new_id}.pdf",
+                            mime="application/pdf"
+                    )
+                    
+                    
                 else:
                     st.error("Error al guardar la historia clínica. Verifique la conexión a Google Drive.")
 
@@ -601,7 +612,16 @@ def consulta_historia():
                             # Recargar datos para reflejar los cambios
                             df = load_data()
                             st.success(f"Datos del paciente {nombre} actualizados correctamente")
-                                
+                            
+                            # Generar PDF y crear botón de descarga
+                            pdf_bytes = generate_patient_pdf(paciente)
+                            st.download_button(
+                                label="Descargar Historia Clínica (PDF)",
+                                data=pdf_bytes,
+                                file_name=f"historia_clinica_{nombre}.pdf",
+                                mime="application/pdf"
+                            )    
+                            
             #Provide a cancel button outside the form as a backup option
             #if st.button("Cancelar edición", key="cancel_outside_form"):
             #   cancel_editing()
@@ -665,9 +685,152 @@ def consulta_historia():
                     mes_counts = data['Mes'].value_counts().sort_index()
                     st.line_chart(mes_counts)
 
-  # Footer
-  st.markdown("---")
-  st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
+
+# Función para generar PDF de historia clínica
+def generate_patient_pdf(patient_data):
+
+    from reportlab.lib.pagesizes import letter
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from io import BytesIO
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter)
+    styles = getSampleStyleSheet()
+    
+    # Crear un estilo personalizado para títulos
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        textColor=colors.darkblue,
+        spaceAfter=12
+    )
+    
+    # Crear un estilo personalizado para subtítulos
+    subtitle_style = ParagraphStyle(
+        'SubtitleStyle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        textColor=colors.darkblue,
+        spaceAfter=10
+    )
+    
+    # Crear un estilo personalizado para el texto normal
+    normal_style = ParagraphStyle(
+        'NormalStyle',
+        parent=styles['Normal'],
+        fontSize=11,
+        spaceAfter=6
+    )
+    
+    # Lista para almacenar los elementos del PDF
+    elements = []
+    
+    # Título del documento
+    elements.append(Paragraph("Historia Clínica Psicológica", styles['Title']))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Fecha de emisión
+    elements.append(Paragraph(f"Fecha de emisión: {datetime.now().strftime('%d/%m/%Y')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Datos del paciente
+    elements.append(Paragraph("Datos Personales", title_style))
+    
+    # Tabla con datos personales
+    data = [
+        ["ID", patient_data.get("ID", "")],
+        ["Nombre", patient_data.get("Nombre", "")],
+        ["Sexo", patient_data.get("Sexo", "")],
+        ["Edad", str(patient_data.get("Edad", ""))],
+        ["Estudios", patient_data.get("Estudios", "")],
+        ["Origen", patient_data.get("Origen", "")],
+        ["Ocupación", patient_data.get("Ocupacion", "")],
+        ["Estado Civil", patient_data.get("Estado Civil", "")],
+        ["Religión", patient_data.get("Religion", "")],
+    ]
+    
+    # Crear tabla
+    t = Table(data, colWidths=[2*inch, 4*inch])
+    
+    # Estilo de la tabla
+    t.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+    ]))
+    
+    elements.append(t)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Motivo de consulta
+    elements.append(Paragraph("Motivo de Consulta", subtitle_style))
+    elements.append(Paragraph(patient_data.get("Motivo Consulta", ""), normal_style))
+    elements.append(Paragraph(f"Fecha de inicio de síntomas: {patient_data.get('Fecha Inicio Sintomas', '')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Antecedentes
+    elements.append(Paragraph("Antecedentes del Paciente", subtitle_style))
+    elements.append(Paragraph(f"<b>Antecedentes:</b> {patient_data.get('Antecedentes', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Desarrollo Psicomotor:</b> {patient_data.get('Desarrollo Psicomotor', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Alimentación:</b> {patient_data.get('Alimentacion', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Hábitos de Sueño:</b> {patient_data.get('Habitos de Sueño', '')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Perfil Social
+    elements.append(Paragraph("Perfil Social y Personalidad", subtitle_style))
+    elements.append(Paragraph(f"<b>Perfil Social:</b> {patient_data.get('Perfil Social', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Otros:</b> {patient_data.get('Otros', '')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Examen Mental y Diagnóstico
+    elements.append(Paragraph("Examen Mental y Diagnóstico", subtitle_style))
+    elements.append(Paragraph(f"<b>Resultado del Examen:</b> {patient_data.get('Resultado Examen', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Diagnóstico:</b> {patient_data.get('Diagnostico', '')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Plan de Tratamiento
+    elements.append(Paragraph("Plan de Tratamiento", subtitle_style))
+    elements.append(Paragraph(f"<b>Objetivos del Tratamiento:</b> {patient_data.get('Objetivos Tratamiento', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Técnicas a Emplear:</b> {patient_data.get('Tecnicas', '')}", normal_style))
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Información de la Consulta
+    elements.append(Paragraph("Información de la Consulta", subtitle_style))
+    elements.append(Paragraph(f"<b>Fecha de la Consulta:</b> {patient_data.get('Fecha Consulta', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Terapeuta:</b> {patient_data.get('Terapeuta', '')}", normal_style))
+    elements.append(Paragraph(f"<b>Fecha de Registro:</b> {patient_data.get('Fecha Registro', '')}", normal_style))
+    
+    # Pie de página
+    elements.append(Spacer(1, 0.5*inch))
+    elements.append(Paragraph("Clínica de Psicología del Amor - Documento Confidencial", 
+                  ParagraphStyle(name='Footer', parent=styles['Normal'], fontSize=8, alignment=1)))
+    
+    # Generar PDF
+    doc.build(elements)
+    
+    # Obtener el contenido del PDF
+    pdf_content = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_content
+
+# Función para crear un botón de descarga de PDF
+def get_pdf_download_link(pdf_bytes, filename="historia_clinica.pdf", text="Descargar PDF"):
+    """Genera un enlace HTML para descargar un archivo PDF."""
+    b64 = base64.b64encode(pdf_bytes).decode()
+    return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">{text}</a>'
+
+# Footer
+st.markdown("---")
+st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
 
 #if __name__ == '__main__':
 #    consulta_historia()
