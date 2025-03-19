@@ -12,47 +12,6 @@ import toml
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
 
-# Configuración de la página
-#st.set_page_config(
-#    page_title="Historia Clínica Psicológica",
-#    page_icon="🧠",
-#    layout="wide"
-#)
-
-# Estilos CSS personalizados
-#st.markdown("""
-#<style>
-#    .main {
-#        padding: 2rem;
-#    }
-#    .stTabs [data-baseweb="tab-list"] {
-#        gap: 10px;
-#    }
-#    .stTabs [data-baseweb="tab"] {
-#        background-color: #f0f2f6;
-#        border-radius: 4px 4px 0px 0px;
-#        padding: 10px 16px;
-#        font-weight: 600;
-#    }
-#    .stTabs [aria-selected="true"] {
-#        background-color: #4e89ae;
-#        color: white;
-#    }
-#    .header-container {
-#        display: flex;
-#        align-items: center;
-#        justify-content: space-between;
-#        margin-bottom: 1rem;
-#    }
-#    .section-title {
-#        background-color: #f0f2f6;
-#        padding: 10px;
-#        border-radius: 5px;
-#        margin-bottom: 10px;
-#    }
-#</style>
-#""", unsafe_allow_html=True)
-
 # Initialize the state for the editing form
 if 'editing' not in st.session_state:
     st.session_state.editing = False
@@ -858,5 +817,5 @@ def get_pdf_download_link(pdf_bytes, filename="historia_clinica.pdf", text="Desc
 st.markdown("---")
 st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
 
-if __name__ == '__main__':
-    consulta_historia()
+#if __name__ == '__main__':
+#    consulta_historia()

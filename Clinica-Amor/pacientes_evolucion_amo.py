@@ -421,7 +421,7 @@ def display_evolution_history(patient_id, data):
             st.markdown(f"<div class='highlight'>{evolucion.get('plan_proxima', '')}</div>", unsafe_allow_html=True)
 
 # Función principal
-def main():
+def paciente_evol():
     st.markdown('<p class="main-header">Gestión de Evoluciones de Pacientes</p>', unsafe_allow_html=True)
     
     # Conectar con Google Sheets
@@ -603,4 +603,4 @@ def main():
         display_scales_and_tests(patient_id, data)
 
 if __name__ == "__main__":
-    main()
+    paciente_evol()
