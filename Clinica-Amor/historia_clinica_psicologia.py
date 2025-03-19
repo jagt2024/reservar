@@ -107,7 +107,7 @@ def connect_to_gsheets():
                 'ID', 'Nombre', 'Sexo', 'Edad', 'Estudios', 'Origen',
                 'Ocupacion', 'Estado civil', 'Religion', 'Progenitores',
                 'Motivo Consulta', 'Fecha Inicio Sintomas', 'Antecedentes',
-                'Desarrollo Psicomotor', 'Alimentacion', 'Habitos de sueño', 'Perfil Social','otros',
+                'Desarrollo Psicomotor', 'Alimentacion', 'Habitos de sueño', 'Perfil Social','Otros',
                 #'Perfil social', 'Personalidad', 'Historia familiar',
                 #'Apariencia', 'Estado de conciencia', 'Estado de ánimo', 'Actividad motora',
                # 'Lenguaje', 'Contenido de ideas', 'Sensorium', 'Memoria', 'Pensamiento',
@@ -415,7 +415,27 @@ def consulta_historia():
         # Sección: Plan de orientación psicológica
         st.markdown('<div class="section-title"><h3>Plan de Orientación Psicológica</h3></div>', unsafe_allow_html=True)
         objetivos = st.text_area("Objetivos del tratamiento", height=100)
-        tecnicas = st.text_area("Técnicas a emplear", height=100)
+
+        tecnicas_aplicar = [
+            "Reestructuración cognitiva",
+            "Exposición en vivo",
+            "Exposición en imaginación",
+            "Entrenamiento en habilidades sociales",
+            "Técnicas de relajación",
+            "Activación conductual",
+            "Mindfulness",
+            "Terapia de aceptación y compromiso",
+            "Entrenamiento en solución de problemas",
+            "Psicoeducación",
+            "Terapia de procesamiento emocional",
+            "Terapia interpersonal",
+            "Terapia narrativa",
+            "Terapia centrada en la compasión",
+            "Terapia sistémica",
+            "Estrategias de afrontamiento",
+            "Otra"
+        ]
+        tecnicas = st.selectbox("Técnicas a emplear", tecnicas_aplicar)
         
         # Fecha de la consulta
         fecha_consulta = st.date_input("Fecha de la consulta", value=datetime.now())
@@ -505,6 +525,12 @@ def consulta_historia():
             # Filtrar las opciones del selector basado en la búsqueda
             df_copy = df.copy()
             df_copy['ID'] = df_copy['ID'].astype(str)
+
+             # Buscar coincidencias parciales en ID o Nombre
+            mask = (
+                df_copy['ID'].str.contains(search_patient, case=False, na=False) | 
+                df_copy['Nombre'].str.contains(search_patient, case=False, na=False)
+            )
             
             if search_patient:
                 filtered_patients = df_copy[
@@ -832,5 +858,5 @@ def get_pdf_download_link(pdf_bytes, filename="historia_clinica.pdf", text="Desc
 st.markdown("---")
 st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
 
-#if __name__ == '__main__':
-#    consulta_historia()
+if __name__ == '__main__':
+    consulta_historia()
