@@ -14,12 +14,15 @@ import threading
 from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Configuración de la página
-st.set_page_config(
-    page_title="Sistema de Recordatorio de Citas AMO",
-    page_icon="📅",
-    layout="wide"
-)
+#st.set_page_config(
+##    page_title="Sistema de Recordatorio de Citas AMO",
+#    page_icon="📅",
+#    layout="wide"
+#)
 
 # Constantes para reintentos
 MAX_RETRIES = 5

@@ -13,6 +13,9 @@ from email.mime.multipart import MIMEMultipart
 from sendemail_ticket import send_email2
 from sendemail_ticket_empresa import send_email_emp
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 class EmailSender:
     def __init__(self, smtp_server, port, sender_email, password):
         self.smtp_server = smtp_server

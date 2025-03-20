@@ -17,6 +17,9 @@ import threading
 from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Configuración de la página
 #st.set_page_config(
 #    page_title="Sistema de Recordatorio de Citas AMO",
@@ -856,5 +859,5 @@ def recordatorio():
     else:
         st.error("No se pudieron cargar las credenciales desde .streamlit/secrets.toml")
         
-if __name__ == "__main__":
-    recordatorio()
+#if __name__ == "__main__":
+#    recordatorio()

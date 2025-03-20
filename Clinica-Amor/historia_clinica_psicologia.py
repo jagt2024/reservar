@@ -8,6 +8,9 @@ import time
 import json
 import toml
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Configuración para reintentos de conexión
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
@@ -818,9 +821,6 @@ def get_pdf_download_link(pdf_bytes, filename="historia_clinica.pdf", text="Desc
     b64 = base64.b64encode(pdf_bytes).decode()
     return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">{text}</a>'
 
-# Footer
-st.markdown("---")
-st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
 
 #if __name__ == '__main__':
 #    consulta_historia()

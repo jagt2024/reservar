@@ -14,6 +14,9 @@ import urllib3
 import gspread
 import requests
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 #st.set_page_config(
  #   page_title="Google Sheets Backup Tool",
  #   page_icon="📊",

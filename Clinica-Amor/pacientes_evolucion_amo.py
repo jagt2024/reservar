@@ -20,6 +20,9 @@ from reportlab.lib.units import inch
 from reportlab.lib import colors
 from io import BytesIO
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Constantes para reintentos
 MAX_RETRIES = 5
 INITIAL_RETRY_DELAY = 2

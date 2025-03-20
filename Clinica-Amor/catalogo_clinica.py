@@ -3,6 +3,9 @@ import pandas as pd
 from PIL import Image
 import os
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 def create_upload_directory():
     if not os.path.exists("./assets-amo"):
         os.makedirs("./assets-amo")

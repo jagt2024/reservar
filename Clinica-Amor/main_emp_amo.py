@@ -509,6 +509,10 @@ else:
         st.error(f"Ocurrió un error en main_emp.py: {e}")
         
       update_clock_and_calendar()
+
+# Footer
+#st.markdown("---")
+#st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
       
 sys.excepthook = global_exception_handler
 

@@ -7,6 +7,9 @@ import toml
 from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 # Configuración de la página
 #st.set_page_config(
 #    page_title="Editor de Historia Clínica",

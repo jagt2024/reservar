@@ -6,6 +6,9 @@ import psutil
 import logging
 import streamlit.components.v1 as components
 
+st.cache_data.clear()
+st.cache_resource.clear()
+
 def log_resource_usage():
     cpu_percent = psutil.cpu_percent()
     memory_percent = psutil.virtual_memory().percent
@@ -36,3 +39,6 @@ class InicioEmp:
         """
           ***Realice sus solicitudes en Linea y Programe sus Citas***
         """)
+# Footer
+#st.markdown("---")
+#st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")
