@@ -383,16 +383,21 @@ def consulta_historia():
             "Técnicas de relajación",
             "Activación conductual",
             "Mindfulness",
-            "Terapia de aceptación y compromiso",
             "Entrenamiento en solución de problemas",
             "Psicoeducación",
             "Terapia de procesamiento emocional",
             "Terapia interpersonal",
             "Terapia narrativa",
             "Terapia centrada en la compasión",
-            "Terapia sistémica",
             "Estrategias de afrontamiento",
-            "Otra"
+            "Otra",
+            "Terapia Cognitivo-Conductual (TCC)",
+            "Resolución de Problemas",
+            "Psicodrama",
+            "Terapia de Aceptación y Compromiso (ACT)",
+            "EMDR",
+            "Terapia Sistémica",
+            "Terapia Psicodinámica"
         ]
         tecnicas = st.selectbox("Técnicas a emplear", tecnicas_aplicar)
         

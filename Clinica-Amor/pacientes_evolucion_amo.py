@@ -3,15 +3,22 @@ import pandas as pd
 import numpy as np
 import uuid
 import datetime
+#from datetime import datetime
 import json
 import time
 import toml
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+#from oauth2client.service_account import ServiceAccountCredentials
 from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
 #import matplotlib.pyplot as plt
 import altair as alt
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from io import BytesIO
 
 # Constantes para reintentos
 MAX_RETRIES = 5
@@ -115,13 +122,17 @@ def load_patient_data(sheets):
         
         # Procesar datos de pacientes
         for patient in patients_data:
-            patient_id = patient['ID']
+            # Verificar que el ID existe y es válido
+            if 'ID' not in patient or not patient['ID']:
+                continue
+                
+            patient_id = str(patient['ID'])  # Convertir a string para evitar problemas con tipos de datos
             data[patient_id] = {
                 'id': patient_id,
-                'nombre': patient['Nombre'],
-                'sexo': patient['Sexo'],
-                'edad': patient['Edad'],
-                'motivo_consulta': patient['Motivo Consulta'],
+                'nombre': patient.get('Nombre', 'Sin nombre'),
+                'sexo': patient.get('Sexo', ''),
+                'edad': patient.get('Edad', ''),
+                'motivo_consulta': patient.get('Motivo Consulta', ''),
                 'resultado_examen': patient.get('Resultado Examen', ''),
                 'diagnostico': patient.get('Diagnostico', ''),
                 'fecha_registro': patient.get('Fecha Consulta', ''),
@@ -148,7 +159,11 @@ def load_patient_data(sheets):
         
         # Procesar evoluciones
         for evolucion in evoluciones_data:
-            patient_id = evolucion['ID']
+            # Verificar que el ID existe y es válido
+            if 'ID' not in evolucion or not evolucion['ID']:
+                continue
+                
+            patient_id = str(evolucion['ID'])  # Convertir a string para consistencia
             if patient_id in data:
                 # Convertir campos de texto a estructuras de datos
                 tecnicas = []
@@ -220,25 +235,419 @@ def save_evolution_to_sheets(sheets, evolution_data):
 # Función para obtener las técnicas terapéuticas disponibles
 def get_tecnicas_terapeuticas():
     return [
-        "Terapia Cognitivo-Conductual (TCC)",
-        "Reestructuración Cognitiva",
-        "Exposición",
-        "Entrenamiento en Relajación",
-        "Mindfulness",
-        "Activación Conductual",
-        "Resolución de Problemas",
-        "Entrenamiento en Habilidades Sociales",
-        "Psicodrama",
-        "Terapia de Aceptación y Compromiso (ACT)",
-        "EMDR",
-        "Terapia Narrativa",
-        "Terapia Sistémica",
-        "Terapia Psicodinámica",
-        "Otra"
+        "Reestructuración cognitiva",
+            "Exposición en vivo",
+            "Exposición en imaginación",
+            "Entrenamiento en habilidades sociales",
+            "Técnicas de relajación",
+            "Activación conductual",
+            "Mindfulness",
+            "Entrenamiento en solución de problemas",
+            "Psicoeducación",
+            "Terapia de procesamiento emocional",
+            "Terapia interpersonal",
+            "Terapia narrativa",
+            "Terapia centrada en la compasión",
+            "Estrategias de afrontamiento",
+            "Otra",
+            "Terapia Cognitivo-Conductual (TCC)",
+            "Resolución de Problemas",
+            "Psicodrama",
+            "Terapia de Aceptación y Compromiso (ACT)",
+            "EMDR",
+            "Terapia Sistémica",
+            "Terapia Psicodinámica" 
     ]
+
+# Función para crear y descargar PDF
+def create_pdf(data, content_type="ficha_paciente"):
+    """
+    Crea un archivo PDF con la información del paciente o evoluciones.
+    
+    Args:
+        data (dict): Datos del paciente o evolución
+        content_type (str): Tipo de contenido ("ficha_paciente", "evolucion", "historia", "test")
+    
+    Returns:
+        str: Enlace HTML para descargar el PDF
+    """
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    
+    # Estilos
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        'TitleStyle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        alignment=1,  # Centrado
+        spaceAfter=12
+    )
+    heading_style = ParagraphStyle(
+        'HeadingStyle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=6
+    )
+    normal_style = styles['Normal']
+    label_style = ParagraphStyle(
+        'LabelStyle',
+        parent=normal_style,
+        fontName='Helvetica-Bold',
+        fontSize=11
+    )
+    
+    # Lista de elementos para el PDF
+    elements = []
+    
+    # Contenido según tipo
+    if content_type == "ficha_paciente":
+        # Título
+        elements.append(Paragraph(f"Ficha de Paciente:", title_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Información básica
+        info_data = [
+            ["ID:", data.get('id', 'N/A')],  # This uses 'N/A' if 'id' is missing
+            ["Nombre:", data.get('nombre', '')],
+            ["Diagnóstico:", data.get('diagnostico', '')],
+            ["Sexo:", data.get('sexo','')],
+            ["Edad:", data.get('edad','')],
+            ["Terapeuta:", data.get('terapeuta','')],
+            ["Fecha Registro:", data.get('recha_registro','')]
+        ]
+        
+        info_table = Table(info_data, colWidths=[1.5*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Motivo de consulta
+        elements.append(Paragraph("Motivo de Consulta Inicial:", heading_style))
+        elements.append(Paragraph(data['motivo_consulta'], normal_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Resultado examen
+        elements.append(Paragraph("Resultado Examen:", heading_style))
+        elements.append(Paragraph(data['resultado_examen'], normal_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Diagnóstico
+        elements.append(Paragraph("Diagnóstico:", heading_style))
+        elements.append(Paragraph(data['diagnostico'], normal_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Objetivos de tratamiento
+        elements.append(Paragraph("Objetivos de Tratamiento:", heading_style))
+        if data.get('objetivos_tratamiento'):
+            for i, obj in enumerate(data['objetivos_tratamiento']):
+                elements.append(Paragraph(f"{i+1}. {obj.get('texto', '')} - Progreso: {obj.get('progreso', 0)}%", normal_style))
+        else:
+            elements.append(Paragraph("No se han definido objetivos de tratamiento.", normal_style))
+        
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Técnicas
+        elements.append(Paragraph("Técnicas Terapéuticas:", heading_style))
+        if data.get('tecnicas'):
+            elements.append(Paragraph(", ".join(data['tecnicas']), normal_style))
+        else:
+            elements.append(Paragraph("No se han definido técnicas terapéuticas.", normal_style))
+    
+    elif content_type == "evolucion":
+        # Título para la evolución
+        evolucion = data['evolucion']
+        elements.append(Paragraph(f"Evolución del Paciente: {data['nombre']}", title_style))
+        elements.append(Paragraph(f"Fecha: {evolucion['fecha_registro']}", heading_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Motivo de consulta
+        elements.append(Paragraph("Motivo de Consulta / Presentación Actual:", label_style))
+        elements.append(Paragraph(evolucion.get('motivo_consulta', ''), normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Estado mental
+        elements.append(Paragraph("Estado Mental:", label_style))
+        elements.append(Paragraph(evolucion.get('estado_mental', ''), normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Técnicas aplicadas
+        elements.append(Paragraph("Técnicas Aplicadas:", label_style))
+        tecnicas = evolucion.get('tecnicas', [])
+        if tecnicas:
+            elements.append(Paragraph(", ".join(tecnicas), normal_style))
+        else:
+            elements.append(Paragraph("No se registraron técnicas", normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Intervención
+        elements.append(Paragraph("Intervención:", label_style))
+        elements.append(Paragraph(evolucion.get('intervencion', ''), normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Avances
+        elements.append(Paragraph("Avances:", label_style))
+        elements.append(Paragraph(evolucion.get('avances', ''), normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Objetivos de tratamiento
+        elements.append(Paragraph("Objetivos de Tratamiento:", label_style))
+        objetivos = evolucion.get('objetivos_tratamiento', [])
+        if objetivos:
+            for obj in objetivos:
+                elements.append(Paragraph(f"- {obj.get('texto', '')}: {obj.get('progreso', 0)}%", normal_style))
+        else:
+            elements.append(Paragraph("No se registraron objetivos", normal_style))
+        elements.append(Spacer(1, 0.15*inch))
+        
+        # Plan para próxima sesión
+        elements.append(Paragraph("Plan para Próxima Sesión:", label_style))
+        elements.append(Paragraph(evolucion.get('plan_proxima', ''), normal_style))
+    
+    elif content_type == "historial":
+        # Título para el historial
+        elements.append(Paragraph(f"Historial de Evoluciones - Paciente: {data['nombre']}", title_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Datos básicos del paciente
+        info_data = [
+            ["ID:", data['id']],
+            ["Nombre:", data['nombre']],
+            ["Diagnóstico:", data['diagnostico']]
+        ]
+        
+        info_table = Table(info_data, colWidths=[1.5*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Evoluciones ordenadas por fecha
+        evoluciones_ordenadas = sorted(
+            data['evoluciones'], 
+            key=lambda x: datetime.datetime.strptime(x['fecha_registro'], "%Y-%m-%d") if x['fecha_registro'] else datetime.datetime.min
+        )
+        
+        for i, evolucion in enumerate(evoluciones_ordenadas):
+            elements.append(Paragraph(f"Evolución {i+1} - {evolucion['fecha_registro']}", heading_style))
+            
+            # Motivo de consulta
+            elements.append(Paragraph("Motivo de Consulta:", label_style))
+            elements.append(Paragraph(evolucion.get('motivo_consulta', ''), normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Estado mental
+            elements.append(Paragraph("Estado Mental:", label_style))
+            elements.append(Paragraph(evolucion.get('estado_mental', ''), normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Técnicas aplicadas
+            elements.append(Paragraph("Técnicas Aplicadas:", label_style))
+            tecnicas = evolucion.get('tecnicas', [])
+            if tecnicas:
+                elements.append(Paragraph(", ".join(tecnicas), normal_style))
+            else:
+                elements.append(Paragraph("No se registraron técnicas", normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Intervención
+            elements.append(Paragraph("Intervención:", label_style))
+            elements.append(Paragraph(evolucion.get('intervencion', ''), normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Avances
+            elements.append(Paragraph("Avances:", label_style))
+            elements.append(Paragraph(evolucion.get('avances', ''), normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Objetivos de tratamiento
+            elements.append(Paragraph("Objetivos de Tratamiento:", label_style))
+            objetivos = evolucion.get('objetivos_tratamiento', [])
+            if objetivos:
+                for obj in objetivos:
+                    elements.append(Paragraph(f"- {obj.get('texto', '')}: {obj.get('progreso', 0)}%", normal_style))
+            else:
+                elements.append(Paragraph("No se registraron objetivos", normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Plan para próxima sesión
+            elements.append(Paragraph("Plan para Próxima Sesión:", label_style))
+            elements.append(Paragraph(evolucion.get('plan_proxima', ''), normal_style))
+            
+            # Separador entre evoluciones
+            if i < len(evoluciones_ordenadas) - 1:
+                elements.append(Spacer(1, 0.25*inch))
+                elements.append(Paragraph("_" * 50, normal_style))
+                elements.append(Spacer(1, 0.25*inch))
+                
+    elif content_type == "test":
+        # Título para el test
+        elements.append(Paragraph(f"Resultados del Test - Paciente: {data['nombre']}", title_style))
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Datos básicos del paciente
+        info_data = [
+            ["ID:", data['id']],
+            ["Nombre:", data['nombre']],
+            ["Test:", data['test']['test_selected']],
+            ["Fecha:", data['test']['fecha_test']]
+        ]
+        
+        info_table = Table(info_data, colWidths=[1.5*inch, 4*inch])
+        info_table.setStyle(TableStyle([
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 0.25*inch))
+        
+        # Mostrar puntuación si existe
+        if 'puntuacion' in data['test']:
+            elements.append(Paragraph(f"Puntuación: {data['test']['puntuacion']}", heading_style))
+            elements.append(Spacer(1, 0.15*inch))
+            
+            # Interpretación si existe
+            if data['test'].get('interpretacion'):
+                elements.append(Paragraph(f"Interpretación: {data['test']['interpretacion']}", heading_style))
+                elements.append(Spacer(1, 0.15*inch))
+        
+        # Resultados si existe
+        if data['test'].get('resultados'):
+            elements.append(Paragraph("Resultados:", heading_style))
+            elements.append(Paragraph(data['test']['resultados'], normal_style))
+            elements.append(Spacer(1, 0.15*inch))
+        
+        # Observaciones
+        if data['test'].get('observaciones'):
+            elements.append(Paragraph("Observaciones:", heading_style))
+            elements.append(Paragraph(data['test']['observaciones'], normal_style))
+    
+    # Construir el PDF
+    doc.build(elements)
+    
+    # Obtener el PDF como bytes
+    pdf = buffer.getvalue()
+    buffer.close()
+    
+    # Codificar a base64
+    b64_pdf = base64.b64encode(pdf).decode()
+    
+    # Determinar el nombre del archivo
+    if content_type == "ficha_paciente":
+        pdf_filename = f"ficha_paciente_{data['nombre']}_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+    elif content_type == "evolucion":
+        pdf_filename = f"evolucion_{data['nombre']}_{data['evolucion']['fecha_registro']}.pdf"
+    elif content_type == "historial":
+        pdf_filename = f"historial_{data['nombre']}_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+    elif content_type == "test":
+        pdf_filename = f"test_{data['test']['test_selected']}_{data['nombre']}_{data['test']['fecha_test']}.pdf"
+    
+    # Crear enlace para descargar
+    href = f'<a href="data:application/pdf;base64,{b64_pdf}" download="{pdf_filename}">📥 Descargar PDF</a>'
+    
+    return href
+
+def save_test_to_sheets(patient_id, test_data):
+    """
+    Guarda los datos del test del paciente en Google Sheets.
+    
+    Args:
+        patient_id (str): ID del paciente
+        test_data (dict): Datos del test a guardar
+    
+    Returns:
+        bool: True si se guardó correctamente, False en caso contrario
+    """
+    try:
+        # Cargar credenciales desde el archivo .toml
+        creds = load_credentials_from_toml()
+        if not creds:
+           return None
+            
+        # Definir el alcance
+        scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+        
+        # Crear credenciales
+        credentials = Credentials.from_service_account_info(creds, scopes=scope)
+        
+        # Autorizar el cliente
+        client = gspread.authorize(credentials)
+        
+        # Abrir la hoja existente
+        spreadsheet = client.open('gestion-reservas-amo')
+        
+        # Intentar obtener la hoja "test_paciente", si no existe, crearla
+        try:
+            worksheet = spreadsheet.worksheet("test_paciente")
+        except gspread.exceptions.WorksheetNotFound:
+            worksheet = spreadsheet.add_worksheet(title="test_paciente", rows=1000, cols=8)
+            # Añadir encabezados
+            headers = ["Timestamp", "ID", "Nombre Test", "Fecha Aplicación", 
+                       "Puntuación", "Interpretación", "Resultados", "Observaciones"]
+            worksheet.append_row(headers)
+        
+        # Preparar los datos para insertar
+        fecha_actual = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Determinar la interpretación si es un test con puntuación numérica
+        interpretacion = ""
+        if "puntuacion" in test_data:
+            if test_data["test_selected"] == "Escala de Depresión de Beck (BDI)":
+                puntuacion = test_data["puntuacion"]
+                if puntuacion <= 13:
+                    interpretacion = "Depresión mínima"
+                elif puntuacion <= 19:
+                    interpretacion = "Depresión leve"
+                elif puntuacion <= 28:
+                    interpretacion = "Depresión moderada"
+                else:
+                    interpretacion = "Depresión grave"
+            elif test_data["test_selected"] == "Inventario de Ansiedad de Beck (BAI)":
+                puntuacion = test_data["puntuacion"]
+                if puntuacion <= 7:
+                    interpretacion = "Ansiedad mínima"
+                elif puntuacion <= 15:
+                    interpretacion = "Ansiedad leve"
+                elif puntuacion <= 25:
+                    interpretacion = "Ansiedad moderada"
+                else:
+                    interpretacion = "Ansiedad grave"
+        
+        # Crear la fila para insertar en la hoja
+        row_data = [
+            fecha_actual,                             # Timestamp
+            patient_id,                               # ID del paciente
+            test_data["test_selected"],               # Nombre del test
+            test_data.get("fecha_test", ""),          # Fecha de aplicación
+            test_data.get("puntuacion", ""),          # Puntuación (si aplica)
+            interpretacion,                           # Interpretación (si aplica)
+            test_data.get("resultados", ""),          # Resultados (para tests sin puntuación numérica)
+            test_data.get("observaciones", "")        # Observaciones
+        ]
+        
+        # Añadir la fila a la hoja
+        worksheet.append_row(row_data)
+        
+        return True
+        
+    except Exception as e:
+        import streamlit as st
+        st.error(f"Error al guardar los datos: {str(e)}")
+        return False
 
 # Función para mostrar escalas y tests
 def display_scales_and_tests(patient_id, data):
+    import streamlit as st
+    import datetime
+    
     st.markdown('<p class="sub-header">Escalas y Tests</p>', unsafe_allow_html=True)
     
     # Selector de test
@@ -260,7 +669,12 @@ def display_scales_and_tests(patient_id, data):
     with col2:
         fecha_test = st.date_input("Fecha de aplicación", datetime.date.today())
     
-    # Resultados del test (aquí se pueden implementar opciones específicas para cada test)
+    # Variables para almacenar los resultados
+    puntuacion = None
+    resultados = None
+    interpretacion = None
+    
+    # Resultados del test específicos para cada tipo
     if test_selected == "Escala de Depresión de Beck (BDI)" or test_selected == "Inventario de Ansiedad de Beck (BAI)":
         puntuacion = st.slider("Puntuación", 0, 63, 0)
         
@@ -287,14 +701,40 @@ def display_scales_and_tests(patient_id, data):
         
         st.info(f"Interpretación: {interpretacion}")
     else:
-        st.text_area("Resultados del test", placeholder="Introduzca los resultados del test aplicado...")
+        resultados = st.text_area("Resultados del test", placeholder="Introduzca los resultados del test aplicado...")
     
     observaciones = st.text_area("Observaciones", placeholder="Añada observaciones relevantes sobre la aplicación o resultados del test...")
     
     # Botón para guardar test
     if st.button("Guardar Test"):
-        st.success("Test guardado correctamente")
-        # Aquí iría la lógica para guardar el test en Google Sheets
+        # Preparar los datos para guardar
+        test_data = {
+            "test_selected": test_selected,
+            "fecha_test": fecha_test.strftime("%Y-%m-%d"),
+            "observaciones": observaciones
+        }
+        
+        # Añadir datos específicos según el tipo de test
+        if puntuacion is not None:
+            test_data["puntuacion"] = puntuacion
+        if resultados is not None:
+            test_data["resultados"] = resultados
+        
+        # Llamar a la función para guardar en Google Sheets
+        if save_test_to_sheets(patient_id, test_data):
+            st.success("El Test guardado correctamente")
+
+            # Generar PDF y crear botón de descarga
+            pdf_bytes =create_pdf(data, content_type="ficha_paciente")
+            st.download_button(
+               label="Descargar Test (PDF)",
+               data=pdf_bytes,
+               file_name=f"test_{patient_id}.pdf",
+               mime="application/pdf"
+            )
+
+        else:
+            st.error("No se pudo guardar el test. Revise los logs para más detalles.")
 
 # Función para visualizar el seguimiento de objetivos
 def display_objectives_tracking(patient_id, data):
@@ -420,43 +860,69 @@ def display_evolution_history(patient_id, data):
             st.markdown(f"**Plan para Próxima Sesión:**")
             st.markdown(f"<div class='highlight'>{evolucion.get('plan_proxima', '')}</div>", unsafe_allow_html=True)
 
-# Función principal
+# Función principal modificada para quitar el sidebar
 def paciente_evol():
     st.markdown('<p class="main-header">Gestión de Evoluciones de Pacientes</p>', unsafe_allow_html=True)
     
-    # Conectar con Google Sheets
+    # Conectar con Google Sheets una sola vez al inicio
     sheets = connect_to_gsheets()
     if not sheets:
         st.error("No se pudo conectar con Google Sheets. Verifica las credenciales e inténtalo de nuevo.")
         return
     
-    # Cargar datos de pacientes
+    # Obtener la lista de pacientes (solo nombres e IDs) sin cargar todos los datos
+    try:
+        patients_data = sheets['historia_clinica'].get_all_records()
+        pacientes = []
+        
+        for patient in patients_data:
+            if 'ID' in patient and patient['ID'] and 'Nombre' in patient:
+                pacientes.append((str(patient['ID']), patient.get('Nombre', 'Sin nombre')))
+        
+        pacientes.sort(key=lambda x: x[1])  # Ordenar por nombre
+    except Exception as e:
+        st.error(f"Error al obtener la lista de pacientes: {e}")
+        return
+    
+    # Mapa de opciones de pacientes a sus IDs
+    options_map = {}
+    patient_options = []
+    
+    for id, nombre in pacientes:
+        option_text = f"{nombre} (ID: {id})"
+        patient_options.append(option_text)
+        options_map[option_text] = id
+    
+    if not patient_options:
+        st.info("No hay pacientes disponibles.")
+        return
+    
+    # Selección de paciente en la pantalla principal
+    st.subheader("Selección de Paciente")
+    selected_patient = st.selectbox(
+        "Seleccione un paciente para ver sus detalles:",
+        options=[""] + patient_options,  # Añadimos una opción vacía al inicio
+        index=0
+    )
+    
+    # Verificar si se ha seleccionado un paciente
+    if not selected_patient:
+        st.info("Seleccione un paciente para comenzar.")
+        return
+    
+    # Extraer ID del paciente seleccionado usando el mapa de opciones
+    patient_id = options_map[selected_patient]
+    
+    # Ahora que se ha seleccionado un paciente, cargar todos los datos
     data = load_patient_data(sheets)
     if not data:
         st.error("No se pudieron cargar los datos de pacientes.")
         return
     
-    # Sidebar para selección de paciente
-    st.sidebar.header("Selección de Paciente")
-    
-    # Lista de pacientes para el selector
-    pacientes = [(patient_id, data[patient_id]['nombre']) for patient_id in data]
-    pacientes.sort(key=lambda x: x[1])  # Ordenar por nombre
-    
-    patient_options = [f"{nombre} (ID: {id})" for id, nombre in pacientes]
-    
-    selected_patient = st.sidebar.selectbox(
-        "Seleccione un paciente:",
-        options=patient_options,
-        index=0 if patient_options else None
-    )
-    
-    if not selected_patient:
-        st.info("No hay pacientes disponibles.")
+    # Verificar que el ID existe en los datos
+    if patient_id not in data:
+        st.error(f"Error: El ID del paciente '{patient_id}' no existe en los datos cargados.")
         return
-    
-    # Extraer ID del paciente seleccionado
-    patient_id = selected_patient.split("(ID: ")[1].split(")")[0]
     
     # Mostrar información del paciente
     st.markdown('<p class="sub-header">Información del Paciente</p>', unsafe_allow_html=True)
@@ -587,6 +1053,16 @@ def paciente_evol():
                     st.success("Evolución guardada correctamente")
                     # Recargar datos para reflejar cambios
                     data = load_patient_data(sheets)
+
+                    # Generar PDF y crear botón de descarga
+                    pdf_bytes =create_pdf(data, content_type="ficha_paciente")
+                    st.download_button(
+                    label="Descargar Evolucion (PDF)",
+                    data=pdf_bytes,
+                    file_name=f"Evolucion_{patient_id}.pdf",
+                    mime="application/pdf"
+            )
+
                 else:
                     st.error("Hubo un error al guardar la evolución")
     
@@ -604,3 +1080,4 @@ def paciente_evol():
 
 if __name__ == "__main__":
     paciente_evol()
+
