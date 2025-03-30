@@ -1,0 +1,57 @@
+{
+    "Fisioterapia": {
+        "colorFondo": "#E6F3FF",
+        "colorTexto": "#000000",
+        "plantilla": "plantilla_fisio.html",
+        "logo": "logo_fisio.png",
+        "configuracionAdicional": {
+            "mostrarCalendario": true,
+            "permitirImprimir": true,
+            "maxSesiones": 20
+        }
+    },
+    "Psicología": {
+        "colorFondo": "#FFF4E6",
+        "colorTexto": "#333333",
+        "plantilla": "plantilla_psico.html",
+        "logo": "logo_psico.png",
+        "configuracionAdicional": {
+            "mostrarCalendario": true,
+            "permitirImprimir": true,
+            "duracionSesion": 60
+        }
+    },
+    "Ocupacional": {
+        "colorFondo": "#E6FFEA",
+        "colorTexto": "#003300",
+        "plantilla": "plantilla_ocupacional.html",
+        "logo": "logo_ocupacional.png",
+        "configuracionAdicional": {
+            "mostrarCalendario": true,
+            "permitirImprimir": true,
+            "requiereInforme": true
+        }
+    },
+    "Fonoaudiología": {
+        "colorFondo": "#F0E6FF",
+        "colorTexto": "#330033",
+        "plantilla": "plantilla_fono.html",
+        "logo": "logo_fono.png",
+        "configuracionAdicional": {
+            "mostrarCalendario": true,
+            "permitirImprimir": true,
+            "permitirAudios": true
+        }
+    },
+    "Hidroterapia": {
+        "colorFondo": "#E6F9FF",
+        "colorTexto": "#003366",
+        "plantilla": "plantilla_hidro.html",
+        "logo": "logo_hidro.png",
+        "configuracionAdicional": {
+            "mostrarCalendario": true,
+            "permitirImprimir": true,
+            "temperaturaAgua": 35
+        }
+    }
+}

@@ -13,6 +13,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.errors import HttpError
 #import matplotlib.pyplot as plt
 import altair as alt
+import base64
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -317,7 +318,17 @@ def create_pdf(data, content_type="ficha_paciente"):
             ["Sexo:", data.get('sexo','')],
             ["Edad:", data.get('edad','')],
             ["Terapeuta:", data.get('terapeuta','')],
-            ["Fecha Registro:", data.get('recha_registro','')]
+            ["Fecha Registro:", data.get('recha_registro','')],
+            ["Motivo Consulta:", data.get('motivo_consulta','')],
+            ["Resultado Examen:", data.get('resultado_examen','')],
+            ["Objetivos Tratamiento:", data.get('objetivos_trrattamiento','')],
+            ["Estado Mental:", data.get('estado_mental','')],
+            ["Tecnicas:", data.get('tecnicas','')],
+            ["Intervencion:", data.get('intervencion','')],
+            ["Avances:", data.get('avances','')],
+            ["Objetivos Tratamiento:", data.get('objetivos_tratamiento','')],
+            ["Plan Proxima:", data.get('plan_proxima','')]
+
         ]
         
         info_table = Table(info_data, colWidths=[1.5*inch, 4*inch])
@@ -331,23 +342,24 @@ def create_pdf(data, content_type="ficha_paciente"):
         
         # Motivo de consulta
         elements.append(Paragraph("Motivo de Consulta Inicial:", heading_style))
-        elements.append(Paragraph(data['motivo_consulta'], normal_style))
+        elements.append(Paragraph(data.get('motivo_consulta', 'No registrado'), normal_style))
         elements.append(Spacer(1, 0.25*inch))
         
         # Resultado examen
         elements.append(Paragraph("Resultado Examen:", heading_style))
-        elements.append(Paragraph(data['resultado_examen'], normal_style))
+        elements.append(Paragraph(data.get('resultado_examen', 'No se ha registrado resultado del examen.'), normal_style))
+        ##elements.append(Paragraph(data.get('resultado_examen'), normal_style))
         elements.append(Spacer(1, 0.25*inch))
         
         # Diagnóstico
         elements.append(Paragraph("Diagnóstico:", heading_style))
-        elements.append(Paragraph(data['diagnostico'], normal_style))
+        elements.append(Paragraph(data.get('diagnostico', 'No se ha registrado diagnostico'), normal_style))
         elements.append(Spacer(1, 0.25*inch))
         
         # Objetivos de tratamiento
         elements.append(Paragraph("Objetivos de Tratamiento:", heading_style))
         if data.get('objetivos_tratamiento'):
-            for i, obj in enumerate(data['objetivos_tratamiento']):
+            for i, obj in enumerate(data.get('objetivos_tratamiento')):
                 elements.append(Paragraph(f"{i+1}. {obj.get('texto', '')} - Progreso: {obj.get('progreso', 0)}%", normal_style))
         else:
             elements.append(Paragraph("No se han definido objetivos de tratamiento.", normal_style))
@@ -357,7 +369,7 @@ def create_pdf(data, content_type="ficha_paciente"):
         # Técnicas
         elements.append(Paragraph("Técnicas Terapéuticas:", heading_style))
         if data.get('tecnicas'):
-            elements.append(Paragraph(", ".join(data['tecnicas']), normal_style))
+            elements.append(Paragraph(", ".join(data.get('tecnicas','No se ha registrado ttecnicas')), normal_style))
         else:
             elements.append(Paragraph("No se han definido técnicas terapéuticas.", normal_style))
     
@@ -541,11 +553,12 @@ def create_pdf(data, content_type="ficha_paciente"):
     buffer.close()
     
     # Codificar a base64
+   
     b64_pdf = base64.b64encode(pdf).decode()
     
     # Determinar el nombre del archivo
     if content_type == "ficha_paciente":
-        pdf_filename = f"ficha_paciente_{data['nombre']}_{datetime.date.today().strftime('%Y%m%d')}.pdf"
+        pdf_filename = f"ficha_paciente_{'ID'}_{datetime.date.today().strftime('%Y%m%d')}.pdf"
     elif content_type == "evolucion":
         pdf_filename = f"evolucion_{data['nombre']}_{data['evolucion']['fecha_registro']}.pdf"
     elif content_type == "historial":
@@ -1057,17 +1070,16 @@ def paciente_evol():
                     # Recargar datos para reflejar cambios
                     data = load_patient_data(sheets)
 
-                    # Generar PDF y crear botón de descarga
-                    pdf_bytes =create_pdf(data, content_type="ficha_paciente")
-                    st.download_button(
-                    label="Descargar Evolucion (PDF)",
-                    data=pdf_bytes,
-                    file_name=f"Evolucion_{patient_id}.pdf",
-                    mime="application/pdf"
-            )
-
                 else:
                     st.error("Hubo un error al guardar la evolución")
+        # Generar PDF y crear botón de descarga
+        pdf_bytes =create_pdf(data, content_type="ficha_paciente")
+        st.download_button(
+            label="Descargar Evolucion (PDF)",
+            data=pdf_bytes,
+            file_name=f"Evolucion_{patient_id}.pdf",
+            mime="application/pdf"
+            )
     
     with tab2:
         # Mostrar historial de evoluciones
@@ -1081,6 +1093,12 @@ def paciente_evol():
         # Mostrar escalas y tests
         display_scales_and_tests(patient_id, data)
 
-if __name__ == "__main__":
-    paciente_evol()
+# Función para crear un botón de descarga de PDF
+def get_pdf_download_link(pdf_bytes, filename="historia_clinica.pdf", text="Descargar PDF"):
+    """Genera un enlace HTML para descargar un archivo PDF."""
+    b64_pdf = base64.b64encode(pdf_bytes).decode()
+    return f'<a href="data:application/pdf;base64,{b64}" download="{filename}">{text}</a>'
+
+#if __name__ == "__main__":
+#    paciente_evol()
 

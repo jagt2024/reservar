@@ -7,6 +7,12 @@ from modificar_reserva_emp_amo import modificar_reserva
 from eliminar_reserva_emp_amo import eliminar_reserva
 from catalogo_clinica import catalogo
 from historia_clinica_psicologia import consulta_historia
+from gestion_diagnostics import  gestion_diagnostico
+from pacientes_evolucion_amo import paciente_evol
+from justificacion_clinica import justificacion_clinica
+from remision_especialistas import remision_especialistas
+from certificado_asistencia import certificado_asistencia
+
 #from carga_archivo_clientes import carga
 #from servicios_emp_dp import ServiciosEmp
 #from informacion_distrito_privado import info_dp
@@ -57,7 +63,6 @@ logging.basicConfig(level=logging.DEBUG, filename='main_emp_amo.log', filemode='
 
 # En diferentes partes de tu código:
 #logging.debug('Entrando en función X')
-
 
 def clear_session_state():
     for key in list(st.session_state.keys()):
@@ -146,8 +151,14 @@ class Model:
   option9  = 'Consultar Agenda Citas'
   option2  = 'Control Asistencias'
   option5  = 'Historias Clinicas'
+  option11 = 'Gestion Diagnosticos'
+  option6  = 'Evolucion - Escalas y Test'
+  option7  = 'Justificacion Clinica'
+  option8  = 'Remision Especialista'
+  option10 = 'Certificado Asistencia'
   option4  = 'Iniciar Recordatorio Citas'
   option3  = 'Copia de Seguridad'
+ 
   #option22 = 'Consulta Pagos'
   #option5  = 'Nuestros Servicios'
   #option6  = 'Mas Informacion'
@@ -207,7 +218,7 @@ else:
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option9, model.option2, model.option5, model.option3, model.option4                                              #,model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
+                         [model.option1, model.option9, model.option2, model.option5, model.option11, model.option6, model.option7, model.option8, model.option10,model.option3, model.option4                               #,model.option9,model.option8, model.option25, model.option12, model.#option22, model.option23, model.option18, model.#option24                                                #model.#option10,model.option22,model.option6,model.option7,model.option8, model.option11, model.option15, model.option12, model.option18, model.option13, model.option14, model.option19, model.option16, model.option17, model.option20, model.option21],
                          ],
                          
                          icons=['bi bi-app-indicator',
@@ -421,6 +432,21 @@ else:
 
             if app == model.option5:
               consulta_historia()
+              
+            if app == model.option11:
+              gestion_diagnostico()
+
+            if app == model.option6:
+              paciente_evol()
+
+            if app == model.option7:   
+              justificacion_clinica()
+
+            if app == model.option8:  
+              remision_especialistas()
+
+            if app == model.option10:  
+              certificado_asistencia()
               
             if app == model.option4:
               recordatorio()

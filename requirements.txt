@@ -20,4 +20,6 @@ bs4
 pyzbar
 plotly
 psutil
+pdf,
+fpdf,
 folium==0.18.0

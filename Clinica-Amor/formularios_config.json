@@ -1,0 +1,538 @@
+{
+    "FORM001": {
+        "nombre": "Evaluación Inicial Fisioterapia",
+        "descripcion": "Formulario de evaluación inicial para pacientes de fisioterapia",
+        "tipoTerapia": "Fisioterapia",
+        "secciones": [
+            {
+                "nombre": "Datos Generales",
+                "campos": [
+                    {
+                        "id": "motivo_consulta",
+                        "nombre": "Motivo de Consulta",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa el motivo de consulta..."
+                    },
+                    {
+                        "id": "antecedentes",
+                        "nombre": "Antecedentes",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa los antecedentes relevantes..."
+                    },
+                    {
+                        "id": "expectativas",
+                        "nombre": "Expectativas del Tratamiento",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa las expectativas..."
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación del Dolor",
+                "campos": [
+                    {
+                        "id": "nivel_dolor",
+                        "nombre": "Nivel de Dolor (1-10)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 1,
+                        "max": 10
+                    },
+                    {
+                        "id": "ubicacion_dolor",
+                        "nombre": "Ubicación del Dolor",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "factores_dolor",
+                        "nombre": "Factores que Aumentan el Dolor",
+                        "tipo": "texto",
+                        "obligatorio": false
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación de Movilidad",
+                "campos": [
+                    {
+                        "id": "rango_flexion",
+                        "nombre": "Rango de Flexión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_extension",
+                        "nombre": "Rango de Extensión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_abduccion",
+                        "nombre": "Rango de Abducción (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación de Fuerza",
+                "campos": [
+                    {
+                        "id": "fuerza_mmss",
+                        "nombre": "Fuerza Miembros Superiores (0-5)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 5
+                    },
+                    {
+                        "id": "fuerza_mmii",
+                        "nombre": "Fuerza Miembros Inferiores (0-5)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 5
+                    },
+                    {
+                        "id": "fuerza_tronco",
+                        "nombre": "Fuerza Tronco (0-5)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 5
+                    }
+                ]
+            },
+            {
+                "nombre": "Plan de Tratamiento",
+                "campos": [
+                    {
+                        "id": "objetivos",
+                        "nombre": "Objetivos Terapéuticos",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "intervenciones",
+                        "nombre": "Intervenciones Propuestas",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "frecuencia",
+                        "nombre": "Frecuencia de Sesiones",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 1,
+                        "max": 7
+                    }
+                ]
+            }
+        ]
+    },
+    "FORM002": {
+        "nombre": "Evaluación Inicial Psicología",
+        "descripcion": "Formulario de evaluación inicial para pacientes de psicología",
+        "tipoTerapia": "Psicología",
+        "secciones": [
+            {
+                "nombre": "Datos Generales",
+                "campos": [
+                    {
+                        "id": "motivo_consulta",
+                        "nombre": "Motivo de Consulta",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa el motivo de consulta..."
+                    },
+                    {
+                        "id": "antecedentes",
+                        "nombre": "Antecedentes",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa los antecedentes relevantes..."
+                    },
+                    {
+                        "id": "expectativas",
+                        "nombre": "Expectativas del Tratamiento",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa las expectativas..."
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación Emocional",
+                "campos": [
+                    {
+                        "id": "estado_animo",
+                        "nombre": "Estado de Ánimo",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Muy bajo,Bajo,Normal,Elevado,Muy elevado"
+                    },
+                    {
+                        "id": "ansiedad",
+                        "nombre": "Nivel de Ansiedad",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Ausente,Leve,Moderada,Grave,Muy grave"
+                    },
+                    {
+                        "id": "depresion",
+                        "nombre": "Síntomas de Depresión",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Ausente,Leve,Moderada,Grave,Muy grave"
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación Cognitiva",
+                "campos": [
+                    {
+                        "id": "orientacion",
+                        "nombre": "Orientación",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Alterada"
+                    },
+                    {
+                        "id": "memoria",
+                        "nombre": "Memoria",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Levemente alterada,Moderadamente alterada,Gravemente alterada"
+                    },
+                    {
+                        "id": "atencion",
+                        "nombre": "Atención",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Alterada"
+                    }
+                ]
+            },
+            {
+                "nombre": "Plan de Tratamiento",
+                "campos": [
+                    {
+                        "id": "objetivos",
+                        "nombre": "Objetivos Terapéuticos",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "intervenciones",
+                        "nombre": "Intervenciones Propuestas",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "frecuencia",
+                        "nombre": "Frecuencia de Sesiones",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 1,
+                        "max": 7
+                    }
+                ]
+            }
+        ]
+    },
+    "FORM003": {
+        "nombre": "Evaluación Inicial Fonoaudiología",
+        "descripcion": "Formulario de evaluación inicial para pacientes de fonoaudiología",
+        "tipoTerapia": "Fonoaudiología",
+        "secciones": [
+            {
+                "nombre": "Datos Generales",
+                "campos": [
+                    {
+                        "id": "motivo_consulta",
+                        "nombre": "Motivo de Consulta",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa el motivo de consulta..."
+                    },
+                    {
+                        "id": "antecedentes",
+                        "nombre": "Antecedentes",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa los antecedentes relevantes..."
+                    },
+                    {
+                        "id": "expectativas",
+                        "nombre": "Expectativas del Tratamiento",
+                        "tipo": "texto",
+                        "obligatorio": true,
+                        "placeholder": "Describa las expectativas..."
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación del Habla",
+                "campos": [
+                    {
+                        "id": "articulacion",
+                        "nombre": "Articulación",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Alterada"
+                    },
+                    {
+                        "id": "fluidez",
+                        "nombre": "Fluidez",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Alterada"
+                    },
+                    {
+                        "id": "comprension",
+                        "nombre": "Comprensión",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Normal,Alterada"
+                    }
+                ]
+            },
+            {
+                "nombre": "Plan de Tratamiento",
+                "campos": [
+                    {
+                        "id": "objetivos",
+                        "nombre": "Objetivos Terapéuticos",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "intervenciones",
+                        "nombre": "Intervenciones Propuestas",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "frecuencia",
+                        "nombre": "Frecuencia de Sesiones",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 1,
+                        "max": 7
+                    }
+                ]
+            }
+        ]
+    },
+    "FORM004": {
+        "nombre": "Seguimiento Fisioterapia",
+        "descripcion": "Formulario de seguimiento para pacientes de fisioterapia",
+        "tipoTerapia": "Fisioterapia",
+        "secciones": [
+            {
+                "nombre": "Evaluación del Dolor",
+                "campos": [
+                    {
+                        "id": "nivel_dolor",
+                        "nombre": "Nivel de Dolor (1-10)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 1,
+                        "max": 10
+                    },
+                    {
+                        "id": "ubicacion_dolor",
+                        "nombre": "Ubicación del Dolor",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "factores_dolor",
+                        "nombre": "Factores que Aumentan el Dolor",
+                        "tipo": "texto",
+                        "obligatorio": false
+                    }
+                ]
+            },
+            {
+                "nombre": "Evaluación de Movilidad",
+                "campos": [
+                    {
+                        "id": "rango_flexion",
+                        "nombre": "Rango de Flexión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_extension",
+                        "nombre": "Rango de Extensión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_abduccion",
+                        "nombre": "Rango de Abducción (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    }
+                ]
+            },
+            {
+                "nombre": "Seguimiento",
+                "campos": [
+                    {
+                        "id": "progreso",
+                        "nombre": "Progreso Observado",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "complicaciones",
+                        "nombre": "Complicaciones",
+                        "tipo": "texto",
+                        "obligatorio": false
+                    },
+                    {
+                        "id": "ajustes_tratamiento",
+                        "nombre": "Ajustes al Tratamiento",
+                        "tipo": "texto",
+                        "obligatorio": false
+                    }
+                ]
+            }
+        ]
+    },
+    "FORM005": {
+        "nombre": "Alta Fisioterapia",
+        "descripcion": "Formulario de alta para pacientes de fisioterapia",
+        "tipoTerapia": "Fisioterapia",
+        "secciones": [
+            {
+                "nombre": "Evaluación Final",
+                "campos": [
+                    {
+                        "id": "rango_flexion",
+                        "nombre": "Rango de Flexión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_extension",
+                        "nombre": "Rango de Extensión (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    },
+                    {
+                        "id": "rango_abduccion",
+                        "nombre": "Rango de Abducción (°)",
+                        "tipo": "numero",
+                        "obligatorio": true,
+                        "min": 0,
+                        "max": 180
+                    }
+                ]
+            },
+            {
+                "nombre": "Resultados",
+                "campos": [
+                    {
+                        "id": "resultado_tratamiento",
+                        "nombre": "Resultado del Tratamiento",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Sin mejora,Mejora leve,Mejora moderada,Mejora significativa,Resolución completa"
+                    },
+                    {
+                        "id": "recomendaciones",
+                        "nombre": "Recomendaciones",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "necesidad_seguimiento",
+                        "nombre": "Necesidad de Seguimiento",
+                        "tipo": "booleano",
+                        "obligatorio": true
+                    }
+                ]
+            }
+        ]
+    },
+    "FORM006": {
+        "nombre": "Alta Psicología",
+        "descripcion": "Formulario de alta para pacientes de psicología",
+        "tipoTerapia": "Psicología",
+        "secciones": [
+            {
+                "nombre": "Evaluación Final",
+                "campos": [
+                    {
+                        "id": "estado_animo",
+                        "nombre": "Estado de Ánimo",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Muy bajo,Bajo,Normal,Elevado,Muy elevado"
+                    },
+                    {
+                        "id": "ansiedad",
+                        "nombre": "Nivel de Ansiedad",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Ausente,Leve,Moderada,Grave,Muy grave"
+                    },
+                    {
+                        "id": "depresion",
+                        "nombre": "Síntomas de Depresión",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Ausente,Leve,Moderada,Grave,Muy grave"
+                    }
+                ]
+            },
+            {
+                "nombre": "Resultados",
+                "campos": [
+                    {
+                        "id": "resultado_tratamiento",
+                        "nombre": "Resultado del Tratamiento",
+                        "tipo": "seleccion",
+                        "obligatorio": true,
+                        "opciones": "Sin mejora,Mejora leve,Mejora moderada,Mejora significativa,Resolución completa"
+                    },
+                    {
+                        "id": "recomendaciones",
+                        "nombre": "Recomendaciones",
+                        "tipo": "texto",
+                        "obligatorio": true
+                    },
+                    {
+                        "id": "necesidad_seguimiento",
+                        "nombre": "Necesidad de Seguimiento",
+                        "tipo": "booleano",
+                        "obligatorio": true
+                    }
+                ]
+            }
+        ]
+    }
+}

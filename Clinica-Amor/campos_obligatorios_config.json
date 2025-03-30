@@ -1,0 +1,88 @@
+{
+    "ResolucionMin001": [
+        {
+            "campo": "IdentificacionPaciente",
+            "descripcion": "Número de documento de identidad del paciente",
+            "tipo": "texto",
+            "validacion": "^[0-9]{6,12}$"
+        },
+        {
+            "campo": "NombreCompleto",
+            "descripcion": "Nombre completo del paciente",
+            "tipo": "texto",
+            "validacion": "^[a-zA-Z ]{2,100}$"
+        },
+        {
+            "campo": "FechaNacimiento",
+            "descripcion": "Fecha de nacimiento del paciente",
+            "tipo": "fecha",
+            "validacion": NaN
+        },
+        {
+            "campo": "DiagnosticoPrincipal",
+            "descripcion": "Diagnóstico principal según CIE-10",
+            "tipo": "texto",
+            "validacion": "^[A-Z][0-9]{2}(\\.[0-9])?$"
+        }
+    ],
+    "ResolucionMin002": [
+        {
+            "campo": "FechaInicio",
+            "descripcion": "Fecha de inicio del tratamiento",
+            "tipo": "fecha",
+            "validacion": NaN
+        },
+        {
+            "campo": "ProfesionalResponsable",
+            "descripcion": "Nombre del profesional responsable",
+            "tipo": "texto",
+            "validacion": "^[a-zA-Z ]{2,100}$"
+        },
+        {
+            "campo": "NumeroTarjetaProfesional",
+            "descripcion": "Número de tarjeta profesional",
+            "tipo": "texto",
+            "validacion": "^[0-9]{6,12}$"
+        },
+        {
+            "campo": "PlanTratamiento",
+            "descripcion": "Descripción del plan de tratamiento",
+            "tipo": "texto",
+            "validacion": NaN
+        }
+    ],
+    "NormaISO9001": [
+        {
+            "campo": "Consentimiento",
+            "descripcion": "Firma del consentimiento informado",
+            "tipo": "booleano",
+            "validacion": NaN
+        },
+        {
+            "campo": "HistoriaClinica",
+            "descripcion": "Número de historia clínica",
+            "tipo": "texto",
+            "validacion": "^HC[0-9]{6}$"
+        }
+    ],
+    "NormativaLocal": [
+        {
+            "campo": "EPS",
+            "descripcion": "Entidad prestadora de salud",
+            "tipo": "seleccion",
+            "validacion": "EPS_Sura,Sanitas,Nueva EPS,Compensar,Otras"
+        },
+        {
+            "campo": "MunicipioProcedencia",
+            "descripcion": "Municipio de procedencia",
+            "tipo": "texto",
+            "validacion": NaN
+        },
+        {
+            "campo": "Telefono",
+            "descripcion": "Número de teléfono de contacto",
+            "tipo": "texto",
+            "validacion": "^[0-9]{7,10}$"
+        }
+    ]
+}
