@@ -120,7 +120,7 @@ def dataBook_fecha(hoja):
 #fecha1 = dataBook_fecha("sw")
 #fecha_h = np.setdiff1d(fecha1,'')
 #print(f'fecha_h {fecha_h}')
-fecha_hasta = int('20250430')
+fecha_hasta = int('20250630')
 #print(f'fecha_h2 {fecha_hasta}')
 #fecha_hasta = int(fecha_h2)
 
