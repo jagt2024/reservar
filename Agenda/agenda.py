@@ -18,49 +18,49 @@ INITIAL_RETRY_DELAY = 2
 st.set_page_config(page_title="Personal Information Form", page_icon="📝", layout="wide")
 
 # Custom CSS styles
-st.markdown("""
-<style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-    .section-header {
-        font-size: 1.8rem;
-        color: #34495e;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-    }
-    .success-message {
-        padding: 1rem;
-        background-color: #d4edda;
-        color: #155724;
-        border-radius: 0.5rem;
-        margin: 1rem 0;
-    }
-    .warning-message {
-        padding: 1rem;
-        background-color: #fff3cd;
-        color: #856404;
-        border-radius: 0.5rem;
-        margin: 1rem 0;
-    }
-    .stButton>button {
-        width: 100%;
-        background-color: #4CAF50;
-        color: white;
-        border: none;
-        padding: 0.5rem;
-        font-size: 1.1rem;
-        border-radius: 0.3rem;
-    }
-    .delete-button>button {
-        background-color: #f44336;
-        color: white
-    }
-</style>
-""", unsafe_allow_html=True)
+#st.markdown("""
+#<style>
+#    .main-header {
+#        font-size: 2.5rem;
+#        color: #2c3e50;
+#        text-align: center;
+#        margin-bottom: 2rem;
+#    }
+#    .section-header {
+#        font-size: 1.8rem;
+ #       color: #34495e;
+#        margin-top: 2rem;
+#        margin-bottom: 1rem;
+#    }
+#    .success-message {.
+#        padding: 1rem;
+#        background-color: #d4edda;
+#        color: #155724;
+#        border-radius: 0.5rem;
+#        margin: 1rem 0;
+#    }
+#    .warning-message {
+#        padding: 1rem;
+#        background-color: #fff3cd;
+#        color: #856404;
+#        border-radius: 0.5rem;
+#        margin: 1rem 0;
+#    }
+#    .stButton>button {
+#        width: 100%;
+#        background-color: #4CAF50;
+#        color: white;
+#        border: none;
+#        padding: 0.5rem;
+#        font-size: 1.1rem;
+#        border-radius: 0.3rem;
+#    }
+#    .delete-button>button {
+#        background-color: #f44336;
+#        color: white
+#    }
+#</style>
+#""", unsafe_allow_html=True)
 
 def clear_session_state():
     #Clear all session state variables
