@@ -274,6 +274,10 @@ def reset_form_fields():
     form_fields = ['first_name', 'last_name', 'email', 'phone', 'estate']
     for field in form_fields:
         st.session_state[field] = ""
+        # Also reset the input keys
+        input_key = f"{field}_input"
+        if input_key in st.session_state:
+            st.session_state[input_key] = ""
     
     # Mark form as submitted to trigger reset
     st.session_state.form_submitted = True
@@ -281,7 +285,7 @@ def reset_form_fields():
 def main():
     st.header('Personal Information Form')
     st.write("---")
-    st.markdown('<h1 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
+    #st.markdown('<h1 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
     
     # Initialize form keys
     init_form_keys()
@@ -301,18 +305,8 @@ def main():
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
-        # Display status messages
-        if st.session_state.show_success_message:
-            st.markdown('<div class="success-message">Data saved successfully!</div>', unsafe_allow_html=True)
-            st.session_state.show_success_message = False
-            
-        if st.session_state.show_duplicate_message:
-            st.markdown('<div class="warning-message">This email is already registered!</div>', unsafe_allow_html=True)
-            st.session_state.show_duplicate_message = False
-            
-        if st.session_state.show_delete_message:
-            st.markdown('<div class="success-message">Record deleted successfully!</div>', unsafe_allow_html=True)
-            st.session_state.show_delete_message = False
+        st.markdown('<h3 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
+
         
         # Contact form using session state for values
         with st.form(key='contact_form'):
@@ -340,8 +334,23 @@ def main():
                                  value=st.session_state.estate,
                                  placeholder="Input Estate", 
                                  key="estate_input")
+
+            # Display status messages
+            if st.session_state.show_success_message:
+                st.markdown('<div class="success-message">Data saved successfully!</div>', unsafe_allow_html=True)
+                st.session_state.show_success_message = False
+            if st.session_state.show_duplicate_message:
+                st.markdown('<div class="warning-message">This email is already registered!</div>', unsafe_allow_html=True)
+                st.session_state.show_duplicate_message = False
+            
+            if st.session_state.show_delete_message:
+                st.markdown('<div class="success-message">Record deleted successfully!</div>', unsafe_allow_html=True)
+                st.session_state.show_delete_message = False
             
             submit_button = st.form_submit_button(label="Save Information", type="primary")
+
+            if 'form_submitted' not in st.session_state:
+                st.session_state.form_submitted = False
             
             if submit_button:
                 # Update session state with current values
@@ -368,7 +377,7 @@ def main():
                 
                 # Save data
                 data = {
-                    'first_name': first_name,
+                   'first_name': first_name,
                     'last_name': last_name,
                     'email': email,
                     'phone': phone,
@@ -378,16 +387,23 @@ def main():
                 if save_form_data(client, data):
                     # Show success message
                     st.session_state.show_success_message = True
-                    
-                    # Reset form fields
-                    reset_form_fields()
-                    
+        
+                    # Set the form_submitted flag to True
+                    st.session_state.form_submitted = True
+        
                     # Rerun the app to reflect changes
                     st.rerun()
-                    
-                reset_form_fields()
-                st.renrun() 
-    
+
+            if st.session_state.form_submitted:
+                # Clear all form fields
+                st.session_state.first_name = ""
+                st.session_state.last_name = ""
+                st.session_state.email = ""
+                st.session_state.phone = ""
+                st.session_state.estate = ""
+                # Reset the submission flag
+                st.session_state.form_submitted = False
+
     # Display saved records
     st.markdown('<h2 class="section-header">Saved Records</h2>', unsafe_allow_html=True)
     
