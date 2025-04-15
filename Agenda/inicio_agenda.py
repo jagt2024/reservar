@@ -24,20 +24,20 @@ class InicioAgenda:
  
   def view(self,model):
     st.title(model.pageTitle)
-    st.subheader(' Ordenes de Trabajo')
+    st.subheader(' Work Orders')
 
     #st_custom_icon("https://reservaremp.streamlit.app")
     #st.write("¡Icono clickeado!")
     
-    #try:
-    #    st.image("./assets-amo/imagen2.jpg")
-    #except Exception as e:
-    #    st.error(f"Error al cargar el video: {str(e)}")
+    try:
+        st.image("./assets-agenda/logojAGT.ico")
+    except Exception as e:
+        st.error(f"Error al cargar el logo: {str(e)}")
 
     #image = st.image("assets/CarService.mp4")
     st.write(
         """
-          ***Agendamiento en Linea***
+          ***Online Scheduling***
         """)
 # Footer
 #st.markdown("---")

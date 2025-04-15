@@ -1,10 +1,7 @@
 import streamlit as st
-#from streamlit_option_menu import option_menu
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
-from inicio_agenda import InicioAgenda
-#from agenda import main
 import time
 import json
 import toml
@@ -22,7 +19,7 @@ INITIAL_RETRY_DELAY = 2
 with open("./.streamlit/config.toml", "r") as f:
     config = toml.load(f)
 
-st.set_page_config(page_title="Personal Information Form", page_icon="📝", layout="wide")
+#st.set_page_config(page_title="Personal Information Form", page_icon="📝", layout="wide")
 
 # Custom CSS styles
 #st.markdown("""
@@ -289,7 +286,7 @@ def reset_form_fields():
     # Mark form as submitted to trigger reset
     st.session_state.form_submitted = True
 
-def main():
+def agenda_main():
     st.header('Personal Information Form')
     st.write("---")
     #st.markdown('<h1 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
@@ -309,14 +306,14 @@ def main():
         return
     
     # Create columns for layout
-    col1, col2, col3 = st.columns([1, 2, 1])
+    #col1 = st.columns([1])
     
-    with col2:
-        st.markdown('<h3 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
+    #with col1:
+    st.markdown('<h3 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
 
         
-        # Contact form using session state for values
-        with st.form(key='contact_form'):
+    # Contact form using session state for values
+    with st.form(key='contact_form'):
             first_name = st.text_input("First Name", 
                                      value=st.session_state.first_name,
                                      placeholder="Input First Name", 
@@ -444,6 +441,6 @@ def main():
     else:
         st.info("No records saved yet.")
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main_agenda()
    
