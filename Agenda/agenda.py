@@ -1,7 +1,10 @@
 import streamlit as st
+#from streamlit_option_menu import option_menu
 import pandas as pd
 import gspread
 from google.oauth2.service_account import Credentials
+from inicio_agenda import InicioAgenda
+#from agenda import main
 import time
 import json
 import toml
@@ -14,6 +17,10 @@ from googleapiclient.errors import HttpError
 # Constants
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
+
+# Cargar configuraciones desde config.toml
+with open("./.streamlit/config.toml", "r") as f:
+    config = toml.load(f)
 
 st.set_page_config(page_title="Personal Information Form", page_icon="📝", layout="wide")
 
@@ -439,3 +446,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+   
