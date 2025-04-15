@@ -5,6 +5,36 @@ from agenda import agenda_main
 import logging
 import sys
 
+# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
+            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
+            header {visibility: hidden;}  /* Oculta la cabecera */
+            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
+            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
+            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
+            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
+            
+            /* En algunas versiones más recientes se usan diferentes clases CSS */
+            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# Configuración de la página sin ícono de GitHub ni otras opciones
+#st.set_page_config(
+#    page_title="Mi Aplicación",
+#    page_icon="🧊",
+#    layout="wide",
+#    initial_sidebar_state="expanded",
+#    menu_items={
+#        "Get Help": None,
+#        "Report a bug": None,
+#        "About": None
+#    }
+#)
+
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
     logging.error("Error no manejado", exc_info=(exc_type, exc_value, exc_traceback))
@@ -16,7 +46,7 @@ page_icon= "./assets-agenda/logoJAGT.ico"
 title="Schedule"
 layout = 'centered'
 
-st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
+#st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   
