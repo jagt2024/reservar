@@ -311,7 +311,6 @@ def agenda_main():
     #with col1:
     st.markdown('<h3 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)
 
-        
     # Contact form using session state for values
     with st.form(key='contact_form'):
             first_name = st.text_input("First Name", 
