@@ -40,6 +40,23 @@ from PIL import Image
 import sys
 import logging
 
+# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
+            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
+            header {visibility: hidden;}  /* Oculta la cabecera */
+            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
+            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
+            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
+            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
+            
+            /* En algunas versiones más recientes se usan diferentes clases CSS */
+            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 st.cache_data.clear()
 st.cache_resource.clear()
 
@@ -113,7 +130,7 @@ page_icon= "assets/dp_andres.png"
 title="Resevas"
 layout = 'centered'
 
-st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
+#st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   

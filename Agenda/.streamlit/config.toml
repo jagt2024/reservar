@@ -1,6 +1,9 @@
 [server]
 port = 8501
 
+[clave_google]
+clave_email = "68d2aa9a7a58a9859f802ccdf698f6a99ac03193"
+
 [seguridad]
 clave_protegida = "admin54321"
 

@@ -66,6 +66,26 @@ with open("./.streamlit/config.toml", "r") as f:
 #</style>
 #""", unsafe_allow_html=True)
 
+def initialize_session_state():
+    """Initialize all session state variables if they don't exist"""
+    if 'show_success_message' not in st.session_state:
+        st.session_state.show_success_message = False
+    
+    if 'show_duplicate_message' not in st.session_state:
+        st.session_state.show_duplicate_message = False
+    
+    if 'show_delete_message' not in st.session_state:
+        st.session_state.show_delete_message = False
+    
+    if 'form_submitted' not in st.session_state:
+        st.session_state.form_submitted = False
+    
+    # Initialize form fields
+    form_fields = ['first_name', 'last_name', 'email', 'phone', 'estate']
+    for field in form_fields:
+        if field not in st.session_state:
+            st.session_state[field] = ""
+
 def clear_session_state():
     #Clear all session state variables
     for key in list(st.session_state.keys()):
@@ -287,6 +307,10 @@ def reset_form_fields():
     st.session_state.form_submitted = True
 
 def agenda_main():
+
+    # Initialize all session state variables
+    initialize_session_state()
+    
     st.header('Personal Information Form')
     st.write("---")
     #st.markdown('<h1 class="main-header">Please fill in your details below</h1>', unsafe_allow_html=True)

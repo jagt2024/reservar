@@ -1,9 +1,40 @@
 import streamlit as st
 from streamlit_option_menu import option_menu
 from inicio_agenda import InicioAgenda
+from email_sender import mostrar_correo_masivo
 from agenda import agenda_main
 import logging
 import sys
+
+# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
+            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
+            header {visibility: hidden;}  /* Oculta la cabecera */
+            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
+            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
+            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
+            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
+            
+            /* En algunas versiones más recientes se usan diferentes clases CSS */
+            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+# Configuración de la página sin ícono de GitHub ni otras opciones
+#st.set_page_config(
+#    page_title="Mi Aplicación",
+#    page_icon="🧊",
+#    layout="wide",
+#    initial_sidebar_state="expanded",
+#    menu_items={
+#        "Get Help": None,
+#        "Report a bug": None,
+#        "About": None
+#    }
+#)
 
 def global_exception_handler(exc_type, exc_value, exc_traceback):
     st.error(f"Error no manejado: {exc_type.__name__}: {exc_value}")
@@ -16,12 +47,13 @@ page_icon= "./assets-agenda/logoJAGT.ico"
 title="Schedule"
 layout = 'centered'
 
-st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
+#st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
 
 class Model:
   
   menuTitle = "Personal Information Form"
   option1 = 'Schedule'
+  option2 = "Sender Emails"
 
   def add_app(self,title, function):
       self.apps.append({
@@ -35,7 +67,7 @@ def view(model):
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1],
+                         [model.option1, model.option2],
                          icons=['bi bi-calendar2-date'
                          ],
                          default_index=0,
@@ -63,6 +95,8 @@ def view(model):
       
         if app == model.option1:
            agenda_main()
+        if app == model.option2:
+          mostrar_correo_masivo()
 
       except Exception as e:
             st.error(f"Ocurrió un error: {e}")
