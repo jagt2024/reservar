@@ -43,6 +43,20 @@ from PIL import Image
 import sys
 import logging
 
+# Configurar la página y ocultar la opción "Manage app" del menú
+st.set_page_config(
+    page_title="Servicio Actividad",
+    page_icon="./assets-cld/brillol.png",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,  #'https://www.ejemplo.com/ayuda',
+        'Report a bug': None,  #'https://www.ejemplo.com/reportar-bug',
+        'About': None  #'# Esta es mi increíble aplicación Streamlit!'
+        # La opción 'Manage app' no está incluida, por lo que no aparecerá
+    }
+)
+
 # Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
 hide_streamlit_style = """
             <style>
@@ -129,7 +143,7 @@ result_emp = np.setdiff1d(empresa,'')
 sw_empresa = result_emp
   
 page_title = 'Servicio Actividad' 
-page_icon= "assets/brillol.png" 
+page_icon= "./assets-cld/brillol.png" 
 title="Solicitudes"
 layout = 'centered'
 

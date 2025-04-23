@@ -6,6 +6,20 @@ from agenda import agenda_main
 import logging
 import sys
 
+# Configurar la página y ocultar la opción "Manage app" del menú
+st.set_page_config(
+    page_title="Personal Information Form",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,  #'https://www.ejemplo.com/ayuda',
+        'Report a bug': None,  #'https://www.ejemplo.com/reportar-bug',
+        'About': None  #'# Esta es mi increíble aplicación Streamlit!'
+        # La opción 'Manage app' no está incluida, por lo que no aparecerá
+    }
+)
+
 # Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
 hide_streamlit_style = """
             <style>
@@ -22,6 +36,7 @@ hide_streamlit_style = """
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 
 # Configuración de la página sin ícono de GitHub ni otras opciones
 #st.set_page_config(
@@ -42,8 +57,8 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
 
 logging.basicConfig(level=logging.DEBUG, filename='main_agenda.log', filemode='w', format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-page_title = 'Personal Information Form' 
-page_icon= "./assets-agenda/logoJAGT.ico" 
+#page_title = 'Personal Information Form' 
+#page_icon= "./assets-agenda/logoJAGT.ico" 
 title="Schedule"
 layout = 'centered'
 
