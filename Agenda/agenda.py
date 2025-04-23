@@ -118,19 +118,37 @@ def get_google_sheets_connection(creds):
         return None
 
 def get_all_data(client):
-    """Get all data saved in the sheet"""
+  """Get all data saved in the sheet"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         sheet = client.open('gestion-agenda')
         worksheet = sheet.worksheet('ordenes')
         records = worksheet.get_all_records()
         return records
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error retrieving data: {str(e)}")
         return []
 
 def get_worksheet_data_with_row_ids(client):
-    """Get all data with row numbers for deletion functionality"""
+  """Get all data with row numbers for deletion functionality"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         sheet = client.open('gestion-agenda')
         worksheet = sheet.worksheet('ordenes')
         
@@ -149,6 +167,20 @@ def get_worksheet_data_with_row_ids(client):
         row_ids = [i+2 for i in range(len(data))]
         
         return df, row_ids
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error retrieving data with row IDs: {str(e)}")
         return pd.DataFrame(), []

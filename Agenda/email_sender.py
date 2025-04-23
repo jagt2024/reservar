@@ -11,6 +11,10 @@ from datetime import datetime
 import gspread
 from google.oauth2.service_account import Credentials
 
+# Constants
+MAX_RETRIES = 3
+INITIAL_RETRY_DELAY = 2
+
 def cargar_configuracion():
     try:
         config = toml.load("./.streamlit/config.toml")
@@ -48,19 +52,37 @@ def get_google_sheets_connection(creds):
         return None
 
 def get_all_data(client):
-    """Get all data saved in the sheet"""
+  """Get all data saved in the sheet"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         sheet = client.open('gestion-agenda')
         worksheet = sheet.worksheet('ordenes')
         records = worksheet.get_all_records()
         return records
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error retrieving data: {str(e)}")
         return []
 
 def update_google_sheet(client, email, status="Sent"):
-    """Update status and shipping date in Google Sheet for the given email"""
+  """Update status and shipping date in Google Sheet for the given email"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         sheet = client.open('gestion-agenda')
         worksheet = sheet.worksheet('ordenes')
         
@@ -87,6 +109,20 @@ def update_google_sheet(client, email, status="Sent"):
         else:
             st.warning(f"Email {email} not found in Google Sheets")
             return False
+
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
     except Exception as e:
         st.error(f"Error updating Google Sheets: {str(e)}")
         return False
@@ -208,7 +244,7 @@ def mostrar_correo_masivo():
             st.session_state['smtp_port'] = 587
             
             # Note about secure credentials
-            st.info("📌 For Gmail, you may need an app password instead of your regular password. [More information](https://support.google.com/accounts/answer/185833)")
+            #st.info("📌 For Gmail, you may need an app password instead of your regular password. [More information](https://support.google.com/accounts/answer/185833)")
             
             # Recipient filtering
             st.subheader("Filter recipients")
