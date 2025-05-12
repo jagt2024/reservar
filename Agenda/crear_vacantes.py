@@ -12,8 +12,8 @@ MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
 
 # Configuración de la página
-st.set_page_config(page_title="Gestión de Vacantes", layout="wide")
-st.title("Sistema de Gestión de Vacantes")
+#st.set_page_config(page_title="Gestión de Vacantes", layout="wide")
+#st.title("Sistema de Gestión de Vacantes")
 
 def load_credentials_from_toml():
     """Cargar credenciales desde el archivo secrets.toml"""
@@ -88,7 +88,7 @@ def guardar_vacante(client, datos_vacante):
     
     return False, "Error al guardar los datos después de varios intentos."
 
-def main():
+def vacante():
     """Función principal que maneja la interfaz y la lógica del formulario"""
     # Cargar credenciales
     creds, _ = load_credentials_from_toml()
@@ -294,4 +294,4 @@ def main():
         """)
 
 if __name__ == "__main__":
-    main()
+    vacante()
