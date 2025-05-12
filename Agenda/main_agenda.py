@@ -3,6 +3,8 @@ from streamlit_option_menu import option_menu
 from inicio_agenda import InicioAgenda
 from email_sender import mostrar_correo_masivo
 from agenda import agenda_main
+from carga_resumen_cv import carga_cv
+from consulta_resume import consulta_cv
 import logging
 import sys
 
@@ -68,6 +70,8 @@ class Model:
   
   menuTitle = "Personal Information Form"
   option1 = 'Schedule'
+  option3 = 'Upload Resume'
+  option4 = 'Consult Resume'
   option2 = "Sender Emails"
 
   def add_app(self,title, function):
@@ -82,7 +86,7 @@ def view(model):
         with st.sidebar:
     
           app = option_menu(model.menuTitle,
-                         [model.option1, model.option2],
+                         [model.option1, model.option3, model.option4, model.option2],
                          icons=['bi bi-calendar2-date'
                          ],
                          default_index=0,
@@ -110,6 +114,13 @@ def view(model):
       
         if app == model.option1:
            agenda_main()
+        
+        if app == model.option3:
+           carga_cv()
+
+        if app == model.option4:
+           consulta_cv() 
+
         if app == model.option2:
           mostrar_correo_masivo()
 
