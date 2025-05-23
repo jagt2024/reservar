@@ -20,7 +20,7 @@ class InicioAgenda:
   
   class Model:
     
-   pageTitle = ('***Personal Information Form***') 
+   pageTitle = ('***Schedule Personal Information App***') 
  
   def view(self,model):
     st.title(model.pageTitle)
@@ -30,7 +30,7 @@ class InicioAgenda:
     #st.write("¡Icono clickeado!")
     
     try:
-        st.image("./assets-agenda/logojAGT.ico")
+        st.image("./assets-agenda/logoJAGT.ico")
     except Exception as e:
         st.error(f"Error al cargar el logo: {str(e)}")
 
