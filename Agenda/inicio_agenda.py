@@ -20,7 +20,7 @@ class InicioAgenda:
   
   class Model:
     
-   pageTitle = ('***Schedule Personal Information App***') 
+    pageTitle = ('***Schedule Personal Information App***') 
  
   def view(self,model):
     st.title(model.pageTitle)
@@ -30,15 +30,13 @@ class InicioAgenda:
     #st.write("¡Icono clickeado!")
     
     try:
-        st.image("./assets-agenda/logoJAGT.ico")
+        image = Image.open("./assets-agenda/logoJAGT.ico")
+        st.image(image)
+        st.write('***Online Scheduling***')
     except Exception as e:
         st.error(f"Error al cargar el logo: {str(e)}")
 
-    #image = st.image("assets/CarService.mp4")
-    st.write(
-        """
-          ***Online Scheduling***
-        """)
+    
 # Footer
 #st.markdown("---")
 #st.markdown("© 2025 Clínica de Psicología del Amor- Sistema de Gestión de Historias Clínicas")

@@ -53,7 +53,7 @@ def init_db():
             cell = worksheet.find('admin')
             if not cell:
                 hashed_password = hashlib.sha256('admin4321'.encode()).hexdigest()
-                worksheet.append_row(['admin', hashed_password, 'admin4321'])
+                worksheet.append_row(['admin4321', hashed_password, 'admin4321'])
         except gspread.exceptions.CellNotFound:
             hashed_password = hashlib.sha256('admin'.encode()).hexdigest()
             worksheet.append_row(['admin', hashed_password, 'admin4321'])

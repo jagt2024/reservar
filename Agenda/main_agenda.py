@@ -283,13 +283,16 @@ def view(model):
 
         # SIDEBARS ESPECÍFICOS PARA CADA PÁGINA
         # Se mostrará un sidebar específico según la página actual
-        current_page = st.session_state.current_page
-        
         if user_management_system():
+
+          current_page = st.session_state.current_page
+        
+
 
           # Renderizar la página actual según session_state
           if current_page == 'InicioAgenda':
              InicioAgenda()
+
         
           elif current_page == 'agenda_main':
             # Sidebar específico para agenda
@@ -299,12 +302,16 @@ def view(model):
                 
                 # Aquí puedes agregar controles específicos para la agenda
                 st.divider()
-                st.subheader("Opciones de Agenda")
-                st.date_input("Fecha de búsqueda", key="agenda_date")
-                st.checkbox("Mostrar solo citas confirmadas", key="show_confirmed")
+                #st.subheader("Opciones de Agenda")
+                #st.date_input("Fecha de búsqueda", key="agenda_date")
+                #st.checkbox("Mostrar solo citas confirmadas", key="show_confirmed")
             
             # Mostrar el contenido de la agenda
-            agenda_main()
+            if current_page == 'agenda_main':
+                agenda_main()
+            else:
+                st.button("Volver al Inicio", key="btn_back_agenda", on_click=cambiar_pagina, args=('InicioAgenda',))
+            
         
           elif current_page == 'carga_cv':
             # Sidebar específico para carga de CV
@@ -313,12 +320,17 @@ def view(model):
                 st.button("Volver al Inicio", key="btn_back_cv", on_click=cambiar_pagina, args=('InicioAgenda',))
                 
                 # Opciones específicas para carga de CV
+                
                 st.divider()
-                st.subheader("Opciones de Carga")
-                st.selectbox("Formato preferido", ["PDF", "DOCX", "TXT"], key="cv_format")
+                #st.subheader("Opciones de Carga")
+                #st.selectbox("Formato preferido", ["PDF", "DOCX", "TXT"], key="cv_format")
             
             # Mostrar el contenido de carga CV
-            carga_cv()
+            if current_page == 'carga_cv':
+                carga_cv()
+            else:
+                st.button("Volver al Inicio", key="btn_back_cv", on_click=cambiar_pagina, args=('InicioAgenda',))
+            
         
           elif current_page == 'consulta_cv':
             # Sidebar específico para consulta de CV
@@ -328,12 +340,16 @@ def view(model):
                 
                 # Opciones específicas para consulta
                 st.divider()
-                st.subheader("Filtros de Búsqueda")
-                st.text_input("Buscar por nombre", key="search_name")
-                st.selectbox("Ordenar por", ["Fecha", "Nombre", "Relevancia"], key="sort_by")
+                #st.subheader("Filtros de Búsqueda")
+                #st.text_input("Buscar por nombre", key="search_name")
+                #st.selectbox("Ordenar por", ["Fecha", "Nombre", "Relevancia"], key="sort_by")
             
             # Mostrar el contenido de consulta CV
-            consulta_cv()
+            if current_page == 'consulta_cv':
+                 consulta_cv()
+            else:
+                st.button("Volver al Inicio", key="btn_back_consulta", on_click=cambiar_pagina, args=('InicioAgenda',))
+            
         
           elif current_page == 'mostrar_correo_masivo':
             # Sidebar específico para emails
@@ -343,12 +359,16 @@ def view(model):
                 
                 # Opciones específicas para emails
                 st.divider()
-                st.subheader("Opciones de Envío")
-                st.checkbox("Incluir adjuntos", key="include_attachments")
-                st.checkbox("Correo prioritario", key="priority_email")
+                #st.subheader("Opciones de Envío")
+                #st.checkbox("Incluir adjuntos", key="include_attachments")
+                #st.checkbox("Correo prioritario", key="priority_email")
             
             # Mostrar el contenido de correo masivo
-            mostrar_correo_masivo()
+            if current_page == 'mostrar_correo_masivo':
+                 mostrar_correo_masivo()
+            else:
+                st.button("Volver al Inicio", key="btn_back_email", on_click=cambiar_pagina, args=('InicioAgenda',))
+           
         
           elif current_page == 'vacante':
             # Sidebar específico para vacantes
@@ -358,27 +378,30 @@ def view(model):
                 
                 # Opciones específicas para vacantes
                 st.divider()
-                st.subheader("Opciones de Vacante")
-                st.selectbox("Departamento", ["Dirección General",
-                "Administración y Finanzas",
-                "Recursos Humanos",
-                "Comercial y Ventas",
-                "Marketing y Comunicaciones",
-                "Atención al Cliente",
-                "Operaciones",
-                "Tecnología de la Información",
-                "Logística y Distribución",
-                "Servicios Profesionales",
-                "Consultoría",
-                "Legal y Compliance",
-                "Calidad",
-                "Investigación y Desarrollo",
-                "Proyectos",
-                "Otro (Personalizado)"], key="depto_vacante")
+                #st.subheader("Opciones de Vacante")
+                #st.selectbox("Departamento", ["Dirección General",
+                #"Administración y Finanzas",
+                #"Recursos Humanos",
+                #"Comercial y Ventas",
+                #"Marketing y Comunicaciones",
+                #"Atención al Cliente",
+                #"Operaciones",
+                #"Tecnología de la Información",
+                #"Logística y Distribución",
+                #"Servicios Profesionales",
+                #"Consultoría",
+                #"Legal y Compliance",
+                #"Calidad",
+                #"Investigación y Desarrollo",
+                #"Proyectos",
+                #"Otro (Personalizado)"], key="depto_vacante")
             
             # Mostrar el contenido de vacantes
-            vacante()
-        
+            if current_page == 'vacante':
+                vacante()
+            else:
+                st.button("Volver al Inicio", key="btn_back_vacante", on_click=cambiar_pagina, args=('InicioAgenda',))
+       
           elif current_page == 'candidatos':
             # Sidebar específico para candidatos
             with st.sidebar:
@@ -387,11 +410,14 @@ def view(model):
                 
                 # Opciones específicas para candidatos
                 st.divider()
-                st.subheader("Opciones de Candidatos")
-                st.selectbox("Estado", ["Todos", "En proceso", "Finalistas", "Contratados", "Rechazados"], key="estado_candidato")
+                #st.subheader("Opciones de Candidatos")
+                #st.selectbox("Estado", ["Todos", "En proceso", "Finalistas", "Contratados", "Rechazados"], key="estado_candidato")
             
             # Mostrar el contenido de candidatos
-            candidatos()
+            if current_page == 'candidatos':
+                candidatos()
+            else:
+                st.button("Volver al Inicio", key="btn_back_candidatos", on_click=cambiar_pagina, args=('InicioAgenda',))
         
           elif current_page == 'consulta_candidato':
             # Sidebar específico para consulta de candidatos
@@ -401,11 +427,13 @@ def view(model):
                 
                 # Opciones específicas para consulta de candidatos
                 st.divider()
-                st.subheader("Filtros de Candidatos")
-                st.multiselect("Habilidades", ["Python", "Java", "SQL", "Marketing", "Ventas"], key="skills_filter")
+                #st.subheader("Filtros de Candidatos")
+                #st.multiselect("Habilidades", ["Python", "Java", "SQL", "Marketing", "Ventas"], key="skills_filter")
             
-            # Mostrar el contenido de consulta de candidatos
-            consulta_candidato()
+            if current_page == 'consulta_candidato':
+                consulta_candidato()
+            else:
+                st.button("Volver al Inicio", key="btn_back_consulta_cand", on_click=cambiar_pagina, args=('InicioAgenda',))
         
           with st.sidebar:
             st.markdown("---")
