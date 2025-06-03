@@ -1,0 +1,41 @@
+[server]
+port = 8501
+
+[clave_google]
+clave_email = "68d2aa9a7a58a9859f802ccdf698f6a99ac03193"
+
+[seguridad]
+clave_protegida = "admin54321"
+
+[token2]
+github = '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'
+
+[theme]
+base="light"
+prymaryColor = '#bd4bff'
+backgroundColor = '#acbee9'
+secundarybackgroundColor = '#B9F1C0'
+textColor = '#U779E3'
+font = "sans serif"
+
+[layout]
+top_margin = "5px"
+bottom_margin = "20px"
+
+[fonts]
+clock_font = "Orbitron"
+calendar_font = "Orbitron"
+temperature_font = "Arial"
+
+[font_sizes]
+clock_font_size = "20px"
+calendar_font_size = "18px"
+temperature_font_size = "20px"
+
+[colors]
+clock_color = "red"
+calendar_color = "yelow"
+temperature_color = "white"
+
+[update]
+clock_update_interval = 1
