@@ -30,7 +30,7 @@ class InicioConjunto:
     #st.write("¡Icono clickeado!")
     
     try:
-        image = Image.open("./assets-conjuntos/logoJAGT.ico")
+        image = Image.open("./assets-conjuntos/logoCeiba.png")
         st.image(image)
         st.write('***Administracion Conjuntos***')
     except Exception as e:

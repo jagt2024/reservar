@@ -16,12 +16,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 # Configuración de la página
-st.set_page_config(
-    page_title="🏢 Gestión de Cartera Morosa",
-    page_icon="🏢",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+#st.set_page_config(
+#    page_title="🏢 Gestión de Cartera Morosa",
+#    page_icon="🏢",
+#    layout="wide",
+#    initial_sidebar_state="expanded"
+#)
 
 def format_currency(value):
     """Formatear valores monetarios con separador de miles"""
@@ -254,7 +254,7 @@ def get_estado_by_dias_mora(dias_mora):
     else:
         return "Cobro Jurídico"
 
-def main():
+def cartera_morosa_main():
     # Título principal
     st.title("🏢 Sistema de Gestión de Cartera Morosa")
     st.markdown("### 📋 Control y Manejo de Cobro Prejurídico - Condominios")
@@ -279,11 +279,11 @@ def main():
     st.sidebar.title("🔧 Panel de Control")
     menu_option = st.sidebar.selectbox(
         "Selecciona una opción:",
-        ["📊 Dashboard", "➕ Nuevo Registro", "📝 Gestionar Registros", 
+        ["📊 Panel", "➕ Nuevo Registro", "📝 Gestionar Registros", 
          "📞 Gestión de Cobro", "📈 Reportes", "⚙️ Configuración"]
     )
     
-    if menu_option == "📊 Dashboard":
+    if menu_option == "📊 Panel Principal":
         show_dashboard(df)
     elif menu_option == "➕ Nuevo Registro":
         show_new_record_form(df, worksheet)
@@ -298,7 +298,7 @@ def main():
 
 def show_dashboard(df):
     """Mostrar dashboard principal"""
-    st.header("📊 Dashboard de Cartera Morosa")
+    st.header("📊 P de Cartera Morosa")
     
     if df.empty:
         st.warning("📋 No hay datos disponibles. Comienza agregando registros.")
@@ -1841,50 +1841,50 @@ def show_configuration():
 
 # Función principal para ejecutar la aplicación
 if __name__ == "__main__":
-    main()
+    cartera_morosa_main()
 
 # CSS personalizado para mejorar la apariencia
-st.markdown("""
-<style>
-    .main > div {
-        padding-top: 2rem;
-    }
+#st.markdown("""
+#<style>
+#    .main > div {
+#        padding-top: 2rem;
+#    }
     
-    .stMetric {
-        background-color: #f0f2f6;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
-    }
+#    .stMetric {
+#        background-color: #f0f2f6;
+#        padding: 1rem;
+#        border-radius: 0.5rem;
+#        border-left: 4px solid #1f77b4;
+#    }
     
-    .stAlert {
-        margin-top: 1rem;
-    }
+#    .stAlert {
+#        margin-top: 1rem;
+#    }
     
-    .stExpander {
-        margin-bottom: 1rem;
-    }
+#    .stExpander {
+#        margin-bottom: 1rem;
+#    }
     
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 24px;
-    }
+#    .stTabs [data-baseweb="tab-list"] {
+#        gap: 24px;
+#    }
     
-    .stTabs [data-baseweb="tab"] {
-        height: 50px;
-        white-space: pre-wrap;
-        background-color: #f0f2f6;
-        border-radius: 4px 4px 0px 0px;
-        gap: 8px;
-        padding-left: 12px;
-        padding-right: 12px;
-    }
+#    .stTabs [data-baseweb="tab"] {
+#        height: 50px;
+#        white-space: pre-wrap;
+#        background-color: #f0f2f6;
+#        border-radius: 4px 4px 0px 0px;
+#        gap: 8px;
+#        padding-left: 12px;
+#        padding-right: 12px;
+#    }
     
-    .stSelectbox > div > div {
-        background-color: white;
-    }
+#    .stSelectbox > div > div {
+#        background-color: white;
+#    }
     
-    .reportview-container .main .block-container {
-        max-width: 1200px;
-    }
-</style>
-""", unsafe_allow_html=True)
+#    .reportview-container .main .block-container {
+#        max-width: 1200px;
+#   }
+#</style>
+#""", unsafe_allow_html=True)

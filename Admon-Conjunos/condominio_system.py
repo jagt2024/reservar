@@ -21,12 +21,12 @@ MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 2
 
 # Configuración de la página
-st.set_page_config(
-    page_title="Sistema de Administración de Condominios",
-    page_icon="🏢",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+#st.set_page_config(
+#    page_title="Sistema de Administración de Condominios",
+#    page_icon="🏢",
+#    layout="wide",
+#    initial_sidebar_state="expanded"
+#)
 
 def load_credentials_from_toml():
     """Cargar credenciales desde el archivo secrets.toml"""
@@ -87,7 +87,7 @@ class CondominiumManager:
             'accesos': 'Control_Accesos',
             'areas_comunes': 'Areas_Comunes',
             'ventas': 'Ventas_Lotes',
-            'usuarios': 'Sistema_Usuarios'
+            'usuarios': 'usuarios'
         }
         self.gc = None
         self.spreadsheet = None
@@ -298,7 +298,7 @@ if 'manager' not in st.session_state:
     st.session_state.authenticated = False
     st.session_state.user_role = None
 
-def main():
+def condominio_main():
     st.markdown('<h1 class="main-header">🏢 Sistema de Administración de Condominios</h1>', unsafe_allow_html=True)
     
     # Verificar autenticación
@@ -309,7 +309,7 @@ def main():
 
 def show_login_page():
     """Mostrar página de autenticación"""
-    st.markdown("### 🔐 Configuración de Acceso")
+    #st.markdown("### 🔐 Configuración de Acceso")
        
     # Intentar cargar credenciales automáticamente
     st.subheader("🔄 Verificando Configuración")
@@ -329,7 +329,7 @@ def show_login_page():
                     st.session_state.manager.client = client
                     st.session_state.authenticated = True
                     st.session_state.user_role = "admin"  # Por defecto admin
-                    st.success("✅ Conectado exitosamente con Google Drive y Sheets")
+                    #st.success("✅ Conectado exitosamente con Google Drive y Sheets")
                     st.rerun()
                 else:
                     st.error("❌ Error al conectar con Google Sheets")
@@ -349,7 +349,7 @@ def show_main_application():
         st.markdown("### 🏢 Navegación")
         
         modules = {
-            "📊 Dashboard": "dashboard",
+            "📊 Panel": "dashboard",
             "👥 Control de Residentes": "residentes",
             "💰 Administración Financiera": "financiero",
             "🔧 Gestión de Mantenimiento": "mantenimiento",
@@ -462,7 +462,7 @@ def load_all_data_safely():
 
 def show_dashboard():
     """Mostrar dashboard principal con manejo robusto de errores"""
-    st.markdown("## 📊 Dashboard Principal")
+    st.markdown("## 📊 Panel Principal")
     
     # Verificar/inicializar manager automáticamente
     if not initialize_manager_system():
@@ -494,7 +494,6 @@ def show_dashboard():
         
     except Exception as e:
         handle_dashboard_error(e)
-
 
 
 def diagnose_system():
@@ -705,7 +704,7 @@ def verify_sheets_access(client, config):
                     pass
             
             if accessible_sheets:
-                st.info(f"📊 Hojas accesibles: {', '.join(accessible_sheets)}")
+                #st.info(f"📊 Hojas accesibles: {', '.join(accessible_sheets)}")
                 st.session_state.spreadsheet = spreadsheet
                 st.session_state.accessible_sheets = accessible_sheets
                 return True
@@ -1449,6 +1448,7 @@ def show_financial_module():
                         'Concepto': concepto,
                         'Monto': monto,
                         'Fecha': fecha.strftime('%Y-%m-%d'),
+                        'Banco': '',
                         'Estado': estado,
                         'Metodo_Pago': metodo_pago,
                         'Observaciones': observaciones
@@ -1560,6 +1560,7 @@ def show_financial_module():
                                     'Concepto': f"Cuota {mes_cuota} {año_cuota}",
                                     'Monto': monto_cuota,
                                     'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
+                                    'Banco': '',
                                     'Estado': 'Pendiente',
                                     'Metodo_Pago': '',
                                     'Observaciones': f"Cuota generada automáticamente para {residente['Nombre']} {residente['Apellido']}"
@@ -2435,4 +2436,4 @@ def show_sales_module():
                 st.metric("📊 Tasa de Conversión", "0%")
 
 if __name__ == "__main__":
-    main()
+    condominio_main()
