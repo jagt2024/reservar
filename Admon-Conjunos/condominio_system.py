@@ -28,6 +28,15 @@ INITIAL_RETRY_DELAY = 2
 #    initial_sidebar_state="expanded"
 #)
 
+def initialize_session_state():
+    """Inicializar todas las variables de session_state necesarias"""
+    if 'manager' not in st.session_state:
+        st.session_state.manager = CondominiumManager()
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+    if 'user_role' not in st.session_state:
+        st.session_state.user_role = None
+
 def load_credentials_from_toml():
     """Cargar credenciales desde el archivo secrets.toml"""
     try:
@@ -293,14 +302,17 @@ class CondominiumManager:
             return pd.DataFrame()
 
 # Inicializar el sistema
-if 'manager' not in st.session_state:
-    st.session_state.manager = CondominiumManager()
-    st.session_state.authenticated = False
-    st.session_state.user_role = None
+#if 'manager' not in st.session_state:
+#    st.session_state.manager = CondominiumManager()
+#    st.session_state.authenticated = False
+#    st.session_state.user_role = None
 
 def condominio_main():
+
+    initialize_session_state()
+
     st.markdown('<h1 class="main-header">🏢 Sistema de Administración de Condominios</h1>', unsafe_allow_html=True)
-    
+
     # Verificar autenticación
     if not st.session_state.authenticated:
         show_login_page()
@@ -368,7 +380,7 @@ def show_main_application():
             st.rerun()
     
     # Mostrar módulo seleccionado
-    if current_module == "dashboard":
+    if current_module == "Panel de Seleccion ":
         show_dashboard()
     elif current_module == "residentes":
         show_residents_module()
