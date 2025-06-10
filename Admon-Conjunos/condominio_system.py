@@ -11,6 +11,7 @@ from io import StringIO
 import hashlib
 import time
 import ssl
+from googleapiclient.errors import HttpError
 import smtplib
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
@@ -287,8 +288,10 @@ class CondominiumManager:
             return False
     
     def load_data(self, worksheet_type):
-        """Cargar datos de una hoja específica"""
+      """Cargar datos de una hoja específica"""
+      for intento in range(MAX_RETRIES):
         try:
+          with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
             # Obtener la hoja de trabajo
             worksheet = self.get_worksheet(worksheet_type)
             if worksheet is None:
@@ -297,9 +300,261 @@ class CondominiumManager:
             #worksheet = self.spreadsheet.worksheet(self.worksheets[worksheet_type])
             data = worksheet.get_all_records()
             return pd.DataFrame(data)
+
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
         except Exception as e:
             st.error(f"Error al cargar datos: {str(e)}")
             return pd.DataFrame()
+
+    def delete_data(self, worksheet_type, record_id):
+      """Eliminar un registro específico por ID de Google Sheets"""
+      for intento in range(MAX_RETRIES):
+        try:
+          with st.spinner(f'Eliminando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+            # Verificar/reconectar antes de eliminar
+            if not self._reconnect_if_needed():
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return False
+        
+            # Verificar que la conexión existe
+            if self.spreadsheet is None:
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return False
+        
+            # Verificar que el tipo de hoja existe
+            if worksheet_type not in self.worksheets:
+                st.error(f"Tipo de hoja '{worksheet_type}' no encontrado.")
+                return False
+        
+            # Obtener la hoja de trabajo
+            worksheet = self.get_worksheet(worksheet_type)
+            if worksheet is None:
+                return False
+        
+            # Obtener todos los datos de la hoja
+            all_records = worksheet.get_all_records()
+        
+            # Buscar el registro a eliminar
+            row_to_delete = None
+            for idx, record in enumerate(all_records):
+                if record.get('ID') == record_id:
+                    row_to_delete = idx + 2  # +2 porque las filas empiezan en 1 y hay header
+                    break
+        
+            # Verificar si se encontró el registro
+            if row_to_delete is None:
+                st.warning(f"No se encontró el registro con ID: {record_id}")
+                return False
+        
+            # Eliminar la fila
+            worksheet.delete_rows(row_to_delete)
+            st.success(f"✅ Registro con ID {record_id} eliminado exitosamente")
+        
+            return True
+        
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
+        except gspread.exceptions.APIError as e:
+            if "PERMISSION_DENIED" in str(e):
+                st.error("❌ Error de permisos. Verifica que la cuenta de servicio tenga acceso al spreadsheet.")
+            else:
+                st.error(f"❌ Error de API de Google: {str(e)}")
+            return False
+        except Exception as e:
+            st.error(f"❌ Error al eliminar datos de {worksheet_type}: {str(e)}")
+            return False
+
+    def delete_multiple_data(self, worksheet_type, record_ids):
+      """Eliminar múltiples registros por lista de IDs de Google Sheets"""
+      for intento in range(MAX_RETRIES):
+        try:
+          with st.spinner(f'Eliminando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
+            # Verificar/reconectar antes de eliminar
+            if not self._reconnect_if_needed():
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return 0
+        
+            # Verificar que la conexión existe
+            if self.spreadsheet is None:
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return 0
+        
+            # Verificar que el tipo de hoja existe
+            if worksheet_type not in self.worksheets:
+                st.error(f"Tipo de hoja '{worksheet_type}' no encontrado.")
+                return 0
+        
+            # Obtener la hoja de trabajo
+            worksheet = self.get_worksheet(worksheet_type)
+            if worksheet is None:
+                return 0
+        
+            # Obtener todos los datos de la hoja
+            all_records = worksheet.get_all_records()
+        
+            # Buscar las filas a eliminar (en orden inverso para mantener índices)
+            rows_to_delete = []
+            for idx, record in enumerate(all_records):
+                if record.get('ID') in record_ids:
+                    rows_to_delete.append(idx + 2)  # +2 porque las filas empiezan en 1 y hay header
+        
+            # Verificar si se encontraron registros
+            if not rows_to_delete:
+                st.warning("No se encontraron registros con los IDs proporcionados")
+                return 0
+        
+            # Eliminar filas en orden inverso para mantener índices correctos
+            rows_to_delete.sort(reverse=True)
+            deleted_count = 0
+        
+            for row_num in rows_to_delete:
+                try:
+                    worksheet.delete_rows(row_num)
+                    deleted_count += 1
+                except Exception as e:
+                    st.warning(f"Error al eliminar fila {row_num}: {str(e)}")
+                    continue
+        
+            if deleted_count > 0:
+                st.success(f"✅ {deleted_count} registros eliminados exitosamente")
+            else:
+                st.error("❌ No se pudieron eliminar los registros")
+        
+            return deleted_count
+        
+        except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
+
+        except gspread.exceptions.APIError as e:
+            if "PERMISSION_DENIED" in str(e):
+                st.error("❌ Error de permisos. Verifica que la cuenta de servicio tenga acceso al spreadsheet.")
+            else:
+                st.error(f"❌ Error de API de Google: {str(e)}")
+            return 0
+        except Exception as e:
+            st.error(f"❌ Error al eliminar múltiples datos de {worksheet_type}: {str(e)}")
+            return 0
+
+    def delete_all_data(self, worksheet_type):
+        """Eliminar todos los datos de una hoja (mantiene los headers)"""
+        try:
+            # Verificar/reconectar antes de eliminar
+            if not self._reconnect_if_needed():
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return False
+        
+            # Verificar que la conexión existe
+            if self.spreadsheet is None:
+                st.error("No hay conexión con Google Sheets. Verifica la configuración.")
+                return False
+        
+            # Verificar que el tipo de hoja existe
+            if worksheet_type not in self.worksheets:
+                st.error(f"Tipo de hoja '{worksheet_type}' no encontrado.")
+                return False
+        
+            # Obtener la hoja de trabajo
+            worksheet = self.get_worksheet(worksheet_type)
+            if worksheet is None:
+                return False
+        
+            # Obtener el número total de filas
+            total_rows = len(worksheet.get_all_values())
+        
+            # Verificar si hay datos para eliminar (más de 1 fila = header + datos)
+            if total_rows <= 1:
+                st.info("No hay datos para eliminar en esta hoja")
+                return True
+        
+            # Eliminar todas las filas excepto la primera (header)
+            if total_rows > 1:
+                worksheet.delete_rows(2, total_rows)
+                st.success(f"✅ Todos los datos eliminados exitosamente de {worksheet_type}")
+        
+            return True
+        
+        except gspread.exceptions.APIError as e:
+            if "PERMISSION_DENIED" in str(e):
+                st.error("❌ Error de permisos. Verifica que la cuenta de servicio tenga acceso al spreadsheet.")
+            else:
+                st.error(f"❌ Error de API de Google: {str(e)}")
+            return False
+        except Exception as e:
+            st.error(f"❌ Error al eliminar todos los datos de {worksheet_type}: {str(e)}")
+            return False
+
+    def backup_data(self, backup_folder="backups"):
+        """Crear respaldo de todos los datos"""
+        try:
+            if not os.path.exists(backup_folder):
+                os.makedirs(backup_folder)
+            
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = os.path.join(backup_folder, f"backup_{timestamp}")
+            os.makedirs(backup_path)
+            
+            # Copiar todos los archivos de datos
+            import shutil
+            for module, file_path in self.files.items():
+                if os.path.exists(file_path):
+                    backup_file = os.path.join(backup_path, f"{module}.json")
+                    shutil.copy2(file_path, backup_file)
+            
+            return backup_path
+        except Exception as e:
+            print(f"Error al crear respaldo: {e}")
+            return None
+    
+    def restore_data(self, backup_path):
+        """Restaurar datos desde un respaldo"""
+        try:
+            if not os.path.exists(backup_path):
+                return False
+            
+            # Restaurar archivos desde el respaldo
+            for module in self.files.keys():
+                backup_file = os.path.join(backup_path, f"{module}.json")
+                if os.path.exists(backup_file):
+                    import shutil
+                    shutil.copy2(backup_file, self.files[module])
+            
+            return True
+        except Exception as e:
+            print(f"Error al restaurar respaldo: {e}")
+            return False
 
 # Inicializar el sistema
 #if 'manager' not in st.session_state:
@@ -1324,10 +1579,11 @@ def show_residents_module():
             with col1:
                 nombre = st.text_input("Nombre *")
                 apellido = st.text_input("Apellido *")
+                tipo_unidad = st.selectbox("Tipo Unidad ", ["Casa", "Apto", "Lote","Otro"])
                 unidad = st.text_input("Unidad (Ej: Apto 101, Casa 15) *")
-                tipo = st.selectbox("Tipo", ["Propietario", "Inquilino", "Familiar"])
                 
             with col2:
+                tipo = st.selectbox("Tipo", ["Propietario", "Inquilino", "Familiar"])
                 telefono = st.text_input("Teléfono")
                 email = st.text_input("Email")
                 fecha_ingreso = st.date_input("Fecha de Ingreso", datetime.now().date())
@@ -1344,6 +1600,7 @@ def show_residents_module():
                         'ID': resident_id,
                         'Nombre': nombre,
                         'Apellido': apellido,
+                        'Tipo_Unidad': tipo_unidad,
                         'Unidad': unidad,
                         'Tipo': tipo,
                         'Telefono': telefono,
@@ -1437,11 +1694,14 @@ def show_financial_module():
             with col1:
                 tipo_operacion = st.selectbox("Tipo de Operación", 
                                             ["Ingreso", "Gasto", "Cuota de Mantenimiento"])
-                unidad = st.text_input("Unidad (si aplica)")
+                tipo_unidad = st.selectbox("Tipo de Unidad", 
+                                            ["Casa", "Apto", "Lote", "Otro"])
+                
                 concepto = st.text_input("Concepto/Descripción *")
                 monto = st.number_input("Monto *", min_value=0.0, format="%.2f")
                 
             with col2:
+                unidad = st.text_input("Unidad (si aplica)")
                 fecha = st.date_input("Fecha", datetime.now().date())
                 estado = st.selectbox("Estado", ["Pendiente", "Pagado", "Vencido", "Cancelado"])
                 metodo_pago = st.selectbox("Método de Pago", 
@@ -1456,9 +1716,10 @@ def show_financial_module():
                     data = {
                         'ID': operation_id,
                         'Tipo_Operacion': tipo_operacion,
-                        'Unidad': unidad,
+                        'Tipo_Unidad': tipo_unidad,
                         'Concepto': concepto,
                         'Monto': monto,
+                        'Unidad': unidad,
                         'Fecha': fecha.strftime('%Y-%m-%d'),
                         'Banco': '',
                         'Estado': estado,
@@ -1541,51 +1802,372 @@ def show_financial_module():
     with tab4:
         st.subheader("💳 Gestión de Cuotas de Mantenimiento")
         
+        # Configuración de cuotas por tipo de unidad
+        st.markdown("**Configurar Cuotas por Tipo de Unidad**")
+        
+        # Obtener tipos de unidad únicos de los residentes
+        residentes_df = st.session_state.manager.load_data('residentes')
+        tipos_unidad = []
+        if not residentes_df.empty and 'Tipo_Unidad' in residentes_df.columns:
+            tipos_unidad = list(residentes_df['Tipo_Unidad'].unique())
+        
+        if not tipos_unidad:
+            st.warning("⚠️ No se encontraron tipos de unidad. Asegúrate de que los residentes tengan el campo 'Tipo_Unidad' configurado.")
+            return
+        
         with st.form("generate_fees"):
             st.markdown("**Generar Cuotas Masivas**")
             
             col1, col2 = st.columns(2)
             with col1:
-                monto_cuota = st.number_input("Monto de la Cuota", min_value=0.0, format="%.2f")
                 mes_cuota = st.selectbox("Mes", 
                                        ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                                         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
-            with col2:
                 año_cuota = st.number_input("Año", min_value=2020, max_value=2030, 
                                           value=datetime.now().year)
+            with col2:
                 fecha_vencimiento = st.date_input("Fecha de Vencimiento")
             
-            if st.form_submit_button("🔄 Generar Cuotas para Todos"):
-                if monto_cuota > 0:
-                    residentes_df = st.session_state.manager.load_data('residentes')
+            st.markdown("**Configurar Montos por Tipo de Unidad:**")
+            
+            # Crear campos de entrada para cada tipo de unidad
+            montos_por_tipo = {}
+            cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+            
+            for i, tipo_unidad in enumerate(tipos_unidad):
+                with cols[i % 3]:
+                    monto = st.number_input(
+                        f"💰 {tipo_unidad}", 
+                        min_value=0.0, 
+                        format="%.2f",
+                        key=f"monto_{tipo_unidad}",
+                        help=f"Monto de cuota para unidades tipo {tipo_unidad}"
+                    )
+                    montos_por_tipo[tipo_unidad] = monto
+            
+            # Mostrar resumen de cuotas a generar
+            st.markdown("**Resumen de Cuotas a Generar:**")
+            resumen_cols = st.columns(len(tipos_unidad))
+            
+            for i, (tipo, monto) in enumerate(montos_por_tipo.items()):
+                if not residentes_df.empty:
+                    cantidad = len(residentes_df[
+                        (residentes_df['Tipo_Unidad'] == tipo) & 
+                        (residentes_df['Estado'] == 'Activo')
+                    ])
+                    total = cantidad * monto
                     
-                    if not residentes_df.empty:
-                        cuotas_generadas = 0
-                        for _, residente in residentes_df.iterrows():
-                            if residente['Estado'] == 'Activo':
-                                cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas}"
+                    with resumen_cols[i]:
+                        st.info(f"**{tipo}**\n\n"
+                               f"Unidades: {cantidad}\n\n"
+                               f"Monto c/u: ${monto:,.2f}\n\n"
+                               f"Total: ${total:,.2f}")
+            
+            if st.form_submit_button("🔄 Generar Cuotas para Todos"):
+                # Validar que al menos un monto sea mayor a 0
+                if not any(monto > 0 for monto in montos_por_tipo.values()):
+                    st.error("⚠️ Debe configurar al menos un monto mayor a 0")
+                    return
+                
+                if not residentes_df.empty:
+                    cuotas_generadas = 0
+                    total_generado = 0
+                    
+                    for _, residente in residentes_df.iterrows():
+                        if residente['Estado'] == 'Activo':
+                            tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
+                            monto_cuota = montos_por_tipo.get(tipo_unidad, 0)
+                            
+                            if monto_cuota > 0:
+                                cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
                                 
                                 data = {
                                     'ID': cuota_id,
                                     'Tipo_Operacion': 'Cuota de Mantenimiento',
                                     'Unidad': residente['Unidad'],
-                                    'Concepto': f"Cuota {mes_cuota} {año_cuota}",
+                                    'Concepto': f"Cuota {mes_cuota} {año_cuota} - {tipo_unidad}",
                                     'Monto': monto_cuota,
                                     'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
                                     'Banco': '',
                                     'Estado': 'Pendiente',
                                     'Metodo_Pago': '',
-                                    'Observaciones': f"Cuota generada automáticamente para {residente['Nombre']} {residente['Apellido']}"
+                                    'Observaciones': f"Cuota generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
                                 }
                                 
-                                st.session_state.manager.save_data('financiero', data)
-                                cuotas_generadas += 1
-                        
+                                if st.session_state.manager.save_data('financiero', data):
+                                    cuotas_generadas += 1
+                                    total_generado += monto_cuota
+                    
+                    if cuotas_generadas > 0:
                         st.success(f"✅ Se generaron {cuotas_generadas} cuotas exitosamente")
+                        st.info(f"💰 Total generado: ${total_generado:,.2f}")
+                        
+                        # Mostrar detalle por tipo de unidad
+                        st.markdown("**Detalle por Tipo de Unidad:**")
+                        for tipo_unidad in tipos_unidad:
+                            if montos_por_tipo[tipo_unidad] > 0:
+                                cantidad = len(residentes_df[
+                                    (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
+                                    (residentes_df['Estado'] == 'Activo')
+                                ])
+                                if cantidad > 0:
+                                    total_tipo = cantidad * montos_por_tipo[tipo_unidad]
+                                    st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_por_tipo[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
                     else:
-                        st.warning("⚠️ No hay residentes activos para generar cuotas")
+                        st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
                 else:
-                    st.error("⚠️ El monto de la cuota debe ser mayor a 0")
+                    st.warning("⚠️ No hay residentes registrados para generar cuotas")
+        
+        # Sección para eliminar cuotas
+        st.markdown("---")
+        st.markdown("**🗑️ Eliminar Cuotas**")
+        
+        financiero_df = st.session_state.manager.load_data('financiero')
+        cuotas_df = financiero_df[financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy() if not financiero_df.empty else pd.DataFrame()
+        
+        if not cuotas_df.empty:
+            tab_eliminar1, tab_eliminar2 = st.tabs(["🏠 Por Unidad", "📋 Registros Específicos"])
+            
+            with tab_eliminar1:
+                st.markdown("**Eliminar Cuotas por Unidad**")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    unidades_disponibles = list(cuotas_df['Unidad'].unique())
+                    unidad_eliminar = st.selectbox(
+                        "Seleccionar Unidad:", 
+                        unidades_disponibles,
+                        key="unidad_eliminar"
+                    )
+                
+                with col2:
+                    # Filtros adicionales
+                    estados_cuota = list(cuotas_df['Estado'].unique())
+                    estado_filtro = st.selectbox(
+                        "Estado de Cuotas:", 
+                        ["Todos"] + estados_cuota,
+                        key="estado_filtro_eliminar"
+                    )
+                
+                # Mostrar cuotas de la unidad seleccionada
+                cuotas_unidad = cuotas_df[cuotas_df['Unidad'] == unidad_eliminar].copy()
+                
+                if estado_filtro != "Todos":
+                    cuotas_unidad = cuotas_unidad[cuotas_unidad['Estado'] == estado_filtro]
+                
+                if not cuotas_unidad.empty:
+                    st.markdown(f"**Cuotas encontradas para {unidad_eliminar}:**")
+                    
+                    # Mostrar tabla con información relevante
+                    cuotas_display = cuotas_unidad[['ID', 'Concepto', 'Monto', 'Fecha', 'Estado']].copy()
+                    cuotas_display['Fecha'] = pd.to_datetime(cuotas_display['Fecha']).dt.strftime('%Y-%m-%d')
+                    cuotas_display['Monto'] = cuotas_display['Monto'].apply(lambda x: f"${x:,.2f}")
+                    
+                    st.dataframe(cuotas_display, use_container_width=True)
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        total_cuotas = len(cuotas_unidad)
+                        total_monto = cuotas_unidad['Monto'].sum()
+                        st.info(f"**Total:** {total_cuotas} cuotas - ${total_monto:,.2f}")
+                    
+                    with col2:
+                        # Usar session state para manejar el estado de confirmación
+                        if 'confirmar_eliminar_unidad' not in st.session_state:
+                            st.session_state.confirmar_eliminar_unidad = False
+                        
+                        if not st.session_state.confirmar_eliminar_unidad:
+                            if st.button(f"🗑️ Eliminar {total_cuotas} cuotas", key="btn_eliminar_unidad"):
+                                st.session_state.confirmar_eliminar_unidad = True
+                                st.rerun()
+                        else:
+                            st.warning(f"⚠️ ¿Está seguro de eliminar {total_cuotas} cuotas de la unidad {unidad_eliminar}?")
+                            
+                            col_confirm1, col_confirm2 = st.columns(2)
+                            with col_confirm1:
+                                if st.button("✅ Sí, Eliminar", type="primary", key="confirm_eliminar_unidad"):
+                                    ids_eliminar = cuotas_unidad['ID'].tolist()
+                                    
+                                    # Usar delete_multiple_data si está disponible, sino usar delete_data individual
+                                    if hasattr(st.session_state.manager, 'delete_multiple_data'):
+                                        eliminadas = st.session_state.manager.delete_multiple_data('financiero', ids_eliminar)
+                                    else:
+                                        eliminadas = 0
+                                        for cuota_id in ids_eliminar:
+                                            if st.session_state.manager.delete_data('financiero', cuota_id):
+                                                eliminadas += 1
+                                    
+                                    st.session_state.confirmar_eliminar_unidad = False
+                                    
+                                    if eliminadas > 0:
+                                        st.success(f"✅ Se eliminaron {eliminadas} cuotas exitosamente")
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ Error al eliminar las cuotas")
+                            
+                            with col_confirm2:
+                                if st.button("❌ Cancelar", key="cancel_eliminar_unidad"):
+                                    st.session_state.confirmar_eliminar_unidad = False
+                                    st.rerun()
+                else:
+                    st.info(f"No se encontraron cuotas para la unidad {unidad_eliminar} con los filtros aplicados")
+            
+            with tab_eliminar2:
+                st.markdown("**Eliminar Registros Específicos**")
+                
+                # Filtros para búsqueda
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    filtro_unidad = st.selectbox(
+                        "Filtrar por Unidad:", 
+                        ["Todas"] + list(cuotas_df['Unidad'].unique()),
+                        key="filtro_unidad_especifica"
+                    )
+                
+                with col2:
+                    filtro_estado = st.selectbox(
+                        "Filtrar por Estado:", 
+                        ["Todos"] + list(cuotas_df['Estado'].unique()),
+                        key="filtro_estado_especifica"
+                    )
+                
+                with col3:
+                    filtro_mes = st.text_input(
+                        "Filtrar por Mes/Año (ej: Enero 2024):",
+                        key="filtro_mes_especifica"
+                    )
+                
+                # Aplicar filtros
+                cuotas_filtradas = cuotas_df.copy()
+                
+                if filtro_unidad != "Todas":
+                    cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Unidad'] == filtro_unidad]
+                
+                if filtro_estado != "Todos":
+                    cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Estado'] == filtro_estado]
+                
+                if filtro_mes:
+                    cuotas_filtradas = cuotas_filtradas[
+                        cuotas_filtradas['Concepto'].str.contains(filtro_mes, case=False, na=False)
+                    ]
+                
+                if not cuotas_filtradas.empty:
+                    st.markdown("**Seleccionar cuotas para eliminar:**")
+                    
+                    # Inicializar session state para las cuotas seleccionadas
+                    if 'cuotas_seleccionadas' not in st.session_state:
+                        st.session_state.cuotas_seleccionadas = set()
+                    
+                    if 'confirmar_eliminar_seleccionadas' not in st.session_state:
+                        st.session_state.confirmar_eliminar_seleccionadas = False
+                    
+                    # Crear checkboxes para cada cuota con labels descriptivos
+                    for idx, cuota in cuotas_filtradas.iterrows():
+                        fecha_formato = pd.to_datetime(cuota['Fecha']).strftime('%Y-%m-%d')
+                        label_checkbox = f"{cuota['Unidad']} - {cuota['Concepto']} - ${cuota['Monto']:,.2f} - {fecha_formato} - {cuota['Estado']}"
+                        
+                        seleccionada = st.checkbox(
+                            label_checkbox,
+                            key=f"check_{cuota['ID']}",
+                            value=cuota['ID'] in st.session_state.cuotas_seleccionadas
+                        )
+                        
+                        if seleccionada:
+                            st.session_state.cuotas_seleccionadas.add(cuota['ID'])
+                        else:
+                            st.session_state.cuotas_seleccionadas.discard(cuota['ID'])
+                    
+                    if st.session_state.cuotas_seleccionadas:
+                        st.markdown("---")
+                        
+                        # Obtener información de las cuotas seleccionadas
+                        cuotas_seleccionadas_info = cuotas_filtradas[
+                            cuotas_filtradas['ID'].isin(st.session_state.cuotas_seleccionadas)
+                        ]
+                        
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            total_seleccionadas = len(cuotas_seleccionadas_info)
+                            total_monto_seleccionadas = cuotas_seleccionadas_info['Monto'].sum()
+                            st.info(f"**Seleccionadas:** {total_seleccionadas} cuotas - ${total_monto_seleccionadas:,.2f}")
+                        
+                        with col2:
+                            if not st.session_state.confirmar_eliminar_seleccionadas:
+                                if st.button(f"🗑️ Eliminar {total_seleccionadas} cuotas seleccionadas", key="btn_eliminar_seleccionadas"):
+                                    st.session_state.confirmar_eliminar_seleccionadas = True
+                                    st.rerun()
+                            else:
+                                st.warning(f"⚠️ ¿Está seguro de eliminar {total_seleccionadas} cuotas seleccionadas?")
+                                
+                                col_confirm1, col_confirm2 = st.columns(2)
+                                with col_confirm1:
+                                    if st.button("✅ Sí, Eliminar", type="primary", key="confirm_eliminar_seleccionadas"):
+                                        ids_eliminar = list(st.session_state.cuotas_seleccionadas)
+                                        
+                                        # Usar delete_multiple_data si está disponible, sino usar delete_data individual
+                                        if hasattr(st.session_state.manager, 'delete_multiple_data'):
+                                            eliminadas = st.session_state.manager.delete_multiple_data('financiero', ids_eliminar)
+                                        else:
+                                            eliminadas = 0
+                                            for cuota_id in ids_eliminar:
+                                                if st.session_state.manager.delete_data('financiero', cuota_id):
+                                                    eliminadas += 1
+                                        
+                                        # Limpiar el estado
+                                        st.session_state.cuotas_seleccionadas.clear()
+                                        st.session_state.confirmar_eliminar_seleccionadas = False
+                                        
+                                        if eliminadas > 0:
+                                            st.success(f"✅ Se eliminaron {eliminadas} cuotas exitosamente")
+                                            st.rerun()
+                                        else:
+                                            st.error("❌ Error al eliminar las cuotas")
+                                
+                                with col_confirm2:
+                                    if st.button("❌ Cancelar", key="cancel_eliminar_seleccionadas"):
+                                        st.session_state.confirmar_eliminar_seleccionadas = False
+                                        st.rerun()
+                else:
+                    st.info("No se encontraron cuotas con los filtros aplicados")
+        else:
+            st.info("📝 No hay cuotas de mantenimiento registradas")
+        
+        # Sección adicional para mostrar estadísticas de cuotas pendientes
+        st.markdown("---")
+        st.markdown("**📊 Estadísticas de Cuotas Pendientes**")
+        
+        financiero_df = st.session_state.manager.load_data('financiero')
+        if not financiero_df.empty:
+            cuotas_pendientes = financiero_df[
+                (financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento') & 
+                (financiero_df['Estado'] == 'Pendiente')
+            ]
+            
+            if not cuotas_pendientes.empty:
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    total_pendientes = len(cuotas_pendientes)
+                    st.metric("📋 Cuotas Pendientes", total_pendientes)
+                
+                with col2:
+                    monto_pendiente = cuotas_pendientes['Monto'].sum()
+                    st.metric("💰 Monto Pendiente", f"${monto_pendiente:,.2f}")
+                
+                with col3:
+                    # FIXED: Calcular cuotas vencidas - comparing datetime to datetime
+                    cuotas_pendientes['Fecha'] = pd.to_datetime(cuotas_pendientes['Fecha'])
+                    # Convert current date to pandas Timestamp for proper comparison
+                    fecha_actual = pd.Timestamp(datetime.now().date())
+                    cuotas_vencidas = cuotas_pendientes[
+                        cuotas_pendientes['Fecha'] < fecha_actual
+                    ]
+                    st.metric("⚠️ Cuotas Vencidas", len(cuotas_vencidas))
+            else:
+                st.info("✅ No hay cuotas pendientes")
+        else:
+            st.info("📝 No hay información financiera disponible")
 
 def show_maintenance_module():
     """Módulo de gestión de mantenimiento"""

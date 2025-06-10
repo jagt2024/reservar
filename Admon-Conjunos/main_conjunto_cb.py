@@ -10,6 +10,8 @@ from consulta_financiera_residente import consulta_res_main
 from generador_cuentas_cobro import generador_main
 from pqrs_conjunto import pqrs_main
 from manejo_presupuesto import presupuesto_main
+from correspondencia_conjunto import correspondencia_main
+from mantenimiento_conjunto import mantenimiento_main
 #from user_management import user_management_system
 from PIL import Image
 from datetime import date
@@ -107,6 +109,8 @@ translations = {
         "option5": "Registro de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
+        "option8": "Gestion Correspondencia",
+        "option9": "Generar Mantenimieento",
         "version": "Version: 0.0.1",
         "year": "A#o 2025",
         "sistema":"SADCO",
@@ -124,6 +128,8 @@ translations = {
         "option5": "Registro de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
+        "option8": "Gestion Correspondencia",
+        "option9": "Generar Mantenimieento",
         "version": "Versión: 0.0.1",
         "year": "A#o 2025",
         "sistema":"SADCO",
@@ -156,6 +162,8 @@ class Model:
         self.option5 = lang["option5"]
         self.option6 = lang["option6"]
         self.option7 = lang["option7"]
+        self.option8 = lang["option8"]
+        self.option9 = lang["option9"]
 
 # Función para cambiar entre páginas
 def cambiar_pagina(page_name):
@@ -185,7 +193,7 @@ def view(model):
 
                 # Menú principal
                 app = option_menu(model.menuTitle,
-                            [model.option0, model.option1, model.option2, model.option3, model.option4, model.option5, model.option6, model.option7],
+                            [model.option0, model.option1, model.option2, model.option3, model.option4, model.option5, model.option8, model.option6, model.option7,model.option9],
                             icons=['house', 'gear', 'credit-card', 'search', 'file-earmark-text'],
                             default_index=0,
                             styles={
@@ -214,10 +222,14 @@ def view(model):
                     cambiar_pagina('generador_main')
                 elif app == model.option5:
                     cambiar_pagina('pago_main')
+                elif app == model.option8:
+                    cambiar_pagina('correspondencia_main') 
                 elif app == model.option6:
                     cambiar_pagina('presupuesto_main')
                 elif app == model.option7:
                     cambiar_pagina('pqrs_main')
+                elif app == model.option9:
+                    cambiar_pagina('mantenimiento_main')
 
         # SIDEBARS ESPECÍFICOS PARA CADA PÁGINA
         elif current_page == 'condominio_main':
@@ -279,6 +291,13 @@ def view(model):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
 
+        elif current_page == 'correspondencia_main':
+            with st.sidebar:
+                
+                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
         elif current_page == 'presupuesto_main':
             with st.sidebar:
                 
@@ -287,6 +306,13 @@ def view(model):
                 st.divider()
 
         elif current_page == 'pqrs_main':
+            with st.sidebar:
+                
+                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
+        elif current_page == 'mantenimiento_main':
             with st.sidebar:
                 
                 if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
@@ -475,6 +501,13 @@ def view(model):
             except Exception as e:
                 st.error(f"Error al cargar pago_main: {e}")
 
+        elif current_page == 'correspondencia_main':
+            #st.header("📄 Generador Cuentas de Cobro")
+            try:
+                correspondencia_main()
+            except Exception as e:
+                st.error(f"Error al cargar pago_main: {e}")
+
         elif current_page == 'presupuesto_main':
             #st.header("📄 Generador Cuentas de Cobro")
             try:
@@ -488,6 +521,13 @@ def view(model):
                 pqrs_main()
             except Exception as e:
                 st.error(f"Error al cargar generador_main: {e}")
+
+        elif current_page == 'mantenimiento_main':
+            #st.header("📄 Generador Cuentas de Cobro")
+            try:
+                mantenimiento_main()
+            except Exception as e:
+                st.error(f"Error al cargar pago_main: {e}")
         
         #st.markdown("---")
         #st.text(translations[model.language]["version"])
