@@ -290,8 +290,10 @@ def send_correspondence_notification(client, correspondencia_data):
 
 #@st.cache_data(ttl=60)
 def load_correspondencia_data(client):
-    """Cargar datos de correspondencia desde Google Sheets"""
+  """Cargar datos de correspondencia desde Google Sheets"""
+  for intento in range(MAX_RETRIES):
     try:
+      with st.spinner(f'Cargando datos... (Intento {intento + 1}/{MAX_RETRIES})'):
         spreadsheet = client.open("gestion-conjuntos")
         worksheet = spreadsheet.worksheet("Correspondencia")
         
@@ -322,6 +324,19 @@ def load_correspondencia_data(client):
             df_empty['Fecha_Recepcion'] = pd.to_datetime(df_empty['Fecha_Recepcion'])
             df_empty['Fecha_Entrega'] = pd.to_datetime(df_empty['Fecha_Entrega'])
             return df_empty
+    
+    except HttpError as error:
+            if error.resp.status == 429:  # Error de cuota excedida
+                if intento < MAX_RETRIES - 1:
+                    delay = INITIAL_RETRY_DELAY * (2 ** intento)
+                    st.warning(f"Límite de cuota excedida. Esperando {delay} segundos...")
+                    time.sleep(delay)
+                    continue
+                else:
+                    st.error("Se excedió el límite de intentos. Por favor, intenta más tarde.")
+            else:
+                st.error(f"Error de la API: {str(error)}")
+            return False
     
     except gspread.SpreadsheetNotFound:
         st.error("❌ Hoja de cálculo 'gestion-conjuntos' no encontrada")

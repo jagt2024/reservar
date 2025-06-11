@@ -616,7 +616,7 @@ def show_main_application():
         st.markdown("### 🏢 Navegación")
         
         modules = {
-            "📊 Panel": "dashboard",
+            #"📊 Panel": "dashboard",
             "👥 Control de Residentes": "residentes",
             "💰 Administración Financiera": "financiero",
             "🔧 Gestión de Mantenimiento": "mantenimiento",
@@ -625,6 +625,13 @@ def show_main_application():
             "🏊 Áreas Comunes": "areas_comunes",
             "🏡 Ventas de Lotes": "ventas"
         }
+
+        #selected_module = st.radio(
+        #    "Seleccionar Módulo:",
+        #    list(modules.keys()),
+        #    horizontal=False  # Para mostrarlos horizontalmente si prefieres
+        #)
+        #current_module = modules[selected_module]
         
         selected_module = st.selectbox("Seleccionar Módulo:", list(modules.keys()))
         current_module = modules[selected_module]

@@ -12,6 +12,9 @@ from pqrs_conjunto import pqrs_main
 from manejo_presupuesto import presupuesto_main
 from correspondencia_conjunto import correspondencia_main
 from mantenimiento_conjunto import mantenimiento_main
+from control_mascotas_vehiculos import mascove_main
+from control_censo_poblacional import censo_main
+from administracion_parqueaderos import parqueadero_main
 #from user_management import user_management_system
 from PIL import Image
 from datetime import date
@@ -110,7 +113,7 @@ translations = {
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
-        "option9": "Generar Mantenimieento",
+        "option9": "Generar Mantenimiento",
         "version": "Version: 0.0.1",
         "year": "A#o 2025",
         "sistema":"SADCO",
@@ -129,7 +132,7 @@ translations = {
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
-        "option9": "Generar Mantenimieento",
+        "option9": "Generar Mantenimiento",
         "version": "Versión: 0.0.1",
         "year": "A#o 2025",
         "sistema":"SADCO",
@@ -247,7 +250,7 @@ def view(model):
                                
         elif current_page == 'cartera_morosa_main':
             with st.sidebar:
-                st.header("💳 Cartera Morosa")
+                #st.header("💳 Cartera Morosa")
                 if st.button("🏠 Volver al Inicio", key="btn_back_cm"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
