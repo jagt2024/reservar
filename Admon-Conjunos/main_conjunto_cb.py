@@ -15,6 +15,8 @@ from mantenimiento_conjunto import mantenimiento_main
 from control_mascotas_vehiculos import mascove_main
 from control_censo_poblacional import censo_main
 from administracion_parqueaderos import parqueadero_main
+from solicitudes_residentes import solicitudes_main
+from inventario_conjunto import inventario_main
 #from user_management import user_management_system
 from PIL import Image
 from datetime import date
@@ -106,6 +108,7 @@ translations = {
         "app_title": "Administracion Conjuntos",
         "option0": "Inicio",
         "option1": "Sistema de Administracion",
+        "option10":"Control Mascotas-Vehiculos",
         "option2": "Gestion Cartera Morosa",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
@@ -113,6 +116,9 @@ translations = {
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
+        "option11":"Control Censo Poblacional",
+        "option12":"Administracion Parqueadros",
+        "option13":"Control Inventario",
         "option9": "Generar Mantenimiento",
         "version": "Version: 0.0.1",
         "year": "A#o 2025",
@@ -125,6 +131,7 @@ translations = {
         "app_title": "Administracion Conjuntos",
         "option0": "Inicio",
         "option1": "Sistema de Administracion",
+        "option10":"Control Mascotas-Vehiculos",
         "option2": "Gestion Cartera Morosos",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
@@ -132,6 +139,9 @@ translations = {
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
+        "option11":"Control Censo Poblacional",
+        "option12":"Administracion Parqueadros",
+        "option13":"Control Inventario",
         "option9": "Generar Mantenimiento",
         "version": "Versión: 0.0.1",
         "year": "A#o 2025",
@@ -167,6 +177,10 @@ class Model:
         self.option7 = lang["option7"]
         self.option8 = lang["option8"]
         self.option9 = lang["option9"]
+        self.option10 = lang["option10"]
+        self.option11 = lang["option11"]
+        self.option12 = lang["option12"]
+        self.option13 = lang["option13"]
 
 # Función para cambiar entre páginas
 def cambiar_pagina(page_name):
@@ -196,7 +210,7 @@ def view(model):
 
                 # Menú principal
                 app = option_menu(model.menuTitle,
-                            [model.option0, model.option1, model.option2, model.option3, model.option4, model.option5, model.option8, model.option6, model.option7,model.option9],
+                            [model.option0, model.option1, model.option10,model.option2, model.option3, model.option4, model.option5, model.option8, model.option6, model.option7,model.option9, model.option11, model.option12, model.option13],
                             icons=['house', 'gear', 'credit-card', 'search', 'file-earmark-text'],
                             default_index=0,
                             styles={
@@ -217,6 +231,8 @@ def view(model):
                 # Actualizar la página según la selección del menú
                 if app == model.option1:
                     cambiar_pagina('condominio_main')
+                if app == model.option10:
+                    cambiar_pagina('mascove_main')
                 elif app == model.option2:
                     cambiar_pagina('cartera_morosa_main')
                 elif app == model.option3:
@@ -233,6 +249,12 @@ def view(model):
                     cambiar_pagina('pqrs_main')
                 elif app == model.option9:
                     cambiar_pagina('mantenimiento_main')
+                if app == model.option11:
+                    cambiar_pagina('censo_main')
+                if app == model.option12:
+                    cambiar_pagina('parqueadero_main')
+                if app == model.option13:
+                    cambiar_pagina('inventario_main')
 
         # SIDEBARS ESPECÍFICOS PARA CADA PÁGINA
         elif current_page == 'condominio_main':
@@ -252,6 +274,13 @@ def view(model):
             with st.sidebar:
                 #st.header("💳 Cartera Morosa")
                 if st.button("🏠 Volver al Inicio", key="btn_back_cm"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
+        elif current_page == 'mascove_main':
+            with st.sidebar:
+                #st.header("💳 Cartera Morosa")
+                if st.button("🏠 Volver al Inicio", key="btn_back_mascove"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
                 
@@ -289,36 +318,49 @@ def view(model):
 
         elif current_page == 'pago_main':
             with st.sidebar:
-                
                 if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
 
         elif current_page == 'correspondencia_main':
             with st.sidebar:
-                
-                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                if st.button("🏠 Volver al Inicio", key="btn_back_corr"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
 
         elif current_page == 'presupuesto_main':
             with st.sidebar:
-                
-                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                if st.button("🏠 Volver al Inicio", key="btn_back_pres"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
 
         elif current_page == 'pqrs_main':
             with st.sidebar:
-                
-                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                if st.button("🏠 Volver al Inicio", key="btn_back_pqrs"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
+        elif current_page == 'censo_main':
+            with st.sidebar:
+                if st.button("🏠 Volver al Inicio", key="btn_back_censo"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
+        elif current_page == 'parqueadero_main':
+            with st.sidebar:
+                if st.button("🏠 Volver al Inicio", key="btn_back_parq"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
+
+        elif current_page == 'inventario_main':
+            with st.sidebar:
+                if st.button("🏠 Volver al Inicio", key="btn_back_parq"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
 
         elif current_page == 'mantenimiento_main':
             with st.sidebar:
-                
-                if st.button("🏠 Volver al Inicio", key="btn_back_pa"):
+                if st.button("🏠 Volver al Inicio", key="btn_back_mant"):
                     cambiar_pagina('InicioConjunto')
                 st.divider()
         
@@ -386,11 +428,11 @@ def view(model):
                 dia_es = dias_es[today.weekday()]
                 calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
                 
-                with st.form(key='myform4', clear_on_submit=True):
-                    limpiar = st.form_submit_button("Limpiar Pantalla")
-                    if limpiar:
-                        clear_session_state()
-                        st.rerun()
+                #with st.form(key='myform4', clear_on_submit=True):
+                #    limpiar = st.form_submit_button("Limpiar Pantalla")
+                #    if limpiar:
+                #        clear_session_state()
+                #        st.rerun()
 
             st.markdown("""
             <style>
@@ -418,9 +460,9 @@ def view(model):
 
 
             # Tabs principales con control de estado
-            tab1, tab2 = st.tabs(["🏠 Inicio", "💰 Consulta Financiera"])#, "💳 Registrar Pago", "📞 Soporte - PQRS"])
+            tabs = st.tabs(["Inicio", "💳Registrar Pago",  "Solicitudes a la Administracion", "💰 Consulta Financiera"])#, "💳 Registrar Pago", "📞 Soporte - PQRS"])
 
-            with tab1:
+            with tabs[0]:
                 st.subheader("🏠 Bienvenido al Sistema *SADCO* ")
     
                 st.write("""
@@ -437,12 +479,12 @@ def view(model):
                 Utilice las opciones de la barra izquierda o superiores para navegar por las diferentes secciones.
                 """)
 
-            with tab2:
+            with tabs[1]:
                 #st.subheader("💰 Consulta Financiera - Residentes")
                 try:
                     # Verificar si la función existe antes de llamarla
                     if 'consulta_res_main' in globals():
-                        consulta_res_main()
+                        pago_main() #consulta_res_main()
                     else:
                         st.error("La función consulta_res_main no está disponible")
                         st.info("Verifique que el módulo consulta_financiera_residente esté correctamente importado")
@@ -450,17 +492,18 @@ def view(model):
                         st.error(f"Error al cargar consulta financiera: {e}")
                         st.info("Por favor, contacte al administrador del sistema.")
 
-            #with tab3:
+            with tabs[2]:
                 
                 #st.subheader("💳 Registro de Pagos")
                 #try:
                     # Verificar si la función existe
-                #    if 'pago_main' in globals():
-                #        st.write("✅ Función pago_main encontrada, ejecutando...")
-                #        pago_main()
-                #    else:
-                #        st.warning("⚠️ La función pago_main no está disponible")
-                #        st.info("Verifique que el módulo pagos_conjunto esté correctamente importado")
+                    if 'pago_main' in globals():
+                        st.write("✅ Función pago_main encontrada, ejecutando...")
+                        solicitudes_main() #pago_main()
+                    
+                    else:
+                        st.warning("⚠️ La función pago_main no está disponible")
+                        st.info("Verifique que el módulo pagos_conjunto esté correctamente importado")
                 #except Exception as e:
                 #    st.error(f"Error al cargar sistema de pagos: {e}")
                 #    st.info("El sistema de pagos no está disponible temporalmente.")
@@ -469,15 +512,35 @@ def view(model):
                 #st.subheader("📞 Soporte - PQRS")
                 #st.write("### Sistema de Peticiones, Quejas, Reclamos y Sugerencias")
             
+            with tabs[3]:
+                #st.subheader("💰 Consulta Financiera - Residentes")
+                try:
+                    # Verificar si la función existe antes de llamarla
+                    if 'consulta_res_main' in globals():
+                        consulta_res_main()
+                    else:
+                        st.error("La función solicitud_main no está disponible")
+                        st.info("Verifique que el módulo soliicitud_residente esté correctamente importado")
+                except Exception as e:
+                        st.error(f"Error al cargar consulta financiera: {e}")
+                        st.info("Por favor, contacte al administrador del sistema.")
+
         elif current_page == 'condominio_main':
             #st.header("🏢 Sistema de Administración")
             try:
                 condominio_main()
             except Exception as e:
                 st.error(f"Error al cargar condominio_main: {e}")
-            
+                
+        elif current_page == 'mascove_main':
+            #st.header("🏢 Sistema de Administración")
+            try:
+                mascove_main()
+            except Exception as e:
+                st.error(f"Error al cargar mascove_main: {e}")
+        
         elif current_page == 'cartera_morosa_main':
-            st.header("💳 Gestión Cartera Morosa")
+            #st.header("💳 Gestión Cartera Morosa")
             try:
                 cartera_morosa_main()
             except Exception as e:
@@ -498,39 +561,60 @@ def view(model):
                 st.error(f"Error al cargar generador_main: {e}")
 
         elif current_page == 'pago_main':
-            #st.header("📄 Generador Cuentas de Cobro")
+            #st.header("📄 Registro de Pagos")
             try:
                 pago_main()
             except Exception as e:
                 st.error(f"Error al cargar pago_main: {e}")
 
         elif current_page == 'correspondencia_main':
-            #st.header("📄 Generador Cuentas de Cobro")
+            #st.header("📄 Gestión Correspondencia")
             try:
                 correspondencia_main()
             except Exception as e:
-                st.error(f"Error al cargar pago_main: {e}")
+                st.error(f"Error al cargar correspondencia_main: {e}")
 
         elif current_page == 'presupuesto_main':
-            #st.header("📄 Generador Cuentas de Cobro")
+            #st.header("📄 Manejo Presupuesto")
             try:
                 presupuesto_main()
             except Exception as e:
-                st.error(f"Error al cargar generador_main: {e}")
+                st.error(f"Error al cargar presupuesto_main: {e}")
 
         elif current_page == 'pqrs_main':
-            #st.header("📄 Generador Cuentas de Cobro")
+            #st.header("📄 Sistema PQRS")
             try:
                 pqrs_main()
             except Exception as e:
-                st.error(f"Error al cargar generador_main: {e}")
+                st.error(f"Error al cargar pqrs_main: {e}")
+
+        elif current_page == 'censo_main':
+            #st.header("🏢 Control Censo Poblacional")
+            try:
+                censo_main()
+            except Exception as e:
+                st.error(f"Error al cargar censo_main: {e}")
+
+        elif current_page == 'parqueadero_main':
+            #st.header("🏢 Administración Parqueaderos")
+            try:
+                parqueadero_main()
+            except Exception as e:
+                st.error(f"Error al cargar parqueadero_main: {e}")
+
+        elif current_page == 'inventario_main':
+            #st.header("🏢 Administración Parqueaderos")
+            try:
+                inventario_main()
+            except Exception as e:
+                st.error(f"Error al cargar inventario_main: {e}")
 
         elif current_page == 'mantenimiento_main':
-            #st.header("📄 Generador Cuentas de Cobro")
+            #st.header("📄 Generar Mantenimiento")
             try:
                 mantenimiento_main()
             except Exception as e:
-                st.error(f"Error al cargar pago_main: {e}")
+                st.error(f"Error al cargar mantenimiento_main: {e}")
         
         #st.markdown("---")
         #st.text(translations[model.language]["version"])

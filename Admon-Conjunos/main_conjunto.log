@@ -1,1005 +1,162 @@
-2025-06-10 06:35:11,659 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:35:11,659 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:35:11,659 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:35:11,674 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:35:11,674 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:35:12,588 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:35:12,588 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 06:35:12,589 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:35:12,590 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 06:35:14,727 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 06:35:15,023 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 06:35:15,372 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 06:35:18,104 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 06:35:18,328 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 06:35:19,141 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 06:35:19,157 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 06:35:20,063 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:20,626 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:21,657 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:22,657 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:23,251 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:23,626 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:24,079 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:24,454 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:24,829 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:25,313 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 06:35:25,657 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:25,938 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:35:26,294 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 06:48:00,198 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:48:00,199 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:48:00,199 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:48:00,200 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:48:00,200 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:48:01,134 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:48:01,137 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:48:01,138 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:48:01,138 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:48:01,139 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:48:03,587 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 06:48:03,782 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 06:48:03,792 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 06:48:04,589 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 06:48:04,598 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 06:48:05,502 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 06:48:05,511 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 06:48:06,203 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:06,808 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:07,298 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:07,760 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:08,112 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:08,497 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:08,976 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:09,409 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:09,810 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:48:10,219 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:48:10,220 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:48:10,221 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:48:10,221 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:48:10,222 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:52:53,628 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:52:53,632 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:52:53,632 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:52:53,632 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:52:53,632 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:52:54,450 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:52:54,450 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 06:52:54,451 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 06:52:54,452 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 06:52:54,452 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 06:52:55,605 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:52:55,606 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 06:52:55,608 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 06:52:55,641 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 06:52:57,914 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 06:52:58,099 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 06:52:58,107 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 06:52:58,439 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 06:52:58,454 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 06:52:59,248 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 06:52:59,248 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 06:53:00,029 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:00,842 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:01,420 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:01,982 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:02,529 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:02,967 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:03,701 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:04,186 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:04,670 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:05,167 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 06:53:05,460 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:05,804 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 06:53:06,163 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 07:01:36,873 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:01:37,476 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:01:37,477 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:01:37,478 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:01:37,478 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:01:47,581 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:01:47,581 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:01:47,597 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:01:47,597 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:01:47,597 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:06:01,949 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:06:01,949 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:06:01,949 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:06:01,949 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:06:01,949 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:11:32,566 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:32,576 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:11:32,576 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:11:32,577 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:11:32,577 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:11:34,744 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:34,745 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:11:34,747 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:34,748 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:11:40,848 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:11:41,441 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:11:41,706 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:11:42,704 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:42,705 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:11:42,705 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:11:42,710 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:11:42,710 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:11:44,089 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:44,089 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:11:44,230 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:11:44,230 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:11:44,230 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:11:48,156 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:11:48,515 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:11:48,781 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:11:48,797 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:11:49,125 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:11:49,422 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:11:49,437 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:11:50,234 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:11:50,250 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:11:50,344 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:11:50,359 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:11:51,937 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:51,937 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:52,562 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:52,594 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:53,422 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:53,422 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:54,516 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:54,516 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:55,390 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:55,390 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:55,859 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:55,875 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:56,703 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:56,703 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:57,375 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:57,390 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:57,922 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:57,937 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:11:58,234 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:11:58,234 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:11:58,234 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:11:58,234 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:11:58,234 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:11:59,250 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:11:59,594 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:12:00,062 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:12:00,453 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:12:00,765 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 07:12:17,000 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:12:17,312 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 07:13:41,715 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:41,715 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:13:41,715 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:13:41,715 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:13:41,715 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:13:42,330 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:42,330 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:13:42,330 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:13:42,330 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:13:42,330 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:13:44,036 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:44,037 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:13:44,038 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:44,039 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:13:45,633 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:13:45,774 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:13:45,790 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:13:46,252 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:13:46,266 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:13:47,049 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:13:47,049 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:13:47,705 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:48,283 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:48,284 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:13:48,286 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:13:48,287 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:13:48,287 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:13:48,341 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:48,547 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:13:48,547 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:13:48,547 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:13:48,547 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:13:48,547 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:13:49,137 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:49,639 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:50,056 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:50,268 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:13:50,481 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:13:50,488 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:13:50,705 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:50,916 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:13:50,931 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:13:51,201 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:51,581 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:51,611 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:13:51,622 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:13:51,959 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:52,232 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:52,735 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:53,152 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:53,610 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:54,052 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:54,392 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:54,668 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:55,024 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:55,415 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:55,867 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:13:56,180 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:56,508 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:13:56,851 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 07:21:09,895 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:21:09,911 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:21:09,911 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:21:09,911 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:21:09,911 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:21:11,092 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:21:11,092 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:21:11,092 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:21:11,092 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:21:11,092 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:21:12,842 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:21:12,843 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:21:12,844 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:21:12,844 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 07:21:14,987 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:21:15,143 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:21:15,159 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:21:15,643 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:21:15,659 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:21:16,393 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:21:16,409 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:21:20,351 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:20,956 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:21,902 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:22,884 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:23,684 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:24,153 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:24,942 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:25,516 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:26,053 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:26,649 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:21:26,982 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:27,314 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:21:27,749 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 07:25:08,968 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:25:08,969 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:25:08,969 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:25:08,970 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:25:08,970 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:25:09,801 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 07:25:09,801 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 07:25:09,801 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 07:25:09,801 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 07:25:09,801 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 07:25:12,097 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 07:25:12,420 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 07:25:12,436 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 07:25:13,014 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 07:25:13,030 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 07:25:13,936 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:25:13,951 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 07:25:14,670 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:15,233 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:15,686 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:16,155 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:16,467 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:16,858 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:17,342 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:17,639 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:18,030 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:18,652 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 07:25:18,938 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:19,226 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:19,540 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:19,827 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 07:25:22,205 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 07:25:22,535 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:26:48,701 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:26:48,858 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:26:48,858 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:26:48,873 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:26:48,873 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:26:53,289 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:26:53,289 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:26:53,290 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:26:53,291 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:27:00,253 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:27:00,957 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:27:01,410 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:27:02,775 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:27:02,970 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:27:04,112 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:27:04,133 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:27:04,996 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:05,777 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:06,106 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:27:06,107 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:27:06,107 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:27:06,108 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:27:06,108 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:27:16,800 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:17,035 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:27:17,035 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:27:17,035 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:27:17,035 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:27:17,035 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:27:17,394 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:17,894 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:17,894 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:27:18,082 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:27:18,082 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:27:18,519 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:27:18,535 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:27:18,535 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:19,066 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:19,285 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:27:19,285 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:27:19,488 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:19,863 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:19,894 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:20,410 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:20,863 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:21,285 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:21,613 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:22,144 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:22,597 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:22,910 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:23,269 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:23,488 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:27:23,488 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:27:23,488 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:27:23,488 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:27:23,488 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:27:24,222 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:27:24,519 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:24,816 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:25,191 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:25,472 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:27:28,378 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:27:28,738 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:28:13,544 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:28:13,545 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:28:13,545 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:28:13,546 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:28:13,546 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:28:14,393 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:14,843 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
-2025-06-10 08:28:16,552 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:16,854 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
-2025-06-10 08:28:22,421 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:22,723 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:28:23,626 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:23,930 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
-2025-06-10 08:28:25,049 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:25,360 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
-2025-06-10 08:28:34,711 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:28:34,712 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:28:34,712 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:28:34,714 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:28:34,715 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:28:35,773 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:36,039 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Gestion_Mantenimiento%27 HTTP/11" 200 None
-2025-06-10 08:28:36,653 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:37,143 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Gestion_Mantenimiento%27 HTTP/11" 200 None
-2025-06-10 08:28:48,583 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:28:48,583 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:28:48,584 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:28:48,584 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:28:48,585 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:28:49,077 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:49,390 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:28:49,968 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:50,247 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Comunicacion_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:28:51,865 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:52,146 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Comunicacion_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:28:56,458 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:28:56,458 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:28:56,459 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:28:56,459 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:28:56,460 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:28:57,181 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:57,601 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Accesos%27 HTTP/11" 200 None
-2025-06-10 08:28:58,326 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:28:58,633 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Accesos%27 HTTP/11" 200 None
-2025-06-10 08:29:06,778 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:29:06,780 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:29:06,780 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:29:06,781 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:29:06,781 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:29:07,417 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:29:07,872 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Areas_Comunes%27 HTTP/11" 200 None
-2025-06-10 08:29:13,157 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:29:13,157 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:29:13,158 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:29:13,158 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:29:13,159 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:29:13,942 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:29:14,374 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Ventas_Lotes%27 HTTP/11" 200 None
-2025-06-10 08:29:14,995 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:29:15,304 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Ventas_Lotes%27 HTTP/11" 200 None
-2025-06-10 08:30:09,978 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:09,980 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:30:09,980 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:30:09,981 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:30:09,981 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:30:10,726 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:11,077 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:30:12,774 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:13,054 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:30:29,221 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:29,222 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:30:29,222 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:30:29,223 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:30:29,223 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:30:30,379 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:30,379 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:30:30,381 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:30:30,381 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:30:30,382 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:30:31,765 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:31,766 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:30:31,767 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:31,769 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:30:33,856 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:30:34,032 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:30:34,047 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:30:34,563 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:30:34,579 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:30:35,368 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:35,368 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:30:35,368 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:30:35,368 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:30:35,368 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:30:35,478 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:30:35,493 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:30:36,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:30:36,401 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:30:36,401 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:30:36,407 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:30:36,408 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:30:37,690 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:38,727 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:38,815 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:30:39,226 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:30:39,238 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:30:39,292 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:39,835 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:30:39,846 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:30:39,856 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:40,317 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:40,734 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:30:40,743 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:30:41,048 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:41,734 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:41,775 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:42,083 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:42,242 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:42,544 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:42,716 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:42,975 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:43,350 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:43,924 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:44,372 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:44,774 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:45,122 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:45,544 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:30:45,809 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:46,059 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:30:46,419 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 08:31:40,185 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:40,186 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:31:40,186 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:31:40,187 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:31:40,187 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:31:40,980 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:40,980 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:31:40,982 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:31:40,983 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:31:40,983 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:31:42,398 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:42,399 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:31:42,400 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:42,401 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:31:43,941 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:31:44,098 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:31:44,113 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:31:44,629 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:31:44,629 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:31:45,317 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:31:45,332 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:31:45,651 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:45,652 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:31:45,652 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:31:45,653 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:31:45,653 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:31:46,251 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:31:46,251 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:31:46,252 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:31:46,254 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:31:46,257 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:31:46,667 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:47,174 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:47,213 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:47,481 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:31:47,698 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:47,966 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:48,178 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:48,271 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:31:48,537 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:49,087 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:49,613 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:50,020 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:31:50,411 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:12,531 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:12,532 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:33:12,533 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:33:12,534 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:33:12,534 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:33:14,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:14,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:33:14,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:14,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:33:16,691 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:33:16,847 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:33:16,847 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:33:17,253 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:33:17,269 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:33:18,198 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:33:18,214 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:33:19,165 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:20,238 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:20,239 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:33:20,240 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:33:20,240 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:33:20,243 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:20,251 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:33:21,177 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:21,210 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:21,211 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:33:21,212 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:33:21,213 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:33:21,214 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:33:21,611 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:22,011 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:22,550 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:22,707 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:33:23,050 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:33:23,050 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:33:23,175 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:23,550 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:33:23,566 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:33:23,566 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:23,972 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:24,394 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:33:24,410 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:33:25,347 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:25,816 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:26,269 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:26,754 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:27,129 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:27,722 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:28,176 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:28,689 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:29,137 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:29,494 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:33:29,504 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:33:29,505 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:33:29,505 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:33:29,506 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:33:42,015 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:33:42,436 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:42,695 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:43,070 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:43,430 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:33:43,875 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:33:44,335 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:34:24,326 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:24,327 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:24,328 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:24,330 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:24,330 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:25,119 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:25,119 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:25,119 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:25,119 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:25,119 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:27,019 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:27,019 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:27,019 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:27,019 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:27,034 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:28,039 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:28,405 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:34:29,023 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:29,462 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:34:41,632 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:41,633 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:41,634 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:41,634 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:41,635 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:42,110 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:42,111 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:42,112 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:42,112 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:42,113 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:43,352 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:43,353 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:34:43,354 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:43,367 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 08:34:45,350 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:34:45,554 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:34:45,564 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:34:46,106 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:34:46,119 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:34:47,069 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:34:47,079 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:34:47,780 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:48,157 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:48,659 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:49,154 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:49,505 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:50,119 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:50,604 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:50,994 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:51,401 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:52,269 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:34:52,566 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:52,925 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:34:53,284 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 08:34:56,059 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:56,059 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:56,059 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:56,059 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:56,059 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:56,845 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:34:56,846 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:34:56,847 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:34:56,847 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:34:56,848 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:34:58,697 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 08:34:58,930 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 08:34:58,938 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 08:34:59,389 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 08:34:59,400 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 08:35:00,127 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:35:00,137 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 08:35:00,844 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:01,377 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:01,814 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:02,277 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:02,598 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:03,220 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:03,705 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:04,139 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:04,616 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:05,117 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:35:05,398 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:05,757 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:35:06,054 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 08:36:09,105 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 08:36:09,106 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 08:36:09,106 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 08:36:09,108 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 08:36:09,109 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 08:36:09,832 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 08:36:10,294 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:36:10,648 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 08:36:10,947 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 10:25:46,618 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:25:47,541 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:25:47,541 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:25:47,541 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:25:47,541 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:25:56,654 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:25:56,656 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:25:56,661 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:25:56,662 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:26:11,432 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:26:14,182 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:26:15,557 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:26:19,963 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:26:20,526 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:26:21,792 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:26:21,839 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:26:22,948 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:23,620 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:24,276 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:24,854 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:25,182 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:25,807 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:26,338 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:26,948 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:27,448 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:28,102 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:26:28,589 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:29,089 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:26:29,730 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:28:08,190 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:08,190 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:28:08,190 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:28:08,190 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:28:08,190 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:28:10,495 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:10,495 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:28:10,495 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:28:10,495 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:28:10,495 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:28:12,710 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:28:12,928 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:28:12,941 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:28:13,478 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:28:13,491 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:28:14,285 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:28:14,294 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:28:15,108 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:15,882 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:16,417 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:16,925 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:17,433 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:17,964 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:18,475 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:18,972 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:19,492 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:19,988 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:28:20,488 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:20,988 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:28:21,519 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 10:28:42,667 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:42,667 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:28:42,668 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:28:42,668 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:28:42,669 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:28:43,540 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:43,541 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:28:43,545 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:28:43,545 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:28:43,545 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:28:44,352 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:44,353 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:28:44,354 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:28:44,354 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:31:34,085 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:31:34,085 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:31:34,085 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:31:34,085 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:31:34,085 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:31:35,016 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:31:35,017 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:31:35,017 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:31:35,018 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:31:35,231 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:31:37,942 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:31:38,294 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:31:38,305 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:31:38,795 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:31:38,809 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:31:39,728 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:31:39,741 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:31:40,986 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:41,942 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:42,867 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:43,631 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:44,291 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:45,334 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:46,087 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:47,067 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:47,926 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:48,201 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:31:48,201 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:31:48,202 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:31:48,202 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:31:48,203 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:31:49,677 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:31:50,192 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:50,686 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:51,168 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:51,683 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:31:55,314 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:31:55,681 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:32:02,692 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:02,692 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:32:02,692 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:32:02,692 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:32:02,692 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:32:03,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:03,051 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:32:03,051 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:32:03,051 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:32:03,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:32:03,881 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:03,882 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:32:03,884 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:03,885 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:32:06,953 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:32:07,322 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:32:07,337 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:32:07,688 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:32:07,703 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:32:08,469 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:32:08,469 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:32:08,719 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:08,719 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:32:08,719 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:32:08,719 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:32:08,719 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:32:09,571 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:32:09,572 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:32:09,573 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:32:09,574 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:32:09,574 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:32:10,091 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:10,365 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:32:10,685 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:10,694 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:11,230 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:11,261 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:11,591 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:11,763 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27gestion_morosos%27 HTTP/11" 200 None
-2025-06-10 10:32:12,102 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:12,651 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:13,166 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:13,666 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:32:14,198 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:52:09,904 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:52:09,920 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:52:09,920 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:52:09,920 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:52:09,920 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:52:21,833 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:52:21,834 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:52:21,835 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:52:21,835 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:52:36,322 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:52:37,209 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:52:37,871 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:52:39,137 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:52:39,277 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:52:40,237 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:52:42,716 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:52:44,762 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:52:44,763 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:52:44,764 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:52:44,765 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:52:44,766 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:52:44,844 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:41,379 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:53:41,379 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:53:41,379 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:53:41,379 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:53:41,379 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:53:42,051 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:43,332 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:53:43,660 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:43,770 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:53:43,785 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:53:44,207 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:53:44,223 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:53:44,598 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:45,004 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:53:45,020 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:53:45,504 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:46,129 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:46,645 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:46,754 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:47,192 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:47,660 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:47,739 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:48,207 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:48,442 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:48,692 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:49,145 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:49,473 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:49,692 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:50,004 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:50,223 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:53:50,223 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:53:50,223 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:53:50,223 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:53:50,223 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:53:51,113 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:53:51,598 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:52,082 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:52,613 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:52,988 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:53:59,629 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:53:59,957 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:57:26,808 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:26,808 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:57:26,815 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:57:26,816 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:57:26,816 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:57:28,357 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:28,357 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:57:28,391 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:28,402 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:57:30,920 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:57:31,139 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:57:31,139 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:57:31,655 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:57:31,655 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:57:32,436 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:57:32,655 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:57:33,414 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:33,961 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:34,333 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:34,880 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:35,259 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:35,260 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:57:35,261 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:57:35,262 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:57:35,264 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:57:35,927 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:36,225 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:36,226 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:57:36,226 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:57:36,227 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:57:36,228 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:57:36,520 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:37,024 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:37,539 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:37,711 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:57:37,914 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:57:37,914 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:57:38,070 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:38,524 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:57:38,539 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:57:39,414 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:57:39,430 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:57:40,102 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:40,586 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:41,070 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:41,555 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:41,996 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:42,526 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:43,005 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:43,483 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:43,958 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:44,379 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:57:44,380 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:57:44,380 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:57:44,381 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:57:44,381 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:57:45,451 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:57:46,086 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:46,551 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:47,044 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:47,544 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:57:48,090 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:57:48,387 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
-2025-06-10 10:58:14,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:58:14,054 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:58:14,055 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:58:14,055 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:58:14,056 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:58:14,753 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:58:14,832 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
-2025-06-10 10:58:14,834 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
-2025-06-10 10:58:14,851 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
-2025-06-10 10:58:14,851 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
-2025-06-10 10:58:16,684 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:58:16,684 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:58:16,686 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
-2025-06-10 10:58:16,686 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
-2025-06-10 10:58:18,091 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
-2025-06-10 10:58:18,276 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
-2025-06-10 10:58:18,292 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
-2025-06-10 10:58:18,792 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
-2025-06-10 10:58:18,807 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
-2025-06-10 10:58:19,589 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:58:19,605 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
-2025-06-10 10:58:20,495 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:21,011 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:21,558 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:22,092 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:22,626 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:23,110 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:23,629 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:24,129 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:24,626 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:25,115 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
-2025-06-10 10:58:25,571 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:26,039 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
-2025-06-10 10:58:26,524 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
+2025-06-13 12:27:18,849 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:27:19,021 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:27:19,021 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:27:19,021 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:27:19,021 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:27:20,339 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:27:20,340 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
+2025-06-13 12:27:20,341 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:27:20,343 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
+2025-06-13 12:27:23,100 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:27:23,640 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:27:23,749 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:27:25,549 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:27:25,658 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:27:26,596 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:26,611 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:27:27,361 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:27,986 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:28,861 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:29,971 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:30,955 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:31,784 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:32,315 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:32,955 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:33,486 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:33,920 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:34,216 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:34,551 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:34,879 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
+2025-06-13 12:27:39,627 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:27:39,816 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:27:39,816 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:27:40,286 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:27:40,301 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:27:40,958 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:40,973 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:27:41,536 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:41,848 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:42,411 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:42,723 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:43,114 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:43,504 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:43,786 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:44,051 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:44,348 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:44,865 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:45,193 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:45,526 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:45,816 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27solicitudes%27%21A1%3A1 HTTP/11" 200 None
+2025-06-13 12:27:48,054 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:27:48,289 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:27:48,304 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:27:48,679 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:27:48,695 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:27:49,430 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:49,430 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:27:50,023 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:50,289 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:50,617 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:50,914 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:51,211 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:51,602 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:51,867 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:52,102 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:52,367 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:52,924 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:27:53,294 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:53,606 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:27:53,903 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Control_Residentes%27 HTTP/11" 200 None
+2025-06-13 12:28:47,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:28:47,723 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:28:47,723 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:28:47,723 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:28:47,723 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:28:48,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:28:48,051 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:28:48,051 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:28:48,051 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:28:48,051 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:28:51,086 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:28:51,364 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:28:51,377 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:28:51,765 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:28:51,777 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:28:52,490 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:28:52,501 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:28:53,172 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:53,496 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:53,822 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:54,182 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:54,506 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:54,940 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:55,231 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:55,503 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:55,781 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:56,236 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:28:56,634 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:56,947 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:28:57,776 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:28:58,199 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:29:04,278 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:29:50,893 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:29:50,893 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:29:50,894 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:29:50,895 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:29:50,895 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:29:51,538 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:29:51,880 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:29:52,197 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:29:53,686 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:29:54,070 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:29:56,256 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27inventarios%27 HTTP/11" 200 None
+2025-06-13 12:36:06,387 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:36:06,388 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:36:06,388 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:36:06,389 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:36:06,390 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:36:06,817 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:36:06,817 - PIL.PngImagePlugin - DEBUG - STREAM b'sRGB' 41 1
+2025-06-13 12:36:06,817 - PIL.PngImagePlugin - DEBUG - STREAM b'gAMA' 54 4
+2025-06-13 12:36:06,817 - PIL.PngImagePlugin - DEBUG - STREAM b'pHYs' 70 9
+2025-06-13 12:36:06,817 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 91 25735
+2025-06-13 12:36:07,913 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:36:07,914 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
+2025-06-13 12:36:07,915 - PIL.PngImagePlugin - DEBUG - STREAM b'IHDR' 16 13
+2025-06-13 12:36:07,915 - PIL.PngImagePlugin - DEBUG - STREAM b'IDAT' 41 17057
+2025-06-13 12:36:10,912 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:36:11,066 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:36:11,066 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:36:11,635 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:36:11,650 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:36:12,407 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:36:12,418 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:36:14,331 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:14,972 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:15,882 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:17,195 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:18,150 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:18,906 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:19,499 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:20,109 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:20,640 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:21,117 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22+and+name+%3D+%22gestion-conjuntos%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:36:21,412 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:21,724 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:22,037 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw/values/%27Administracion_Financiera%27 HTTP/11" 200 None
+2025-06-13 12:36:23,144 - urllib3.util.retry - DEBUG - Converted retries value: 3 -> Retry(total=3, connect=None, read=None, redirect=None, status=None)
+2025-06-13 12:36:23,301 - google.auth.transport.requests - DEBUG - Making request: POST https://oauth2.googleapis.com/token
+2025-06-13 12:36:23,386 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): oauth2.googleapis.com:443
+2025-06-13 12:36:23,765 - urllib3.connectionpool - DEBUG - https://oauth2.googleapis.com:443 "POST /token HTTP/11" 200 None
+2025-06-13 12:36:23,774 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): www.googleapis.com:443
+2025-06-13 12:36:25,122 - urllib3.connectionpool - DEBUG - https://www.googleapis.com:443 "GET /drive/v3/files?q=mimeType%3D%22application%2Fvnd.google-apps.spreadsheet%22&pageSize=1000&supportsAllDrives=True&includeItemsFromAllDrives=True&fields=kind%2CnextPageToken%2Cfiles%28id%2Cname%2CcreatedTime%2CmodifiedTime%29 HTTP/11" 200 None
+2025-06-13 12:36:25,137 - urllib3.connectionpool - DEBUG - Starting new HTTPS connection (1): sheets.googleapis.com:443
+2025-06-13 12:36:34,210 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1UqCfVwwQfAkzRHG4_YCX8BD3Xl95KB7qvwjZNXWkzKw?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:34,595 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/13UqQN6VXO9vTDIhyAEON9Qf5SD-1tgGgDA-Zo38udso?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:34,879 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/19FjdgHOjwbrilbhBuNhn7cFwTzKqy7cabh1Nc6QQCv4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:35,207 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SUmyhIDrrJ4S142ueqetdkw9S2acUEHRnv-j20NKmcI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:35,520 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1SKW_Tmk2H2V4OGKaELmVsvRmEe2x8UJJAKPdpTRimNg?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:35,892 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/18Xzq0almiDk740OyywLTtj3gGXLA20AFHLZaAqZzEGI?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:36,167 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1fx7i_GmqdPns3nLCV8zYWBW_x3I3PLfGadTN3jwgeNU?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:36,418 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1N_nVB02dmzHTCNkufR2fmuRBY7Lf8FUbhTpqAEWRWF4?includeGridData=false HTTP/11" 200 None
+2025-06-13 12:36:36,679 - urllib3.connectionpool - DEBUG - https://sheets.googleapis.com:443 "GET /v4/spreadsheets/1hvqq_x2xTFzgBWNI4eqWiLrB68UqK3k_h1IIlMinkAM?includeGridData=false HTTP/11" 200 None
