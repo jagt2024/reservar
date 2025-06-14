@@ -125,14 +125,18 @@ def load_data_from_sheets(_client, unidad_permitida=None):
         st.error(f"❌ Error cargando datos: {str(e)}")
         return pd.DataFrame()
 
-def verificar_acceso_usuario(df_control, user_id):
-    """Verificar si el usuario tiene acceso y obtener su unidad"""
+def verificar_acceso_usuario(df_control, user_identificacion):
+    """Verificar si el usuario tiene acceso y obtener su unidad usando el campo Identificacion"""
     if df_control.empty:
         return False, None
     
-    # Buscar el usuario en el control de residentes
-    if 'ID' in df_control.columns:
-        usuario = df_control[df_control['ID'] == user_id]
+    # Buscar el usuario en el control de residentes usando el campo Identificacion
+    if 'Identificacion' in df_control.columns:
+        # Convertir ambos valores a string para comparación segura
+        df_control['Identificacion'] = df_control['Identificacion'].astype(str)
+        user_identificacion_str = str(user_identificacion)
+        
+        usuario = df_control[df_control['Identificacion'] == user_identificacion_str]
         if not usuario.empty:
             unidad = usuario['Unidad'].iloc[0] if 'Unidad' in df_control.columns else None
             return True, unidad
@@ -259,34 +263,37 @@ def consulta_res_main():
         st.error("❌ No se pudo cargar el control de residentes")
         st.stop()
     
-    # Mostrar IDs disponibles para debug (opcional - puedes comentar esta línea en producción)
-    with st.expander("🔍 IDs disponibles (solo para desarrollo)"):
-        if 'ID' in df_control.columns:
-            st.write("IDs registrados:", df_control['ID'].tolist())
+    # Mostrar Identificaciones disponibles para debug (opcional - puedes comentar esta línea en producción)
+    with st.expander("🔍 Identificaciones disponibles (solo para desarrollo)"):
+        if 'Identificacion' in df_control.columns:
+            st.write("Identificaciones registradas:", df_control['Identificacion'].tolist())
+        else:
+            st.error("❌ La columna 'Identificacion' no existe en Control_Residentes")
+            st.info("Columnas disponibles:", df_control.columns.tolist())
     
-    # Input para ID de usuario
-    user_id = st.text_input(
-        "🆔 Ingrese su ID de residente:",
-        placeholder="Ejemplo: RES001, 12345, etc.",
-        help="Ingrese el ID que aparece en su registro de residente"
+    # Input para Identificación de usuario
+    user_identificacion = st.text_input(
+        "🪪 Ingrese su número de identificación:",
+        placeholder="Ejemplo: 12345678, 1234567890, etc.",
+        help="Ingrese el número de identificación que aparece en su registro de residente"
     )
     
-    if not user_id:
-        st.info("👆 Por favor, ingrese su ID para continuar")
+    if not user_identificacion:
+        st.info("👆 Por favor, ingrese su número de identificación para continuar")
         st.stop()
     
     # Verificar acceso
-    acceso_permitido, unidad_usuario = verificar_acceso_usuario(df_control, user_id)
+    acceso_permitido, unidad_usuario = verificar_acceso_usuario(df_control, user_identificacion)
     
     if not acceso_permitido:
         st.error("❌ **Acceso Denegado**")
-        st.warning("El ID ingresado no está registrado en el sistema")
+        st.warning("El número de identificación ingresado no está registrado en el sistema")
         st.info("💡 Contacte al administrador si cree que esto es un error")
         st.stop()
     
     if not unidad_usuario:
         st.error("❌ **Error de Configuración**")
-        st.warning("No se encontró una unidad asignada para su ID")
+        st.warning("No se encontró una unidad asignada para su identificación")
         st.info("💡 Contacte al administrador para verificar su registro")
         st.stop()
     
@@ -294,7 +301,7 @@ def consulta_res_main():
     st.success(f"✅ **Acceso Autorizado**")
     col1, col2 = st.columns(2)
     with col1:
-        st.info(f"🆔 **ID:** {user_id}")
+        st.info(f"🪪 **Identificación:** {user_identificacion}")
     with col2:
         st.info(f"🏠 **Unidad:** {unidad_usuario}")
     
@@ -438,12 +445,12 @@ def consulta_res_main():
     with st.expander("ℹ️ Información del Sistema"):
         st.markdown(f"""
         **Control de Acceso Activo:**
-        - ✅ Usuario autenticado: {user_id}
+        - ✅ Usuario autenticado: {user_identificacion}
         - ✅ Unidad autorizada: {unidad_usuario}
         - ✅ Acceso solo a datos de la unidad asignada
         
         **Funcionalidades disponibles:**
-        - ✅ Control de acceso por ID de residente
+        - ✅ Control de acceso por número de identificación del residente
         - ✅ Filtrado automático por unidad del usuario
         - ✅ Filtrado por Estado  
         - ✅ Filtrado por Tipo de Operación
@@ -464,6 +471,7 @@ def consulta_res_main():
         
         **Seguridad:**
         - 🔒 Solo usuarios registrados pueden acceder
+        - 🪪 Autenticación por número de identificación
         - 🏠 Cada usuario ve únicamente los datos de su unidad
         - 📊 Los filtros respetan las restricciones de acceso
         """)

@@ -180,7 +180,7 @@ class CondominiumManager:
     def initialize_worksheet_headers(self, worksheet_type, sheet_name):
         """Inicializar headers para cada tipo de hoja"""
         headers = {
-            'residentes': ['ID', 'Nombre', 'Apellido', 'Unidad', 'Tipo', 'Telefono', 'Email', 'Fecha_Ingreso', 'Estado', 'Observaciones'],
+            'residentes': ['ID', 'Idenificacion','Nombre', 'Apellido', 'Unidad', 'Tipo', 'Telefono', 'Email', 'Fecha_Ingreso', 'Estado', 'Observaciones'],
             'financiero': ['ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 'Fecha', 'Estado', 'Metodo_Pago', 'Observaciones'],
             'mantenimiento': ['ID', 'Tipo_Servicio', 'Unidad', 'Descripcion', 'Fecha_Solicitud', 'Fecha_Programada', 'Estado', 'Costo', 'Proveedor'],
             'comunicacion': ['ID', 'Tipo', 'Destinatario', 'Asunto', 'Mensaje', 'Fecha_Envio', 'Estado', 'Respuesta'],
@@ -1584,6 +1584,7 @@ def show_residents_module():
             
             col1, col2 = st.columns(2)
             with col1:
+                identificacion = st.text_input('Identificacion *')
                 nombre = st.text_input("Nombre *")
                 apellido = st.text_input("Apellido *")
                 tipo_unidad = st.selectbox("Tipo Unidad ", ["Casa", "Apto", "Lote","Otro"])
@@ -1605,6 +1606,7 @@ def show_residents_module():
                     
                     data = {
                         'ID': resident_id,
+                        'Identificacion': identificacion,
                         'Nombre': nombre,
                         'Apellido': apellido,
                         'Tipo_Unidad': tipo_unidad,
@@ -1807,372 +1809,635 @@ def show_financial_module():
             st.plotly_chart(fig2, use_container_width=True)
     
     with tab4:
-        st.subheader("💳 Gestión de Cuotas de Mantenimiento")
-        
-        # Configuración de cuotas por tipo de unidad
-        st.markdown("**Configurar Cuotas por Tipo de Unidad**")
-        
+        st.subheader("💳 Gestión de Cuotas")
+    
+        # Subtabs para diferentes tipos de cuotas
+        subtab1, subtab2, subtab3 = st.tabs(["🏢 Cuotas de Mantenimiento", "⚡ Cuotas   Extraordinarias", "🗑️ Eliminar Cuotas"])
+    
         # Obtener tipos de unidad únicos de los residentes
         residentes_df = st.session_state.manager.load_data('residentes')
         tipos_unidad = []
         if not residentes_df.empty and 'Tipo_Unidad' in residentes_df.columns:
             tipos_unidad = list(residentes_df['Tipo_Unidad'].unique())
-        
+    
         if not tipos_unidad:
             st.warning("⚠️ No se encontraron tipos de unidad. Asegúrate de que los residentes tengan el campo 'Tipo_Unidad' configurado.")
             return
+    
+        with subtab1:
+            st.markdown("**🏢 Cuotas de Mantenimiento/Administración**")
         
-        with st.form("generate_fees"):
-            st.markdown("**Generar Cuotas Masivas**")
+            with st.form("generate_maintenance_fees"):
+                st.markdown("**Generar Cuotas de Mantenimiento Masivas**")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                mes_cuota = st.selectbox("Mes", 
+                col1, col2 = st.columns(2)
+                with col1:
+                    mes_cuota = st.selectbox("Mes", 
                                        ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                                         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
-                año_cuota = st.number_input("Año", min_value=2020, max_value=2030, 
+                    año_cuota = st.number_input("Año", min_value=2020, max_value=2030, 
                                           value=datetime.now().year)
-            with col2:
-                fecha_vencimiento = st.date_input("Fecha de Vencimiento")
+                with col2:
+                    fecha_vencimiento = st.date_input("Fecha de Vencimiento")
             
-            st.markdown("**Configurar Montos por Tipo de Unidad:**")
+                st.markdown("**Configurar Montos por Tipo de Unidad:**")
             
-            # Crear campos de entrada para cada tipo de unidad
-            montos_por_tipo = {}
-            cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+                # Crear campos de entrada para cada tipo de unidad
+                montos_por_tipo = {}
+                cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
             
-            for i, tipo_unidad in enumerate(tipos_unidad):
-                with cols[i % 3]:
-                    monto = st.number_input(
-                        f"💰 {tipo_unidad}", 
-                        min_value=0.0, 
-                        format="%.2f",
-                        key=f"monto_{tipo_unidad}",
-                        help=f"Monto de cuota para unidades tipo {tipo_unidad}"
-                    )
-                    montos_por_tipo[tipo_unidad] = monto
+                for i, tipo_unidad in enumerate(tipos_unidad):
+                    with cols[i % 3]:
+                        monto = st.number_input(
+                            f"💰 {tipo_unidad}", 
+                            min_value=0.0, 
+                            format="%.2f",
+                            key=f"monto_mantenimiento_{tipo_unidad}",
+                            help=f"Monto de cuota de mantenimiento para {tipo_unidad}"
+                        )
+                        montos_por_tipo[tipo_unidad] = monto
             
-            # Mostrar resumen de cuotas a generar
-            st.markdown("**Resumen de Cuotas a Generar:**")
-            resumen_cols = st.columns(len(tipos_unidad))
+                # Mostrar resumen de cuotas a generar
+                st.markdown("**Resumen de Cuotas de Mantenimiento a Generar:**")
+                resumen_cols = st.columns(len(tipos_unidad))
             
-            for i, (tipo, monto) in enumerate(montos_por_tipo.items()):
-                if not residentes_df.empty:
-                    cantidad = len(residentes_df[
-                        (residentes_df['Tipo_Unidad'] == tipo) & 
-                        (residentes_df['Estado'] == 'Activo')
-                    ])
-                    total = cantidad * monto
+                for i, (tipo, monto) in enumerate(montos_por_tipo.items()):
+                    if not residentes_df.empty:
+                        cantidad = len(residentes_df[
+                            (residentes_df['Tipo_Unidad'] == tipo) & 
+                            (residentes_df['Estado'] == 'Activo')
+                        ])
+                        total = cantidad * monto
                     
-                    with resumen_cols[i]:
-                        st.info(f"**{tipo}**\n\n"
+                        with resumen_cols[i]:
+                            st.info(f"**{tipo}**\n\n"
                                f"Unidades: {cantidad}\n\n"
                                f"Monto c/u: ${monto:,.2f}\n\n"
                                f"Total: ${total:,.2f}")
             
-            if st.form_submit_button("🔄 Generar Cuotas para Todos"):
-                # Validar que al menos un monto sea mayor a 0
-                if not any(monto > 0 for monto in montos_por_tipo.values()):
-                    st.error("⚠️ Debe configurar al menos un monto mayor a 0")
-                    return
+                if st.form_submit_button("🔄 Generar Cuotas de Mantenimiento/Administracion"):
+                    # Validar que al menos un monto sea mayor a 0
+                    if not any(monto > 0 for monto in montos_por_tipo.values()):
+                        st.error("⚠️ Debe configurar al menos un monto mayor a 0")
+                        return
                 
-                if not residentes_df.empty:
-                    cuotas_generadas = 0
-                    total_generado = 0
+                    if not residentes_df.empty:
+                        cuotas_generadas = 0
+                        total_generado = 0
                     
-                    for _, residente in residentes_df.iterrows():
-                        if residente['Estado'] == 'Activo':
-                            tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
-                            monto_cuota = montos_por_tipo.get(tipo_unidad, 0)
+                        for _, residente in residentes_df.iterrows():
+                            if residente['Estado'] == 'Activo' and residente['Tipo'] == 'Propietario':
+                                tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
+                                monto_cuota = montos_por_tipo.get(tipo_unidad, 0)
                             
-                            if monto_cuota > 0:
-                                cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
+                                if monto_cuota > 0:
+                                    cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
                                 
-                                data = {
-                                    'ID': cuota_id,
-                                    'Tipo_Operacion': 'Cuota de Mantenimiento',
-                                    'Unidad': residente['Unidad'],
-                                    'Concepto': f"Cuota {mes_cuota} {año_cuota} - {tipo_unidad}",
-                                    'Monto': monto_cuota,
-                                    'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
-                                    'Banco': '',
-                                    'Estado': 'Pendiente',
-                                    'Metodo_Pago': '',
-                                    'Observaciones': f"Cuota generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
-                                }
+                                    data = {
+                                        'ID': cuota_id,
+                                        'Tipo_Operacion': 'Cuota de Mantenimiento/Admon',
+                                        #'Tipo_Unidad': tipo_unidad,
+                                        'Unidad': residente['Unidad'],
+                                        'Concepto': f"Cuota {mes_cuota} {año_cuota} - {tipo_unidad}",
+                                        'Monto': monto_cuota,
+                                        'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
+                                        'Banco': '',
+                                        'Estado': 'Pendiente',
+                                        'Metodo_Pago': '',
+                                        'Observaciones': f"Cuota de mantenimiento generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
+                                    }
                                 
-                                if st.session_state.manager.save_data('financiero', data):
-                                    cuotas_generadas += 1
-                                    total_generado += monto_cuota
+                                    if st.session_state.manager.save_data('financiero',     data):
+                                        cuotas_generadas += 1
+                                        total_generado += monto_cuota
                     
-                    if cuotas_generadas > 0:
-                        st.success(f"✅ Se generaron {cuotas_generadas} cuotas exitosamente")
-                        st.info(f"💰 Total generado: ${total_generado:,.2f}")
+                        if cuotas_generadas > 0:
+                            st.success(f"✅ Se generaron {cuotas_generadas} cuotas de mantenimiento exitosamente")
+                            st.info(f"💰 Total generado: ${total_generado:,.2f}")
                         
-                        # Mostrar detalle por tipo de unidad
-                        st.markdown("**Detalle por Tipo de Unidad:**")
-                        for tipo_unidad in tipos_unidad:
-                            if montos_por_tipo[tipo_unidad] > 0:
-                                cantidad = len(residentes_df[
-                                    (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
-                                    (residentes_df['Estado'] == 'Activo')
-                                ])
-                                if cantidad > 0:
-                                    total_tipo = cantidad * montos_por_tipo[tipo_unidad]
-                                    st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_por_tipo[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
+                            # Mostrar detalle por tipo de unidad
+                            st.markdown("**Detalle por Tipo de Unidad:**")
+                            for tipo_unidad in tipos_unidad:
+                                if montos_por_tipo[tipo_unidad] > 0:
+                                    cantidad = len(residentes_df[
+                                        (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
+                                        (residentes_df['Estado'] == 'Activo')
+                                    ])
+                                    if cantidad > 0:
+                                        total_tipo = cantidad * montos_por_tipo[tipo_unidad]
+                                        st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_por_tipo[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
+                        else:
+                            st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
                     else:
-                        st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
-                else:
-                    st.warning("⚠️ No hay residentes registrados para generar cuotas")
+                        st.warning("⚠️ No hay residentes registrados para generar cuotas")
+    
+        with subtab2:
+            st.markdown("**⚡ Cuotas Extraordinarias**")
         
-        # Sección para eliminar cuotas
-        st.markdown("---")
-        st.markdown("**🗑️ Eliminar Cuotas**")
-        
-        financiero_df = st.session_state.manager.load_data('financiero')
-        cuotas_df = financiero_df[financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy() if not financiero_df.empty else pd.DataFrame()
-        
-        if not cuotas_df.empty:
-            tab_eliminar1, tab_eliminar2 = st.tabs(["🏠 Por Unidad", "📋 Registros Específicos"])
+            with st.form("generate_extraordinary_fees"):
+                st.markdown("**Generar Cuotas Extraordinarias Masivas**")
             
-            with tab_eliminar1:
-                st.markdown("**Eliminar Cuotas por Unidad**")
-                
                 col1, col2 = st.columns(2)
                 with col1:
-                    unidades_disponibles = list(cuotas_df['Unidad'].unique())
-                    unidad_eliminar = st.selectbox(
-                        "Seleccionar Unidad:", 
-                        unidades_disponibles,
-                        key="unidad_eliminar"
+                    concepto_extraordinaria = st.text_input(
+                        "Concepto de la Cuota Extraordinaria *", 
+                        placeholder="Ej: Reparación de ascensor, Pintura de fachada, etc."
                     )
-                
+                    descripcion_detallada = st.text_area(
+                        "Descripción Detallada",
+                        placeholder="Descripción completa del motivo de la cuota extraordinaria..."
+                    )
                 with col2:
-                    # Filtros adicionales
-                    estados_cuota = list(cuotas_df['Estado'].unique())
-                    estado_filtro = st.selectbox(
-                        "Estado de Cuotas:", 
-                        ["Todos"] + estados_cuota,
-                        key="estado_filtro_eliminar"
-                    )
-                
-                # Mostrar cuotas de la unidad seleccionada
-                cuotas_unidad = cuotas_df[cuotas_df['Unidad'] == unidad_eliminar].copy()
-                
-                if estado_filtro != "Todos":
-                    cuotas_unidad = cuotas_unidad[cuotas_unidad['Estado'] == estado_filtro]
-                
-                if not cuotas_unidad.empty:
-                    st.markdown(f"**Cuotas encontradas para {unidad_eliminar}:**")
+                    fecha_vencimiento_ext = st.date_input("Fecha de Vencimiento", key="vencimiento_extraordinaria")
+                    estado_inicial = st.selectbox("Estado Inicial", 
+                                            ["Pendiente", "Pagado"], 
+                                            key="estado_extraordinaria")
+            
+                st.markdown("**Configurar Montos por Tipo de Unidad:**")
+            
+                # Crear campos de entrada para cada tipo de unidad
+                montos_extraordinaria = {}
+                cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+            
+                for i, tipo_unidad in enumerate(tipos_unidad):
+                    with cols[i % 3]:
+                        monto = st.number_input(
+                            f"💰 {tipo_unidad}", 
+                            min_value=0.0, 
+                            format="%.2f",
+                            key=f"monto_extraordinaria_{tipo_unidad}",
+                            help=f"Monto de cuota extraordinaria para {tipo_unidad}"
+                        )
+                        montos_extraordinaria[tipo_unidad] = monto
+            
+                # Mostrar resumen de cuotas extraordinarias a generar
+                st.markdown("**Resumen de Cuotas Extraordinarias a Generar:**")
+                resumen_cols = st.columns(len(tipos_unidad))
+            
+                total_cuotas_extraordinarias = 0
+                total_monto_extraordinarias = 0
+            
+                for i, (tipo, monto) in enumerate(montos_extraordinaria.items()):
+                    if not residentes_df.empty:
+                        cantidad = len(residentes_df[
+                            (residentes_df['Tipo_Unidad'] == tipo) & 
+                            (residentes_df['Estado'] == 'Activo')
+                        ])
+                        total = cantidad * monto
+                        total_cuotas_extraordinarias += cantidad
+                        total_monto_extraordinarias += total
                     
-                    # Mostrar tabla con información relevante
-                    cuotas_display = cuotas_unidad[['ID', 'Concepto', 'Monto', 'Fecha', 'Estado']].copy()
-                    cuotas_display['Fecha'] = pd.to_datetime(cuotas_display['Fecha']).dt.strftime('%Y-%m-%d')
-                    cuotas_display['Monto'] = cuotas_display['Monto'].apply(lambda x: f"${x:,.2f}")
-                    
-                    st.dataframe(cuotas_display, use_container_width=True)
-                    
+                        with resumen_cols[i]:
+                            st.info(f"**{tipo}**\n\n"
+                               f"Unidades: {cantidad}\n\n"
+                               f"Monto c/u: ${monto:,.2f}\n\n"
+                               f"Total: ${total:,.2f}")
+            
+                # Mostrar totales generales
+                if total_cuotas_extraordinarias > 0:
+                    st.markdown("---")
                     col1, col2 = st.columns(2)
                     with col1:
-                        total_cuotas = len(cuotas_unidad)
-                        total_monto = cuotas_unidad['Monto'].sum()
-                        st.info(f"**Total:** {total_cuotas} cuotas - ${total_monto:,.2f}")
-                    
+                        st.metric("📋 Total Cuotas a Generar", total_cuotas_extraordinarias)
                     with col2:
-                        # Usar session state para manejar el estado de confirmación
-                        if 'confirmar_eliminar_unidad' not in st.session_state:
-                            st.session_state.confirmar_eliminar_unidad = False
-                        
-                        if not st.session_state.confirmar_eliminar_unidad:
-                            if st.button(f"🗑️ Eliminar {total_cuotas} cuotas", key="btn_eliminar_unidad"):
-                                st.session_state.confirmar_eliminar_unidad = True
-                                st.rerun()
-                        else:
-                            st.warning(f"⚠️ ¿Está seguro de eliminar {total_cuotas} cuotas de la unidad {unidad_eliminar}?")
-                            
-                            col_confirm1, col_confirm2 = st.columns(2)
-                            with col_confirm1:
-                                if st.button("✅ Sí, Eliminar", type="primary", key="confirm_eliminar_unidad"):
-                                    ids_eliminar = cuotas_unidad['ID'].tolist()
-                                    
-                                    # Usar delete_multiple_data si está disponible, sino usar delete_data individual
-                                    if hasattr(st.session_state.manager, 'delete_multiple_data'):
-                                        eliminadas = st.session_state.manager.delete_multiple_data('financiero', ids_eliminar)
-                                    else:
-                                        eliminadas = 0
-                                        for cuota_id in ids_eliminar:
-                                            if st.session_state.manager.delete_data('financiero', cuota_id):
-                                                eliminadas += 1
-                                    
-                                    st.session_state.confirmar_eliminar_unidad = False
-                                    
-                                    if eliminadas > 0:
-                                        st.success(f"✅ Se eliminaron {eliminadas} cuotas exitosamente")
-                                        st.rerun()
-                                    else:
-                                        st.error("❌ Error al eliminar las cuotas")
-                            
-                            with col_confirm2:
-                                if st.button("❌ Cancelar", key="cancel_eliminar_unidad"):
-                                    st.session_state.confirmar_eliminar_unidad = False
-                                    st.rerun()
-                else:
-                    st.info(f"No se encontraron cuotas para la unidad {unidad_eliminar} con los filtros aplicados")
+                        st.metric("💰 Total General", f"${total_monto_extraordinarias:,.2f}")
             
-            with tab_eliminar2:
-                st.markdown("**Eliminar Registros Específicos**")
+                if st.form_submit_button("⚡ Generar Cuotas Extraordinarias"):
+                    # Validaciones
+                    if not concepto_extraordinaria.strip():
+                        st.error("⚠️ Debe especificar el concepto de la cuota extraordinaria")
+                        return
                 
-                # Filtros para búsqueda
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    filtro_unidad = st.selectbox(
-                        "Filtrar por Unidad:", 
-                        ["Todas"] + list(cuotas_df['Unidad'].unique()),
-                        key="filtro_unidad_especifica"
-                    )
+                    if not any(monto > 0 for monto in montos_extraordinaria.values()):
+                        st.error("⚠️ Debe configurar al menos un monto mayor a 0")
+                        return
                 
-                with col2:
-                    filtro_estado = st.selectbox(
-                        "Filtrar por Estado:", 
-                        ["Todos"] + list(cuotas_df['Estado'].unique()),
-                        key="filtro_estado_especifica"
-                    )
-                
-                with col3:
-                    filtro_mes = st.text_input(
-                        "Filtrar por Mes/Año (ej: Enero 2024):",
-                        key="filtro_mes_especifica"
-                    )
-                
-                # Aplicar filtros
-                cuotas_filtradas = cuotas_df.copy()
-                
-                if filtro_unidad != "Todas":
-                    cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Unidad'] == filtro_unidad]
-                
-                if filtro_estado != "Todos":
-                    cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Estado'] == filtro_estado]
-                
-                if filtro_mes:
-                    cuotas_filtradas = cuotas_filtradas[
-                        cuotas_filtradas['Concepto'].str.contains(filtro_mes, case=False, na=False)
-                    ]
-                
-                if not cuotas_filtradas.empty:
-                    st.markdown("**Seleccionar cuotas para eliminar:**")
+                    if not residentes_df.empty:
+                        cuotas_generadas = 0
+                        total_generado = 0
                     
-                    # Inicializar session state para las cuotas seleccionadas
-                    if 'cuotas_seleccionadas' not in st.session_state:
-                        st.session_state.cuotas_seleccionadas = set()
+                        for _, residente in residentes_df.iterrows():
+                            if residente['Estado'] == 'Activo' and residente['Tipo'] == 'Propietario':
+                                tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
+                                monto_cuota = montos_extraordinaria.get(tipo_unidad, 0)
+                            
+                                if monto_cuota > 0:
+                                    cuota_id = f"CEXT{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
+                                
+                                    # Crear concepto completo
+                                    concepto_completo = f"Cuota Extraordinaria: {concepto_extraordinaria}"
+                                
+                                    # Crear observaciones completas
+                                    observaciones_completas = f"Cuota extraordinaria generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
+                                    if descripcion_detallada:
+                                        observaciones_completas += f"\n\nDescripción: {descripcion_detallada}"
+                                
+                                    data = {
+                                        'ID': cuota_id,
+                                    '   Tipo_Operacion': 'Ingreso',  # Como solicitas que   sea "Ingreso"
+                                        #'Tipo_Unidad': tipo_unidad,
+                                        'Unidad': residente['Unidad'],
+                                        'Concepto': concepto_completo,
+                                        'Monto': monto_cuota,
+                                        'Fecha': fecha_vencimiento_ext.strftime('%Y-%m-%d'),
+                                        'Banco': '',
+                                        'Estado': estado_inicial,
+                                        'Metodo_Pago': '',
+                                        'Observaciones': observaciones_completas
+                                    }
+                                
+                                    if st.session_state.manager.save_data('financiero', data):
+                                        cuotas_generadas += 1
+                                        total_generado += monto_cuota
                     
-                    if 'confirmar_eliminar_seleccionadas' not in st.session_state:
-                        st.session_state.confirmar_eliminar_seleccionadas = False
-                    
-                    # Crear checkboxes para cada cuota con labels descriptivos
-                    for idx, cuota in cuotas_filtradas.iterrows():
-                        fecha_formato = pd.to_datetime(cuota['Fecha']).strftime('%Y-%m-%d')
-                        label_checkbox = f"{cuota['Unidad']} - {cuota['Concepto']} - ${cuota['Monto']:,.2f} - {fecha_formato} - {cuota['Estado']}"
+                        if cuotas_generadas > 0:
+                            st.success(f"✅ Se generaron {cuotas_generadas} cuotas extraordinarias exitosamente")
+                            st.info(f"💰 Total generado: ${total_generado:,.2f}")
                         
-                        seleccionada = st.checkbox(
-                            label_checkbox,
-                            key=f"check_{cuota['ID']}",
-                            value=cuota['ID'] in st.session_state.cuotas_seleccionadas
-                        )
+                            # Mostrar detalle por tipo de unidad
+                            st.markdown("**Detalle por Tipo de Unidad:**")
+                            for tipo_unidad in tipos_unidad:
+                                if montos_extraordinaria[tipo_unidad] > 0:
+                                    cantidad = len(residentes_df[
+                                        (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
+                                        (residentes_df['Estado'] == 'Activo')
+                                    ])
+                                    if cantidad > 0:
+                                        total_tipo = cantidad * montos_extraordinaria[tipo_unidad]
+                                        st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_extraordinaria[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
                         
-                        if seleccionada:
-                            st.session_state.cuotas_seleccionadas.add(cuota['ID'])
+                            # Mostrar información adicional
+                            st.markdown("---")
+                            st.info(f"**Concepto:** {concepto_extraordinaria}\n\n**Fecha de Vencimiento:** {fecha_vencimiento_ext.strftime('%Y-%m-%d')}")
                         else:
-                            st.session_state.cuotas_seleccionadas.discard(cuota['ID'])
+                            st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
+                    else:
+                        st.warning("⚠️ No hay residentes registrados para generar cuotas")
+    
+        with subtab3:
+            st.markdown("**🗑️ Eliminar Cuotas**")
+        
+            financiero_df = st.session_state.manager.load_data('financiero')
+        
+            # Filtrar cuotas (tanto de mantenimiento como extraordinarias)
+            cuotas_mantenimiento = financiero_df[financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy() if not financiero_df.empty else pd.DataFrame()
+            cuotas_extraordinarias = financiero_df[
+                (financiero_df['Tipo_Operacion'] == 'Ingreso') & 
+                (financiero_df['Concepto'].str.contains('Cuota Extraordinaria', case=False, na=False))
+            ].copy() if not financiero_df.empty else pd.DataFrame()
+        
+            # Combinar ambos tipos de cuotas
+            todas_cuotas = pd.concat([cuotas_mantenimiento, cuotas_extraordinarias], ignore_index=True) if not cuotas_mantenimiento.empty or not cuotas_extraordinarias.empty else pd.DataFrame()
+        
+            if not todas_cuotas.empty:
+                # Agregar columna para identificar el tipo de cuota
+                todas_cuotas['Tipo_Cuota'] = todas_cuotas.apply(
+                    lambda row: 'Mantenimiento' if row['Tipo_Operacion'] == 'Cuota de Mantenimiento' else 'Extraordinaria', axis=1
+                )
+            
+                tab_eliminar1, tab_eliminar2 = st.tabs(["🏠 Por Unidad", "📋 Registros Específicos"])
+            
+                with tab_eliminar1:
+                    st.markdown("**Eliminar Cuotas por Unidad**")
+                
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        unidades_disponibles = list(todas_cuotas['Unidad'].unique())
+                        unidad_eliminar = st.selectbox(
+                            "Seleccionar Unidad:", 
+                            unidades_disponibles,
+                            key="unidad_eliminar"
+                        )
+                
+                    with col2:
+                        # Filtro por tipo de cuota
+                        tipo_cuota_filtro = st.selectbox(
+                            "Tipo de Cuota:", 
+                            ["Todas", "Mantenimiento", "Extraordinaria"],
+                            key="tipo_cuota_filtro_eliminar"
+                        )
+                
+                    with col3:
+                        # Filtros adicionales
+                        estados_cuota = list(todas_cuotas['Estado'].unique())
+                        estado_filtro = st.selectbox(
+                            "Estado de Cuotas:", 
+                            ["Todos"] + estados_cuota,
+                            key="estado_filtro_eliminar"
+                        )
+                
+                    # Mostrar cuotas de la unidad seleccionada
+                    cuotas_unidad = todas_cuotas[todas_cuotas['Unidad'] == unidad_eliminar].copy()
+                
+                    if tipo_cuota_filtro != "Todas":
+                        cuotas_unidad = cuotas_unidad[cuotas_unidad['Tipo_Cuota'] == tipo_cuota_filtro]
+                
+                    if estado_filtro != "Todos":
+                        cuotas_unidad = cuotas_unidad[cuotas_unidad['Estado'] == estado_filtro]
+                
+                    if not cuotas_unidad.empty:
+                        st.markdown(f"**Cuotas encontradas para {unidad_eliminar}:**")
                     
-                    if st.session_state.cuotas_seleccionadas:
-                        st.markdown("---")
-                        
-                        # Obtener información de las cuotas seleccionadas
-                        cuotas_seleccionadas_info = cuotas_filtradas[
-                            cuotas_filtradas['ID'].isin(st.session_state.cuotas_seleccionadas)
-                        ]
-                        
+                        # Mostrar tabla con información relevante
+                        cuotas_display = cuotas_unidad[['ID', 'Tipo_Cuota', 'Concepto', 'Monto', 'Fecha', 'Estado']].copy()
+                    
+                        # FIXED: Handle NaT values properly
+                        def safe_date_format(date_val):
+                            try:
+                                if pd.isna(date_val) or date_val is pd.NaT:
+                                    return "Fecha no válida"
+                                return pd.to_datetime(date_val).strftime('%Y-%m-%d')
+                            except:
+                                return "Fecha no válida"
+                    
+                        cuotas_display['Fecha'] = cuotas_display['Fecha'].apply(safe_date_format)
+                        cuotas_display['Monto'] = cuotas_display['Monto'].apply(lambda x: f"${x:,.2f}")
+                    
+                        st.dataframe(cuotas_display, use_container_width=True)
+                    
                         col1, col2 = st.columns(2)
-                        
                         with col1:
-                            total_seleccionadas = len(cuotas_seleccionadas_info)
-                            total_monto_seleccionadas = cuotas_seleccionadas_info['Monto'].sum()
-                            st.info(f"**Seleccionadas:** {total_seleccionadas} cuotas - ${total_monto_seleccionadas:,.2f}")
-                        
+                            total_cuotas = len(cuotas_unidad)
+                            total_monto = cuotas_unidad['Monto'].sum()
+                            st.info(f"**Total:** {total_cuotas} cuotas - ${total_monto:,.2f}")
+                    
                         with col2:
-                            if not st.session_state.confirmar_eliminar_seleccionadas:
-                                if st.button(f"🗑️ Eliminar {total_seleccionadas} cuotas seleccionadas", key="btn_eliminar_seleccionadas"):
-                                    st.session_state.confirmar_eliminar_seleccionadas = True
+                            # Usar session state para manejar el estado de confirmación
+                            if 'confirmar_eliminar_unidad' not in st.session_state:
+                                st.session_state.confirmar_eliminar_unidad = False
+                        
+                            if not st.session_state.confirmar_eliminar_unidad:
+                                if st.button(f"🗑️ Eliminar {total_cuotas} cuotas",  key="btn_eliminar_unidad"):
+                                    st.session_state.confirmar_eliminar_unidad = True
                                     st.rerun()
                             else:
-                                st.warning(f"⚠️ ¿Está seguro de eliminar {total_seleccionadas} cuotas seleccionadas?")
-                                
+                                st.warning(f"⚠️ ¿Está seguro de eliminar {total_cuotas} cuotas de la unidad {unidad_eliminar}?")
+                            
                                 col_confirm1, col_confirm2 = st.columns(2)
                                 with col_confirm1:
-                                    if st.button("✅ Sí, Eliminar", type="primary", key="confirm_eliminar_seleccionadas"):
-                                        ids_eliminar = list(st.session_state.cuotas_seleccionadas)
-                                        
+                                    if st.button("✅ Sí, Eliminar", type="primary", key="confirm_eliminar_unidad"):
+                                        ids_eliminar = cuotas_unidad['ID'].tolist()
+                                    
                                         # Usar delete_multiple_data si está disponible, sino usar delete_data individual
                                         if hasattr(st.session_state.manager, 'delete_multiple_data'):
                                             eliminadas = st.session_state.manager.delete_multiple_data('financiero', ids_eliminar)
                                         else:
                                             eliminadas = 0
                                             for cuota_id in ids_eliminar:
-                                                if st.session_state.manager.delete_data('financiero', cuota_id):
+                                                if st.session_state.manager.delete_data ('financiero', cuota_id):
                                                     eliminadas += 1
-                                        
-                                        # Limpiar el estado
-                                        st.session_state.cuotas_seleccionadas.clear()
-                                        st.session_state.confirmar_eliminar_seleccionadas = False
-                                        
+                                    
+                                        st.session_state.confirmar_eliminar_unidad = False
+                                    
                                         if eliminadas > 0:
                                             st.success(f"✅ Se eliminaron {eliminadas} cuotas exitosamente")
                                             st.rerun()
                                         else:
                                             st.error("❌ Error al eliminar las cuotas")
-                                
+                            
                                 with col_confirm2:
-                                    if st.button("❌ Cancelar", key="cancel_eliminar_seleccionadas"):
-                                        st.session_state.confirmar_eliminar_seleccionadas = False
+                                    if st.button("❌ Cancelar", key="cancel_eliminar_unidad"):
+                                        st.session_state.confirmar_eliminar_unidad = False
                                         st.rerun()
-                else:
-                    st.info("No se encontraron cuotas con los filtros aplicados")
-        else:
-            st.info("📝 No hay cuotas de mantenimiento registradas")
+                    else:
+                        st.info(f"No se encontraron cuotas para la unidad {unidad_eliminar} con los filtros aplicados")
+            
+                with tab_eliminar2:
+                    st.markdown("**Eliminar Registros Específicos**")
+                
+                    # Filtros para búsqueda
+                    col1, col2, col3, col4 = st.columns(4)
+                    with col1:
+                        filtro_unidad = st.selectbox(
+                            "Filtrar por Unidad:", 
+                            ["Todas"] + list(todas_cuotas['Unidad'].unique()),
+                            key="filtro_unidad_especifica"
+                        )
+                
+                    with col2:
+                        filtro_tipo_cuota = st.selectbox(
+                            "Tipo de Cuota:", 
+                            ["Todas", "Mantenimiento", "Extraordinaria"],
+                            key="filtro_tipo_cuota_especifica"
+                        )
+                
+                    with col3:
+                        filtro_estado = st.selectbox(
+                            "Filtrar por Estado:", 
+                            ["Todos"] + list(todas_cuotas['Estado'].unique()),
+                            key="filtro_estado_especifica"
+                        )
+                
+                    with col4:
+                        filtro_concepto = st.text_input(
+                            "Filtrar por Concepto:",
+                            key="filtro_concepto_especifica",
+                            placeholder="Ej: Enero 2024, Reparación..."
+                        )
+                
+                    # Aplicar filtros
+                    cuotas_filtradas = todas_cuotas.copy()
+                
+                    if filtro_unidad != "Todas":
+                        cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Unidad'] == filtro_unidad]
+                
+                    if filtro_tipo_cuota != "Todas":
+                        cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Tipo_Cuota'] == filtro_tipo_cuota]
+                
+                    if filtro_estado != "Todos":
+                        cuotas_filtradas = cuotas_filtradas[cuotas_filtradas['Estado'] == filtro_estado]
+                
+                    if filtro_concepto:
+                        cuotas_filtradas = cuotas_filtradas[
+                            cuotas_filtradas['Concepto'].str.contains(filtro_concepto, case=False, na=False)
+                        ]
+                
+                    if not cuotas_filtradas.empty:
+                        st.markdown("**Seleccionar cuotas para eliminar:**")
+                    
+                        # Inicializar session state para las cuotas seleccionadas
+                        if 'cuotas_seleccionadas' not in st.session_state:
+                            st.session_state.cuotas_seleccionadas = set()
+                    
+                        if 'confirmar_eliminar_seleccionadas' not in st.session_state:
+                            st.session_state.confirmar_eliminar_seleccionadas = False
+                    
+                        # Crear checkboxes para cada cuota con labels descriptivos
+                        for idx, cuota in cuotas_filtradas.iterrows():
+                            # FIXED: Handle NaT values properly for display
+                            try:
+                                if pd.isna(cuota['Fecha']) or cuota['Fecha'] is pd.NaT:
+                                    fecha_formato = "Fecha no válida"
+                                else:
+                                    fecha_formato = pd.to_datetime(cuota['Fecha']).strftime('%Y-%m-%d')
+                            except:
+                                fecha_formato = "Fecha no válida"
+                        
+                            label_checkbox = f"[{cuota['Tipo_Cuota']}] {cuota['Unidad']} - {cuota['Concepto']} - ${cuota['Monto']:,.2f} - {fecha_formato} - {cuota['Estado']}"
+                        
+                            seleccionada = st.checkbox(
+                                label_checkbox,
+                                key=f"check_{cuota['ID']}",
+                                value=cuota['ID'] in st.session_state.cuotas_seleccionadas
+                            )
+                        
+                            if seleccionada:
+                                st.session_state.cuotas_seleccionadas.add(cuota['ID'])
+                            else:
+                                st.session_state.cuotas_seleccionadas.discard(cuota['ID'])
+                    
+                        if st.session_state.cuotas_seleccionadas:
+                            st.markdown("---")
+                        
+                            # Obtener información de las cuotas seleccionadas
+                            cuotas_seleccionadas_info = cuotas_filtradas[
+                                cuotas_filtradas['ID'].isin(st.session_state.cuotas_seleccionadas)
+                            ]
+                        
+                            col1, col2 = st.columns(2)
+                        
+                            with col1:
+                                total_seleccionadas = len(cuotas_seleccionadas_info)
+                                total_monto_seleccionadas = cuotas_seleccionadas_info['Monto'].sum()
+                            
+                                # Mostrar resumen por tipo
+                                mantenimiento_count = len(cuotas_seleccionadas_info[cuotas_seleccionadas_info['Tipo_Cuota'] == 'Mantenimiento'])
+                                extraordinaria_count = len(cuotas_seleccionadas_info[cuotas_seleccionadas_info['Tipo_Cuota'] == 'Extraordinaria'])
+                            
+                                st.info(f"**Seleccionadas:** {total_seleccionadas} cuotas - ${total_monto_seleccionadas:,.2f}\n\n"
+                                    f"• Mantenimiento: {mantenimiento_count}\n"
+                                    f"• Extraordinarias: {extraordinaria_count}")
+                        
+                            with col2:
+                                if not st.session_state.confirmar_eliminar_seleccionadas:
+                                    if st.button(f"🗑️ Eliminar {total_seleccionadas}    cuotas seleccionadas", key="btn_eliminar_seleccionadas"):
+                                        st.session_state.confirmar_eliminar_seleccionadas = True
+                                        st.rerun()
+                                else:
+                                    st.warning(f"⚠️ ¿Está seguro de eliminar {total_seleccionadas} cuotas seleccionadas?")
+                                
+                                    col_confirm1, col_confirm2 = st.columns(2)
+                                    with col_confirm1:
+                                        if st.button("✅ Sí, Eliminar", type="primary",     key="confirm_eliminar_seleccionadas"):
+                                            ids_eliminar = list(st.session_state.cuotas_seleccionadas)
+                                        
+                                            # Usar delete_multiple_data si está disponible, sino usar delete_data individual
+                                            if hasattr(st.session_state.manager, 'delete_multiple_data'):
+                                                eliminadas = st.session_state.manager.delete_multiple_data('financiero', ids_eliminar)
+                                            else:
+                                                eliminadas = 0
+                                                for cuota_id in ids_eliminar:
+                                                    if st.session_state.manager.delete_data ('financiero', cuota_id):
+                                                        eliminadas += 1
+    ########
+                                            
+                                            # Limpiar el estado
+                                            st.session_state.cuotas_seleccionadas.clear()
+                                            st.session_state.confirmar_eliminar_seleccionadas = False
+                                            
+                                            if eliminadas > 0:
+                                                st.success(f"✅ Se eliminaron {eliminadas} cuotas exitosamente")
+                                                st.rerun()
+                                            else:
+                                                st.error("❌ Error al eliminar las cuotas")
+                                    
+                                    with col_confirm2:
+                                        if st.button("❌ Cancelar", key="cancel_eliminar_seleccionadas"):
+                                            st.session_state.confirmar_eliminar_seleccionadas = False
+                                            st.rerun()
+                    else:
+                        st.info("No se encontraron cuotas con los filtros aplicados")
+            else:
+                st.info("📝 No hay cuotas registradas")
         
         # Sección adicional para mostrar estadísticas de cuotas pendientes
         st.markdown("---")
-        st.markdown("**📊 Estadísticas de Cuotas Pendientes**")
+        st.markdown("**📊 Estadísticas de Cuotas**")
         
         financiero_df = st.session_state.manager.load_data('financiero')
         if not financiero_df.empty:
-            cuotas_pendientes = financiero_df[
+            # Cuotas de mantenimiento pendientes
+            cuotas_mantenimiento_pendientes = financiero_df[
                 (financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento') & 
                 (financiero_df['Estado'] == 'Pendiente')
             ]
             
-            if not cuotas_pendientes.empty:
-                col1, col2, col3 = st.columns(3)
+            # Cuotas extraordinarias pendientes
+            cuotas_extraordinarias_pendientes = financiero_df[
+                (financiero_df['Tipo_Operacion'] == 'Ingreso') & 
+                (financiero_df['Concepto'].str.contains('Cuota Extraordinaria', case=False, na=False)) &
+                (financiero_df['Estado'] == 'Pendiente')
+            ]
+            
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_mantenimiento = len(cuotas_mantenimiento_pendientes)
+                monto_mantenimiento = cuotas_mantenimiento_pendientes['Monto'].sum() if not cuotas_mantenimiento_pendientes.empty else 0
+                st.metric("🏢 Cuotas Mantenimiento Pendientes", 
+                         f"{total_mantenimiento}",
+                         f"${monto_mantenimiento:,.2f}")
+            
+            with col2:
+                total_extraordinarias = len(cuotas_extraordinarias_pendientes)
+                monto_extraordinarias = cuotas_extraordinarias_pendientes['Monto'].sum() if not cuotas_extraordinarias_pendientes.empty else 0
+                st.metric("⚡ Cuotas Extraordinarias Pendientes", 
+                         f"{total_extraordinarias}",
+                         f"${monto_extraordinarias:,.2f}")
+            
+            with col3:
+                total_cuotas_pendientes = total_mantenimiento + total_extraordinarias
+                total_monto_pendiente = monto_mantenimiento + monto_extraordinarias
+                st.metric("📋 Total Cuotas Pendientes", 
+                         f"{total_cuotas_pendientes}",
+                         f"${total_monto_pendiente:,.2f}")
+            
+            with col4:
+                # Calcular cuotas vencidas (tanto mantenimiento como extraordinarias)
+                todas_cuotas_pendientes = pd.concat([cuotas_mantenimiento_pendientes, cuotas_extraordinarias_pendientes], ignore_index=True)
                 
-                with col1:
-                    total_pendientes = len(cuotas_pendientes)
-                    st.metric("📋 Cuotas Pendientes", total_pendientes)
-                
-                with col2:
-                    monto_pendiente = cuotas_pendientes['Monto'].sum()
-                    st.metric("💰 Monto Pendiente", f"${monto_pendiente:,.2f}")
-                
-                with col3:
-                    # FIXED: Calcular cuotas vencidas - comparing datetime to datetime
-                    cuotas_pendientes['Fecha'] = pd.to_datetime(cuotas_pendientes['Fecha'])
-                    # Convert current date to pandas Timestamp for proper comparison
+                if not todas_cuotas_pendientes.empty:
+                    todas_cuotas_pendientes['Fecha'] = pd.to_datetime(todas_cuotas_pendientes['Fecha'])
                     fecha_actual = pd.Timestamp(datetime.now().date())
-                    cuotas_vencidas = cuotas_pendientes[
-                        cuotas_pendientes['Fecha'] < fecha_actual
+                    cuotas_vencidas = todas_cuotas_pendientes[
+                        todas_cuotas_pendientes['Fecha'] < fecha_actual
                     ]
-                    st.metric("⚠️ Cuotas Vencidas", len(cuotas_vencidas))
-            else:
-                st.info("✅ No hay cuotas pendientes")
+                    monto_vencido = cuotas_vencidas['Monto'].sum() if not cuotas_vencidas.empty else 0
+                    st.metric("⚠️ Cuotas Vencidas", 
+                             f"{len(cuotas_vencidas)}",
+                             f"${monto_vencido:,.2f}")
+                else:
+                    st.metric("⚠️ Cuotas Vencidas", "0", "$0.00")
+            
+            # Mostrar gráfico de distribución de cuotas si hay datos
+            if not cuotas_mantenimiento_pendientes.empty or not cuotas_extraordinarias_pendientes.empty:
+                st.markdown("---")
+                st.markdown("**📈 Distribución de Cuotas Pendientes**")
+                
+                # Crear datos para el gráfico
+                data_grafico = []
+                if not cuotas_mantenimiento_pendientes.empty:
+                    data_grafico.append({
+                        'Tipo': 'Cuotas de Mantenimiento',
+                        'Cantidad': len(cuotas_mantenimiento_pendientes),
+                        'Monto': cuotas_mantenimiento_pendientes['Monto'].sum()
+                    })
+                
+                if not cuotas_extraordinarias_pendientes.empty:
+                    data_grafico.append({
+                        'Tipo': 'Cuotas Extraordinarias',
+                        'Cantidad': len(cuotas_extraordinarias_pendientes),
+                        'Monto': cuotas_extraordinarias_pendientes['Monto'].sum()
+                    })
+                
+                if data_grafico:
+                    df_grafico = pd.DataFrame(data_grafico)
+                    fig = px.bar(df_grafico, x='Tipo', y='Monto', 
+                               title="Montos Pendientes por Tipo de Cuota",
+                               text='Cantidad')
+                    fig.update_traces(texttemplate='%{text} cuotas', textposition='outside')
+                    fig.update_layout(showlegend=False)
+                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("📝 No hay información financiera disponible")
 
