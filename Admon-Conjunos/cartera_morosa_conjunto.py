@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from calcular_mora import calcular_main
 import gspread
 from google.oauth2.service_account import Credentials
 import json
@@ -31,26 +32,78 @@ def format_currency(value):
 
 # Funciones para formateo de moneda colombiana
 def format_currency_cop(value):
-    """Formatear valor como moneda colombiana"""
+    """Formatear valor como moneda colombiana manteniendo formato con puntos"""
     if pd.isna(value) or value == 0:
         return "$0"
     
     try:
         # Convertir a float si es necesario
         if isinstance(value, str):
-            # Remover caracteres no numéricos excepto punto y coma
-            clean_value = ''.join(c for c in value if c.isdigit() or c in '.,')
-            if clean_value:
-                value = float(clean_value.replace(',', ''))
+            # Si ya viene formateado como moneda, parsearlo primero
+            if '$' in value:
+                value = parse_currency_cop(value)
             else:
-                return "$0"
+                # Remover caracteres no numéricos excepto punto y coma
+                clean_value = ''.join(c for c in value if c.isdigit() or c in '.,')
+                if clean_value:
+                    # Si tiene puntos como separadores de miles y coma como decimal
+                    if ',' in clean_value and clean_value.count('.') > 1:
+                        # Formato: 1.234.567,89
+                        parts = clean_value.split(',')
+                        integer_part = parts[0].replace('.', '')
+                        decimal_part = parts[1] if len(parts) > 1 else '0'
+                        value = float(f"{integer_part}.{decimal_part}")
+                    elif '.' in clean_value and ',' not in clean_value:
+                        # Verificar si es separador de miles o decimal
+                        if len(clean_value.split('.')[-1]) == 3 and clean_value.count('.') >= 1:
+                            # Probablemente separador de miles: 235.000
+                            value = float(clean_value.replace('.', ''))
+                        else:
+                            # Probablemente decimal: 235.50
+                            value = float(clean_value)
+                    else:
+                        value = float(clean_value.replace(',', '.'))
+                else:
+                    return "$0"
         
         value = float(value)
         
-        # Formatear con separadores de miles
-        formatted = "{:,.0f}".format(value)
-        # Reemplazar comas por puntos para formato colombiano
-        formatted = formatted.replace(',', '.')
+        # Formatear con separadores de miles usando puntos
+        if value >= 1000:
+            # Convertir a entero si no tiene decimales significativos
+            if value == int(value):
+                value = int(value)
+                # Formatear manualmente con puntos
+                value_str = str(value)
+                formatted = ""
+                for i, digit in enumerate(reversed(value_str)):
+                    if i > 0 and i % 3 == 0:
+                        formatted = "." + formatted
+                    formatted = digit + formatted
+            else:
+                # Para valores con decimales
+                integer_part = int(value)
+                decimal_part = value - integer_part
+                
+                # Formatear parte entera
+                int_str = str(integer_part)
+                formatted_int = ""
+                for i, digit in enumerate(reversed(int_str)):
+                    if i > 0 and i % 3 == 0:
+                        formatted_int = "." + formatted_int
+                    formatted_int = digit + formatted_int
+                
+                # Agregar decimales si existen
+                if decimal_part > 0:
+                    formatted = f"{formatted_int},{decimal_part:.2f}"[:-3] + f"{decimal_part:.2f}"[-2:]
+                else:
+                    formatted = formatted_int
+        else:
+            # Para valores menores a 1000
+            if value == int(value):
+                formatted = str(int(value))
+            else:
+                formatted = f"{value:.2f}".replace('.', ',')
         
         return f"${formatted}"
     except (ValueError, TypeError):
@@ -64,15 +117,85 @@ def parse_currency_cop(currency_str):
     try:
         # Remover símbolo de peso y espacios
         clean_str = currency_str.replace('$', '').replace(' ', '')
-        # Reemplazar puntos por nada (separadores de miles)
-        clean_str = clean_str.replace('.', '')
-        # Si hay coma, es separador decimal
-        if ',' in clean_str:
-            clean_str = clean_str.replace(',', '.')
         
-        return float(clean_str) if clean_str else 0.0
+        if not clean_str:
+            return 0.0
+        
+        # Caso 1: Formato con puntos como separadores de miles y coma como decimal
+        # Ejemplo: 1.234.567,89
+        if ',' in clean_str and '.' in clean_str:
+            parts = clean_str.split(',')
+            if len(parts) == 2:
+                integer_part = parts[0].replace('.', '')
+                decimal_part = parts[1]
+                return float(f"{integer_part}.{decimal_part}")
+        
+        # Caso 2: Solo puntos (separadores de miles)
+        # Ejemplo: 235.000
+        elif '.' in clean_str and ',' not in clean_str:
+            # Verificar si es separador de miles o decimal
+            parts = clean_str.split('.')
+            if len(parts[-1]) == 3 and len(parts) > 1:
+                # Probablemente separador de miles
+                return float(clean_str.replace('.', ''))
+            else:
+                # Probablemente decimal
+                return float(clean_str)
+        
+        # Caso 3: Solo coma (separador decimal)
+        # Ejemplo: 235,50
+        elif ',' in clean_str and '.' not in clean_str:
+            return float(clean_str.replace(',', '.'))
+        
+        # Caso 4: Solo números
+        else:
+            return float(clean_str)
+            
     except (ValueError, TypeError):
         return 0.0
+
+# Función auxiliar para formatear números sin símbolo de moneda
+def format_number_cop(value):
+    """Formatear número con separadores de miles colombianos (puntos)"""
+    if pd.isna(value) or value == 0:
+        return "0"
+    
+    try:
+        value = float(value)
+        
+        if value >= 1000:
+            if value == int(value):
+                value = int(value)
+                value_str = str(value)
+                formatted = ""
+                for i, digit in enumerate(reversed(value_str)):
+                    if i > 0 and i % 3 == 0:
+                        formatted = "." + formatted
+                    formatted = digit + formatted
+                return formatted
+            else:
+                integer_part = int(value)
+                decimal_part = value - integer_part
+                
+                int_str = str(integer_part)
+                formatted_int = ""
+                for i, digit in enumerate(reversed(int_str)):
+                    if i > 0 and i % 3 == 0:
+                        formatted_int = "." + formatted_int
+                    formatted_int = digit + formatted_int
+                
+                if decimal_part > 0:
+                    return f"{formatted_int},{decimal_part:.2f}"[-2:]
+                else:
+                    return formatted_int
+        else:
+            if value == int(value):
+                return str(int(value))
+            else:
+                return f"{value:.2f}".replace('.', ',')
+                
+    except (ValueError, TypeError):
+        return "0"
 
 def format_currency_input(value):
     """Formatear input de moneda en tiempo real"""
@@ -154,7 +277,7 @@ def get_or_create_sheet(client, sheet_name="gestion-conjuntos", worksheet_name="
             "Telefono", "Email", "Valor_Deuda", "Concepto_Deuda", "Fecha_Vencimiento",
             "Dias_Mora", "Estado_Gestion", "Tipo_Gestion", "Fecha_Ultimo_Contacto",
             "Observaciones", "Accion_Juridica", "Fecha_Accion_Juridica", "Valor_Pagado",
-            "Fecha_Pago", "Saldo_Pendiente"
+            "Fecha_Pago", "Saldo_Pendiente", "Interes_Mora", "Saldo_Total"
         ]
         worksheet.append_row(headers)
         st.success(f"📋 Nuevo worksheet '{worksheet_name}' creado con encabezados")
@@ -175,7 +298,7 @@ def load_data(worksheet):
                     df[col] = pd.to_datetime(df[col], errors='coerce')
             
             # Convertir valores numéricos
-            numeric_columns = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente', 'Dias_Mora']
+            numeric_columns = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente', 'Interes_Mora', 'Saldo_Total', 'Dias_Mora']
             for col in numeric_columns:
                 if col in df.columns:
                     # Si ya son números, mantenerlos, si son strings con formato, convertirlos
@@ -209,7 +332,7 @@ def save_data(worksheet, df):
                     df_copy[col] = df_copy[col].astype(str)
 
             # Guardar valores monetarios como números para cálculos, pero mostrar formateados
-            numeric_columns = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente']
+            numeric_columns = ['Valor_Deuda', 'Valor_Pagado', 'Interes_Mora','Saldo_Pendiente', 'Saldo_Total']
             for col in numeric_columns:
                 if col in df_copy.columns:
                     # Mantener como números para Google Sheets
@@ -279,41 +402,62 @@ def cartera_morosa_main():
     st.sidebar.title("🔧 Panel de Control")
     menu_option = st.sidebar.selectbox(
         "Selecciona una opción:",
-        ["📊 Panel", "➕ Nuevo Registro", "📝 Gestionar Registros", 
-         "📞 Gestión de Cobro", "📈 Reportes", "⚙️ Configuración"]
+        ["📊 Panel", "➕ Nuevo Registro", "📝 Gestionar Registros", "💰 Calcular Mora",
+         "📞 Gestión de Cobro", "📈 Reportes", "💰 Estado de Cartera", "⚙️ Configuración"]
     )
     
-    if menu_option == "📊 Panel Principal":
+    if menu_option == "📊 Panel":
         show_dashboard(df)
     elif menu_option == "➕ Nuevo Registro":
         show_new_record_form(df, worksheet)
     elif menu_option == "📝 Gestionar Registros":
         show_manage_records(df, worksheet)
+
+    elif menu_option == "💰 Calcular Mora":
+        # Importar y ejecutar el módulo de Calculo de cartera
+        try:
+            calcular_main()
+        except ImportError:
+            st.error("❌ Error: No se pudo encontrar el archivo 'calcular_mora.py'")
+            st.info("Asegúrate de que el archivo esté en el mismo directorio que este script.")
+        except Exception as e:
+            st.error(f"❌ Error al ejecutar el módulo de caular_mora: {str(e)}")
+
     elif menu_option == "📞 Gestión de Cobro":
         show_collection_management(df, worksheet)
     elif menu_option == "📈 Reportes":
         show_reports(df)
+    elif menu_option == "💰 Estado de Cartera":
+        # Importar y ejecutar el módulo de estado de cartera
+        try:
+            import estado_cartera_morosos
+            estado_cartera_morosos(df, worksheet)
+        except ImportError:
+            st.error("❌ Error: No se pudo encontrar el archivo 'estado_cartera_morosos.py'")
+            st.info("Asegúrate de que el archivo esté en el mismo directorio que este script.")
+        except Exception as e:
+            pass
+            #st.error(f"❌ Error al ejecutar el módulo de estado de cartera: {str(e)}")
     elif menu_option == "⚙️ Configuración":
         show_configuration()
 
 def show_dashboard(df):
     """Mostrar dashboard principal"""
-    st.header("📊 P de Cartera Morosa")
+    st.header("📊 Presentacion de Cartera Morosa")
     
     if df.empty:
         st.warning("📋 No hay datos disponibles. Comienza agregando registros.")
         return
     
     # Métricas principales
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         total_deudores = len(df)
         st.metric("👥 Total Deudores", format_currency_cop(total_deudores))
 
-    
     with col2:
-        total_deuda = df['Valor_Deuda'].sum()
+        total_deuda = df['Saldo_Total'].sum()
         st.metric("💰 Deuda Total", format_currency_cop(total_deuda))
     
     with col3:
@@ -323,6 +467,10 @@ def show_dashboard(df):
     with col4:
         saldo_pendiente = df['Saldo_Pendiente'].sum()
         st.metric("⚠️ Saldo Pendiente", format_currency_cop(saldo_pendiente))
+
+    with col5:
+        interes_mora = df['Interes_Mora'].sum()
+        st.metric("💰 Mora Total", format_currency_cop(interes_mora))
     
     # Actualizar días de mora y estados
     df['Dias_Mora'] = df['Fecha_Vencimiento'].apply(calculate_mora_days)
@@ -344,14 +492,14 @@ def show_dashboard(df):
     with col2:
         st.subheader("📈 Evolución de Deudas")
         df_grouped = df.groupby('Estado_Calculado').agg({
-            'Valor_Deuda': 'sum',
+            'Saldo_Total': 'sum',
             'Saldo_Pendiente': 'sum'
         }).reset_index()
         
         fig_bar = px.bar(
             df_grouped, 
             x='Estado_Calculado', 
-            y=['Valor_Deuda', 'Saldo_Pendiente'],
+            y=['Saldo_Total', 'Saldo_Pendiente'],
             title="Deuda vs Saldo Pendiente por Estado",
             barmode='group'
         )
@@ -363,10 +511,10 @@ def show_dashboard(df):
     if not casos_criticos.empty:
         # Formatear valores monetarios para mostrar
         casos_display = casos_criticos.copy()
-        casos_display['Valor_Deuda_Fmt'] = casos_display['Valor_Deuda'].apply(format_currency_cop)
+        casos_display['Valor_Deuda_Fmt'] = casos_display['Saldo_Total'].apply(format_currency_cop)
         casos_display['Saldo_Pendiente_Fmt'] = casos_display['Saldo_Pendiente'].apply(format_currency_cop)
         st.dataframe(
-            casos_criticos[['Apartamento/Casa', 'Propietario', 'Valor_Deuda', 
+            casos_criticos[['Apartamento/Casa', 'Propietario', 'Saldo_Total', 
                           'Dias_Mora', 'Estado_Calculado']],
             use_container_width=True
         )
@@ -443,7 +591,9 @@ def show_new_record_form(df, worksheet):
                     'Fecha_Accion_Juridica': '',
                     'Valor_Pagado': 0,
                     'Fecha_Pago': '',
-                    'Saldo_Pendiente': valor_deuda
+                    'Saldo_Pendiente': valor_deuda,
+                    'Interes_Mora': 0,
+                    'Saldo_Total': valor_deuda 
                 }
                 
                 # Agregar al DataFrame
@@ -508,7 +658,7 @@ def show_manage_records(df, worksheet):
             # Mostrar información actual del registro
             col_info1, col_info2 = st.columns(2)
             with col_info1:
-                st.info(f"**💰 Deuda Actual:** {format_currency_cop(registro['Valor_Deuda'])}")
+                st.info(f"**💰 Deuda Actual:** {format_currency_cop(registro['Saldo_Total'])}")
                 st.info(f"**💸 Pagado:** {format_currency_cop(registro['Valor_Pagado'])}")
             with col_info2:
                 st.info(f"**⚠️ Saldo Pendiente:** {format_currency_cop(registro['Saldo_Pendiente'])}")
@@ -589,7 +739,7 @@ def show_manage_records(df, worksheet):
                         st.rerun()
 
 # Función para enviar correo electrónico
-def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
+def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje, email_from="laceibacondominio@gmail.com", nombre_from="laceibacondominio@gmail.com"):
     """
     Envía correo electrónico a residentes
     """
@@ -609,6 +759,16 @@ def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
             
         smtp_user = st.secrets['emails']['smtp_user']
         smtp_password = st.secrets['emails']['smtp_password']
+
+        # Determinar el remitente que aparecerá en el correo
+        if email_from:
+            if nombre_from:
+                display_from = f"{nombre_from} <{email_from}>"
+            else:
+                display_from = email_from
+        else:
+            # Si no se especifica, usar el email de autenticación
+            display_from = smtp_user
         
         # Crear mensaje
         message = MIMEMultipart()
@@ -616,6 +776,10 @@ def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
         message['To'] = email_to
         message['Subject'] = asunto
         
+        # Opcionalmente agregar Reply-To para que las respuestas vayan al remitente personalizado
+        if email_from and nombre_from != smtp_user:
+            message['Reply-To'] = email_from
+
         # Contenido del correo basado en el tipo de mensaje
         if tipo_mensaje == "Anuncio General":
             icon = "📢"
@@ -749,7 +913,9 @@ def send_bulk_collection_emails(emails_info, tipo_mensaje="Recordatorio"):
                 nombre=email_info['nombre'],
                 asunto=email_info['asunto'],
                 mensaje=email_info['mensaje'],
-                tipo_mensaje=tipo_mensaje
+                tipo_mensaje=tipo_mensaje,
+                email_from="laceibacondominio@gmail.com",
+                nombre_from="laceibacondominio@gmail.com"
             )
             
             if exito:
@@ -807,9 +973,10 @@ def show_collection_management(df, worksheet):
                 col_a, col_b = st.columns(2)
                 
                 with col_a:
-                    st.write(f"**💰 Deuda:** {format_currency(caso['Valor_Deuda'])}")
-                    st.write(f"**💸 Pagado:** {format_currency(caso['Valor_Pagado'])}")
-                    st.write(f"**⚠️ Saldo:** {format_currency(caso['Saldo_Pendiente'])}")
+                    st.write(f"**💰 Deuda:** {format_currency_cop(caso['Saldo_Total'])}")
+                    st.write(f"**💸 Pagado:** {format_currency_cop(caso['Valor_Pagado'])}")
+                    st.write(f"**⚠️ Saldo:** {format_currency_cop(caso['Saldo_Pendiente'])}")
+                    st.write(f"**💰 Intereses:** {format_currency_cop(caso['Interes_Mora'])}")
                     st.write(f"**📱 Teléfono:** {caso['Telefono']}")
                 
                 with col_b:
@@ -924,7 +1091,7 @@ def show_collection_management(df, worksheet):
                                         nuevo_saldo = float(caso['Saldo_Pendiente']) - float(valor_pago)
                                         worksheet.update(f'T{fila}', [[nuevo_saldo]])
 
-                                        valor_deuda = float(caso['Valor_Deuda']) - float(valor_pago)
+                                        valor_deuda = float(caso['Saldo_Total']) - float(valor_pago)
                                         worksheet.update(f'T{fila}', [[valor_deuda]])
 
                                         worksheet.update(f'O{fila}', [[observaciones]])  # Observaciones
@@ -1040,7 +1207,7 @@ def show_collection_management(df, worksheet):
                                 if caso['Dias_Mora'] <= 30:
                                     mensaje_default = f"""Estimado(a) {caso['Propietario']},
                                     
-Le recordamos que tiene un saldo pendiente de {format_currency(caso['Saldo_Pendiente'])} correspondiente a su unidad {caso['Apartamento/Casa']}.
+Le recordamos que tiene un saldo pendiente de {format_currency_cop(caso['Saldo_Pendiente'])} correspondiente a su unidad {caso['Apartamento/Casa']}.
 
 Fecha de vencimiento: {caso['Fecha_Vencimiento']}
 Días de mora: {caso['Dias_Mora']} días
@@ -1052,10 +1219,11 @@ Para cualquier consulta, no dude en contactarnos."""
                                 elif caso['Dias_Mora'] <= 90:
                                     mensaje_default = f"""Estimado(a) {caso['Propietario']},
                                     
-Nos dirigimos a usted para informarle que presenta un saldo pendiente de {format_currency(caso['Saldo_Pendiente'])} por concepto de administración de su unidad {caso['Apartamento/Casa']}.
+Nos dirigimos a usted para informarle que presenta un saldo pendiente de {format_currency_cop(caso['Saldo_Pendiente'])} por concepto de administración de su unidad {caso['Apartamento/Casa']}.
 
 Fecha de vencimiento: {caso['Fecha_Vencimiento']}
-Días de mora: {caso['Dias_Mora']} días
+Días de mora: {caso['Dias_Mora']} días,
+Intereses de Mora: {format_currency_cop(caso['Interes_Mora'])}
 
 Es importante regularizar esta situación a la mayor brevedad posible para evitar que se generen mayores inconvenientes.
 
@@ -1064,10 +1232,11 @@ Quedamos atentos a su pronto pago."""
                                 else:
                                     mensaje_default = f"""Estimado(a) {caso['Propietario']},
                                     
-Por medio de la presente le informamos que presenta una deuda vencida de {format_currency(caso['Saldo_Pendiente'])} correspondiente a su unidad {caso['Apartamento/Casa']}.
+Por medio de la presente le informamos que presenta una deuda vencida de {format_currency_cop(caso['Saldo_Pendiente'])} correspondiente a su unidad {caso['Apartamento/Casa']}.
 
 Fecha de vencimiento: {caso['Fecha_Vencimiento']}
 Días de mora: {caso['Dias_Mora']} días
+Intereses de Mora: {format_currency_cop(caso['Interes_Mora'])}
 
 Debido al tiempo transcurrido, le solicitamos regularizar esta situación de manera INMEDIATA para evitar que se inicien acciones legales de cobro.
 
@@ -1092,7 +1261,9 @@ Si ya realizó el pago, favor hacer caso omiso a este mensaje y enviar el compro
                                             nombre=caso['Propietario'],
                                             asunto=asunto,
                                             mensaje=mensaje,
-                                            tipo_mensaje=tipo_mensaje
+                                            tipo_mensaje=tipo_mensaje,
+                                            email_from="laceibacondominio@gmail.com",
+                                            nombre_from="laceibacondominio@gmail.com"
                                         )
                                         
                                         if exito:
@@ -1165,7 +1336,7 @@ Si ya realizó el pago, favor hacer caso omiso a este mensaje y enviar el compro
         if len(casos_para_email) > 0:
             # Mostrar vista previa de casos a enviar
             with st.expander(f"👀 Ver casos elegibles ({len(casos_para_email)})"):
-                preview_df = casos_para_email[['Apartamento/Casa', 'Propietario', 'Email', 'Dias_Mora', 'Saldo_Pendiente']].head(10)
+                preview_df = casos_para_email[['Apartamento/Casa', 'Propietario', 'Email', 'Dias_Mora', 'Interes_Mora','Saldo_Pendiente']].head(10)
                 st.dataframe(preview_df)
                 if len(casos_para_email) > 10:
                     st.write(f"... y {len(casos_para_email) - 10} casos más")
@@ -1193,6 +1364,9 @@ Si ya realizó el pago, favor hacer caso omiso a este mensaje y enviar el compro
 Nos dirigimos a usted para informarle que presenta un saldo pendiente de [SALDO] correspondiente a su unidad [UNIDAD].
 
 Días de mora: [DIAS_MORA] días
+
+Interes de Mora: [INTERESES]
+
 Fecha de vencimiento: [FECHA_VENCIMIENTO]
 
 Le solicitamos regularizar esta situación a la mayor brevedad posible.
@@ -1203,7 +1377,7 @@ Saludos cordiales,
 Administración"""
             
             mensaje_masivo = st.text_area(
-                "Mensaje (use [NOMBRE], [SALDO], [UNIDAD], [DIAS_MORA], [FECHA_VENCIMIENTO] como variables):",
+                "Mensaje (use [NOMBRE], [SALDO], [UNIDAD], [INTERESES], [DIAS_MORA], [FECHA_VENCIMIENTO] como variables):",
                 value=mensaje_base,
                 height=150,
                 key="mensaje_email_masivo"
@@ -1222,9 +1396,10 @@ Administración"""
                         for idx, caso in casos_para_email.iterrows():
                             # Personalizar mensaje para cada caso
                             mensaje_personalizado = mensaje_masivo.replace('[NOMBRE]', str(caso['Propietario']))
-                            mensaje_personalizado = mensaje_personalizado.replace('[SALDO]', format_currency(caso['Saldo_Pendiente']))
+                            mensaje_personalizado = mensaje_personalizado.replace('[SALDO]', format_currency_cop(caso['Saldo_Pendiente']))
                             mensaje_personalizado = mensaje_personalizado.replace('[UNIDAD]', str(caso['Apartamento/Casa']))
                             mensaje_personalizado = mensaje_personalizado.replace('[DIAS_MORA]', str(caso['Dias_Mora']))
+                            mensaje_personalizado = mensaje_personalizado.replace('[INTERESES]', format_currency_cop(caso['Interes_Mora']))
                             mensaje_personalizado = mensaje_personalizado.replace('[FECHA_VENCIMIENTO]', str(caso['Fecha_Vencimiento']))
                             
                             # Personalizar asunto si es necesario
@@ -1339,7 +1514,7 @@ def show_reports(df):
         with col2:
             # Top deudores con formato de moneda
             top_deudores = df.nlargest(10, 'Saldo_Pendiente')[['Propietario', 'Apartamento/Casa', 'Saldo_Pendiente']].copy()
-            top_deudores['Saldo_Pendiente'] = top_deudores['Saldo_Pendiente'].apply(format_currency)
+            top_deudores['Saldo_Pendiente'] = top_deudores['Saldo_Pendiente'].apply(format_currency_cop)
             st.subheader("🔝 Top 10 Deudores")
             st.dataframe(top_deudores, use_container_width=True)
     
@@ -1347,31 +1522,33 @@ def show_reports(df):
         st.subheader("💰 Reporte Financiero")
         
         # Métricas financieras con formato
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4, col5 = st.columns(5)
         
         with col1:
-            st.metric("💰 Deuda Total", format_currency(df['Valor_Deuda'].sum()))
+            st.metric("💰 Deuda Total", format_currency_cop(df['Saldo_Total'].sum()))
         with col2:
-            st.metric("💚 Total Recaudado", format_currency(df['Valor_Pagado'].sum()))
+            st.metric("💚 Total Recaudado", format_currency_cop(df['Valor_Pagado'].sum()))
         with col3:
-            st.metric("⚠️ Saldo Pendiente", format_currency(df['Saldo_Pendiente'].sum()))
+            st.metric("⚠️ Saldo Pendiente", format_currency_cop(df['Saldo_Pendiente'].sum()))
         with col4:
-            efectividad = (df['Valor_Pagado'].sum() / df['Valor_Deuda'].sum() * 100) if df['Valor_Deuda'].sum() > 0 else 0
+            efectividad = (df['Valor_Pagado'].sum() / df['Saldo_Total'].sum() * 100) if df['Saldo_Total'].sum() > 0 else 0
             st.metric("📈 Efectividad Cobro", f"{efectividad:.1f}%")
+        with col5:
+            st.metric("💰 Interes Mora", format_currency_cop(df['Interes_Mora'].sum()))
         
         # Análisis por concepto de deuda
         col1, col2 = st.columns(2)
         
         with col1:
             concepto_analysis = df.groupby('Concepto_Deuda').agg({
-                'Valor_Deuda': 'sum',
+                'Saldo_Total': 'sum',
                 'Saldo_Pendiente': 'sum'
             }).reset_index()
             
             fig_concepto = px.bar(
                 concepto_analysis,
                 x='Concepto_Deuda',
-                y=['Valor_Deuda', 'Saldo_Pendiente'],
+                y=['Saldo_Total', 'Saldo_Pendiente'],
                 title="Análisis por Concepto de Deuda",
                 barmode='group'
             )
@@ -1381,19 +1558,22 @@ def show_reports(df):
             # Tabla resumen financiero con formato
             st.subheader("📋 Resumen Financiero por Estado")
             resumen_financiero = df.groupby('Estado_Calculado').agg({
-                'Valor_Deuda': 'sum',
+                'Saldo_Total': 'sum',
                 'Valor_Pagado': 'sum',
                 'Saldo_Pendiente': 'sum',
+                'Interes_Mora': 'sum',
                 'ID': 'count'
             }).round(0)
             
             # Aplicar formato de moneda a las columnas monetarias
             resumen_financiero_formatted = resumen_financiero.copy()
-            resumen_financiero_formatted['Valor_Deuda'] = resumen_financiero_formatted['Valor_Deuda'].apply(format_currency)
-            resumen_financiero_formatted['Valor_Pagado'] = resumen_financiero_formatted['Valor_Pagado'].apply(format_currency)
-            resumen_financiero_formatted['Saldo_Pendiente'] = resumen_financiero_formatted['Saldo_Pendiente'].apply(format_currency)
+            resumen_financiero_formatted['Saldo_Total'] = resumen_financiero_formatted['Saldo_Total'].apply(format_currency_cop)
+            resumen_financiero_formatted['Valor_Pagado'] = resumen_financiero_formatted['Valor_Pagado'].apply(format_currency_cop)
+            resumen_financiero_formatted['Saldo_Pendiente'] = resumen_financiero_formatted['Saldo_Pendiente'].apply(format_currency_cop)
+            resumen_financiero_formatted['Interees_Mora'] = resumen_financiero_formatted['Interes_Mora'].apply(format_currency_cop)
+
             
-            resumen_financiero_formatted.columns = ['Deuda Total', 'Pagado', 'Saldo Pendiente', 'Casos']
+            resumen_financiero_formatted.columns = ['Deuda Total', 'Pagado', 'Saldo Pendiente', 'Interes_Mora', 'Casos']
             st.dataframe(resumen_financiero_formatted, use_container_width=True)
     
     with tab3:
@@ -1446,8 +1626,8 @@ def show_reports(df):
             
             if not juridicos_clean.empty:
                 # Aplicar formato a la columna de saldo
-                juridicos_display = juridicos_clean[['Fecha_Accion_Juridica', 'Propietario', 'Apartamento/Casa', 'Saldo_Pendiente']].copy()
-                juridicos_display['Saldo_Pendiente'] = juridicos_display['Saldo_Pendiente'].apply(format_currency)
+                juridicos_display = juridicos_clean[['Fecha_Accion_Juridica', 'Propietario', 'Apartamento/Casa', 'Saldo_Total']].copy()
+                juridicos_display['Saldo_Total'] = juridicos_display['Saldo_Total'].apply(format_currency_cop)
                 
                 st.dataframe(
                     juridicos_display.sort_values('Fecha_Accion_Juridica'),
@@ -1473,7 +1653,7 @@ def show_reports(df):
             df_reporte = df_reporte[df_reporte['Estado_Calculado'] == filtro_estado_rep]
         if filtro_concepto_rep != "Todos":
             df_reporte = df_reporte[df_reporte['Concepto_Deuda'] == filtro_concepto_rep]
-        df_reporte = df_reporte[df_reporte['Saldo_Pendiente'] >= min_saldo]
+        df_reporte = df_reporte[df_reporte['Saldo_Total'] >= min_saldo]
         
         # Mostrar tabla detallada
         st.subheader(f"📊 Registros Filtrados: {len(df_reporte)}")
@@ -1483,7 +1663,7 @@ def show_reports(df):
             columnas_mostrar = st.multiselect(
                 "Seleccionar columnas a mostrar:",
                 options=df_reporte.columns.tolist(),
-                default=['Apartamento/Casa', 'Propietario', 'Valor_Deuda', 'Saldo_Pendiente', 'Dias_Mora', 'Estado_Calculado']
+                default=['Apartamento/Casa', 'Propietario', 'Valor_Deuda', 'Saldo_Pendiente', 'Dias_Mora', 'Interes_Mora', 'Saldo_Total', 'Estado_Calculado']
             )
             
             if columnas_mostrar:
@@ -1491,10 +1671,10 @@ def show_reports(df):
                 df_display = df_reporte[columnas_mostrar].copy()
                 
                 # Aplicar formato a columnas monetarias si están seleccionadas
-                columnas_monetarias = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente']
+                columnas_monetarias = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente', 'Interes_Mora', 'Saldo_Total']
                 for col in columnas_monetarias:
                     if col in df_display.columns:
-                        df_display[col] = df_display[col].apply(format_currency)
+                        df_display[col] = df_display[col].apply(format_currency_cop)
                 
                 st.dataframe(df_display, use_container_width=True)
                 
@@ -1726,9 +1906,9 @@ def show_configuration():
     col1, col2 = st.columns(2)
     
     with col1:
-        st.text_input("📋 Nombre de la hoja", value="gestion-conjuntos", disabled=True)
-        st.text_input("📄 Nombre del worksheet", value="gestion_morosos", disabled=True)
-    
+        #st.text_input("📋 Nombre de la hoja", value="gestion-conjuntos", disabled=True)
+        #st.text_input("📄 Nombre del worksheet", value="gestion_morosos", disabled=True)
+        pass
     with col2:
         backup_automatico = st.checkbox("Backup automático diario", 
                                       value=config_actual.get('backup_automatico', True),

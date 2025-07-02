@@ -487,9 +487,9 @@ def view(model):
                         pago_main() #consulta_res_main()
                     else:
                         st.error("La función consulta_res_main no está disponible")
-                        st.info("Verifique que el módulo consulta_financiera_residente esté correctamente importado")
+                        st.info("Verifique que el módulo pagos_conjunto esté correctamente importado")
                 except Exception as e:
-                        st.error(f"Error al cargar consulta financiera: {e}")
+                        st.error(f"Error al cargar Pagos Conjunto: {e}")
                         st.info("Por favor, contacte al administrador del sistema.")
 
             with tabs[2]:
@@ -502,8 +502,8 @@ def view(model):
                         solicitudes_main() #pago_main()
                     
                     else:
-                        st.warning("⚠️ La función pago_main no está disponible")
-                        st.info("Verifique que el módulo pagos_conjunto esté correctamente importado")
+                        st.warning("⚠️ La función solicitudes_main no está disponible")
+                        st.info("Verifique que el módulo solicitudes_conjunto esté correctamente importado")
                 #except Exception as e:
                 #    st.error(f"Error al cargar sistema de pagos: {e}")
                 #    st.info("El sistema de pagos no está disponible temporalmente.")
@@ -519,8 +519,8 @@ def view(model):
                     if 'consulta_res_main' in globals():
                         consulta_res_main()
                     else:
-                        st.error("La función solicitud_main no está disponible")
-                        st.info("Verifique que el módulo soliicitud_residente esté correctamente importado")
+                        st.error("La función consulta_res_main no está disponible")
+                        st.info("Verifique que el módulo consulta_res_main esté correctamente importado")
                 except Exception as e:
                         st.error(f"Error al cargar consulta financiera: {e}")
                         st.info("Por favor, contacte al administrador del sistema.")

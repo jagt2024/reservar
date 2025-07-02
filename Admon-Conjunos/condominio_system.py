@@ -8,14 +8,25 @@ from datetime import datetime, date
 import plotly.express as px
 import plotly.graph_objects as go
 from io import StringIO
+from control_financiero import control_main
+from informe_estado_financiero import informe_estado_main
 import hashlib
 import time
 import ssl
+import os
 from googleapiclient.errors import HttpError
 import smtplib
 from email.message import EmailMessage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+
+try:
+    import orjson
+except ImportError:
+    orjson = None
+except Exception as e:
+    st.warning(f"orjson import issue: {e}. Using standard json instead.")
+    orjson = None
 
 # Constantes
 MAX_RETRIES = 3
@@ -181,7 +192,7 @@ class CondominiumManager:
         """Inicializar headers para cada tipo de hoja"""
         headers = {
             'residentes': ['ID', 'Idenificacion','Nombre', 'Apellido', 'Unidad', 'Tipo', 'Telefono', 'Email', 'Fecha_Ingreso', 'Estado', 'Observaciones'],
-            'financiero': ['ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 'Fecha', 'Estado', 'Metodo_Pago', 'Observaciones'],
+            'financiero': ['ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 'Fecha', 'Estado', 'Metodo_Pago', 'Soporte_Pago',	'Ruta_Archivo',	'Numero_Recibo',	'Ruta_Recibo', 'Observaciones', 'Saldo_Pendiente',	'Registrado'],
             'mantenimiento': ['ID', 'Tipo_Servicio', 'Unidad', 'Descripcion', 'Fecha_Solicitud', 'Fecha_Programada', 'Estado', 'Costo', 'Proveedor'],
             'comunicacion': ['ID', 'Tipo', 'Destinatario', 'Asunto', 'Mensaje', 'Fecha_Envio', 'Estado', 'Respuesta'],
             'accesos': ['ID', 'Unidad', 'Visitante', 'Fecha', 'Hora_Entrada', 'Hora_Salida', 'Autorizado_Por', 'Observaciones'],
@@ -842,7 +853,8 @@ def show_system_error(status):
     
     with col1:
         if st.button("🔄 Reinicializar Sistema", type="primary"):
-            reinitialize_system()
+            #reinitialize_system()
+            initialize_manager_system()
     
     with col2:
         if st.button("🧹 Limpiar Session State"):
@@ -860,7 +872,6 @@ def show_system_error(status):
     3. **Verificar Configuración**: Revisa que las credenciales estén correctas
     4. **Contactar Soporte**: Si el problema persiste
     """)
-
 
 def initialize_manager_system():
     """Inicializar o recuperar el sistema de manager usando tus funciones"""
@@ -918,7 +929,7 @@ def create_or_recover_manager():
         return True
     
     # Si falla, intentar modo offline/demo
-    return initialize_offline_manager()
+    #return initialize_offline_manager()
 
 def try_initialize_with_your_functions():
     """Usar tus funciones específicas de inicialización"""
@@ -1268,17 +1279,15 @@ def handle_dashboard_error(error):
     with st.expander("🔍 Detalles Técnicos", expanded=False):
         st.write("**Tipo de error:**", type(error).__name__)
         st.write("**Mensaje:**", str(error))
-        st.write("**Traceback:**")
-        st.code(traceback.format_exc())
+#        st.write("**Traceback:**")
+#        st.code(traceback.format_exc())
     
     if st.button("🔄 Recargar Dashboard"):
         st.rerun()
 
 # Función para enviar correo electrónico
-def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
-    """
-    Envía correo electrónico a residentes
-    """
+def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje, email_from="laceibacondominio@gmail.com", nombre_from="laceibacondominio@gmail.com"):
+    
     try:
         # Validar entrada de datos
         if not email_to or not nombre or not asunto or not mensaje:
@@ -1293,14 +1302,28 @@ def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
         if 'emails' not in st.secrets or 'smtp_user' not in st.secrets['emails'] or 'smtp_password' not in st.secrets['emails']:
             return False, "Error: Faltan credenciales de correo en secrets.toml"
             
-        smtp_user = st.secrets['emails']['smtp_user']
+        smtp_user = st.secrets['emails']['smtp_user']  # Para autenticación
         smtp_password = st.secrets['emails']['smtp_password']
+        
+        # Determinar el remitente que aparecerá en el correo
+        if email_from:
+            if nombre_from:
+                display_from = f"{nombre_from} <{email_from}>"
+            else:
+                display_from = email_from
+        else:
+            # Si no se especifica, usar el email de autenticación
+            display_from = smtp_user
         
         # Crear mensaje
         message = MIMEMultipart()
-        message['From'] = smtp_user
+        message['From'] = display_from  # Este será el remitente que ve el destinatario
         message['To'] = email_to
         message['Subject'] = asunto
+        
+        # Opcionalmente agregar Reply-To para que las respuestas vayan al remitente personalizado
+        if email_from and nombre_from != smtp_user:
+            message['Reply-To'] = email_from
         
         # Contenido del correo basado en el tipo de mensaje
         if tipo_mensaje == "Anuncio General":
@@ -1384,10 +1407,10 @@ def send_email_to_resident(email_to, nombre, asunto, mensaje, tipo_mensaje):
         context = ssl.create_default_context()
         server = smtplib.SMTP_SSL(smtp_server, smtp_port, context=context)
         
-        # Inicio de sesión
+        # Inicio de sesión (siempre con las credenciales del secrets)
         server.login(smtp_user, smtp_password)
         
-        # Enviar correo
+        # Enviar correo (el envelope sender sigue siendo smtp_user para autenticación)
         text = message.as_string()
         server.sendmail(smtp_user, email_to, text)
         server.quit()
@@ -1519,7 +1542,9 @@ def update_message_status(message_id, new_status, response_info=""):
             email_info['nombre'],
             asunto,
             mensaje,
-            tipo_mensaje
+            tipo_mensaje,
+            "laceibacondominio@gmail.com",
+            "laceibacondominio@gmail.com"
         )
         
         if success:
@@ -1555,7 +1580,9 @@ def send_bulk_emails(emails_info, asunto, mensaje, tipo_mensaje):
             email_info['nombre'],
             asunto,
             mensaje,
-            tipo_mensaje
+            tipo_mensaje,
+            "laceibacondominio@gmail.com",
+            "laceibacondominio@gmail.com"
         )
         
         if success:
@@ -1576,55 +1603,152 @@ def show_residents_module():
     """Módulo de control de residentes"""
     st.markdown("## 👥 Control de Residentes y Propietarios")
     
-    tab1, tab2, tab3 = st.tabs(["➕ Agregar Residente", "📋 Lista de Residentes", "📊 Estadísticas"])
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Agregar Residente", "📋 Lista de Residentes", "✏️ Modificar/Eliminar", "📊 Estadísticas"])
     
     with tab1:
-        with st.form("add_resident"):
-            st.subheader("Registrar Nuevo Residente")
+      with st.form("add_resident"):
+        st.subheader("Registrar Nuevo Residente")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            identificacion = st.text_input('Identificacion *')
+            nombre = st.text_input("Nombre *")
+            apellido = st.text_input("Apellido *")
+            tipo_unidad = st.selectbox("Tipo Unidad ", ["Casa", "Apto", "Lote","Otro"])
+            unidad = st.text_input("Unidad (Ej: Apto 101, Casa 15) *")
             
-            col1, col2 = st.columns(2)
-            with col1:
-                identificacion = st.text_input('Identificacion *')
-                nombre = st.text_input("Nombre *")
-                apellido = st.text_input("Apellido *")
-                tipo_unidad = st.selectbox("Tipo Unidad ", ["Casa", "Apto", "Lote","Otro"])
-                unidad = st.text_input("Unidad (Ej: Apto 101, Casa 15) *")
+        with col2:
+            tipo = st.selectbox("Tipo", ["Propietario", "Inquilino", "Familiar"])
+            telefono = st.text_input("Teléfono")
+            email = st.text_input("Email")
+            fecha_ingreso = st.date_input("Fecha de Ingreso", datetime.now().date())
+            estado = st.selectbox("Estado", ["Activo", "Inactivo", "Temporal"])
+        
+        observaciones = st.text_area("Observaciones")
+        
+        if st.form_submit_button("✅ Registrar Residente"):
+            if nombre and apellido and unidad and identificacion:
+                # Función para validar duplicados
+                def validar_duplicados():
+                    try:
+                        # Obtener datos existentes
+                        existing_data = st.session_state.manager.load_data('residentes')
+                        
+                        # Verificar si hay datos existentes
+                        if existing_data is None:
+                            return True, ""
+                        
+                        # Si es una lista vacía
+                        if isinstance(existing_data, list) and len(existing_data) == 0:
+                            return True, ""
+                        
+                        # Si ya es un DataFrame y está vacío
+                        if isinstance(existing_data, pd.DataFrame) and existing_data.empty:
+                            return True, ""
+                        
+                        # Convertir a DataFrame si es necesario
+                        if isinstance(existing_data, list):
+                            df = pd.DataFrame(existing_data)
+                        else:
+                            df = existing_data
+                        
+                        # Verificar que el DataFrame no esté vacío
+                        if df.empty:
+                            return True, ""
+                            
+                    except Exception as e:
+                        # Si hay algún error, permitir el registro y mostrar advertencia
+                        st.warning(f"No se pudieron validar duplicados: {str(e)}")
+                        return True, ""
+                    
+                    # Normalizar datos para comparación (sin espacios extra, minúsculas)
+                    identificacion_norm = identificacion.strip()
+                    nombre_norm = nombre.strip().lower()
+                    apellido_norm = apellido.strip().lower()
+                    unidad_norm = unidad.strip().lower()
+                    
+                    # Validar duplicado por identificación
+                    #if 'Identificacion' in df.columns:
+                        # Convertir a string y manejar valores nulos
+                    #    df_id_clean = df['Identificacion'].astype(str).str.strip()
+                    #    duplicado_id = df[df_id_clean == identificacion_norm]
+                    #    if not duplicado_id.empty:
+                    #        return False, f"❌ Ya existe un residente registrado con la identificación: {identificacion}"
+                    
+                    # Validar duplicado por nombre completo y unidad
+                    if all(col in df.columns for col in ['Identificacion', 'Nombre', 'Apellido', 'Unidad']):
+                        # Convertir a string y manejar valores nulos
+                        df_id_clean = df['Identificacion'].astype(str).str.strip()
+                        df_nombre_clean = df['Nombre'].astype(str).str.strip().str.lower()
+                        df_apellido_clean = df['Apellido'].astype(str).str.strip().str.lower()
+                        df_unidad_clean = df['Unidad'].astype(str).str.strip().str.lower()
+                        
+                        duplicado_nombre_unidad = df[
+                            (df_id_clean == identificacion_norm) &
+                            (df_nombre_clean == nombre_norm) & 
+                            (df_apellido_clean == apellido_norm) & 
+                            (df_unidad_clean == unidad_norm)
+                        ]
+                        if not duplicado_nombre_unidad.empty:
+                            return False, f"❌ Ya existe un residente con esta informacion '{nombre} {apellido}' en la unidad '{unidad}'"
+                    
+                    # Validar múltiples propietarios en la misma unidad (opcional)
+                    if tipo == "Propietario" and all(col in df.columns for col in ['Tipo', 'Unidad', 'Estado']):
+                        # Convertir a string y manejar valores nulos
+                        df_unidad_prop = df['Unidad'].astype(str).str.strip().str.lower()
+                        df_tipo = df['Tipo'].astype(str)
+                        df_estado = df['Estado'].astype(str)
+                        
+                        propietario_existente = df[
+                            (df_unidad_prop == unidad_norm) & 
+                            (df_tipo == "Propietario") &
+                            (df_estado == "Activo")  # Solo considerar activos
+                        ]
+                        if not propietario_existente.empty:
+                            # Mostrar advertencia pero permitir registro (puede haber co-propietarios)
+                            st.warning(f"⚠️ Ya existe un propietario activo en la unidad '{unidad}'. Verifique si desea registrar un co-propietario.")
+                    
+                    return True, ""
                 
-            with col2:
-                tipo = st.selectbox("Tipo", ["Propietario", "Inquilino", "Familiar"])
-                telefono = st.text_input("Teléfono")
-                email = st.text_input("Email")
-                fecha_ingreso = st.date_input("Fecha de Ingreso", datetime.now().date())
-                estado = st.selectbox("Estado", ["Activo", "Inactivo", "Temporal"])
-            
-            observaciones = st.text_area("Observaciones")
-            
-            if st.form_submit_button("✅ Registrar Residente"):
-                if nombre and apellido and unidad:
+                # Ejecutar validaciones
+                es_valido, mensaje_error = validar_duplicados()
+                
+                if es_valido:
                     # Generar ID único
                     resident_id = f"RES{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     
                     data = {
                         'ID': resident_id,
-                        'Identificacion': identificacion,
-                        'Nombre': nombre,
-                        'Apellido': apellido,
+                        'Identificacion': identificacion.strip(),
+                        'Nombre': nombre.strip(),
+                        'Apellido': apellido.strip(),
                         'Tipo_Unidad': tipo_unidad,
-                        'Unidad': unidad,
+                        'Unidad': unidad.strip(),
                         'Tipo': tipo,
-                        'Telefono': telefono,
-                        'Email': email,
+                        'Telefono': telefono.strip() if telefono else "",
+                        'Email': email.strip().lower() if email else "",
                         'Fecha_Ingreso': fecha_ingreso.strftime('%Y-%m-%d'),
                         'Estado': estado,
-                        'Observaciones': observaciones
+                        'Metodo_Pago':'',
+                        'Soporte_Pago':'',
+                        'Ruta_Archivo':'',
+                        'Numero_Recibo':'',
+                        'Ruta_Recibo':'',
+                        'Observaciones': observaciones.strip() if observaciones else "",
+                        'Saldo_Pendiente': 0,
+                        'Registrado': ''
+                        
                     }
                     
                     if st.session_state.manager.save_data('residentes', data):
                         st.success("✅ Residente registrado exitosamente")
+                        st.rerun()
                     else:
                         st.error("❌ Error al registrar residente")
                 else:
-                    st.error("⚠️ Por favor, completa los campos obligatorios (*)")
+                    st.error(mensaje_error)
+            else:
+                st.error("⚠️ Por favor, completa todos los campos obligatorios (*)")
     
     with tab2:
         st.subheader("📋 Lista de Residentes")
@@ -1669,10 +1793,120 @@ def show_residents_module():
             st.info("📝 No hay residentes registrados aún")
     
     with tab3:
+        st.subheader("✏️ Modificar/Eliminar Residentes")
+        residentes_df = st.session_state.manager.load_data('residentes')
+        
+        if not residentes_df.empty:
+            # Selector de residente
+            resident_options = []
+            for _, row in residentes_df.iterrows():
+                resident_options.append(f"{row['Nombre']} {row['Apellido']} - {row['Unidad']} (ID: {row['ID']})")
+            
+            selected_resident = st.selectbox("Seleccionar Residente:", resident_options)
+            
+            if selected_resident:
+                # Extraer ID del residente seleccionado
+                selected_id = selected_resident.split("(ID: ")[1].replace(")", "")
+                resident_data = residentes_df[residentes_df['ID'] == selected_id].iloc[0]
+                
+                # Mostrar información actual
+                st.info(f"📋 Residente seleccionado: {resident_data['Nombre']} {resident_data['Apellido']}")
+                
+                # Opciones de acción
+                action = st.radio("Seleccionar acción:", ["Modificar", "Eliminar"])
+                
+                if action == "Modificar":
+                    st.markdown("### ✏️ Modificar Información")
+                    
+                    with st.form("modify_resident"):
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            identificacion = st.text_input('Identificacion *', value=resident_data['Identificacion'])
+                            nombre = st.text_input("Nombre *", value=resident_data['Nombre'])
+                            apellido = st.text_input("Apellido *", value=resident_data['Apellido'])
+                            tipo_unidad = st.selectbox("Tipo Unidad", ["Casa", "Apto", "Lote","Otro"], 
+                                                     index=["Casa", "Apto", "Lote","Otro"].index(resident_data['Tipo_Unidad']))
+                            unidad = st.text_input("Unidad (Ej: Apto 101, Casa 15) *", value=resident_data['Unidad'])
+                            
+                        with col2:
+                            tipo = st.selectbox("Tipo", ["Propietario", "Inquilino", "Familiar"],
+                                              index=["Propietario", "Inquilino", "Familiar"].index(resident_data['Tipo']))
+                            telefono = st.text_input("Teléfono", value=resident_data['Telefono'] if pd.notna(resident_data['Telefono']) else "")
+                            email = st.text_input("Email", value=resident_data['Email'] if pd.notna(resident_data['Email']) else "")
+                            fecha_ingreso = st.date_input("Fecha de Ingreso", 
+                                                        value=datetime.strptime(resident_data['Fecha_Ingreso'], '%Y-%m-%d').date())
+                            estado = st.selectbox("Estado", ["Activo", "Inactivo", "Temporal"],
+                                                index=["Activo", "Inactivo", "Temporal"].index(resident_data['Estado']))
+                        
+                        observaciones = st.text_area("Observaciones", 
+                                                   value=resident_data['Observaciones'] if pd.notna(resident_data['Observaciones']) else "")
+                        
+                        if st.form_submit_button("💾 Guardar Cambios"):
+                            if nombre and apellido and unidad:
+                                updated_data = {
+                                    'ID': selected_id,
+                                    'Identificacion': identificacion,
+                                    'Nombre': nombre,
+                                    'Apellido': apellido,
+                                    'Tipo_Unidad': tipo_unidad,
+                                    'Unidad': unidad,
+                                    'Tipo': tipo,
+                                    'Telefono': telefono,
+                                    'Email': email,
+                                    'Fecha_Ingreso': fecha_ingreso.strftime('%Y-%m-%d'),
+                                    'Estado': estado,
+                                    
+                                    'Observaciones': observaciones
+                                }
+                                
+                                if st.session_state.manager.update_data('residentes', 'ID', selected_id, updated_data):
+                                    st.success("✅ Residente modificado exitosamente")
+                                    st.rerun()
+                                else:
+                                    st.error("❌ Error al modificar residente")
+                            else:
+                                st.error("⚠️ Por favor, completa los campos obligatorios (*)")
+                
+                elif action == "Eliminar":
+                    st.markdown("### 🗑️ Eliminar Residente")
+                    st.warning(f"⚠️ ¿Estás seguro de que deseas eliminar a **{resident_data['Nombre']} {resident_data['Apellido']}**?")
+                    st.write("Esta acción no se puede deshacer.")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("🗑️ Confirmar Eliminación", type="primary"):
+                            if st.session_state.manager.delete_data('residentes', 'ID', selected_id):
+                                st.success("✅ Residente eliminado exitosamente")
+                                st.rerun()
+                            else:
+                                st.error("❌ Error al eliminar residente")
+                    
+                    with col2:
+                        if st.button("❌ Cancelar"):
+                            st.info("Operación cancelada")
+        else:
+            st.info("📝 No hay residentes registrados para modificar o eliminar")
+    
+    with tab4:
         st.subheader("📊 Estadísticas de Residentes")
         residentes_df = st.session_state.manager.load_data('residentes')
         
         if not residentes_df.empty:
+            # Métricas generales
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Total Residentes", len(residentes_df))
+            with col2:
+                activos = len(residentes_df[residentes_df['Estado'] == 'Activo'])
+                st.metric("Activos", activos)
+            with col3:
+                propietarios = len(residentes_df[residentes_df['Tipo'] == 'Propietario'])
+                st.metric("Propietarios", propietarios)
+            with col4:
+                inquilinos = len(residentes_df[residentes_df['Tipo'] == 'Inquilino'])
+                st.metric("Inquilinos", inquilinos)
+            
+            # Gráficos
             col1, col2 = st.columns(2)
             
             with col1:
@@ -1688,29 +1922,42 @@ def show_residents_module():
                 fig = px.bar(x=estado_counts.index, y=estado_counts.values, 
                            title="Residentes por Estado")
                 st.plotly_chart(fig, use_container_width=True)
+            
+            # Gráfico por tipo de unidad
+            if 'Tipo_Unidad' in residentes_df.columns:
+                unidad_counts = residentes_df['Tipo_Unidad'].value_counts()
+                fig = px.bar(x=unidad_counts.index, y=unidad_counts.values, 
+                           title="Distribución por Tipo de Unidad")
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("📝 No hay datos para mostrar estadísticas")
 
 def show_financial_module():
     """Módulo de administración financiera"""
     st.markdown("## 💰 Administración Financiera")
     
-    tab1, tab2, tab3, tab4 = st.tabs(["➕ Nueva Operación", "📋 Historial", "📊 Reportes", "💳 Cuotas"])
-    
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["📊 Proceso Actualizacion","➕ Nueva Operación", "📋 Historial", "📊 Reportes", "💳 Cuotas", "📋 Informe Estado Financiero"])
+
     with tab1:
+        st.subheader("Actualizar Operación Financiera")
+        control_main()
+    
+    with tab2:
         with st.form("add_financial_operation"):
             st.subheader("Registrar Operación Financiera")
             
-            col1, col2 = st.columns(2)
+            col1, col2, col3, col4 = st.columns(4)
             with col1:
                 tipo_operacion = st.selectbox("Tipo de Operación", 
                                             ["Ingreso", "Gasto", "Cuota de Mantenimiento"])
+
                 tipo_unidad = st.selectbox("Tipo de Unidad", 
                                             ["Casa", "Apto", "Lote", "Otro"])
-                
+                unidad = st.text_input("Unidad (si aplica)")               
                 concepto = st.text_input("Concepto/Descripción *")
-                monto = st.number_input("Monto *", min_value=0.0, format="%.2f")
                 
             with col2:
-                unidad = st.text_input("Unidad (si aplica)")
+                monto = st.number_input("Monto *", min_value=0.0, format="%.2f")
                 fecha = st.date_input("Fecha", datetime.now().date())
                 estado = st.selectbox("Estado", ["Pendiente", "Pagado", "Vencido", "Cancelado"])
                 metodo_pago = st.selectbox("Método de Pago", 
@@ -1725,15 +1972,21 @@ def show_financial_module():
                     data = {
                         'ID': operation_id,
                         'Tipo_Operacion': tipo_operacion,
-                        'Tipo_Unidad': tipo_unidad,
+                        'Unidad': unidad,
+                        #'Tipo_Unidad': tipo_unidad,
                         'Concepto': concepto,
                         'Monto': monto,
-                        'Unidad': unidad,
                         'Fecha': fecha.strftime('%Y-%m-%d'),
                         'Banco': '',
                         'Estado': estado,
                         'Metodo_Pago': metodo_pago,
-                        'Observaciones': observaciones
+                        'Soporte_Pago':'',
+                        'Ruta_Archivo':'',
+                        'Numero_Recibo':'',
+                        'Ruta_Recibo':'',
+                        'Observaciones': observaciones,
+                        'Saldo_Pendiente': 0,
+                        'Registrado': ''
                     }
                     
                     if st.session_state.manager.save_data('financiero', data):
@@ -1743,7 +1996,7 @@ def show_financial_module():
                 else:
                     st.error("⚠️ Por favor, completa los campos obligatorios")
     
-    with tab2:
+    with tab3:
         st.subheader("📋 Historial de Operaciones")
         financiero_df = st.session_state.manager.load_data('financiero')
         
@@ -1787,7 +2040,7 @@ def show_financial_module():
         else:
             st.info("📝 No hay operaciones registradas aún")
     
-    with tab3:
+    with tab4:
         st.subheader("📊 Reportes Financieros")
         financiero_df = st.session_state.manager.load_data('financiero')
         
@@ -1808,7 +2061,7 @@ def show_financial_module():
                          title="Distribución por Estado de Pago")
             st.plotly_chart(fig2, use_container_width=True)
     
-    with tab4:
+    with tab5:
         st.subheader("💳 Gestión de Cuotas")
     
         # Subtabs para diferentes tipos de cuotas
@@ -1823,256 +2076,404 @@ def show_financial_module():
         if not tipos_unidad:
             st.warning("⚠️ No se encontraron tipos de unidad. Asegúrate de que los residentes tengan el campo 'Tipo_Unidad' configurado.")
             return
-    
-        with subtab1:
-            st.markdown("**🏢 Cuotas de Mantenimiento/Administración**")
+
+        # Función para validar duplicados de cuotas de mantenimiento
+        def validar_cuotas_mantenimiento_duplicadas(financiero_df, mes, año, unidades_activas):
+            """
+            Valida si ya existen cuotas de mantenimiento para el mes/año/unidades especificadas
+            """
+            if financiero_df.empty:
+                return [], unidades_activas
         
-            with st.form("generate_maintenance_fees"):
-                st.markdown("**Generar Cuotas de Mantenimiento Masivas**")
+            # Filtrar cuotas de mantenimiento existentes
+            cuotas_existentes = financiero_df[
+                (financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento') &
+                (financiero_df['Concepto'].str.contains(f"{mes} {año}", na=False, case=False))
+            ]
+        
+            # Obtener unidades que ya tienen cuotas para este mes/año
+            unidades_con_cuotas = set(cuotas_existentes['Unidad'].tolist()) if not cuotas_existentes.empty else set()
+        
+            # Filtrar unidades que no tienen cuotas
+            unidades_sin_cuotas = [unidad for unidad in unidades_activas if unidad not in unidades_con_cuotas]
+        
+            return list(unidades_con_cuotas), unidades_sin_cuotas
+
+        # Función para validar duplicados de cuotas extraordinarias
+        def validar_cuotas_extraordinarias_duplicadas(financiero_df, concepto, fecha_vencimiento, unidades_activas):
+            #Valida si ya existen cuotas extraordinarias para el concepto/fecha/unidades especificadas
             
-                col1, col2 = st.columns(2)
-                with col1:
-                    mes_cuota = st.selectbox("Mes", 
-                                       ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-                                        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
-                    año_cuota = st.number_input("Año", min_value=2020, max_value=2030, 
-                                          value=datetime.now().year)
-                with col2:
-                    fecha_vencimiento = st.date_input("Fecha de Vencimiento")
+            if financiero_df.empty:
+                return [], unidades_activas
+        
+            # Convertir fecha a string para comparación
+            fecha_str = fecha_vencimiento.strftime('%Y-%m-%d')
+        
+            # Filtrar cuotas extraordinarias existentes
+            cuotas_existentes = financiero_df[
+                   (financiero_df['Tipo_Operacion'] == 'Ingreso') &
+                    (financiero_df['Concepto'].str.contains(concepto, na=False, case=False)) &
+                    (financiero_df['Fecha'] == fecha_str)
+            ]
+        
+            # Obtener unidades que ya tienen cuotas extraordinarias
+            unidades_con_cuotas = set(cuotas_existentes['Unidad'].tolist()) if not cuotas_existentes.empty else set()
+        
+            # Filtrar unidades que no tienen cuotas
+            unidades_sin_cuotas = [unidad for unidad in unidades_activas if unidad not in unidades_con_cuotas]
+        
+            return list(unidades_con_cuotas), unidades_sin_cuotas
+
+
+        with subtab1:
+          st.markdown("**🏢 Cuotas de Mantenimiento/Administración**")
+    
+          with st.form("generate_maintenance_fees"):
+            st.markdown("**Generar Cuotas de Mantenimiento Masivas**")
+        
+            col1, col2 = st.columns(2)
+            with col1:
+                mes_cuota = st.selectbox("Mes", 
+                                   ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+                                    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"])
+                año_cuota = st.number_input("Año", min_value=2020, max_value=2035, 
+                                      value=datetime.now().year)
+            with col2:
+                fecha_vencimiento = st.date_input("Fecha de Vencimiento")
+        
+            st.markdown("**Configurar Montos por Tipo de Unidad:**")
+        
+            # Crear campos de entrada para cada tipo de unidad
+            montos_por_tipo = {}
+            cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+        
+            for i, tipo_unidad in enumerate(tipos_unidad):
+                with cols[i % 3]:
+                    monto = st.number_input(
+                        f"💰 {tipo_unidad}", 
+                        min_value=0.0, 
+                        format="%.2f",
+                        key=f"monto_mantenimiento_{tipo_unidad}",
+                        help=f"Monto de cuota de mantenimiento para {tipo_unidad}"
+                    )
+                    montos_por_tipo[tipo_unidad] = monto
+        
+            # Obtener datos financieros existentes para validación
+            financiero_df = st.session_state.manager.load_data('financiero')
             
-                st.markdown("**Configurar Montos por Tipo de Unidad:**")
+            # Obtener unidades activas
+            unidades_activas = []
+            if not residentes_df.empty:
+                unidades_activas = residentes_df[
+                    (residentes_df['Estado'] == 'Activo') & 
+                    (residentes_df['Tipo'] == 'Propietario')
+                ]['Unidad'].tolist()
             
-                # Crear campos de entrada para cada tipo de unidad
-                montos_por_tipo = {}
-                cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+            # Validar duplicados
+            unidades_con_cuotas, unidades_sin_cuotas = validar_cuotas_mantenimiento_duplicadas(
+                financiero_df, mes_cuota, año_cuota, unidades_activas
+            )
             
-                for i, tipo_unidad in enumerate(tipos_unidad):
-                    with cols[i % 3]:
-                        monto = st.number_input(
-                            f"💰 {tipo_unidad}", 
-                            min_value=0.0, 
-                            format="%.2f",
-                            key=f"monto_mantenimiento_{tipo_unidad}",
-                            help=f"Monto de cuota de mantenimiento para {tipo_unidad}"
-                        )
-                        montos_por_tipo[tipo_unidad] = monto
-            
-                # Mostrar resumen de cuotas a generar
-                st.markdown("**Resumen de Cuotas de Mantenimiento a Generar:**")
-                resumen_cols = st.columns(len(tipos_unidad))
-            
-                for i, (tipo, monto) in enumerate(montos_por_tipo.items()):
-                    if not residentes_df.empty:
-                        cantidad = len(residentes_df[
-                            (residentes_df['Tipo_Unidad'] == tipo) & 
-                            (residentes_df['Estado'] == 'Activo')
-                        ])
-                        total = cantidad * monto
-                    
-                        with resumen_cols[i]:
-                            st.info(f"**{tipo}**\n\n"
-                               f"Unidades: {cantidad}\n\n"
-                               f"Monto c/u: ${monto:,.2f}\n\n"
-                               f"Total: ${total:,.2f}")
-            
-                if st.form_submit_button("🔄 Generar Cuotas de Mantenimiento/Administracion"):
-                    # Validar que al menos un monto sea mayor a 0
-                    if not any(monto > 0 for monto in montos_por_tipo.values()):
-                        st.error("⚠️ Debe configurar al menos un monto mayor a 0")
-                        return
+            # Mostrar advertencia si hay duplicados
+            if unidades_con_cuotas:
+                st.warning(f"⚠️ **Cuotas Duplicadas Detectadas:**\n\n"
+                          f"Las siguientes unidades ya tienen cuotas de mantenimiento para **{mes_cuota} {año_cuota}**:\n\n"
+                          f"{', '.join(map(str, sorted(unidades_con_cuotas)))}\n\n"
+                          f"Solo se generarán cuotas para las unidades restantes.")
+        
+            # Mostrar resumen de cuotas a generar (solo para unidades sin cuotas)
+            st.markdown("**Resumen de Cuotas de Mantenimiento a Generar:**")
+            resumen_cols = st.columns(len(tipos_unidad))
+        
+            for i, (tipo, monto) in enumerate(montos_por_tipo.items()):
+                if not residentes_df.empty:
+                    # Filtrar solo unidades sin cuotas existentes
+                    residentes_filtrados = residentes_df[
+                        (residentes_df['Tipo_Unidad'] == tipo) & 
+                        (residentes_df['Estado'] == 'Activo') &
+                        (residentes_df['Tipo'] == 'Propietario') &
+                        (residentes_df['Unidad'].isin(unidades_sin_cuotas))
+                    ]
+                    cantidad = len(residentes_filtrados)
+                    total = cantidad * monto
                 
-                    if not residentes_df.empty:
-                        cuotas_generadas = 0
-                        total_generado = 0
-                    
-                        for _, residente in residentes_df.iterrows():
-                            if residente['Estado'] == 'Activo' and residente['Tipo'] == 'Propietario':
-                                tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
-                                monto_cuota = montos_por_tipo.get(tipo_unidad, 0)
+                    with resumen_cols[i]:
+                        st.info(f"**{tipo}**\n\n"
+                           f"Unidades: {cantidad}\n\n"
+                           f"Monto c/u: ${monto:,.2f}\n\n"
+                           f"Total: ${total:,.2f}")
+        
+            if st.form_submit_button("🔄 Generar Cuotas de Mantenimiento/Administración"):
+                # Validar que al menos un monto sea mayor a 0
+                if not any(monto > 0 for monto in montos_por_tipo.values()):
+                    st.error("⚠️ Debe configurar al menos un monto mayor a 0")
+                    return
+                
+                # Validar que haya unidades sin cuotas
+                if not unidades_sin_cuotas:
+                    st.error(f"⚠️ No hay unidades disponibles para generar cuotas de {mes_cuota} {año_cuota}. "
+                            f"Todas las unidades activas ya tienen cuotas generadas para este período.")
+                    return
+            
+                if not residentes_df.empty:
+                    cuotas_generadas = 0
+                    total_generado = 0
+                
+                    for _, residente in residentes_df.iterrows():
+                        if (residente['Estado'] == 'Activo' and 
+                            residente['Tipo'] == 'Propietario' and 
+                            residente['Unidad'] in unidades_sin_cuotas):
                             
-                                if monto_cuota > 0:
-                                    cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
-                                
-                                    data = {
-                                        'ID': cuota_id,
-                                        'Tipo_Operacion': 'Cuota de Mantenimiento/Admon',
-                                        #'Tipo_Unidad': tipo_unidad,
-                                        'Unidad': residente['Unidad'],
-                                        'Concepto': f"Cuota {mes_cuota} {año_cuota} - {tipo_unidad}",
-                                        'Monto': monto_cuota,
-                                        'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
-                                        'Banco': '',
-                                        'Estado': 'Pendiente',
-                                        'Metodo_Pago': '',
-                                        'Observaciones': f"Cuota de mantenimiento generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
-                                    }
-                                
-                                    if st.session_state.manager.save_data('financiero',     data):
-                                        cuotas_generadas += 1
-                                        total_generado += monto_cuota
-                    
-                        if cuotas_generadas > 0:
-                            st.success(f"✅ Se generaron {cuotas_generadas} cuotas de mantenimiento exitosamente")
-                            st.info(f"💰 Total generado: ${total_generado:,.2f}")
+                            tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
+                            monto_cuota = montos_por_tipo.get(tipo_unidad, 0)
                         
-                            # Mostrar detalle por tipo de unidad
-                            st.markdown("**Detalle por Tipo de Unidad:**")
-                            for tipo_unidad in tipos_unidad:
-                                if montos_por_tipo[tipo_unidad] > 0:
-                                    cantidad = len(residentes_df[
-                                        (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
-                                        (residentes_df['Estado'] == 'Activo')
-                                    ])
-                                    if cantidad > 0:
-                                        total_tipo = cantidad * montos_por_tipo[tipo_unidad]
-                                        st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_por_tipo[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
-                        else:
-                            st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
+                            if monto_cuota > 0:
+                                cuota_id = f"CUOTA{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
+                            
+                                data = {
+                                    'ID': cuota_id,
+                                    'Tipo_Operacion': 'Cuota de Mantenimiento',
+                                    'Unidad': residente['Unidad'],
+                                    'Concepto': f"Cuota {mes_cuota} {año_cuota} - {tipo_unidad}",
+                                    'Monto': monto_cuota,
+                                    'Fecha': fecha_vencimiento.strftime('%Y-%m-%d'),
+                                    'Banco': '',
+                                    'Estado': 'Pendiente',
+                                    'Metodo_Pago': '',
+                                    'Ruta_Archivo':'',
+                                    'Numero_Recibo':'',
+                                    'Ruta_Recibo':'',
+                                    'Observaciones': f"Cuota de mantenimiento generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}",
+                                    'Saldo_Pendiente': monto_cuota,
+                                    'Registrado': ''
+                                }
+                            
+                                if st.session_state.manager.save_data('financiero', data):
+                                    cuotas_generadas += 1
+                                    total_generado += monto_cuota
+                
+                    if cuotas_generadas > 0:
+                        st.success(f"✅ Se generaron {cuotas_generadas} cuotas de mantenimiento exitosamente")
+                        st.info(f"💰 Total generado: ${total_generado:,.2f}")
+                    
+                        # Mostrar detalle por tipo de unidad
+                        st.markdown("**Detalle por Tipo de Unidad:**")
+                        for tipo_unidad in tipos_unidad:
+                            if montos_por_tipo[tipo_unidad] > 0:
+                                residentes_tipo = residentes_df[
+                                    (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
+                                    (residentes_df['Estado'] == 'Activo') &
+                                    (residentes_df['Tipo'] == 'Propietario') &
+                                    (residentes_df['Unidad'].isin(unidades_sin_cuotas))
+                                ]
+                                cantidad = len(residentes_tipo)
+                                if cantidad > 0:
+                                    total_tipo = cantidad * montos_por_tipo[tipo_unidad]
+                                    st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_por_tipo[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
+                        
+                        # Mostrar información sobre cuotas omitidas
+                        if unidades_con_cuotas:
+                            st.markdown("---")
+                            st.info(f"**Cuotas Omitidas:** {len(unidades_con_cuotas)} unidades ya tenían cuotas para {mes_cuota} {año_cuota}")
                     else:
-                        st.warning("⚠️ No hay residentes registrados para generar cuotas")
+                        st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
+                else:
+                    st.warning("⚠️ No hay residentes registrados para generar cuotas")
     
         with subtab2:
-            st.markdown("**⚡ Cuotas Extraordinarias**")
+          st.markdown("**⚡ Cuotas Extraordinarias**")
+    
+          with st.form("generate_extraordinary_fees"):
+            st.markdown("**Generar Cuotas Extraordinarias Masivas**")
         
-            with st.form("generate_extraordinary_fees"):
-                st.markdown("**Generar Cuotas Extraordinarias Masivas**")
+            col1, col2 = st.columns(2)
+            with col1:
+                concepto_extraordinaria = st.text_input(
+                    "Concepto de la Cuota Extraordinaria *", 
+                    placeholder="Ej: Reparación de ascensor, Pintura de fachada, etc."
+                )
+                descripcion_detallada = st.text_area(
+                    "Descripción Detallada",
+                    placeholder="Descripción completa del motivo de la cuota extraordinaria..."
+                )
+            with col2:
+                fecha_vencimiento_ext = st.date_input("Fecha de Vencimiento", key="vencimiento_extraordinaria")
+                estado_inicial = st.selectbox("Estado Inicial", 
+                                        ["Pendiente", "Pagado"], 
+                                        key="estado_extraordinaria")
+        
+            st.markdown("**Configurar Montos por Tipo de Unidad:**")
+        
+            # Crear campos de entrada para cada tipo de unidad
+            montos_extraordinaria = {}
+            cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
+        
+            for i, tipo_unidad in enumerate(tipos_unidad):
+                with cols[i % 3]:
+                    monto = st.number_input(
+                        f"💰 {tipo_unidad}", 
+                        min_value=0.0, 
+                        format="%.2f",
+                        key=f"monto_extraordinaria_{tipo_unidad}",
+                        help=f"Monto de cuota extraordinaria para {tipo_unidad}"
+                    )
+                    montos_extraordinaria[tipo_unidad] = monto
+        
+            # Obtener datos financieros existentes para validación
+            financiero_df = st.session_state.manager.load_data('financiero')
             
+            # Obtener unidades activas
+            unidades_activas = []
+            if not residentes_df.empty:
+                unidades_activas = residentes_df[
+                    (residentes_df['Estado'] == 'Activo') & 
+                    (residentes_df['Tipo'] == 'Propietario')
+                ]['Unidad'].tolist()
+            
+            # Validar duplicados para cuotas extraordinarias
+            if concepto_extraordinaria.strip():
+                unidades_con_cuotas_ext, unidades_sin_cuotas_ext = validar_cuotas_extraordinarias_duplicadas(
+                    financiero_df, concepto_extraordinaria, fecha_vencimiento_ext, unidades_activas
+                )
+                
+                # Mostrar advertencia si hay duplicados
+                if unidades_con_cuotas_ext:
+                    st.warning(f"⚠️ **Cuotas Extraordinarias Duplicadas Detectadas:**\n\n"
+                              f"Las siguientes unidades ya tienen cuotas extraordinarias para **{concepto_extraordinaria}** "
+                              f"con fecha **{fecha_vencimiento_ext.strftime('%Y-%m-%d')}**:\n\n"
+                              f"{', '.join(map(str, sorted(unidades_con_cuotas_ext)))}\n\n"
+                              f"Solo se generarán cuotas para las unidades restantes.")
+            else:
+                unidades_sin_cuotas_ext = unidades_activas
+                unidades_con_cuotas_ext = []
+        
+            # Mostrar resumen de cuotas extraordinarias a generar
+            st.markdown("**Resumen de Cuotas Extraordinarias a Generar:**")
+            resumen_cols = st.columns(len(tipos_unidad))
+        
+            total_cuotas_extraordinarias = 0
+            total_monto_extraordinarias = 0
+        
+            for i, (tipo, monto) in enumerate(montos_extraordinaria.items()):
+                if not residentes_df.empty:
+                    # Filtrar solo unidades sin cuotas extraordinarias existentes
+                    residentes_filtrados = residentes_df[
+                        (residentes_df['Tipo_Unidad'] == tipo) & 
+                        (residentes_df['Estado'] == 'Activo') &
+                        (residentes_df['Tipo'] == 'Propietario') &
+                        (residentes_df['Unidad'].isin(unidades_sin_cuotas_ext))
+                    ]
+                    cantidad = len(residentes_filtrados)
+                    total = cantidad * monto
+                    total_cuotas_extraordinarias += cantidad
+                    total_monto_extraordinarias += total
+                
+                    with resumen_cols[i]:
+                        st.info(f"**{tipo}**\n\n"
+                           f"Unidades: {cantidad}\n\n"
+                           f"Monto c/u: ${monto:,.2f}\n\n"
+                           f"Total: ${total:,.2f}")
+        
+            # Mostrar totales generales
+            if total_cuotas_extraordinarias > 0:
+                st.markdown("---")
                 col1, col2 = st.columns(2)
                 with col1:
-                    concepto_extraordinaria = st.text_input(
-                        "Concepto de la Cuota Extraordinaria *", 
-                        placeholder="Ej: Reparación de ascensor, Pintura de fachada, etc."
-                    )
-                    descripcion_detallada = st.text_area(
-                        "Descripción Detallada",
-                        placeholder="Descripción completa del motivo de la cuota extraordinaria..."
-                    )
+                    st.metric("📋 Total Cuotas a Generar", total_cuotas_extraordinarias)
                 with col2:
-                    fecha_vencimiento_ext = st.date_input("Fecha de Vencimiento", key="vencimiento_extraordinaria")
-                    estado_inicial = st.selectbox("Estado Inicial", 
-                                            ["Pendiente", "Pagado"], 
-                                            key="estado_extraordinaria")
+                    st.metric("💰 Total General", f"${total_monto_extraordinarias:,.2f}")
+        
+            if st.form_submit_button("⚡ Generar Cuotas Extraordinarias"):
+                # Validaciones
+                if not concepto_extraordinaria.strip():
+                    st.error("⚠️ Debe especificar el concepto de la cuota extraordinaria")
+                    return
             
-                st.markdown("**Configurar Montos por Tipo de Unidad:**")
-            
-                # Crear campos de entrada para cada tipo de unidad
-                montos_extraordinaria = {}
-                cols = st.columns(min(len(tipos_unidad), 3))  # Máximo 3 columnas
-            
-                for i, tipo_unidad in enumerate(tipos_unidad):
-                    with cols[i % 3]:
-                        monto = st.number_input(
-                            f"💰 {tipo_unidad}", 
-                            min_value=0.0, 
-                            format="%.2f",
-                            key=f"monto_extraordinaria_{tipo_unidad}",
-                            help=f"Monto de cuota extraordinaria para {tipo_unidad}"
-                        )
-                        montos_extraordinaria[tipo_unidad] = monto
-            
-                # Mostrar resumen de cuotas extraordinarias a generar
-                st.markdown("**Resumen de Cuotas Extraordinarias a Generar:**")
-                resumen_cols = st.columns(len(tipos_unidad))
-            
-                total_cuotas_extraordinarias = 0
-                total_monto_extraordinarias = 0
-            
-                for i, (tipo, monto) in enumerate(montos_extraordinaria.items()):
-                    if not residentes_df.empty:
-                        cantidad = len(residentes_df[
-                            (residentes_df['Tipo_Unidad'] == tipo) & 
-                            (residentes_df['Estado'] == 'Activo')
-                        ])
-                        total = cantidad * monto
-                        total_cuotas_extraordinarias += cantidad
-                        total_monto_extraordinarias += total
-                    
-                        with resumen_cols[i]:
-                            st.info(f"**{tipo}**\n\n"
-                               f"Unidades: {cantidad}\n\n"
-                               f"Monto c/u: ${monto:,.2f}\n\n"
-                               f"Total: ${total:,.2f}")
-            
-                # Mostrar totales generales
-                if total_cuotas_extraordinarias > 0:
-                    st.markdown("---")
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric("📋 Total Cuotas a Generar", total_cuotas_extraordinarias)
-                    with col2:
-                        st.metric("💰 Total General", f"${total_monto_extraordinarias:,.2f}")
-            
-                if st.form_submit_button("⚡ Generar Cuotas Extraordinarias"):
-                    # Validaciones
-                    if not concepto_extraordinaria.strip():
-                        st.error("⚠️ Debe especificar el concepto de la cuota extraordinaria")
-                        return
+                if not any(monto > 0 for monto in montos_extraordinaria.values()):
+                    st.error("⚠️ Debe configurar al menos un monto mayor a 0")
+                    return
                 
-                    if not any(monto > 0 for monto in montos_extraordinaria.values()):
-                        st.error("⚠️ Debe configurar al menos un monto mayor a 0")
-                        return
+                # Validar que haya unidades sin cuotas
+                if not unidades_sin_cuotas_ext:
+                    st.error(f"⚠️ No hay unidades disponibles para generar cuotas extraordinarias de '{concepto_extraordinaria}'. "
+                            f"Todas las unidades activas ya tienen esta cuota extraordinaria generada.")
+                    return
+            
+                if not residentes_df.empty:
+                    cuotas_generadas = 0
+                    total_generado = 0
                 
-                    if not residentes_df.empty:
-                        cuotas_generadas = 0
-                        total_generado = 0
-                    
-                        for _, residente in residentes_df.iterrows():
-                            if residente['Estado'] == 'Activo' and residente['Tipo'] == 'Propietario':
-                                tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
-                                monto_cuota = montos_extraordinaria.get(tipo_unidad, 0)
+                    for _, residente in residentes_df.iterrows():
+                        if (residente['Estado'] == 'Activo' and 
+                            residente['Tipo'] == 'Propietario' and 
+                            residente['Unidad'] in unidades_sin_cuotas_ext):
                             
-                                if monto_cuota > 0:
-                                    cuota_id = f"CEXT{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
-                                
-                                    # Crear concepto completo
-                                    concepto_completo = f"Cuota Extraordinaria: {concepto_extraordinaria}"
-                                
-                                    # Crear observaciones completas
-                                    observaciones_completas = f"Cuota extraordinaria generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
-                                    if descripcion_detallada:
-                                        observaciones_completas += f"\n\nDescripción: {descripcion_detallada}"
-                                
-                                    data = {
-                                        'ID': cuota_id,
-                                    '   Tipo_Operacion': 'Ingreso',  # Como solicitas que   sea "Ingreso"
-                                        #'Tipo_Unidad': tipo_unidad,
-                                        'Unidad': residente['Unidad'],
-                                        'Concepto': concepto_completo,
-                                        'Monto': monto_cuota,
-                                        'Fecha': fecha_vencimiento_ext.strftime('%Y-%m-%d'),
-                                        'Banco': '',
-                                        'Estado': estado_inicial,
-                                        'Metodo_Pago': '',
-                                        'Observaciones': observaciones_completas
-                                    }
-                                
-                                    if st.session_state.manager.save_data('financiero', data):
-                                        cuotas_generadas += 1
-                                        total_generado += monto_cuota
+                            tipo_unidad = residente.get('Tipo_Unidad', 'Sin Clasificar')
+                            monto_cuota = montos_extraordinaria.get(tipo_unidad, 0)
+                        
+                            if monto_cuota > 0:
+                                cuota_id = f"CEXT{datetime.now().strftime('%Y%m%d%H%M%S')}{cuotas_generadas:03d}"
+                            
+                                # Crear concepto completo
+                                concepto_completo = f"Cuota Extraordinaria: {concepto_extraordinaria}"
+                            
+                                # Crear observaciones completas
+                                observaciones_completas = f"Cuota extraordinaria generada automáticamente para {residente['Nombre']} {residente['Apellido']} - Tipo: {tipo_unidad}"
+                                if descripcion_detallada:
+                                    observaciones_completas += f"\n\nDescripción: {descripcion_detallada}"
+                            
+                                data = {
+                                    'ID': cuota_id,
+                                    'Tipo_Operacion': 'Ingreso',  # Como solicitas que sea "Ingreso"
+                                    'Unidad': residente['Unidad'],
+                                    'Concepto': concepto_completo,
+                                    'Monto': monto_cuota,
+                                    'Fecha': fecha_vencimiento_ext.strftime('%Y-%m-%d'),
+                                    'Banco': '',
+                                    'Estado': estado_inicial,
+                                    'Metodo_Pago': '',
+                                    'Ruta_Archivo':'',
+                                    'Numero_Recibo':'',
+                                    'Ruta_Recibo':'',
+                                    'Observaciones': observaciones_completas,
+                                    'Saldo_Pendiente': monto_cuota,
+                                    'Registrado': ''
+                                }
+                            
+                                if st.session_state.manager.save_data('financiero', data):
+                                    cuotas_generadas += 1
+                                    total_generado += monto_cuota
+                
+                    if cuotas_generadas > 0:
+                        st.success(f"✅ Se generaron {cuotas_generadas} cuotas extraordinarias exitosamente")
+                        st.info(f"💰 Total generado: ${total_generado:,.2f}")
                     
-                        if cuotas_generadas > 0:
-                            st.success(f"✅ Se generaron {cuotas_generadas} cuotas extraordinarias exitosamente")
-                            st.info(f"💰 Total generado: ${total_generado:,.2f}")
+                        # Mostrar detalle por tipo de unidad
+                        st.markdown("**Detalle por Tipo de Unidad:**")
+                        for tipo_unidad in tipos_unidad:
+                            if montos_extraordinaria[tipo_unidad] > 0:
+                                residentes_tipo = residentes_df[
+                                    (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
+                                    (residentes_df['Estado'] == 'Activo') &
+                                    (residentes_df['Tipo'] == 'Propietario') &
+                                    (residentes_df['Unidad'].isin(unidades_sin_cuotas_ext))
+                                ]
+                                cantidad = len(residentes_tipo)
+                                if cantidad > 0:
+                                    total_tipo = cantidad * montos_extraordinaria[tipo_unidad]
+                                    st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_extraordinaria[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
+                    
+                        # Mostrar información adicional
+                        st.markdown("---")
+                        st.info(f"**Concepto:** {concepto_extraordinaria}\n\n**Fecha de Vencimiento:** {fecha_vencimiento_ext.strftime('%Y-%m-%d')}")
                         
-                            # Mostrar detalle por tipo de unidad
-                            st.markdown("**Detalle por Tipo de Unidad:**")
-                            for tipo_unidad in tipos_unidad:
-                                if montos_extraordinaria[tipo_unidad] > 0:
-                                    cantidad = len(residentes_df[
-                                        (residentes_df['Tipo_Unidad'] == tipo_unidad) & 
-                                        (residentes_df['Estado'] == 'Activo')
-                                    ])
-                                    if cantidad > 0:
-                                        total_tipo = cantidad * montos_extraordinaria[tipo_unidad]
-                                        st.write(f"• **{tipo_unidad}**: {cantidad} cuotas × ${montos_extraordinaria[tipo_unidad]:,.2f} = ${total_tipo:,.2f}")
-                        
-                            # Mostrar información adicional
-                            st.markdown("---")
-                            st.info(f"**Concepto:** {concepto_extraordinaria}\n\n**Fecha de Vencimiento:** {fecha_vencimiento_ext.strftime('%Y-%m-%d')}")
-                        else:
-                            st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
+                        # Mostrar información sobre cuotas omitidas
+                        if unidades_con_cuotas_ext:
+                            st.info(f"**Cuotas Omitidas:** {len(unidades_con_cuotas_ext)} unidades ya tenían esta cuota extraordinaria")
                     else:
-                        st.warning("⚠️ No hay residentes registrados para generar cuotas")
+                        st.warning("⚠️ No se generaron cuotas. Verifique que haya residentes activos y montos configurados.")
+                else:
+                    st.warning("⚠️ No hay residentes registrados para generar cuotas")
     
         with subtab3:
             st.markdown("**🗑️ Eliminar Cuotas**")
@@ -2440,6 +2841,10 @@ def show_financial_module():
                     st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("📝 No hay información financiera disponible")
+
+    with tab6:
+        st.subheader("📝 Informe de Estado Financiero ")
+        informe_estado_main()
 
 def show_maintenance_module():
     """Módulo de gestión de mantenimiento"""

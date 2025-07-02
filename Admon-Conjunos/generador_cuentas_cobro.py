@@ -411,7 +411,7 @@ def send_email_with_invoice(recipient_email, recipient_name, unit_name, pdf_path
         
         Por favor revise el documento adjunto y proceda con el pago antes de la fecha límite.
         
-        Si ya realizó el pago, por favor envíe el comprobante a este mismo correo.
+        Si ya realizó el pago, por favor envíe el comprobante a este mismo correo o por favor carguelo por la opcion de pagos de la aplicacion.
         
         Gracias por su atención.
         

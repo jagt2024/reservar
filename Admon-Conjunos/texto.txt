@@ -1,0 +1,49 @@
+
+crear script con streamlit, que lea y actualice el archivo "gestion-conjuntos" en la hoja  "Administracion_Financiera" donde realice el cruce de los registros con Tipo_Operacion = "Cuota de Mantenimiento", que sean de la misma Unidad, que la Fecha tenga el mismo periodo de mes y ano, que el Estado de estos registros este en "Pagado" y "Pendiente", una vez se tienen estos regisros se realice la operacion de resta del Monto del registro "Pendiente" con el Monto del  registro "Pagado" y se actualice el campo "Saldo_Pendiente" del registro "Pendiente" y se cambie el estado a "Pagado" siempre que el resultado sea = 0 o negativo, insertar en el mismo archivo pero en la hoja "gestion_morosos" en el siguente orden de columnas: ID,	Fecha_Registro,	Apartamento/Casa,	Propietario,Cedula,	Telefono,	Email,	Valor_Deuda,	Concepto_Deuda,	Fecha_Vencimiento,	Dias_Mora,	Observaciones, Valor_Pagado	Fecha_Pago,	Saldo_Pendiente,	Saldo_Total. con parte de la inforrmacion que se encuentra en la hoja "Control_Residentes": ID, fecha de creacion del registro, Unidad, Nombre y Apellido, Identificacion, Telefono, Email y de la hoja "Administracion_Financiera" los campos, Monto, Concepto, Fecha, calculo de fecha actual menos Fecha y devuelva los dias para los Dias_Mora, "Proceso Contol Financiero", Monto del registro con Estado = "Pagado", Fecha, y Saldo_Pendiente, Saldo_Pendiente el registro que se encontraaba en Estado "Pendiente". Adjunto las  funciones de cerdenciales  y links de accesso:
+def load_credentials_from_toml():
+    """Cargar credenciales desde el archivo secrets.toml"""
+    try:
+        with open('./.streamlit/secrets.toml', 'r') as toml_file:
+            config = toml.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            return creds, config
+    except FileNotFoundError:
+        st.error("📁 Archivo secrets.toml no encontrado en .streamlit/")
+        st.info("Crea el archivo `.streamlit/secrets.toml` con tus credenciales")
+        return None, None
+    except KeyError as e:
+        st.error(f"🔑 Clave faltante en secrets.toml: {str(e)}")
+        st.info("Verifica la estructura del archivo secrets.toml")
+        return None, None
+    except json.JSONDecodeError as e:
+        st.error(f"📄 Error al parsear JSON en secrets.toml: {str(e)}")
+        return None, None
+    except Exception as e:
+        st.error(f"❌ Error cargando credenciales: {str(e)}")
+        return None, None
+
+@st.cache_resource(ttl=300)
+def get_google_sheets_connection(_creds):
+    """Establecer conexión con Google Sheets"""
+    try:
+        scope = [
+            'https://spreadsheets.google.com/feeds', 
+            'https://www.googleapis.com/auth/drive'
+        ]
+        credentials = Credentials.from_service_account_info(_creds, scopes=scope)
+        client = gspread.authorize(credentials)
+    
+        # Verificar la conexión intentando listar las hojas
+        try:
+            sheets = client.openall()
+            st.success(f"✅ Conexión exitosa y disponible!")
+        except Exception as e:
+            st.warning(f"⚠️ Conexión establecida pero sin acceso completo: {str(e)}")
+    
+        return client
+
+    except Exception as e:
+        st.error(f"❌ Error conectando a Google Sheets: {str(e)}")
+        return None

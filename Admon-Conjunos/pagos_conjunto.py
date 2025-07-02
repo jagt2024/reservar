@@ -10,6 +10,13 @@ import base64
 from io import BytesIO
 import time
 import os
+from reportlab.lib.pagesizes import letter, A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+import locale
 
 # Configuración de la página
 #st.set_page_config(
@@ -25,6 +32,227 @@ def create_upload_directory():
         os.makedirs(upload_dir)
         st.info(f"📁 Directorio '{upload_dir}' creado exitosamente")
     return upload_dir
+
+def create_receipts_directory():
+    """Crear directorio para recibos si no existe"""
+    receipts_dir = "recibos_caja"
+    if not os.path.exists(receipts_dir):
+        os.makedirs(receipts_dir)
+        st.info(f"📁 Directorio '{receipts_dir}' creado exitosamente")
+    return receipts_dir
+
+def number_to_words(n):
+    """Convertir número a palabras en español (para recibos)"""
+    # Función básica para convertir números a palabras
+    # Para una implementación completa, podrías usar la librería 'num2words'
+    
+    unidades = ["", "uno", "dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve"]
+    decenas = ["", "", "veinte", "treinta", "cuarenta", "cincuenta", "sesenta", "setenta", "ochenta", "noventa"]
+    especiales = ["diez", "once", "doce", "trece", "catorce", "quince", "dieciséis", "diecisiete", "dieciocho", "diecinueve"]
+    centenas = ["", "ciento", "doscientos", "trescientos", "cuatrocientos", "quinientos", "seiscientos", "setecientos", "ochocientos", "novecientos"]
+    
+    if n == 0:
+        return "cero"
+    
+    if n < 10:
+        return unidades[n]
+    elif n < 20:
+        return especiales[n - 10]
+    elif n < 100:
+        if n % 10 == 0:
+            return decenas[n // 10]
+        else:
+            return decenas[n // 10] + " y " + unidades[n % 10]
+    elif n < 1000:
+        if n == 100:
+            return "cien"
+        else:
+            resto = n % 100
+            return centenas[n // 100] + (" " + number_to_words(resto) if resto != 0 else "")
+    elif n < 1000000:
+        miles = n // 1000
+        resto = n % 1000
+        if miles == 1:
+            return "mil" + (" " + number_to_words(resto) if resto != 0 else "")
+        else:
+            return number_to_words(miles) + " mil" + (" " + number_to_words(resto) if resto != 0 else "")
+    
+    return str(n)  # Para números muy grandes, devolver como string
+
+def generate_receipt_pdf(payment_data, receipt_number):
+    """Generar recibo de caja en PDF"""
+    try:
+        receipts_dir = create_receipts_directory()
+        filename = f"Recibo_{receipt_number}_{payment_data['ID']}.pdf"
+        filepath = os.path.join(receipts_dir, filename)
+        
+        # Crear documento PDF
+        doc = SimpleDocTemplate(filepath, pagesize=A4)
+        styles = getSampleStyleSheet()
+        
+        # Crear estilos personalizados
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=16,
+            spaceAfter=30,
+            alignment=TA_CENTER,
+            textColor=colors.darkblue
+        )
+        
+        header_style = ParagraphStyle(
+            'CustomHeader',
+            parent=styles['Heading2'],
+            fontSize=12,
+            spaceAfter=12,
+            alignment=TA_LEFT,
+            textColor=colors.black
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=10,
+            spaceAfter=6,
+            alignment=TA_LEFT
+        )
+        
+        # Elementos del documento
+        elements = []
+        
+        # Encabezado del conjunto/administración
+        elements.append(Paragraph("CONJUNTO RESIDENCIAL / ADMINISTRACIÓN", title_style))
+        elements.append(Paragraph("RECIBO DE CAJA", title_style))
+        elements.append(Spacer(1, 20))
+        
+        # Número de recibo y fecha
+        receipt_info = [
+            ["Recibo No:", receipt_number],
+            ["Fecha:", payment_data['Fecha']],
+            ["ID Transacción:", payment_data['ID']]
+        ]
+        
+        receipt_table = Table(receipt_info, colWidths=[2*inch, 3*inch])
+        receipt_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ]))
+        
+        elements.append(receipt_table)
+        elements.append(Spacer(1, 20))
+        
+        # Información del pagador
+        elements.append(Paragraph("DATOS DEL PAGADOR", header_style))
+        
+        payer_info = [
+            ["Unidad/Apartamento:", payment_data['Unidad']],
+            ["Concepto:", payment_data['Concepto']],
+            ["Tipo de Operación:", payment_data['Tipo_Operacion']]
+        ]
+        
+        payer_table = Table(payer_info, colWidths=[2*inch, 4*inch])
+        payer_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ]))
+        
+        elements.append(payer_table)
+        elements.append(Spacer(1, 20))
+        
+        # Detalle del pago
+        elements.append(Paragraph("DETALLE DEL PAGO", header_style))
+        
+        # Formatear monto
+        try:
+            monto_float = float(payment_data['Monto'])
+            monto_formatted = f"${monto_float:,.2f}"
+            
+            # Convertir a palabras (parte entera)
+            parte_entera = int(monto_float)
+            centavos = int((monto_float - parte_entera) * 100)
+            
+            monto_palabras = number_to_words(parte_entera).upper()
+            if centavos > 0:
+                monto_palabras += f" CON {centavos}/100"
+            monto_palabras += " PESOS COLOMBIANOS"
+            
+        except:
+            monto_formatted = f"${payment_data['Monto']}"
+            monto_palabras = "MONTO EN NÚMEROS"
+        
+        payment_detail = [
+            ["Monto en números:", monto_formatted],
+            ["Monto en letras:", monto_palabras],
+            ["Método de pago:", payment_data['Metodo_Pago']],
+            ["Estado:", payment_data['Estado']]
+        ]
+        
+        payment_table = Table(payment_detail, colWidths=[2*inch, 4*inch])
+        payment_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('BACKGROUND', (0, 1), (-1, 1), colors.lightgrey),  # Resaltar monto en letras
+        ]))
+        
+        elements.append(payment_table)
+        elements.append(Spacer(1, 30))
+        
+        # Observaciones si existen
+        if payment_data['Observaciones'] and payment_data['Observaciones'] != "Sin observaciones":
+            elements.append(Paragraph("OBSERVACIONES", header_style))
+            elements.append(Paragraph(payment_data['Observaciones'], normal_style))
+            elements.append(Spacer(1, 20))
+        
+        # Firmas
+        elements.append(Spacer(1, 40))
+        
+        signature_data = [
+            ["_________________________", "_________________________"],
+            ["RECIBÍ CONFORME", "ENTREGUÉ CONFORME"],
+            ["Nombre:", "Nombre:"],
+            ["C.C.:", "C.C.:"],
+            ["Fecha:", "Fecha:"]
+        ]
+        
+        signature_table = Table(signature_data, colWidths=[3*inch, 3*inch])
+        signature_table.setStyle(TableStyle([
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 1), (-1, 1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, 1), 15),
+        ]))
+        
+        elements.append(signature_table)
+        elements.append(Spacer(1, 20))
+        
+        # Pie de página
+        footer_text = f"Recibo generado automáticamente el {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=styles['Normal'],
+            fontSize=8,
+            alignment=TA_CENTER,
+            textColor=colors.grey
+        )
+        elements.append(Paragraph(footer_text, footer_style))
+        
+        # Construir PDF
+        doc.build(elements)
+        
+        return filepath, filename
+        
+    except Exception as e:
+        st.error(f"❌ Error generando recibo PDF: {str(e)}")
+        return None, None
 
 def save_uploaded_file(uploaded_file, unique_id):
     """Guardar archivo subido en el directorio local"""
@@ -133,22 +361,28 @@ def generate_unique_id(unidad):
     #random_suffix = str(uuid.uuid4())[:8].upper()
     return f"PAG_{unidad}_{timestamp}"
 
+def generate_receipt_number():
+    """Generar número consecutivo para recibo de caja"""
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    return f"RC-{timestamp}"
+
 def create_or_update_worksheet(_client):
     """Crear o verificar la estructura de la hoja de trabajo"""
     try:
         spreadsheet = _client.open("gestion-conjuntos")
         
-        # Columnas requeridas
+        # Columnas requeridas (agregamos Numero_Recibo y Ruta_Recibo)
         required_columns = [
             'ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 
-            'Fecha', 'Banco', 'Estado', 'Metodo_Pago', 'Soporte_Pago', 'Ruta_Archivo', 'Observaciones'
+            'Fecha', 'Banco', 'Estado', 'Metodo_Pago', 'Soporte_Pago', 
+            'Ruta_Archivo', 'Numero_Recibo', 'Ruta_Recibo', 'Observaciones', 'Saldo_Pendiente','Registrado'
         ]
         
         try:
             worksheet = spreadsheet.worksheet("Administracion_Financiera")
             # Verificar si tiene encabezados
             headers = worksheet.row_values(1)
-            if not headers or headers != required_columns:
+            if not headers or len(headers) < len(required_columns):
                 worksheet.clear()
                 worksheet.append_row(required_columns)
                 st.info("✅ Encabezados actualizados en la hoja existente")
@@ -188,7 +422,11 @@ def save_payment_record(_client, payment_data):
             payment_data['Metodo_Pago'],
             payment_data['Soporte_Pago'],
             payment_data['Ruta_Archivo'],
-            payment_data['Observaciones']
+            payment_data.get('Numero_Recibo', ''),
+            payment_data.get('Ruta_Recibo', ''),
+            payment_data['Observaciones'],
+            payment_data['Saldo_Pendiente'],
+            payment_data['Registrado']
         ]
         
         # Agregar fila
@@ -205,6 +443,124 @@ def encode_file_to_base64(uploaded_file):
         bytes_data = uploaded_file.getvalue()
         return base64.b64encode(bytes_data).decode()
     return ""
+
+def check_payment_exists(df_existing, tipo_operacion, unidad, concepto):
+    """
+    Verifica si ya existe un pago con los mismos parámetros
+    
+    Args:
+        df_existing: DataFrame con registros existentes
+        tipo_operacion: Tipo de operación del pago
+        unidad: Unidad/Casa/Lote
+        concepto: Concepto del pago
+    
+    Returns:
+        dict: {'exists': bool, 'records': list, 'count': int}
+    """
+    if df_existing.empty:
+        return {'exists': False, 'records': [], 'count': 0}
+    
+    # Buscar registros que coincidan
+    mask = (
+        (df_existing['Tipo_Operacion'].str.strip().str.lower() == tipo_operacion.strip().lower()) &
+        (df_existing['Unidad'].str.strip().str.lower() == unidad.strip().lower()) &
+        (df_existing['Concepto'].str.strip().str.lower() == concepto.strip().lower()) 
+    )
+    
+    matching_records = df_existing[mask]
+    
+    return {
+        'exists': len(matching_records) > 0,
+        'records': matching_records.to_dict('records') if len(matching_records) > 0 else [],
+        'count': len(matching_records)
+    }
+
+def get_deletable_payments(df_existing, tipo_operacion, unidad, concepto):
+    """
+    Obtiene los pagos que pueden ser eliminados (Estado != "Aplicado" otros)
+    DataFrame con registros eliminables
+    """
+    if df_existing.empty:
+        return pd.DataFrame()
+    
+    # Buscar registros que coincidan y NO estén "Aplicados"
+    mask = (
+        (df_existing['Tipo_Operacion'].str.strip().str.lower() == tipo_operacion.strip().lower()) &
+        (df_existing['Unidad'].str.strip().str.lower() == unidad.strip().lower()) &
+        (df_existing['Concepto'].str.strip().str.lower() == concepto.strip().lower()) &
+        (
+            (df_existing['Estado'].str.strip().str.lower().isin(["pagado"])) &
+            (~df_existing['Registrado'].str.strip().str.lower().isin(["principal"]))
+        )
+    )
+    
+    return df_existing[mask]
+
+def delete_payment_record(client, payment_id):
+    """
+    Elimina un registro de pago por su ID
+    bool: True si se eliminó exitosamente, False en caso contrario
+    """
+    try:
+        # Validar que el cliente esté disponible
+        if client is None:
+            st.error("❌ Cliente de Google Sheets no disponible")
+            return False
+                
+        # Obtener todos los datos
+        try:
+            sheet = client.open("gestion-conjuntos")
+            worksheet = sheet.worksheet("Administracion_Financiera")
+            all_records = worksheet.get_all_records()
+
+        except Exception as e:
+            st.error(f"📊 Error al obtener los datos de la hoja: {str(e)}")
+            return False
+        
+        if not all_records:
+            st.error("📊 No se encontraron registros en la hoja")
+            return False
+        
+        # Encontrar la fila a eliminar
+        # (agregamos 2 porque: 1 para el header + 1 para indexado base-1)
+        row_to_delete = None
+        found_record = None
+        
+        for idx, record in enumerate(all_records):
+            if str(record.get('ID', '')) == str(payment_id):
+                row_to_delete = idx + 2  # +2 por header y indexado base-1
+                found_record = record
+                break
+        
+        if row_to_delete is None:
+            st.error(f"🔍 No se encontró el registro con ID: {payment_id}")
+            return False
+        
+        # Mostrar información del registro que se va a eliminar
+        st.info(f"🗑️ Eliminando registro en fila {row_to_delete}:")
+        #st.write(f"   • **ID:** {found_record.get('ID', 'N/A')}")
+        #st.write(f"   • **Unidad:** {found_record.get('Unidad', 'N/A')}")
+        #st.write(f"   • **Concepto:** {found_record.get('Concepto', 'N/A')}")
+        #st.write(f"   • **Monto:** ${found_record.get('Monto', 0):,.2f}")
+        
+        # Eliminar la fila (usando worksheet en lugar de sheet)
+        try:
+            worksheet.delete_rows(row_to_delete)
+            st.success(f"✅ Registro eliminado exitosamente!")
+            st.success(f"   • **ID eliminado:** {payment_id}")
+            st.success(f"   • **Fila eliminada:** {row_to_delete}")
+            return True
+            
+        except Exception as e:
+            st.error(f"❌ Error al eliminar la fila {row_to_delete}: {str(e)}")
+            return False
+            
+    except Exception as e:
+        st.error(f"❌ Error inesperado al eliminar el registro: {str(e)}")
+        st.error(f"   • **ID del pago:** {payment_id}")
+        st.error(f"   • **Detalles del error:** {type(e).__name__}")
+        return False
+
 
 def pago_main():
     st.title("💳 Sistema de Registro de Pagos")
@@ -231,273 +587,547 @@ def pago_main():
     if not df_existing.empty:
         st.info(f"📊 Registros existentes en el sistema: {len(df_existing)}")
     
-    # Crear formulario de captura
-    st.header("📝 Registro de Nuevo Pago")
+    # Pestañas para diferentes funcionalidades
+    tab1, tab2 = st.tabs(["📝 Registrar Pago", "🗑️ Eliminar Pago"])
     
-    with st.form("payment_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
+    # ========== TAB 1: REGISTRAR PAGO ==========
+    with tab1:
+        st.header("📝 Registro de Nuevo Pago")
         
-        with col1:
-            # Tipo de Operación
-            tipo_operacion = st.selectbox(
-                "💰 Tipo de Operación *",
-                options=["Cuota de Administración", "Cuota Extraordinaria", "Multa", "Otro"],
-                help="Seleccione el tipo de pago que está registrando"
-            )
+        with st.form("payment_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
             
-            # Unidad
-            unidades_existentes = get_unique_values(df_existing, 'Unidad')
-            if unidades_existentes:
-                unidad_option = st.radio(
-                    "🏠 Seleccionar Unidad *",
-                    options=["Seleccionar existente", "Escribir nueva"]
+            with col1:
+                # Tipo de Operación
+                tipo_operacion = st.selectbox(
+                    "💰 Tipo de Operación *",
+                    options=["Cuota de Mantenimiento", "Cuota Extraordinaria", "Multa", "Otro"],
+                    help="Seleccione el tipo de pago que está registrando"
                 )
                 
-                if unidad_option == "Seleccionar existente":
-                    unidad = st.selectbox("Unidad/Casa/Lote", unidades_existentes)
+                # Unidad
+                unidades_existentes = get_unique_values(df_existing, 'Unidad')
+                if unidades_existentes:
+                    unidad_option = st.radio(
+                        "🏠 Seleccionar Unidad *",
+                        options=["Seleccionar existente", "Escribir nueva"]
+                    )
+                    
+                    if unidad_option == "Seleccionar existente":
+                        unidad = st.selectbox("Unidad/Casa/Lote", unidades_existentes)
+                    else:
+                        unidad = st.text_input("Nueva Unidad", placeholder="Ej: Apto 101, Casa 5, etc.")
                 else:
-                    unidad = st.text_input("Nueva Unidad", placeholder="Ej: Apto 101, Casa 5, etc.")
-            else:
-                unidad = st.text_input(
-                    "🏠 Unidad *", 
-                    placeholder="Ej: Apto 101, Casa 5, Local 3, etc.",
-                    help="Ingrese la unidad que realiza el pago"
-                )
-            
-            # Concepto
-            conceptos_default = [
-                "Cuota de Administración - Enero",
-                "Cuota de Administración - Febrero", 
-                "Cuota de Administración - Marzo",
-                "Cuota de Administración - Abril",
-                "Cuota de Administración - Mayo",
-                "Cuota de Administración - Junio",
-                "Cuota de Administración - Julio",
-                "Cuota de Administración - Agosto",
-                "Cuota de Administración - Septiembre",
-                "Cuota de Administración - Octubre",
-                "Cuota de Administración - Noviembre",
-                "Cuota de Administración - Diciembre",
-                "Cuota Extraordinaria - Reparaciones",
-                "Cuota Extraordinaria - Mejoras",
-                "Multa por ruido",
-                "Multa por mascotas",
-                "Otro"
-            ]
-            
-            concepto_option = st.radio(
-                "📋 Concepto del Pago *",
-                options=["Seleccionar predefinido", "Escribir personalizado"]
-            )
-            
-            if concepto_option == "Seleccionar predefinido":
-                concepto = st.selectbox("Concepto", conceptos_default)
-            else:
-                concepto = st.text_input("Concepto Personalizado", placeholder="Describa el concepto del pago")
-            
-            # Monto
-            monto = st.number_input(
-                "💵 Monto *",
-                min_value=0.0,
-                step=1000.0,
-                format="%.2f",
-                help="Ingrese el monto del pago"
-            )
-            
-            # Fecha
-            fecha = st.date_input(
-                "📅 Fecha del Pago *",
-                value=date.today(),
-                help="Seleccione la fecha en que se realizó el pago"
-            )
-        
-        with col2:
-            # Banco
-            bancos_colombia = [
-                "Bancolombia",
-                "Banco de Bogotá",
-                "Davivienda", 
-                "BBVA Colombia",
-                "Banco Popular",
-                "Banco Caja Social",
-                "Banco AV Villas",
-                "Banco Agrario",
-                "Banco Santander",
-                "Citibank",
-                "Banco GNB Sudameris",
-                "Banco Falabella",
-                "Banco Pichincha",
-                "Nequi",
-                "Daviplata",
-                "Efectivo",
-                "Otro"
-            ]
-            
-            banco = st.selectbox(
-                "🏦 Banco/Entidad *",
-                options=bancos_colombia,
-                help="Seleccione el banco o entidad de pago"
-            )
-            
-            if banco == "Otro":
-                banco = st.text_input("Especificar Banco/Entidad")
-            
-            # Estado
-            estado = st.selectbox(
-                "📊 Estado del Pago *",
-                options=["Pagado", "Pendiente", "En Verificación", "Rechazado"],
-                index=0,
-                help="Estado actual del pago"
-            )
-            
-            # Método de Pago
-            metodo_pago = st.selectbox(
-                "💳 Método de Pago *",
-                options=[
-                    "Transferencia Bancaria",
-                    "PSE",
-                    "Tarjeta de Crédito", 
-                    "Tarjeta de Débito",
-                    "Efectivo",
-                    "Cheque",
-                    "Consignación",
+                    unidad = st.text_input(
+                        "🏠 Unidad *", 
+                        placeholder="Ej: Apto 101, Casa 5, Local 3, etc.",
+                        help="Ingrese la unidad que realiza el pago"
+                    )
+                
+                # Concepto
+                conceptos_default = [
+                    "Cuota - Enero",
+                    "Cuota - Febrero", 
+                    "Cuota - Marzo",
+                    "Cuota - Abril",
+                    "Cuota - Mayo",
+                    "Cuota - Junio",
+                    "Cuota - Julio",
+                    "Cuota - Agosto",
+                    "Cuota - Septiembre",
+                    "Cuota - Octubre",
+                    "Cuota - Noviembre",
+                    "Cuota - Diciembre",
+                    "Cuota Extraordinaria - Reparaciones",
+                    "Cuota Extraordinaria - Mejoras",
+                    "Multa por ruido",
+                    "Multa por mascotas",
                     "Otro"
-                ],
-                help="Método utilizado para realizar el pago"
-            )
-            
-            # Soporte de Pago (archivo)
-            soporte_pago = st.file_uploader(
-                "📎 Soporte de Pago",
-                type=['pdf', 'jpg', 'jpeg', 'png'],
-                help="Suba el comprobante o soporte del pago (se guardará en la carpeta 'archivos_subidos')"
-            )
-            
-            # Mostrar información del archivo subido
-            if soporte_pago is not None:
-                st.info(f"📄 Archivo seleccionado: {soporte_pago.name}")
-                st.info(f"📦 Tamaño: {soporte_pago.size / 1024:.2f} KB")
-            
-            # Observaciones
-            observaciones = st.text_area(
-                "📝 Observaciones",
-                placeholder="Ingrese observaciones adicionales (opcional)",
-                height=100
-            )
-        
-        st.markdown("---")
-        
-        # Botones de acción
-        col1, col2, col3 = st.columns([1, 1, 1])
-        
-        with col2:
-            submitted = st.form_submit_button(
-                "💾 Registrar Pago",
-                type="primary",
-                use_container_width=True
-            )
-    
-    # Procesar formulario
-    if submitted:
-        # Validaciones
-        errors = []
-        
-        if not unidad.strip():
-            errors.append("La unidad es obligatoria")
-        
-        if not concepto.strip():
-            errors.append("El concepto es obligatorio")
-        
-        if monto <= 0:
-            errors.append("El monto debe ser mayor a 0")
-        
-        if errors:
-            st.error("❌ **Errores en el formulario:**")
-            for error in errors:
-                st.error(f"• {error}")
-        else:
-            # Generar ID único
-            unique_id = generate_unique_id(unidad)
-            
-            # Guardar archivo subido si existe
-            filepath = None
-            filename = None
-            if soporte_pago is not None:
-                with st.spinner("Guardando archivo..."):
-                    filepath, filename = save_uploaded_file(soporte_pago, unique_id)
+                ]
                 
-                if filepath:
-                    st.success(f"✅ Archivo guardado: {filename}")
+                concepto_option = st.radio(
+                    "📋 Concepto del Pago *",
+                    options=["Seleccionar predefinido", "Escribir personalizado"]
+                )
+                
+                if concepto_option == "Seleccionar predefinido":
+                    concepto = st.selectbox("Concepto", conceptos_default)
                 else:
-                    st.warning("⚠️ No se pudo guardar el archivo, pero el registro continuará")
+                    concepto = st.text_input("Concepto Personalizado", placeholder="Describa el concepto del pago")
+                
+                # Verificar duplicados en tiempo real
+                if unidad and concepto and tipo_operacion:
+                    duplicate_check = check_payment_exists(df_existing, tipo_operacion, unidad, concepto)
+                    
+                    if duplicate_check['exists']:
+                        st.warning(f"⚠️ **ATENCIÓN**: Ya existen {duplicate_check['count']} registro(s) con los mismos datos:")
+                        
+                        # Mostrar registros existentes
+                        for idx, record in enumerate(duplicate_check['records']):
+                            with st.expander(f"Registro {idx + 1} - ID: {record.get('ID', 'N/A')}"):
+                                col_a, col_b = st.columns(2)
+                                with col_a:
+                                    st.write(f"**Fecha:** {record.get('Fecha', 'N/A')}")
+                                    st.write(f"**Monto:** ${record.get('Monto', 0):,.2f}")
+                                    st.write(f"**Estado:** {record.get('Estado', 'N/A')}")
+                                with col_b:
+                                    st.write(f"**Banco:** {record.get('Banco', 'N/A')}")
+                                    st.write(f"**Método:** {record.get('Metodo_Pago', 'N/A')}")
+                                    st.write(f"**Registrado:** {record.get('Registrado', 'N/A')}")
+                        
+                        st.info("💡 Si desea continuar, asegúrese de que no sea un registro duplicado.")
+                
+                # Monto
+                monto = st.number_input(
+                    "💵 Monto *",
+                    min_value=0.0,
+                    step=1000.0,
+                    format="%.2f",
+                    help="Ingrese el monto del pago"
+                )
+                
+                # Fecha
+                fecha = st.date_input(
+                    "📅 Fecha del Pago *",
+                    value=date.today(),
+                    help="Seleccione la fecha en que se realizó el pago"
+                )
             
-            # Preparar datos del pago
-            payment_data = {
-                'ID': unique_id,
-                'Tipo_Operacion': tipo_operacion,
-                'Unidad': unidad.strip(),
-                'Concepto': concepto.strip(),
-                'Monto': monto,
-                'Fecha': fecha.strftime('%Y-%m-%d'),
-                'Banco': banco,
-                'Estado': estado,
-                'Metodo_Pago': metodo_pago,
-                'Soporte_Pago': filename if filename else "Sin soporte",
-                'Ruta_Archivo': filepath if filepath else "Sin archivo",
-                'Observaciones': observaciones.strip() if observaciones else "Sin observaciones"
-            }
+            with col2:
+                # Banco
+                bancos_colombia = [
+                    "Bancolombia",
+                    "Banco de Bogotá",
+                    "Davivienda", 
+                    "BBVA Colombia",
+                    "Banco Popular",
+                    "Banco Caja Social",
+                    "Banco AV Villas",
+                    "Banco Agrario",
+                    "Banco Santander",
+                    "Citibank",
+                    "Banco GNB Sudameris",
+                    "Banco Falabella",
+                    "Banco Pichincha",
+                    "Nequi",
+                    "Daviplata",
+                    "Efectivo",
+                    "Otro"
+                ]
+                
+                banco = st.selectbox(
+                    "🏦 Banco/Entidad *",
+                    options=bancos_colombia,
+                    help="Seleccione el banco o entidad de pago"
+                )
+                
+                if banco == "Otro":
+                    banco = st.text_input("Especificar Banco/Entidad")
+                
+                # Estado
+                estado = st.selectbox(
+                    "📊 Estado del Pago *",
+                    options=["Pagado", "Pendiente", "En Verificación", "Rechazado"],
+                    index=0,
+                    help="Estado actual del pago"
+                )
+                
+                # Método de Pago
+                metodo_pago = st.selectbox(
+                    "💳 Método de Pago *",
+                    options=[
+                        "Transferencia Bancaria",
+                        "PSE",
+                        "Tarjeta de Crédito", 
+                        "Tarjeta de Débito",
+                        "Efectivo",
+                        "Cheque",
+                        "Consignación",
+                        "Otro"
+                    ],
+                    help="Método utilizado para realizar el pago"
+                )
+                
+                # Mostrar información especial para pagos en efectivo
+                if metodo_pago == "Efectivo":
+                    st.info("🧾 **Pago en Efectivo**: Se generará automáticamente un recibo de caja.")
+                
+                # Soporte de Pago (archivo)
+                soporte_pago = st.file_uploader(
+                    "📎 Soporte de Pago",
+                    type=['pdf', 'jpg', 'jpeg', 'png'],
+                    help="Suba el comprobante o soporte del pago (se guardará en la carpeta 'archivos_subidos')"
+                )
+                
+                # Mostrar información del archivo subido
+                if soporte_pago is not None:
+                    st.info(f"📄 Archivo seleccionado: {soporte_pago.name}")
+                    st.info(f"📦 Tamaño: {soporte_pago.size / 1024:.2f} KB")
+                
+                # Observaciones
+                observaciones = st.text_area(
+                    "📝 Observaciones",
+                    placeholder="Ingrese observaciones adicionales (opcional)",
+                    height=100
+                )
+                registrado = st.text_input(
+                    "📝 Registrado por:",
+                    placeholder="Ingrese el Nombre de quien Realiza el Pago (opcional)"
+                )
+
+            st.markdown("---")
             
-            # Guardar en Google Sheets
-            with st.spinner("Guardando registro de pago..."):
-                success = save_payment_record(client, payment_data)
+            # Botones de acción
+            col1, col2, col3 = st.columns([1, 1, 1])
             
-            if success:
-                st.success("✅ **¡Pago registrado exitosamente!**")
-                
-                # Mostrar resumen del registro
-                st.info("📋 **Resumen del registro:**")
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write(f"**ID:** {payment_data['ID']}")
-                    st.write(f"**Tipo:** {payment_data['Tipo_Operacion']}")
-                    st.write(f"**Unidad:** {payment_data['Unidad']}")
-                    st.write(f"**Concepto:** {payment_data['Concepto']}")
-                    st.write(f"**Monto:** ${payment_data['Monto']:,.2f}")
-                
-                with col2:
-                    st.write(f"**Fecha:** {payment_data['Fecha']}")
-                    st.write(f"**Banco:** {payment_data['Banco']}")
-                    st.write(f"**Estado:** {payment_data['Estado']}")
-                    st.write(f"**Método:** {payment_data['Metodo_Pago']}")
-                    st.write(f"**Soporte:** {payment_data['Soporte_Pago']}")
-                    if filepath:
-                        st.write(f"**Archivo guardado en:** {filepath}")
-                
-                # Limpiar cache para refrescar datos
-                st.cache_data.clear()
-                
-                # Opción para registrar otro pago
-                if st.button("➕ Registrar Otro Pago"):
-                    st.experimental_rerun()
+            with col2:
+                submitted = st.form_submit_button(
+                    "💾 Registrar Pago",
+                    type="primary",
+                    use_container_width=True
+                )
+        
+        # Procesar formulario
+        if submitted:
+            # Validaciones
+            errors = []
             
+            if not unidad.strip():
+                errors.append("La unidad es obligatoria")
+            
+            if not concepto.strip():
+                errors.append("El concepto es obligatorio")
+            
+            if monto <= 0:
+                errors.append("El monto debe ser mayor a 0")
+            
+            if errors:
+                st.error("❌ **Errores en el formulario:**")
+                for error in errors:
+                    st.error(f"• {error}")
             else:
-                st.error("❌ **Error al registrar el pago**")
-                st.error("Por favor, verifique la conexión e intente nuevamente")
+                # Verificar duplicados antes de guardar
+                duplicate_check = check_payment_exists(df_existing, tipo_operacion, unidad, concepto)
+                
+                if duplicate_check['exists']:
+                    st.warning("⚠️ **ADVERTENCIA DE DUPLICADO**")
+                    st.write("Se encontraron registros similares. ¿Está seguro de que desea continuar?")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("✅ Sí, Registrar de Todas Formas", type="primary"):
+                            st.session_state.confirm_duplicate = True
+                    
+                    with col2:
+                        if st.button("❌ Cancelar Registro"):
+                            st.session_state.confirm_duplicate = False
+                            st.info("Registro cancelado. Revise los datos antes de continuar.")
+                
+                # Proceder con el registro si no hay duplicados o si se confirmó
+                if not duplicate_check['exists'] or st.session_state.get('confirm_duplicate', False):
+                    # Generar ID único
+                    unique_id = generate_unique_id(unidad)
+                    
+                    # Generar número de recibo si es pago en efectivo
+                    receipt_number = None
+                    receipt_path = None
+                    receipt_filename = None
+                    
+                    if metodo_pago == "Efectivo":
+                        receipt_number = generate_receipt_number()
+                    
+                    # Guardar archivo subido si existe
+                    filepath = None
+                    filename = None
+                    if soporte_pago is not None:
+                        with st.spinner("Guardando archivo..."):
+                            filepath, filename = save_uploaded_file(soporte_pago, unique_id)
+                        
+                        if filepath:
+                            st.success(f"✅ Archivo guardado: {filename}")
+                        else:
+                            st.warning("⚠️ No se pudo guardar el archivo, pero el registro continuará")
+                    
+                    # Preparar datos del pago
+                    payment_data = {
+                        'ID': unique_id,
+                        'Tipo_Operacion': tipo_operacion,
+                        'Unidad': unidad.strip(),
+                        'Concepto': concepto.strip(),
+                        'Monto': monto,
+                        'Fecha': fecha.strftime('%Y-%m-%d'),
+                        'Banco': banco,
+                        'Estado': estado,
+                        'Metodo_Pago': metodo_pago,
+                        'Soporte_Pago': filename if filename else "Sin soporte",
+                        'Ruta_Archivo': filepath if filepath else "Sin archivo",
+                        'Numero_Recibo': receipt_number if receipt_number else "",
+                        'Ruta_Recibo': "",  # Se actualizará después de generar el recibo
+                        'Observaciones': observaciones.strip() if observaciones else "Sin observaciones",
+                        "Saldo_Pendiente": 0,
+                        "Registrado": registrado
+                    }
+                    
+                    # Generar recibo de caja para pagos en efectivo
+                    if metodo_pago == "Efectivo" and receipt_number:
+                        with st.spinner("Generando recibo de caja..."):
+                            receipt_path, receipt_filename = generate_receipt_pdf(payment_data, receipt_number)
+                        
+                        if receipt_path:
+                            payment_data['Ruta_Recibo'] = receipt_path
+                            st.success(f"✅ Recibo de caja generado: {receipt_filename}")
+                        else:
+                            st.warning("⚠️ No se pudo generar el recibo de caja, pero el registro continuará")
+                    
+                    # Guardar en Google Sheets
+                    with st.spinner("Guardando registro de pago..."):
+                        success = save_payment_record(client, payment_data)
+                    
+                    if success:
+                        st.success("✅ **¡Pago registrado exitosamente!**")
+                        
+                        # Mostrar resumen del registro
+                        st.info("📋 **Resumen del registro:**")
+                        col1, col2 = st.columns(2)
+                        
+                        with col1:
+                            st.write(f"**ID:** {payment_data['ID']}")
+                            st.write(f"**Tipo:** {payment_data['Tipo_Operacion']}")
+                            st.write(f"**Unidad:** {payment_data['Unidad']}")
+                            st.write(f"**Concepto:** {payment_data['Concepto']}")
+                            st.write(f"**Monto:** ${payment_data['Monto']:,.2f}")
+                        
+                        with col2:
+                            st.write(f"**Fecha:** {payment_data['Fecha']}")
+                            st.write(f"**Banco:** {payment_data['Banco']}")
+                            st.write(f"**Estado:** {payment_data['Estado']}")
+                            st.write(f"**Método:** {payment_data['Metodo_Pago']}")
+                            st.write(f"**Soporte:** {payment_data['Soporte_Pago']}")
+                            if filepath:
+                                st.write(f"**Archivo guardado en:** {filepath}")
+                            
+                            # Mostrar información del recibo si se generó
+                            if metodo_pago == "Efectivo" and receipt_number:
+                                st.write(f"**Recibo No:** {receipt_number}")
+                                if receipt_path:
+                                    st.write(f"**Recibo guardado en:** {receipt_path}")
+                        
+                        # Botón para descargar recibo si existe
+                        if metodo_pago == "Efectivo" and receipt_path and os.path.exists(receipt_path):
+                            st.markdown("---")
+                            st.subheader("🧾 Recibo de Caja")
+                            
+                            col1, col2, col3 = st.columns([1, 1, 1])
+                            with col2:
+                                # Leer archivo PDF para descarga
+                                with open(receipt_path, "rb") as pdf_file:
+                                    pdf_bytes = pdf_file.read()
+                                
+                                st.download_button(
+                                    label="📄 Descargar Recibo de Caja",
+                                    data=pdf_bytes,
+                                    file_name=receipt_filename,
+                                    mime="application/pdf",
+                                    type="secondary",
+                                    use_container_width=True
+                                )
+                            
+                            st.success("💡 **Recibo generado exitosamente!** Puede descargarlo usando el botón de arriba.")
+                        
+                        # Limpiar cache para refrescar datos
+                        st.cache_data.clear()
+                        
+                        # Limpiar estado de confirmación de duplicado
+                        if 'confirm_duplicate' in st.session_state:
+                            del st.session_state.confirm_duplicate
+                        
+                        # Opción para registrar otro pago
+                        if st.button("➕ Registrar Otro Pago"):
+                            st.rerun()
+                    
+                    else:
+                        st.error("❌ **Error al registrar el pago**")
+                        st.error("Por favor, verifique la conexión e intente nuevamente")
+    
+    # ========== TAB 2: ELIMINAR PAGO (VERSIÓN CORREGIDA) ==========
+    with tab2:
+        st.header("🗑️ Eliminar Pago")
+        st.info("🔍 **Busque pagos para eliminar** - Solo se pueden eliminar pagos que NO estén marcados como 'Aplicados'")
+    
+        # Inicializar variables de session state
+        if 'search_performed' not in st.session_state:
+            st.session_state.search_performed = False
+    
+        if 'search_criteria' not in st.session_state:
+            st.session_state.search_criteria = {}
+    
+        # Inicializar estado de confirmación para cada pago
+        if 'pending_delete' not in st.session_state:
+            st.session_state.pending_delete = {}
+
+        with st.form("delete_search_form"):
+            col1, col2 = st.columns(2)
+        
+            with col1:
+                tipo_operacion_del = st.selectbox(
+                    "💰 Tipo de Operación",
+                    options=["", "Cuota de Mantenimiento", "Cuota Extraordinaria", "Multa", "Otro"],
+                    help="Seleccione el tipo de operación a buscar"
+                )
+            
+                unidades_existentes_del = get_unique_values(df_existing, 'Unidad')
+                unidad_del = st.selectbox(
+                    "🏠 Unidad",
+                    options=[""] + unidades_existentes_del,
+                    help="Seleccione la unidad"
+                )
+        
+            with col2:
+                conceptos_con_banco = df_existing[df_existing['Banco'].notna()]['Concepto'].unique()
+                conceptos_existentes = sorted(conceptos_con_banco)
+
+                concepto_del = st.selectbox("📋 Concepto", conceptos_existentes, help="Seleccione el concepto"
+                )
+                #conceptos_existentes = get_unique_values(df_existing, 'Concepto')
+                #concepto_del = st.selectbox(
+                #    "📋 Concepto",
+                #    options=[""] + conceptos_existentes,
+                #    help="Seleccione el concepto"
+                #)
+        
+            search_button = st.form_submit_button("🔍 Buscar Pagos para Eliminar", type="primary")
+    
+        # Procesar búsqueda
+        if search_button and tipo_operacion_del and unidad_del and concepto_del:
+            st.session_state.search_criteria = {
+                'tipo_operacion': tipo_operacion_del,
+                'unidad': unidad_del,
+                'concepto': concepto_del
+            }
+            st.session_state.search_performed = True
+            st.session_state.deletable_payments = get_deletable_payments(df_existing, tipo_operacion_del, unidad_del, concepto_del)
+            # Limpiar estados de confirmación al hacer nueva búsqueda
+            st.session_state.pending_delete = {}
+    
+        elif search_button:
+            st.warning("⚠️ Por favor, complete todos los campos de búsqueda (Tipo de Operación, Unidad y Concepto)")
+            st.session_state.search_performed = False
+    
+        # Mostrar resultados de búsqueda
+        if st.session_state.search_performed and 'deletable_payments' in st.session_state:
+            deletable_payments = st.session_state.deletable_payments
+            criteria = st.session_state.search_criteria
+        
+            st.markdown("---")
+            st.write(f"**Criterios de búsqueda:** {criteria['tipo_operacion']} - {criteria['unidad']} - {criteria['concepto']}")
+        
+            if deletable_payments.empty:
+                st.info("ℹ️ No se encontraron pagos eliminables con los criterios especificados.")
+                st.write("**Recordatorio:** Solo se pueden eliminar pagos que NO estén marcados como 'Aplicado'")
+            else:
+                st.success(f"✅ Se encontraron {len(deletable_payments)} pago(s) que pueden ser eliminados:")
+            
+                # Mostrar cada pago con opción de eliminar
+                for idx, (_, payment) in enumerate(deletable_payments.iterrows()):
+                    payment_id = payment.get('ID', f'unknown_{idx}')
+                
+                    with st.container():
+                        st.markdown(f"### 📋 Pago {idx + 1} - ID: {payment_id}")
+                    
+                        # Información del pago
+                        info_col1, info_col2 = st.columns(2)
+                    
+                        with info_col1:
+                            st.write(f"**Fecha:** {payment.get('Fecha', 'N/A')}")
+                            st.write(f"**Monto:** ${payment.get('Monto', 0):,.2f}")
+                            st.write(f"**Estado:** {payment.get('Estado', 'N/A')}")
+                            st.write(f"**Registrado por:** {payment.get('Registrado', 'N/A')}")
+                    
+                        with info_col2:
+                            st.write(f"**Banco:** {payment.get('Banco', 'N/A')}")
+                            st.write(f"**Método:** {payment.get('Metodo_Pago', 'N/A')}")
+                            st.write(f"**Soporte:** {payment.get('Soporte_Pago', 'N/A')}")
+                            st.write(f"**Observaciones:** {payment.get('Observaciones', 'N/A')}")
+                    
+                        # Área de botones para eliminar
+                        action_col1, action_col2, action_col3 = st.columns([1, 1, 2])
+                    
+                        # Verificar si este pago está en estado de confirmación
+                        is_pending_delete = st.session_state.pending_delete.get(payment_id, False)
+                    
+                        if not is_pending_delete:
+                            # Mostrar botón de eliminar
+                            with action_col1:
+                                if st.button(f"🗑️ Eliminar", key=f"delete_{payment_id}_{idx}", type="secondary"):
+                                    st.session_state.pending_delete[payment_id] = True
+                                    st.rerun()
+                        else:
+                            # Mostrar botones de confirmación
+                            
+                            with action_col1:
+                                if st.button(f"✅ Confirmar Eliminación", key=f"confirm_    {payment_id}_{idx}", type="primary"):
+                                    # Ejecutar eliminación CON CONFIG
+                                    with st.spinner(f"Eliminando pago ID: {payment_id}..."):
+                                        # Pasar la configuración como parámetro
+                                        success = delete_payment_record(client, payment_id)
+            
+                                    if success:
+                                        st.success(f"✅ Pago {payment_id} eliminado exitosamente")
+                                        # Limpiar estados y recargar
+                                        st.session_state.search_performed = False
+                                        st.session_state.pending_delete = {}
+                                        if 'deletable_payments' in st.session_state:
+                                            del st.session_state.deletable_payments
+                                        if 'search_criteria' in st.session_state:
+                                            del st.session_state.search_criteria
+                                        st.cache_data.clear()
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ Error al eliminar el pago {payment_id}")
+                                        st.session_state.pending_delete[payment_id] = False
+                        
+                            with action_col2:
+                                if st.button(f"❌ Cancelar", key=f"cancel_{payment_id}_{idx}", type="secondary"):
+                                    st.session_state.pending_delete[payment_id] = False
+                                    st.rerun()
+                        
+                            with action_col3:
+                                st.warning("⚠️ **¿Está seguro de eliminar este pago?**")
+                    
+                    st.markdown("---")
+            
+            # Botón para nueva búsqueda
+            if st.button("🔄 Nueva Búsqueda", type="primary"):
+                st.session_state.search_performed = False
+                st.session_state.pending_delete = {}
+                if 'deletable_payments' in st.session_state:
+                    del st.session_state.deletable_payments
+                if 'search_criteria' in st.session_state:
+                    del st.session_state.search_criteria
+                st.rerun() 
+                                                                
+        elif search_button:
+            st.warning("⚠️ Por favor, complete todos los campos de búsqueda (Tipo de Operación, Unidad y Concepto)")
+
     
     # Información adicional
     st.markdown("---")
     
     # Mostrar últimos pagos registrados
-    if not df_existing.empty:
+    if not df_existing.empty and estado =='Pagado':
         st.header("📊 Últimos Pagos Registrados")
         
         # Mostrar últimos 5 registros
         df_recent = df_existing.tail(5).sort_values('Fecha', ascending=False) if 'Fecha' in df_existing.columns else df_existing.tail(5)
         
         # Seleccionar columnas para mostrar
-        columns_to_show = ['ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 'Fecha', 'Estado']
+        columns_to_show = ['ID', 'Tipo_Operacion', 'Unidad', 'Concepto', 'Monto', 'Fecha', 'Estado', 'Metodo_Pago']
         available_columns = [col for col in columns_to_show if col in df_recent.columns]
+        
+        # Agregar columna de recibo si existe
+        if 'Numero_Recibo' in df_recent.columns:
+            available_columns.append('Numero_Recibo')
         
         st.dataframe(
             df_recent[available_columns],
@@ -513,10 +1143,12 @@ def pago_main():
         - ✅ Registro de cuotas extraordinarias  
         - ✅ Captura de multas y otros pagos
         - ✅ Subida y guardado local de soportes de pago
+        - ✅ **Generación automática de recibos de caja para pagos en efectivo**
         - ✅ Validación automática de datos
         - ✅ Generación de IDs únicos
         - ✅ Integración con Google Sheets
         - ✅ Almacenamiento de archivos en carpeta local
+        - ✅ **Descarga de recibos en formato PDF**
         
         **Campos Obligatorios:**
         - Tipo de Operación
@@ -533,6 +1165,7 @@ def pago_main():
         
         **Almacenamiento de Archivos:**
         - Los archivos se guardan en la carpeta 'archivos_subidos'
+        - Los recibos de caja se guardan en la carpeta 'recibos_caja'
         - Se genera un nombre único para cada archivo
         - La ruta del archivo se registra en Google Sheets
         
@@ -541,13 +1174,32 @@ def pago_main():
         - Pendiente: Pago no realizado
         - En Verificación: Pago en proceso de validación
         - Rechazado: Pago no válido o rechazado
+        
+        **🧾 Recibos de Caja:**
+        - Se generan automáticamente para pagos en **Efectivo**
+        - Incluyen información completa del pago y pagador
+        - Monto en números y letras
+        - Espacios para firmas de quien recibe y entrega
+        - Formato profesional en PDF
+        - Numeración consecutiva automática
+        - Descarga inmediata disponible
         """)
     
-    # Mostrar información del directorio de archivos
+    # Mostrar información de directorios
     upload_dir = "archivos_subidos"
-    if os.path.exists(upload_dir):
-        files_count = len([f for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))])
-        st.info(f"📁 Archivos guardados en '{upload_dir}': {files_count}")
+    receipts_dir = "recibos_caja"
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if os.path.exists(upload_dir):
+            files_count = len([f for f in os.listdir(upload_dir) if os.path.isfile(os.path.join(upload_dir, f))])
+            st.info(f"📁 Archivos guardados en '{upload_dir}': {files_count}")
+    
+    with col2:
+        if os.path.exists(receipts_dir):
+            receipts_count = len([f for f in os.listdir(receipts_dir) if os.path.isfile(os.path.join(receipts_dir, f)) and f.endswith('.pdf')])
+            st.info(f"🧾 Recibos generados en '{receipts_dir}': {receipts_count}")
 
 #if __name__ == "__main__":
 #    pago_main()
