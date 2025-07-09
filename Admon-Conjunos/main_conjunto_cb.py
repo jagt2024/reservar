@@ -4,6 +4,7 @@ from inicio_conjuntos import InicioConjunto
 #from email_sender import mostrar_correo_masivo
 from condominio_system import condominio_main
 from cartera_morosa_conjunto import cartera_morosa_main
+from csv_uploader import csv_main
 from pagos_conjunto import pago_main
 from consulta_financiera import consulta_main
 from consulta_financiera_residente import consulta_res_main
@@ -112,6 +113,7 @@ translations = {
         "option2": "Gestion Cartera Morosa",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
+        "option14": "Carga Archivo Pagos Bancarios",
         "option5": "Registro de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
@@ -135,6 +137,7 @@ translations = {
         "option2": "Gestion Cartera Morosos",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
+        "option14": "Carga Archivo Pagos Bancarios",
         "option5": "Registro de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
@@ -172,6 +175,7 @@ class Model:
         self.option2 = lang["option2"]
         self.option3 = lang["option3"]
         self.option4 = lang["option4"]
+        self.option14 = lang["option14"]
         self.option5 = lang["option5"]
         self.option6 = lang["option6"]
         self.option7 = lang["option7"]
@@ -210,7 +214,7 @@ def view(model):
 
                 # Menú principal
                 app = option_menu(model.menuTitle,
-                            [model.option0, model.option1, model.option10,model.option2, model.option3, model.option4, model.option5, model.option8, model.option6, model.option7,model.option9, model.option11, model.option12, model.option13],
+                            [model.option0, model.option1, model.option10,model.option2, model.option3, model.option4, model.option14,model.option5, model.option8, model.option6, model.option7,model.option9, model.option11, model.option12, model.option13],
                             icons=['house', 'gear', 'credit-card', 'search', 'file-earmark-text'],
                             default_index=0,
                             styles={
@@ -239,6 +243,8 @@ def view(model):
                     cambiar_pagina('consulta_main')
                 elif app == model.option4:
                     cambiar_pagina('generador_main')
+                elif app == model.option14:
+                    cambiar_pagina('csv_main')
                 elif app == model.option5:
                     cambiar_pagina('pago_main')
                 elif app == model.option8:
@@ -315,6 +321,13 @@ def view(model):
                 #st.write("• Crear cuentas de cobro")
                 #st.write("• Personalizar formatos")
                 #st.write("• Envío masivo")
+
+        elif current_page == 'csv_main':
+            with st.sidebar:
+                #st.header("📄 Generador Cuentas")
+                if st.button("🏠 Volver al Inicio", key="btn_back_cvs"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
 
         elif current_page == 'pago_main':
             with st.sidebar:
@@ -564,6 +577,13 @@ def view(model):
             #st.header("📄 Registro de Pagos")
             try:
                 pago_main()
+            except Exception as e:
+                st.error(f"Error al cargar pago_main: {e}")
+
+        elif current_page == 'csv_main':
+            #st.header("📄 Registro de Pagos")
+            try:
+                csv_main()
             except Exception as e:
                 st.error(f"Error al cargar pago_main: {e}")
 

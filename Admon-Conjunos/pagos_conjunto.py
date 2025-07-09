@@ -912,6 +912,35 @@ def pago_main():
                                 st.write(f"**Recibo No:** {receipt_number}")
                                 if receipt_path:
                                     st.write(f"**Recibo guardado en:** {receipt_path}")
+
+                        # NUEVA FUNCIONALIDAD: Generar archivo CSV del pago registrado
+                        csv_path, csv_filename = generate_enhanced_payment_csv(payment_data)
+                        
+                        if csv_path:
+                            st.success(f"✅ Archivo CSV generado: {csv_filename}")
+                        
+                        # Área de descargas
+                        st.markdown("---")
+                        st.subheader("📥 Descargas Disponibles")
+                        
+                        # Crear columnas para organizar las descargas
+                        download_cols = st.columns(3)
+                        
+                        # Botón para descargar CSV
+                        if csv_path and os.path.exists(csv_path):
+                            with download_cols[0]:
+                                with open(csv_path, "r", encoding="utf-8") as csv_file:
+                                    csv_content = csv_file.read()
+                                
+                                st.download_button(
+                                    label="📊 Descargar CSV",
+                                    data=csv_content,
+                                    file_name=csv_filename,
+                                    mime="text/csv",
+                                    type="secondary",
+                                    use_container_width=True
+                                )
+
                         
                         # Botón para descargar recibo si existe
                         if metodo_pago == "Efectivo" and receipt_path and os.path.exists(receipt_path):
@@ -1110,6 +1139,175 @@ def pago_main():
         elif search_button:
             st.warning("⚠️ Por favor, complete todos los campos de búsqueda (Tipo de Operación, Unidad y Concepto)")
 
+# ========== FUNCIÓN PARA GENERAR ARCHIVO CSV ==========
+def generate_payment_csv(payment_data):
+    """
+    Genera un archivo CSV con los datos del pago registrado
+    
+    Args:
+        payment_data (dict): Diccionario con los datos del pago
+        
+    Returns:
+        tuple: (ruta_archivo, nombre_archivo) o (None, None) si hay error
+    """
+    try:
+        import pandas as pd
+        import os
+        from datetime import datetime
+        
+        # Crear directorio si no existe
+        upload_dir = "archivos_subidos"
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        # Convertir payment_data a DataFrame
+        df_payment = pd.DataFrame([payment_data])
+        
+        # Generar nombre único para el archivo CSV
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        payment_id = payment_data.get('ID', 'unknown')
+        csv_filename = f"pago_{payment_id}_{timestamp}.csv"
+        csv_path = os.path.join(upload_dir, csv_filename)
+        
+        # Ordenar columnas para mejor presentación
+        column_order = [
+            'ID',
+            'Fecha',
+            'Tipo_Operacion',
+            'Unidad', 
+            'Concepto',
+            'Monto',
+            'Estado',
+            'Banco',
+            'Metodo_Pago',
+            'Soporte_Pago',
+            'Ruta_Archivo',
+            'Numero_Recibo',
+            'Ruta_Recibo',
+            'Observaciones',
+            'Saldo_Pendiente',
+            'Registrado'
+        ]
+        
+        # Reordenar DataFrame según column_order
+        df_payment = df_payment.reindex(columns=column_order)
+        
+        # Formatear monto como moneda
+        df_payment['Monto'] = df_payment['Monto'].apply(lambda x: f"${x:,.2f}")
+        
+        # Guardar CSV con encoding UTF-8 para caracteres especiales
+        df_payment.to_csv(csv_path, index=False, encoding='utf-8-sig')
+        
+        return csv_path, csv_filename
+        
+    except Exception as e:
+        print(f"Error al generar archivo CSV: {str(e)}")
+        return None, None
+
+
+# ========== FUNCIÓN AUXILIAR PARA CREAR HEADERS AMIGABLES ==========
+def create_friendly_csv_headers(df):
+    """
+    Crea headers más amigables para el CSV
+    
+    Args:
+        df (DataFrame): DataFrame con los datos
+        
+    Returns:
+        DataFrame: DataFrame con headers amigables
+    """
+    try:
+        # Mapeo de columnas técnicas a nombres amigables
+        header_mapping = {
+            'ID': 'ID del Pago',
+            'Fecha': 'Fecha del Pago',
+            'Tipo_Operacion': 'Tipo de Operación',
+            'Unidad': 'Unidad/Apartamento',
+            'Concepto': 'Concepto del Pago',
+            'Monto': 'Monto del Pago',
+            'Estado': 'Estado del Pago',
+            'Banco': 'Banco/Entidad',
+            'Metodo_Pago': 'Método de Pago',
+            'Soporte_Pago': 'Archivo de Soporte',
+            'Ruta_Archivo': 'Ubicación del Archivo',
+            'Numero_Recibo': 'Número de Recibo',
+            'Ruta_Recibo': 'Ubicación del Recibo',
+            'Observaciones': 'Observaciones',
+            'Saldo_Pendiente': 'Saldo Pendiente',
+            'Registrado': 'Registrado Por'
+        }
+        
+        # Renombrar columnas
+        df_friendly = df.rename(columns=header_mapping)
+        
+        return df_friendly
+        
+    except Exception as e:
+        print(f"Error al crear headers amigables: {str(e)}")
+        return df
+
+
+# ========== FUNCIÓN PARA GENERAR CSV MEJORADO ==========
+def generate_enhanced_payment_csv(payment_data):
+    """
+    Genera un archivo CSV mejorado con los datos del pago registrado
+    
+    Args:
+        payment_data (dict): Diccionario con los datos del pago
+        
+    Returns:
+        tuple: (ruta_archivo, nombre_archivo) o (None, None) si hay error
+    """
+    try:
+        import pandas as pd
+        import os
+        from datetime import datetime
+        
+        # Crear directorio si no existe
+        upload_dir = "archivos_subidos"
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+        
+        # Convertir payment_data a DataFrame
+        df_payment = pd.DataFrame([payment_data])
+        
+        # Aplicar headers amigables
+        df_payment = create_friendly_csv_headers(df_payment)
+        
+        # Generar nombre único para el archivo CSV
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        payment_id = payment_data.get('ID', 'unknown')
+        unidad = payment_data.get('Unidad', 'sin_unidad').replace(' ', '_').replace('/', '_')
+        
+        csv_filename = f"registro_pago_{unidad}_{payment_id}_{timestamp}.csv"
+        csv_path = os.path.join(upload_dir, csv_filename)
+        
+        # Agregar información adicional al inicio del CSV
+        with open(csv_path, 'w', encoding='utf-8-sig') as f:
+            # Escribir encabezado informativo
+            f.write("SISTEMA DE REGISTRO DE PAGOS\n")
+            f.write("="*50 + "\n")
+            f.write(f"Fecha de Generación: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"Archivo: {csv_filename}\n")
+            f.write("="*50 + "\n\n")
+        
+        # Agregar los datos del pago
+        df_payment.to_csv(csv_path, mode='a', index=False, encoding='utf-8-sig')
+        
+        # Agregar información adicional al final
+        with open(csv_path, 'a', encoding='utf-8-sig') as f:
+            f.write("\n" + "="*50 + "\n")
+            f.write("NOTAS IMPORTANTES:\n")
+            f.write("- Este archivo contiene información confidencial\n")
+            f.write("- Mantenga este registro en lugar seguro\n")
+            f.write("- Para consultas contacte al administrador\n")
+            f.write("="*50 + "\n")
+        
+        return csv_path, csv_filename
+        
+    except Exception as e:
+        print(f"Error al generar archivo CSV mejorado: {str(e)}")
+        return None, None
     
     # Información adicional
     st.markdown("---")
@@ -1200,6 +1398,8 @@ def pago_main():
         if os.path.exists(receipts_dir):
             receipts_count = len([f for f in os.listdir(receipts_dir) if os.path.isfile(os.path.join(receipts_dir, f)) and f.endswith('.pdf')])
             st.info(f"🧾 Recibos generados en '{receipts_dir}': {receipts_count}")
+
+
 
 #if __name__ == "__main__":
 #    pago_main()
