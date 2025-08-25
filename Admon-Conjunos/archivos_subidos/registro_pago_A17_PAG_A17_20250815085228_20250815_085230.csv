@@ -1,0 +1,15 @@
+﻿SISTEMA DE REGISTRO DE PAGOS
+==================================================
+Fecha de Generación: 2025-08-15 08:52:34
+Archivo: registro_pago_A17_PAG_A17_20250815085228_20250815_085230.csv
+==================================================
+
+ID del Pago,Tipo de Operación,Unidad/Apartamento,Concepto del Pago,Monto del Pago,Fecha del Pago,Banco/Entidad,Estado del Pago,Método de Pago,Archivo de Soporte,Ubicación del Archivo,Número de Recibo,Ubicación del Recibo,Observaciones,Saldo Pendiente,Registrado Por
+PAG_A17_20250815085228,Cuota de Mantenimiento,A17,Cuota - Julio,235000.0,2025-08-09,Bancolombia,Pagado,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
+
+==================================================
+NOTAS IMPORTANTES:
+- Este archivo contiene información confidencial
+- Mantenga este registro en lugar seguro
+- Para consultas contacte al administrador
+==================================================

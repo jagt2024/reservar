@@ -1,4 +1,4 @@
 ﻿ID,Tipo_Operación,Unidad,Concepto,Monto,Fecha,Banco,Estado,Metodo_Pago,Archivo_Soporte,Ubicacion_Archivo,Numero_Recibo,Ubicacion_Recibo,Observaciones,Saldo_Pendiente,Registrado
-,,Cuota de Mantenimiento,C2,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pendiente,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
-,,Cuota de Mantenimiento,C17,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pendiente,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
-,,Cuota de Mantenimiento,A2,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pendiente,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
+,,Cuota de Mantenimiento,C2,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pagado,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
+,,Cuota de Mantenimiento,C17,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pagado,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal
+,,Cuota de Mantenimiento,A2,Cuota - Julio,235000.0,2025-07-03,Bancolombia,Pagado,Transferencia Bancaria,Sin soporte,Sin archivo,,,Sin observaciones,0,Principal

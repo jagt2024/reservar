@@ -18,6 +18,7 @@ from control_censo_poblacional import censo_main
 from administracion_parqueaderos import parqueadero_main
 from solicitudes_residentes import solicitudes_main
 from inventario_conjunto import inventario_main
+from interes_moratorio_calc import simulador_main
 #from user_management import user_management_system
 from PIL import Image
 from datetime import date
@@ -110,11 +111,12 @@ translations = {
         "option0": "Inicio",
         "option1": "Sistema de Administracion",
         "option10":"Control Mascotas-Vehiculos",
+        "option15":"Simulador de Intereses de Mora",
         "option2": "Gestion Cartera Morosa",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
         "option14": "Carga Archivo Pagos Bancarios",
-        "option5": "Registro de Pagos",
+        "option5": "Registro Manual de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
@@ -134,11 +136,12 @@ translations = {
         "option0": "Inicio",
         "option1": "Sistema de Administracion",
         "option10":"Control Mascotas-Vehiculos",
+        "option15":"Simulador de Intereses de Mora",
         "option2": "Gestion Cartera Morosos",
         "option3": "Consulta Financiera",
         "option4": "Generador Cuentas Cobro",
         "option14": "Carga Archivo Pagos Bancarios",
-        "option5": "Registro de Pagos",
+        "option5": "Registro Manual de Pagos",
         "option6": "Manejo Presupueso ",
         "option7": "Peticiones, Quejas, Reclamos(pqrs)",
         "option8": "Gestion Correspondencia",
@@ -185,6 +188,7 @@ class Model:
         self.option11 = lang["option11"]
         self.option12 = lang["option12"]
         self.option13 = lang["option13"]
+        self.option15 = lang["option15"]
 
 # Función para cambiar entre páginas
 def cambiar_pagina(page_name):
@@ -214,7 +218,7 @@ def view(model):
 
                 # Menú principal
                 app = option_menu(model.menuTitle,
-                            [model.option0, model.option1, model.option10,model.option2, model.option3, model.option4, model.option14,model.option5, model.option8, model.option6, model.option7,model.option9, model.option11, model.option12, model.option13],
+                            [model.option0, model.option1, model.option10,model.option15,model.option2, model.option3, model.option4, model.option14,model.option5, model.option8, model.option6, model.option7,model.option9, model.option11, model.option12, model.option13],
                             icons=['house', 'gear', 'credit-card', 'search', 'file-earmark-text'],
                             default_index=0,
                             styles={
@@ -235,8 +239,10 @@ def view(model):
                 # Actualizar la página según la selección del menú
                 if app == model.option1:
                     cambiar_pagina('condominio_main')
-                if app == model.option10:
+                elif app == model.option10:
                     cambiar_pagina('mascove_main')
+                elif app == model.option15:
+                    cambiar_pagina('simulador_main')
                 elif app == model.option2:
                     cambiar_pagina('cartera_morosa_main')
                 elif app == model.option3:
@@ -275,6 +281,13 @@ def view(model):
                 #st.write("• Gestión de propietarios")
                 #st.write("• Configuración del sistema")
                 #st.write("• Reportes administrativos")
+
+        elif current_page == 'simulador_main':
+            with st.sidebar:
+                #st.header("💳 Cartera Morosa")
+                if st.button("🏠 Volver al Inicio", key="btn_back_cm"):
+                    cambiar_pagina('InicioConjunto')
+                st.divider()
                                
         elif current_page == 'cartera_morosa_main':
             with st.sidebar:
@@ -473,7 +486,7 @@ def view(model):
 
 
             # Tabs principales con control de estado
-            tabs = st.tabs(["Inicio", "💳Registrar Pago",  "Solicitudes a la Administracion", "💰 Consulta Financiera"])#, "💳 Registrar Pago", "📞 Soporte - PQRS"])
+            tabs = st.tabs(["Inicio", "💳Registrar Pago",  "Solicitudes a la Administracion", "💰 Consulta Financiera"])#, "📞 Soporte - PQRS"])
 
             with tabs[0]:
                 st.subheader("🏠 Bienvenido al Sistema *SADCO* ")
@@ -499,7 +512,7 @@ def view(model):
                     if 'consulta_res_main' in globals():
                         pago_main() #consulta_res_main()
                     else:
-                        st.error("La función consulta_res_main no está disponible")
+                        st.error("La función pago_main no está disponible")
                         st.info("Verifique que el módulo pagos_conjunto esté correctamente importado")
                 except Exception as e:
                         st.error(f"Error al cargar Pagos Conjunto: {e}")
@@ -511,7 +524,7 @@ def view(model):
                 #try:
                     # Verificar si la función existe
                     if 'pago_main' in globals():
-                        st.write("✅ Función pago_main encontrada, ejecutando...")
+                        st.write("✅ Función solicitudes_main encontrada, ejecutando...")
                         solicitudes_main() #pago_main()
                     
                     else:
@@ -551,6 +564,13 @@ def view(model):
                 mascove_main()
             except Exception as e:
                 st.error(f"Error al cargar mascove_main: {e}")
+
+        elif current_page == 'simulador_main':
+            #st.header("💳 Gestión Cartera Morosa")
+            try:
+                simulador_main()
+            except Exception as e:
+                st.error(f"Error al cargar simulador_main: {e}")
         
         elif current_page == 'cartera_morosa_main':
             #st.header("💳 Gestión Cartera Morosa")

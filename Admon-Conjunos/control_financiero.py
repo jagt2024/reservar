@@ -482,9 +482,9 @@ def insert_new_records_only(client, sheet_name, worksheet_name, df_nuevos):
         
         # Verificar si la hoja está vacía y agregar headers si es necesario
         existing_data = worksheet.get_all_records()
-        if not existing_data:
-            headers = df_nuevos.columns.tolist()
-            worksheet.append_row(headers)
+        #if not existing_data:
+            #headers = df_nuevos.columns.tolist()
+        #    worksheet.append_row(headers)
         
         # Insertar SOLO los nuevos datos
         data_list = []
@@ -561,7 +561,7 @@ def process_maintenance_fees(df_admin, df_residents):
                 # Buscar pagos correspondientes
                 pagos_relacionados = pagados[
                     (pagados['Unidad'] == pendiente['Unidad']) &
-                    (pagados['periodo'] == pendiente['periodo'])
+                    (pagados['periodo'] >= pendiente['periodo'])
                 ]
                
                 # Convertir montos a float de manera segura

@@ -97,7 +97,7 @@ def process_csv_data(df):
             elif col == 'Tipo_Operacion':
                 processed_df[col] = 'Cuota de Mantenimiento'
             elif col == 'Estado':
-                processed_df[col] = 'Pendiente'
+                processed_df[col] = 'Pagado'
             elif col == 'Registrado':
                 processed_df[col] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             else:
@@ -1488,7 +1488,7 @@ def csv_main():
         - `Unidad`: Unidad o apartamento
         - `Concepto`: Descripción del pago
         - `Banco`: Entidad bancaria
-        - `Estado`: Estado del pago (por defecto: "Pendiente")
+        - `Estado`: Estado del pago (por defecto: "Pagado")
         - `Metodo_Pago`: Método utilizado para el pago
         - `Soporte_Pago`: Referencia del soporte
         - `Numero_Recibo`: Número de recibo

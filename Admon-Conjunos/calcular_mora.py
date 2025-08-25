@@ -236,8 +236,8 @@ def update_sheet_data(worksheet, df):
         st.error(f"❌ Error actualizando hoja: {str(e)}")
         return False
 
-def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual=0.03):
-    """Calcular interés de mora al 3% mensual"""
+def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual):
+    """Calcular interés de mora """
     # Limpiar y convertir saldo pendiente
     saldo_limpio = clean_currency_value(saldo_pendiente)
     
@@ -245,10 +245,11 @@ def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual=0.03):
         return 0
     
     # Convertir tasa mensual a diaria
-    tasa_diaria = tasa_mensual / 30
+    #tasa_diaria = tasa_mensual / 30
     
-    # Calcular interés compuesto diario
-    interes_mora = saldo_limpio * (((1 + tasa_diaria) ** dias_mora) - 1)
+    # Calcular interés corriente
+    #interes_mora = saldo_limpio * (((1 + tasa_diaria) ** dias_mora) - 1)
+    interes_mora = saldo_limpio * tasa_mensual * (dias_mora / 360)
     
     return round(interes_mora, 2)
 
@@ -259,7 +260,7 @@ def calcular_main():
     #    layout="wide"
     #)
     
-    st.title("💰 Calculadora de Mora e Intereses")
+    st.title("💰 Calcula Dias de Mora e Intereses")
     st.markdown("---")
     
     # Cargar credenciales
@@ -276,14 +277,17 @@ def calcular_main():
     
     # Sidebar para configuración
     st.sidebar.header("⚙️ Configuración")
-    sheet_name = st.sidebar.text_input("Nombre del archivo", value="gestion-conjuntos")
-    worksheet_name = st.sidebar.text_input("Nombre de la hoja", value="gestion_morosos")
-    tasa_mensual = st.sidebar.number_input("Tasa de interés mensual (%)", value=3.0, min_value=0.0, max_value=100.0) / 100
+    #sheet_name = st.sidebar.text_input("Nombre del archivo", value="gestion-conjuntos")
+    #worksheet_name = st.sidebar.text_input("Nombre de la hoja", value="gestion_morosos")
+    #st.date_input("Desde:", date(2025, 7, 1)
+    periodo_desde = st.sidebar.date_input('Aplicar tasa de Fecha Desde', value= date.today())
+    periodo_hasta = st.sidebar.date_input('Aplicar tasa de Fecha Hasta', value= date.today())
+    tasa_mensual = st.sidebar.number_input("Tasa de Interés Moratorio (% anual)", value=12.0, min_value=0.0, max_value=100.0, format="%.2f")
     
     # Botón para cargar datos
     if st.button("📊 Cargar Datos", type="primary"):
         with st.spinner("Cargando datos..."):
-            df, worksheet = load_data_from_sheet(client, sheet_name, worksheet_name)
+            df, worksheet = load_data_from_sheet(client, sheet_name ="gestion-conjuntos", worksheet_name ="gestion_morosos")
             
             if df is not None:
                 st.session_state.df = df
@@ -330,15 +334,35 @@ def calcular_main():
                     lambda row: clean_currency_value(row['Valor_Deuda']) - clean_currency_value(row['Valor_Pagado']), axis=1
                 )
 
-                # Calcular interés de mora
-                df['Interes_Mora'] = df.apply(
+                df['Fecha_Vencimiento'] = pd.to_datetime(df['Fecha_Vencimiento'])
+
+                # FIX: Crear máscara booleana para filtrar filas que están en el rango de fechas
+                fecha_mask = (df['Fecha_Vencimiento'].dt.date >= periodo_desde) & (df['Fecha_Vencimiento'].dt.date <= periodo_hasta)
+                
+                # Calcular interés de mora solo para filas dentro del período
+                tasa_decimal = tasa_mensual / 100
+                
+                # Inicializar columna de interés con ceros
+                df['Interes_Mora'] = 0.0
+                
+                # Aplicar interés solo a las filas que están en el rango de fechas
+                df.loc[fecha_mask, 'Interes_Mora'] = df.loc[fecha_mask].apply(
                     lambda row: calculate_interes_mora(
                         row['Saldo_Pendiente'],
                         row['Dias_Mora'],
-                        tasa_mensual
+                        tasa_decimal
                     ), axis=1
                 )
+
+                # FIXED: Inicializar columna tasa_aplicada con valores por defecto
+                df['tasa_aplicada'] = 0.0
                 
+                # Aplicar tasa solo a las filas que están en el rango de fechas
+                df.loc[fecha_mask, 'tasa_aplicada'] = tasa_mensual
+                
+                # Para filas fuera del período, el interés permanece en 0
+                # (ya inicializado arriba)
+                                    
                 # Calcular saldo total
                 df['Saldo_Total'] = df.apply(
                     lambda row: clean_currency_value(row['Saldo_Pendiente']) + row['Interes_Mora'], axis=1
@@ -397,7 +421,20 @@ def calcular_main():
             
             if st.button("🔄 Actualizar Hoja de Cálculo", type="primary"):
                 with st.spinner("Actualizando Google Sheets..."):
-                    success = update_sheet_data(st.session_state.worksheet, df_calc)
+                    # Preparar DataFrame para Google Sheets - convertir fechas a string
+                    df_for_sheets = df_calc.copy()
+                    
+                    # Convertir columnas de fecha a string para evitar errores de serialización
+                    date_columns = df_for_sheets.select_dtypes(include=['datetime64[ns]', 'datetime']).columns
+                    for col in date_columns:
+                        df_for_sheets[col] = df_for_sheets[col].dt.strftime('%Y-%m-%d')
+                    
+                    # También convertir cualquier objeto Timestamp que pueda quedar
+                    for col in df_for_sheets.columns:
+                        if df_for_sheets[col].dtype == 'object':
+                            df_for_sheets[col] = df_for_sheets[col].astype(str)
+                    
+                    success = update_sheet_data(st.session_state.worksheet, df_for_sheets)
                     
                     if success:
                         st.success("✅ Hoja actualizada exitosamente en Google Sheets")
@@ -421,11 +458,11 @@ def calcular_main():
     **📋 Instrucciones:**
      
     **💡 Notas:**
-    - Tasa de interés: 3% mensual por defecto
+    - Tasa de interés: % mensual por defecto
     - Solo se calculan intereses para saldos vencidos
     - Los cálculos se basan en la fecha actual
     - Formato de moneda: Pesos colombianos ($1.000.000)
     """)
 
-#if __name__ == "__main__":
-#    main()
+if __name__ == "__main__":
+    calcular_main()
