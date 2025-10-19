@@ -128,7 +128,7 @@ def dataBook_emp(hoja):
       #print(f'data {data}')
     return data
 
-fecha_hasta = int('20250630')
+fecha_hasta = int('20260630')
 #print(f'fecha hasta: {feha_hasta}')
 
 fecha = dt.datetime.now()
@@ -197,9 +197,9 @@ class Model:
       
   css_load(r"style/main.css")
 
-if fecha_hasta < fecha_hoy:
+if fecha_hasta <= fecha_hoy:
   
-   sw_empresa == ['FALSO'] or sw_empresa == ['False']
+   #sw_empresa == ['FALSO'] or sw_empresa == ['False']
       
    st.warning('Ha caducado el tiempo autorizado para su uso favor comuniquese con el administrador')
 
@@ -505,6 +505,6 @@ else:
         
       update_clock_and_calendar()
       
-sys.excepthook = global_exception_handler
+  sys.excepthook = global_exception_handler
 
-view(Model())
+  view(Model())
