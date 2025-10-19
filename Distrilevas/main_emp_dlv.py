@@ -367,7 +367,7 @@ else:
         
         # Crear los tabs con los estilos personalizados
                
-        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modsificar Solicitud","Eliminar Solicitud", "Catalogo Productos", "Soporte - PQRS"
+        tabs = st.tabs(["Inicio", "Crear Solicitud", "Modificar Solicitud","Eliminar Solicitud", "Catalogo Productos", "Soporte - PQRS"
         #, "Registrar Pago", "Soporte - PQRS"])
         ])
             
