@@ -6,7 +6,7 @@ import json
 import toml
 from datetime import datetime, date
 import numpy as np
-
+import re
 def load_credentials_from_toml():
     """Cargar credenciales desde el archivo secrets.toml"""
     try:
@@ -56,10 +56,28 @@ def get_google_sheets_connection(_creds):
         return None
 
 def format_currency(value):
-    """Formatear valores monetarios con separador de miles"""
-    if pd.isna(value) or value == 0:
-        return "$0"
-    return f"${value:,.0f}".replace(',', '.')
+    """Formatear valores monetarios con separador de miles (punto)"""
+    # Manejar valores None, NaN o vacíos
+    if value is None or pd.isna(value):
+        return "0"
+    
+    # Convertir a float si es necesario
+    try:
+        value = float(value)
+    except (ValueError, TypeError):
+        return "0"
+    
+    # Si es cero, retornar 0
+    if value == 0:
+        return "0"
+    
+    # Formatear con separador de miles (punto) sin decimales
+    return f"{int(value):,}".replace(",", ".")
+    
+    # Formatear con separador de miles (coma)
+    # Luego reemplazar coma por punto para formato colombiano
+    formatted = f"${value:,.2f}".replace(',', '.')
+    return formatted
 
 def format_currency_cop(value):
     """Formatear valor como moneda colombiana"""
@@ -146,53 +164,64 @@ def format_dataframe_for_display(df):
     return df_display
 
 def clean_currency_value(value):
-    """Limpiar valores de moneda y convertir a float usando formato colombiano"""
-    if pd.isna(value) or value == '' or value is None:
+    """
+    Limpia valores de moneda y los convierte a float.
+    
+    Args:
+        value: Puede ser str, int o float
+               Ejemplos: "$210.000", "210,000.50", "210000", 210000
+    
+    Returns:
+        float: Valor numérico limpio
+    """
+    if value is None or value == '':
         return 0.0
     
-    # Si ya es un string con formato de moneda, usar parse_currency_cop
-    if isinstance(value, str) and ('$' in value or '.' in value):
-        return parse_currency_cop(value)
+    # Si ya es numérico, convertir directamente
+    if isinstance(value, (int, float)):
+        return float(value)
     
-    # Convertir a string si no lo es
-    value_str = str(value).strip()
+    # Si es string, limpiar
+    if isinstance(value, str):
+        # Eliminar espacios
+        value = value.strip()
+        
+        # Eliminar símbolos de moneda
+        value = re.sub(r'[$€£¥₹₩]', '', value)
+        
+        # Eliminar separadores de miles (puntos o comas según formato)
+        # Detectar formato: si hay punto antes que coma, es formato europeo
+        if '.' in value and ',' in value:
+            if value.rindex('.') < value.rindex(','):
+                # Formato europeo: 1.234,56
+                value = value.replace('.', '').replace(',', '.')
+            else:
+                # Formato americano: 1,234.56
+                value = value.replace(',', '')
+        elif ',' in value and value.count(',') > 1:
+            # Múltiples comas = separadores de miles: 1,234,567
+            value = value.replace(',', '')
+        elif '.' in value and value.count('.') > 1:
+            # Múltiples puntos = separadores de miles: 1.234.567
+            value = value.replace('.', '')
+        elif ',' in value:
+            # Una sola coma, verificar si es decimal o separador
+            parts = value.split(',')
+            if len(parts[-1]) <= 2:
+                # Probablemente decimal: 1234,56
+                value = value.replace(',', '.')
+            else:
+                # Probablemente separador: 1,234
+                value = value.replace(',', '')
+        
+        # Convertir a float
+        try:
+            return float(value)
+        except ValueError:
+            return 0.0
     
-    # Remover símbolos de moneda y espacios
-    value_str = value_str.replace('$', '').replace(',', '').replace('€', '').replace('£', '')
-    value_str = value_str.replace(' ', '').replace('\xa0', '')  # Espacios normales y no-breaking
-    
-    # Manejar separadores de miles y decimales
-    # Si tiene puntos y comas, determinar cuál es el separador decimal
-    if ',' in value_str and '.' in value_str:
-        # Si el último separador es coma, es decimal (formato europeo)
-        if value_str.rfind(',') > value_str.rfind('.'):
-            value_str = value_str.replace('.', '').replace(',', '.')
-        else:
-            # Si el último separador es punto, es decimal (formato americano)
-            value_str = value_str.replace(',', '')
-    elif ',' in value_str:
-        # Solo comas: podría ser separador de miles o decimal
-        # Si hay más de una coma o si está en posición de miles, es separador de miles
-        comma_count = value_str.count(',')
-        comma_pos = value_str.rfind(',')
-        if comma_count > 1 or (len(value_str) - comma_pos - 1) > 3:
-            value_str = value_str.replace(',', '')
-        else:
-            # Probablemente es separador decimal
-            value_str = value_str.replace(',', '.')
-    elif '.' in value_str:
-        # Solo puntos: podría ser separador de miles o decimal
-        dot_count = value_str.count('.')
-        dot_pos = value_str.rfind('.')
-        if dot_count > 1 or (len(value_str) - dot_pos - 1) > 3:
-            value_str = value_str.replace('.', '')
-        # Si solo hay un punto y está en posición decimal, se mantiene
-    
-    try:
-        return float(value_str)
-    except ValueError:
-        st.warning(f"⚠️ No se pudo convertir el valor: '{value}' - se asignará 0")
-        return 0.0
+    return 0.0
+
 
 def load_data_from_sheet(client, sheet_name="gestion-conjuntos", worksheet_name="gestion_morosos"):
     """Cargar datos desde Google Sheets"""
@@ -206,19 +235,167 @@ def load_data_from_sheet(client, sheet_name="gestion-conjuntos", worksheet_name=
         st.error(f"❌ Error cargando datos: {str(e)}")
         return None, None
 
-def update_sheet_data(worksheet, df):
-    """Actualizar datos en Google Sheets con formato colombiano"""
+def update_sheet_data(worksheet, df, periodo_desde=None, periodo_hasta=None):
+    """
+    Actualizar datos en Google Sheets con formato colombiano - Solo actualiza registros del período
+    
+    Args:
+        worksheet: Hoja de Google Sheets
+        df: DataFrame con los datos calculados
+        periodo_desde: Fecha inicial del período (date)
+        periodo_hasta: Fecha final del período (date)
+    """
     try:
-        # Crear una copia del DataFrame para enviar a Google Sheets
-        df_to_send = df.copy()
+        # Columnas clave para identificar registros
+        key_columns = ['Apartamento/Casa', 'Cedula', 'Fecha_Venc_dt', 'periodo_moroso']
+        
+        # Verificar que las columnas clave existan en el DataFrame
+        missing_cols = [col for col in key_columns if col not in df.columns]
+        if missing_cols:
+            st.error(f"❌ Faltan columnas clave en el DataFrame: {missing_cols}")
+            return False
+        
+        # Verificar que exista la columna de fecha para filtrar
+        if 'Fecha_Vencimiento' not in df.columns:
+            st.error("❌ Falta la columna 'Fecha_Vencimiento' para filtrar por período")
+            return False
+        
+        # Crear una copia para trabajar
+        df_filtered = df.copy()
+        
+        # CRÍTICO: Convertir TODAS las columnas de fecha a string ANTES de filtrar
+        date_columns = df_filtered.select_dtypes(include=['datetime64[ns]', 'datetime64', 'datetime']).columns
+        for col in date_columns:
+            df_filtered[col] = pd.to_datetime(df_filtered[col]).dt.strftime('%Y-%m-%d')
+        
+        # También convertir cualquier Timestamp oculto en columnas object
+        for col in df_filtered.columns:
+            if df_filtered[col].dtype == 'object':
+                # Intentar detectar si hay Timestamps
+                if df_filtered[col].apply(lambda x: isinstance(x, pd.Timestamp)).any():
+                    df_filtered[col] = pd.to_datetime(df_filtered[col]).dt.strftime('%Y-%m-%d')
+        
+        # Filtrar por período si se proporcionan las fechas
+        if periodo_desde is not None and periodo_hasta is not None:
+            # Convertir temporalmente la columna de fecha para filtrar
+            fecha_temp = pd.to_datetime(df['Fecha_Vencimiento'])
+            
+            # Aplicar filtro de período
+            fecha_mask = (
+                (fecha_temp.dt.date >= periodo_desde) & 
+                (fecha_temp.dt.date <= periodo_hasta)
+            )
+            df_filtered = df_filtered[fecha_mask].copy()
+            
+            if len(df_filtered) == 0:
+                st.warning(f"⚠️ No hay registros en el período {periodo_desde} a {periodo_hasta}")
+                return False
+            
+            st.info(f"📅 Actualizando {len(df_filtered)} registros del período {periodo_desde} a {periodo_hasta}")
+        
+        # Obtener datos actuales de la hoja
+        existing_data = worksheet.get_all_records()
+        
+        if not existing_data:
+            st.warning("⚠️ La hoja está vacía. Se insertarán todos los registros del período.")
+            return _insert_all_data(worksheet, df_filtered)
+        
+        # Convertir datos existentes a DataFrame
+        df_existing = pd.DataFrame(existing_data)
+        
+        # Crear una copia del DataFrame filtrado para enviar a Google Sheets
+        df_to_send = df_filtered.copy()
         
         # Formatear columnas monetarias para Google Sheets
         money_columns = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente', 'Interes_Mora', 'Saldo_Total']
         for col in money_columns:
             if col in df_to_send.columns:
                 df_to_send[col] = df_to_send[col].apply(
-                    lambda x: format_currency_cop(x) if pd.notna(x) else "$0"
+                    lambda x: format_currency(x) if pd.notna(x) and x != '' else "$0"
                 )
+        
+        # Convertir todo a strings para evitar problemas de serialización
+        #df_to_send = df_to_send.astype(str)
+        
+        # Crear clave única para comparar registros
+        def create_key(row):
+            """Crear clave única concatenando las columnas clave"""
+            return '|'.join([str(row.get(col, '')) for col in key_columns])
+        
+        # Crear diccionario de registros existentes con su índice (fila en sheets)
+        existing_keys = {}
+        for idx, row in df_existing.iterrows():
+            key = create_key(row)
+            existing_keys[key] = idx + 2  # +2 porque sheets empieza en 1 y tiene header
+        
+        # Contadores para reporte
+        updated_count = 0
+        new_count = 0
+        
+        # Procesar cada registro del DataFrame filtrado
+        for idx, row in df_to_send.iterrows():
+            key = create_key(row)
+            
+            # Convertir la fila a lista de valores simples (strings)
+            row_values = [val if val != 'nan' and val != 'NaT' else '' for val in row.tolist()]
+            
+            if key in existing_keys:
+                # Actualizar registro existente
+                sheet_row = existing_keys[key]
+                
+                # Actualizar la fila completa
+                range_to_update = f'A{sheet_row}'
+                worksheet.update(range_to_update, [row_values])
+                updated_count += 1
+            else:
+                # Agregar nuevo registro
+                worksheet.append_row(row_values)
+                new_count += 1
+        
+        # Mensaje de resumen
+        if periodo_desde and periodo_hasta:
+            st.success(
+                f"✅ Actualización completada para período {periodo_desde} a {periodo_hasta}:\n"
+                f"- {updated_count} registros actualizados\n"
+                f"- {new_count} registros nuevos agregados"
+            )
+        else:
+            st.success(
+                f"✅ Actualización completada:\n"
+                f"- {updated_count} registros actualizados\n"
+                f"- {new_count} registros nuevos"
+            )
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"❌ Error actualizando hoja: {str(e)}")
+        import traceback
+        st.error(f"Detalle del error: {traceback.format_exc()}")
+        return False
+
+
+def _insert_all_data(worksheet, df):
+    """Función auxiliar para insertar todos los datos cuando la hoja está vacía"""
+    try:
+        # Crear una copia del DataFrame para enviar a Google Sheets
+        df_to_send = df.copy()
+        
+        # Convertir TODAS las fechas a string
+        date_columns = df_to_send.select_dtypes(include=['datetime64[ns]', 'datetime64', 'datetime']).columns
+        for col in date_columns:
+            df_to_send[col] = pd.to_datetime(df_to_send[col]).dt.strftime('%Y-%m-%d')
+        
+        # Formatear columnas monetarias
+        money_columns = ['Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente', 'Interes_Mora', 'Saldo_Total']
+        for col in money_columns:
+            if col in df_to_send.columns:
+                df_to_send[col] = df_to_send[col].apply(
+                    lambda x: format_currency_cop(x) if pd.notna(x) and x != '' else "$0"
+                )
+        
+        # Convertir todo a strings
+        #df_to_send = df_to_send.astype(str)
         
         # Limpiar la hoja y escribir los nuevos datos
         worksheet.clear()
@@ -229,29 +406,93 @@ def update_sheet_data(worksheet, df):
         
         # Escribir datos
         for index, row in df_to_send.iterrows():
-            worksheet.append_row(row.tolist())
+            row_values = [val if val != 'nan' and val != 'NaT' else '' for val in row.tolist()]
+            worksheet.append_row(row_values)
         
+        st.success(f"✅ {len(df_to_send)} registros insertados")
         return True
+        
     except Exception as e:
-        st.error(f"❌ Error actualizando hoja: {str(e)}")
+        st.error(f"❌ Error insertando datos: {str(e)}")
+        import traceback
+        st.error(f"Detalle del error: {traceback.format_exc()}")
         return False
 
+
 def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual):
-    """Calcular interés de mora """
-    # Limpiar y convertir saldo pendiente
-    saldo_limpio = clean_currency_value(saldo_pendiente)
+    """
+    Calcular interés de mora según fórmula bancaria colombiana.
     
-    if dias_mora <= 0 or saldo_limpio <= 0:
-        return 0
+    Args:
+        saldo_pendiente: Capital adeudado (monto de la cuota) - str o float
+                        Ejemplo: "210.000" o "210000" o 210000
+        dias_mora: Número de días de retraso - int, float o str
+                  Ejemplo: 30 o "30"
+        tasa_mensual: Tasa bancaria corriente mensual en PORCENTAJE
+                     Ejemplo: 24.36 (para 24.36%) o 0.2436 (decimal)
     
-    # Convertir tasa mensual a diaria
-    #tasa_diaria = tasa_mensual / 30
+    Returns:
+        float: Intereses de mora redondeados a 2 decimales
     
-    # Calcular interés corriente
-    #interes_mora = saldo_limpio * (((1 + tasa_diaria) ** dias_mora) - 1)
-    interes_mora = saldo_limpio * tasa_mensual * (dias_mora / 360)
+    Nota: Si usas con pandas DataFrame, asegúrate de convertir la columna:
+          df['interes_mora'] = df['interes_mora'].astype('float64')
+    """
     
-    return round(interes_mora, 2)
+    try:
+        # Paso 1: Validar y convertir saldo pendiente
+        saldo_limpio = clean_currency_value(saldo_pendiente)
+        
+        # Paso 2: Validar y convertir días de mora
+        dias_mora_limpio = clean_currency_value(dias_mora)
+        dias_mora_limpio = int(dias_mora_limpio)
+        
+        # Paso 3: Validar y convertir tasa mensual
+        if isinstance(tasa_mensual, str):
+            tasa_mensual = tasa_mensual.replace('%', '').strip()
+            tasa_mensual = clean_currency_value(tasa_mensual)
+        else:
+            tasa_mensual = float(tasa_mensual)
+        
+        # Si la tasa es mayor a 1, asumir que es porcentaje (ej: 24.36)
+        if tasa_mensual > 1:
+            tasa_mensual = tasa_mensual / 100
+        
+        # Validar rangos
+        if saldo_limpio <= 0:
+            return 0.0
+        
+        if dias_mora_limpio < 0:
+            return 0.0
+        
+        if dias_mora_limpio == 0:
+            return 0.0
+        
+        if tasa_mensual <= 0 or tasa_mensual > 1:
+            print(f"⚠️ Tasa mensual debe estar entre 0 y 100%: {tasa_mensual*100:.2f}%")
+            return 0.0
+        
+        # Paso 4: Calcular tasa de mora efectiva anual
+        # Multiplica la tasa bancaria corriente por 1.5
+        tasa_mora_anual = tasa_mensual * 1.5
+        
+        # Paso 5: Convertir tasa efectiva anual a tasa diaria
+        # Fórmula: Tasa Diaria = (1 + TEA)^(1/365) - 1
+        tasa_diaria = ((1 + tasa_mora_anual) ** (1/365)) - 1
+        
+        # Paso 6: Calcular intereses de mora total
+        # Fórmula: Intereses de mora = Capital adeudado × Tasa Diaria × Días de retraso
+        interes_mora = saldo_limpio * tasa_diaria * dias_mora_limpio
+        
+        return round(interes_mora, 2)
+    
+    except Exception as e:
+        print(f"❌ Error en cálculo de mora: {str(e)}")
+        return 0.0
+
+    
+    except Exception as e:
+        print(f"❌ Error en cálculo de mora: {str(e)}")
+        return 0.0
 
 def calcular_main():
     #st.set_page_config(
@@ -315,61 +556,51 @@ def calcular_main():
         if st.button("🧮 Calcular Mora e Intereses", type="secondary"):
             with st.spinner("Calculando..."):
                 fecha_actual = date.today()
-                
+        
                 # Calcular días de mora
                 df['Dias_Mora'] = df['Fecha_Vencimiento'].apply(
-                    lambda x: calculate_mora_days(x, fecha_actual)
+                   lambda x: calculate_mora_days(x, fecha_actual)
                 )
 
-                df['Valor_Deuda'] = df.apply(
-                    lambda row: clean_currency_value(row['Valor_Deuda']), axis=1
-                )
+                # ✅ IMPORTANTE: Limpiar TODAS las columnas monetarias de una vez
+                # Y asegurarse que sean float64
+                df['Valor_Deuda'] = df['Valor_Deuda'].apply(clean_currency_value).astype('float64')
+                df['Valor_Pagado'] = df['Valor_Pagado'].apply(clean_currency_value).astype('float64')
+        
+                # Calcular saldo pendiente (ahora ambos son float64)
+                df['Saldo_Pendiente'] = (df['Valor_Deuda'] - df['Valor_Pagado']).astype('float64')
 
-                df['Valor_Pagado'] = df.apply(
-                    lambda row: clean_currency_value(row['Valor_Pagado']), axis=1
-                )
-                
-                # FIX: Calcular saldo pendiente limpiando AMBOS valores
-                df['Saldo_Pendiente'] = df.apply(
-                    lambda row: clean_currency_value(row['Valor_Deuda']) - clean_currency_value(row['Valor_Pagado']), axis=1
-                )
-
+                # Convertir fecha
                 df['Fecha_Vencimiento'] = pd.to_datetime(df['Fecha_Vencimiento'])
 
-                # FIX: Crear máscara booleana para filtrar filas que están en el rango de fechas
+                # Crear máscara para filtrar filas
                 fecha_mask = (df['Fecha_Vencimiento'].dt.date >= periodo_desde) & (df['Fecha_Vencimiento'].dt.date <= periodo_hasta)
-                
-                # Calcular interés de mora solo para filas dentro del período
-                tasa_decimal = tasa_mensual / 100
-                
-                # Inicializar columna de interés con ceros
-                df['Interes_Mora'] = 0.0
-                
-                # Aplicar interés solo a las filas que están en el rango de fechas
+        
+                # Calcular interés de mora
+                tasa_decimal = (tasa_mensual / 100)
+        
+                # Inicializar columnas como float64
+                df['Interes_Mora'] = df['Interes_Mora'].apply(clean_currency_value).astype('float64') 
+                df['tasa_aplicada'] = df['tasa_aplicada'].apply(clean_currency_value).astype('float64')
+        
+                # Aplicar interés solo a las filas dentro del período
                 df.loc[fecha_mask, 'Interes_Mora'] = df.loc[fecha_mask].apply(
                     lambda row: calculate_interes_mora(
-                        row['Saldo_Pendiente'],
+                        row['Saldo_Pendiente'],  # Ya es float64
                         row['Dias_Mora'],
                         tasa_decimal
                     ), axis=1
                 )
-
-                # FIXED: Inicializar columna tasa_aplicada con valores por defecto
-                df['tasa_aplicada'] = 0.0
-                
-                # Aplicar tasa solo a las filas que están en el rango de fechas
+        
+                # Aplicar tasa
                 df.loc[fecha_mask, 'tasa_aplicada'] = tasa_mensual
-                
-                # Para filas fuera del período, el interés permanece en 0
-                # (ya inicializado arriba)
-                                    
-                # Calcular saldo total
-                df['Saldo_Total'] = df.apply(
-                    lambda row: clean_currency_value(row['Saldo_Pendiente']) + row['Interes_Mora'], axis=1
-                )
-                
+        
+                # ✅ Calcular saldo total (ahora ambos son float64 garantizado)
+                df['Saldo_Total'] = (df['Saldo_Pendiente'] + df['Interes_Mora']).astype('float64')
+        
                 st.session_state.df_calculated = df
                 st.success("✅ Cálculos completados")
+
         
         # Mostrar resultados calculados
         if 'df_calculated' in st.session_state:
@@ -421,21 +652,14 @@ def calcular_main():
             
             if st.button("🔄 Actualizar Hoja de Cálculo", type="primary"):
                 with st.spinner("Actualizando Google Sheets..."):
-                    # Preparar DataFrame para Google Sheets - convertir fechas a string
-                    df_for_sheets = df_calc.copy()
-                    
-                    # Convertir columnas de fecha a string para evitar errores de serialización
-                    date_columns = df_for_sheets.select_dtypes(include=['datetime64[ns]', 'datetime']).columns
-                    for col in date_columns:
-                        df_for_sheets[col] = df_for_sheets[col].dt.strftime('%Y-%m-%d')
-                    
-                    # También convertir cualquier objeto Timestamp que pueda quedar
-                    for col in df_for_sheets.columns:
-                        if df_for_sheets[col].dtype == 'object':
-                            df_for_sheets[col] = df_for_sheets[col].astype(str)
-                    
-                    success = update_sheet_data(st.session_state.worksheet, df_for_sheets)
-                    
+                    # Ya NO necesitas convertir fechas aquí, la función lo hace internamente
+                    success = update_sheet_data(
+                        st.session_state.worksheet, 
+                        df_calc,  # Pasar el DataFrame original
+                        periodo_desde=periodo_desde,
+                        periodo_hasta=periodo_hasta
+                    )
+        
                     if success:
                         st.success("✅ Hoja actualizada exitosamente en Google Sheets")
                         st.balloons()
