@@ -2076,27 +2076,118 @@ def show_financial_module():
         if not tipos_unidad:
             st.warning("⚠️ No se encontraron tipos de unidad. Asegúrate de que los residentes tengan el campo 'Tipo_Unidad' configurado.")
             return
-
         # Función para validar duplicados de cuotas de mantenimiento
-        def validar_cuotas_mantenimiento_duplicadas(financiero_df, mes, año, unidades_activas):
+        
+        def validar_cuotas_mantenimiento_duplicadas(financiero_df, fecha_vencimiento, unidades_activas):
             """
             Valida si ya existen cuotas de mantenimiento para el mes/año/unidades especificadas
+            Valida por: Tipo_Operacion, Unidad, Concepto, Fecha
             """
             if financiero_df.empty:
                 return [], unidades_activas
-        
-            # Filtrar cuotas de mantenimiento existentes
-            cuotas_existentes = financiero_df[
-                (financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento') &
-                (financiero_df['Concepto'].str.contains(f"{mes} {año}", na=False, case=False))
-            ]
-        
+
+            import pandas as pd
+            from datetime import datetime
+
+            # Debug: Verificar tipos de datos y valores únicos
+            print("=== DEBUG INICIAL ===")
+            print(f"Fecha de vencimiento: {fecha_vencimiento}")
+            print(f"Unidades activas: {unidades_activas}")
+            print(f"Tipo de fecha_vencimiento: {type(fecha_vencimiento)}")
+    
+            # Asegurar que la columna Fecha esté en formato datetime
+            if 'Fecha' in financiero_df.columns:
+                financiero_df['Fecha'] = pd.to_datetime(financiero_df['Fecha'], errors='coerce')
+                print(f"Fechas después de conversión: {financiero_df['Fecha'].dtype}")
+    
+            # Obtener el string de año-mes de la fecha objetivo
+            if isinstance(fecha_vencimiento, str):
+                # Si viene como string, convertir a datetime primero
+                fecha_vencimiento = pd.to_datetime(fecha_vencimiento)
+    
+            fecha_str = fecha_vencimiento.strftime('%Y-%m')
+            print(f"Fecha objetivo (YYYY-MM): {fecha_str}")
+    
+            # Debug: Mostrar valores únicos de cada columna crítica
+            print("\n=== VALORES ÚNICOS EN COLUMNAS CRÍTICAS ===")
+            if 'Tipo_Operacion' in financiero_df.columns:
+                print(f"Tipos de operación únicos: {financiero_df['Tipo_Operacion'].unique()}")
+    
+            if 'Estado' in financiero_df.columns:
+                print(f"Estados únicos: {financiero_df['Estado'].unique()}")
+    
+            if 'Banco' in financiero_df.columns:
+                print(f"Valores únicos en Banco: {financiero_df['Banco'].unique()}")
+                print(f"Valores nulos en Banco: {financiero_df['Banco'].isnull().sum()}")
+    
+            if 'Unidad' in financiero_df.columns:
+                print(f"Unidades en DF: {sorted(financiero_df['Unidad'].unique())}")
+                unidades_en_df = set(financiero_df['Unidad'].unique())
+                unidades_activas_set = set(unidades_activas)
+                print(f"Intersección unidades activas y DF: {unidades_activas_set.intersection(unidades_en_df)}")
+    
+            # Crear columna auxiliar para comparación de fechas
+            financiero_df['Fecha_YM'] = financiero_df['Fecha'].dt.strftime('%Y-%m')
+            fechas_unicas = financiero_df['Fecha_YM'].unique()
+            print(f"Fechas únicas en formato YYYY-MM: {sorted([f for f in fechas_unicas if f is not None])}")
+    
+            # Filtrar paso a paso para debug
+            print("\n=== FILTRADO PASO A PASO ===")
+    
+            # Paso 1: Tipo_Operacion
+            if 'Tipo_Operacion' in financiero_df.columns:
+                filtro_tipo = financiero_df['Tipo_Operacion'] == 'Cuota de Mantenimiento'
+                print(f"Registros con Tipo_Operacion='Cuota de Mantenimiento': {filtro_tipo.sum()}")
+            else:
+                filtro_tipo = pd.Series([True] * len(financiero_df))
+                print("Columna 'Tipo_Operacion' no encontrada, saltando filtro")
+    
+            # Paso 2: Banco - REMOVIDO (sin filtro de banco)
+            filtro_combinado = filtro_tipo
+            print(f"Registros después de filtrar solo Tipo_Operacion: {filtro_combinado.sum()}")
+    
+            # Paso 3: Fecha
+            filtro_fecha = financiero_df['Fecha_YM'] == fecha_str
+            print(f"Registros con fecha {fecha_str}: {filtro_fecha.sum()}")
+            filtro_combinado = filtro_combinado & filtro_fecha
+            print(f"Registros después de filtrar fecha: {filtro_combinado.sum()}")
+    
+            # Paso 4: Estado (Aldia o Pendiente)
+            if 'Estado' in financiero_df.columns:
+                filtro_estado = financiero_df['Estado'].isin(['Aldia', 'Pendiente'])
+                print(f"Registros con Estado='Aldia' o 'Pendiente': {filtro_estado.sum()}")
+                filtro_combinado = filtro_combinado & filtro_estado
+                print(f"Registros después de filtrar estado: {filtro_combinado.sum()}")
+            else:
+                print("Columna 'Estado' no encontrada, saltando filtro de estado")
+    
+            # Paso 5: Unidades activas
+            filtro_unidad = financiero_df['Unidad'].isin(unidades_activas)
+            print(f"Registros con unidades activas: {filtro_unidad.sum()}")
+            filtro_combinado = filtro_combinado & filtro_unidad
+            print(f"Registros después de filtrar unidades: {filtro_combinado.sum()}")
+    
+            # Aplicar el filtro final
+            cuotas_existentes = financiero_df[filtro_combinado]
+    
+            print(f"\n=== RESULTADOS ===")
+            print(f"Total de cuotas existentes encontradas: {len(cuotas_existentes)}")
+    
+            if not cuotas_existentes.empty:
+                print("Cuotas existentes encontradas:")
+                print(cuotas_existentes[['Tipo_Operacion', 'Unidad', 'Fecha', 'Estado', 'Banco']].to_string())
+    
             # Obtener unidades que ya tienen cuotas para este mes/año
             unidades_con_cuotas = set(cuotas_existentes['Unidad'].tolist()) if not cuotas_existentes.empty else set()
-        
+            print(f'Unidades con cuotas: {sorted(list(unidades_con_cuotas))}')
+    
             # Filtrar unidades que no tienen cuotas
             unidades_sin_cuotas = [unidad for unidad in unidades_activas if unidad not in unidades_con_cuotas]
-        
+            print(f'Unidades sin cuotas: {sorted(unidades_sin_cuotas)}')
+    
+            # Limpiar columna auxiliar
+            financiero_df.drop('Fecha_YM', axis=1, inplace=True)
+    
             return list(unidades_con_cuotas), unidades_sin_cuotas
 
         # Función para validar duplicados de cuotas extraordinarias
@@ -2107,13 +2198,13 @@ def show_financial_module():
                 return [], unidades_activas
         
             # Convertir fecha a string para comparación
-            fecha_str = fecha_vencimiento.strftime('%Y-%m-%d')
+            fecha_str = fecha_vencimiento.strftime('%Y-%m')
         
             # Filtrar cuotas extraordinarias existentes
             cuotas_existentes = financiero_df[
-                   (financiero_df['Tipo_Operacion'] == 'Ingreso') &
+                   (financiero_df['Tipo_Operacion'] == 'Ingreso') & (financiero_df['Banco'].isnull()) &
                     (financiero_df['Concepto'].str.contains(concepto, na=False, case=False)) &
-                    (financiero_df['Fecha'] == fecha_str)
+                    (financiero_df['Fecha'].dt.strftime('%Y-%m') == fecha_str)
             ]
         
             # Obtener unidades que ya tienen cuotas extraordinarias
@@ -2171,7 +2262,7 @@ def show_financial_module():
             
             # Validar duplicados
             unidades_con_cuotas, unidades_sin_cuotas = validar_cuotas_mantenimiento_duplicadas(
-                financiero_df, mes_cuota, año_cuota, unidades_activas
+                financiero_df, fecha_vencimiento, unidades_activas
             )
             
             # Mostrar advertencia si hay duplicados

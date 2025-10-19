@@ -264,8 +264,8 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
         # Filtrar solo cuotas de mantenimiento pagadas con saldo <= 0
         cuotas_pagadas = df_admin[
             (df_admin['Tipo_Operacion'] == 'Cuota de Mantenimiento') &
-            (df_admin['Estado'] == 'Aldia') &
-            (df_admin['Saldo_Pendiente'] <= 0)
+            (df_admin['Estado'] == 'Pendiente') &
+            (df_admin['Saldo_Pendiente'] > 0)
         ].copy()
         
         if cuotas_pagadas.empty:
@@ -280,7 +280,7 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
         )
         cuotas_pagadas = cuotas_pagadas[~pd.isna(cuotas_pagadas['periodo'])].copy()
         
-        # Preparar DataFrame de morosos para comparación
+        # Preparar DataFrame de morosos para comparación financiero_df['Fecha'].dt.strftime('%Y-%m')
         existing_morosos_df['Fecha_Venc_dt'] = existing_morosos_df['Fecha_Vencimiento'].apply(safe_date_conversion)
         existing_morosos_df['periodo_moroso'] = existing_morosos_df['Fecha_Venc_dt'].apply(
             lambda x: x.strftime('%Y-%m') if not pd.isna(x) else None
@@ -467,9 +467,13 @@ def update_sheet_data(client, sheet_name, worksheet_name, df):
         return False
 
 def insert_new_records_only(client, sheet_name, worksheet_name, df_nuevos):
-    """Insertar SOLO registros completamente nuevos"""
+    """
+    Insertar SOLO registros únicos basándose en las columnas:
+    'Apartamento/Casa', 'Cedula', 'periodo_moroso'
+    """
     try:
         if df_nuevos.empty:
+            st.info("No hay datos para insertar")
             return True
         
         sheet = client.open(sheet_name)
@@ -480,32 +484,113 @@ def insert_new_records_only(client, sheet_name, worksheet_name, df_nuevos):
             worksheet = sheet.add_worksheet(title=worksheet_name, rows=1000, cols=26)
             st.success(f"✅ Hoja '{worksheet_name}' creada exitosamente")
         
-        # Verificar si la hoja está vacía y agregar headers si es necesario
+        # Obtener datos existentes
         existing_data = worksheet.get_all_records()
-        #if not existing_data:
-            #headers = df_nuevos.columns.tolist()
-        #    worksheet.append_row(headers)
         
-        # Insertar SOLO los nuevos datos
-        data_list = []
-        for _, row in df_nuevos.iterrows():
-            row_data = []
-            for value in row:
-                if pd.isna(value):
-                    row_data.append("")
-                elif isinstance(value, (int, float)):
-                    row_data.append(float(value) if not pd.isna(value) else 0)
-                else:
-                    row_data.append(str(value))
-            data_list.append(row_data)
+        # Si no hay datos existentes, insertar headers si es necesario
+        if not existing_data:
+            headers = df_nuevos.columns.tolist()
+            worksheet.clear()  # Limpiar por si acaso
+            worksheet.append_row(headers)
+            existing_data = []
         
-        if data_list:
-            worksheet.append_rows(data_list)
-            st.success(f"✅ Se insertaron {len(data_list)} registros COMPLETAMENTE NUEVOS")
+        # Crear DataFrame con datos existentes para comparación
+        if existing_data:
+            df_existing = pd.DataFrame(existing_data)
+            
+            # Asegurar que las columnas de comparación existan
+            columnas_comparacion = ['Apartamento/Casa', 'Cedula', 'periodo_moroso']
+            
+            # Verificar que las columnas existan en ambos DataFrames
+            columnas_faltantes_nuevos = [col for col in columnas_comparacion if col not in df_nuevos.columns]
+            columnas_faltantes_existentes = [col for col in columnas_comparacion if col not in df_existing.columns]
+            
+            if columnas_faltantes_nuevos:
+                st.error(f"Columnas faltantes en datos nuevos: {columnas_faltantes_nuevos}")
+                return False
+                
+            if columnas_faltantes_existentes:
+                st.warning(f"Columnas faltantes en datos existentes: {columnas_faltantes_existentes}")
+                # Si faltan columnas en datos existentes, todos los registros nuevos se consideran únicos
+                df_unicos = df_nuevos.copy()
+            else:
+                # Normalizar datos para comparación (convertir a string y limpiar espacios)
+                for col in columnas_comparacion:
+                    df_existing[col] = df_existing[col].astype(str).str.strip().str.upper()
+                    df_nuevos[col] = df_nuevos[col].astype(str).str.strip().str.upper()
+                
+                # Crear clave compuesta para identificar registros únicos
+                df_existing['clave_unica'] = (
+                    df_existing['Apartamento/Casa'] + '|' + 
+                    df_existing['Cedula'] + '|' + 
+                    df_existing['periodo_moroso']
+                )
+                
+                df_nuevos['clave_unica'] = (
+                    df_nuevos['Apartamento/Casa'] + '|' + 
+                    df_nuevos['Cedula'] + '|' + 
+                    df_nuevos['periodo_moroso']
+                )
+                
+                # Filtrar solo registros únicos (que no existen)
+                claves_existentes = set(df_existing['clave_unica'].tolist())
+                df_unicos = df_nuevos[~df_nuevos['clave_unica'].isin(claves_existentes)].copy()
+                
+                # Remover la columna temporal
+                df_unicos = df_unicos.drop('clave_unica', axis=1)
+                
+                st.info(f"Registros totales a procesar: {len(df_nuevos)}")
+                st.info(f"Registros existentes encontrados: {len(df_existing)}")
+                st.info(f"Registros únicos a insertar: {len(df_unicos)}")
+        else:
+            # Si no hay datos existentes, todos los registros son únicos
+            df_unicos = df_nuevos.copy()
+            st.info(f"Hoja vacía - Todos los {len(df_unicos)} registros son únicos")
+        
+        # Insertar solo los registros únicos
+        if not df_unicos.empty:
+            data_list = []
+            for _, row in df_unicos.iterrows():
+                row_data = []
+                for value in row:
+                    if pd.isna(value):
+                        row_data.append("")
+                    elif isinstance(value, (int, float)):
+                        row_data.append(float(value) if not pd.isna(value) else 0)
+                    else:
+                        row_data.append(str(value))
+                data_list.append(row_data)
+            
+            # Insertar en lotes para mejor rendimiento
+            batch_size = 100
+            total_inserted = 0
+            
+            for i in range(0, len(data_list), batch_size):
+                batch = data_list[i:i + batch_size]
+                worksheet.append_rows(batch)
+                total_inserted += len(batch)
+                
+                if len(data_list) > batch_size:
+                    st.info(f"Insertados {total_inserted} de {len(data_list)} registros...")
+            
+            st.success(f"✅ Se insertaron {total_inserted} registros ÚNICOS exitosamente")
+            
+            # Mostrar algunos ejemplos de los registros insertados
+            if len(df_unicos) <= 5:
+                st.info("Registros insertados:")
+                for _, row in df_unicos.iterrows():
+                    apartamento = row.get('Apartamento/Casa', 'N/A')
+                    cedula = row.get('Cedula', 'N/A')
+                    periodo = row.get('periodo_moroso', 'N/A')
+                    st.info(f"  - {apartamento} | {cedula} | {periodo}")
+        else:
+            st.warning("⚠️ No se encontraron registros únicos para insertar. Todos los registros ya existen.")
         
         return True
+        
     except Exception as e:
-        st.error(f"Error insertando registros nuevos en {worksheet_name}: {str(e)}")
+        st.error(f"Error insertando registros únicos en {worksheet_name}: {str(e)}")
+        st.error(f"Tipo de error: {type(e).__name__}")
         return False
 
 def process_maintenance_fees(df_admin, df_residents):
@@ -597,7 +682,7 @@ def process_maintenance_fees(df_admin, df_residents):
                     
                     # Crear registro para morosos solo si tiene más de 30 días de mora
                     moroso_record = create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pendiente, monto_pendiente)
-                    if moroso_record and moroso_record['Dias_Mora'] > 30:
+                    if moroso_record and moroso_record['Dias_Mora'] >= 30:
                         morosos_data.append(moroso_record)
                         
             except Exception as e:
