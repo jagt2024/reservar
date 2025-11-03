@@ -1,8 +1,100 @@
-.streamlit/*
+# ============================================
+# ARCHIVOS SENSIBLES - NUNCA SUBIR A GITHUB
+# ============================================
+
+# Credenciales y Secrets
+.streamlit/secrets.toml
+.streamlit/secretsper.toml
+secrets.toml
+*.env
+.env
+.env.local
+.env.production
+config/credentials.json
+credentials.json
 !tmp/.gitkeep
 .env
 secrests.toml
+config.toml
 token.json
 token_emp.json
 client_secret_emp.json
+
+# Claves API
+*api_key*
+*secret_key*
+*private_key*
+
+# Archivos de configuración con datos sensibles
+config/database.yml
+config/secrets.yml
+
+# Archivos de Google Cloud
+*service-account*.json
+gcp-credentials.json
+
+# Certificados y llaves
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Tokens
+*token*
+*oauth*
+
+# ============================================
+# ARCHIVOS DE SISTEMA Y TEMPORALES
+# ============================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Bases de datos locales
 *.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# ============================================
+# DATOS SENSIBLES DE USUARIOS
+# ============================================
+
+# Carpetas con datos privados
+.streamlit/
+assets/
+data/privado/
+backups/
+uploads/usuarios/
+
+# Archivos Excel/CSV con datos sensibles
+data/*_privado.xlsx
+data/*_usuarios.csv
+*.xlsx
+*.csv
