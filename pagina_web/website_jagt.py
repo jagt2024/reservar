@@ -1487,3 +1487,4 @@ st.markdown("""
     <p>© 2025 Todos los derechos reservados | Transformando ideas en soluciones digitales</p>
 </div>
 """, unsafe_allow_html=True)
+                
