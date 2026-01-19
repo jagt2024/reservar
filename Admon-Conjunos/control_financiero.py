@@ -136,7 +136,8 @@ def get_existing_keys_from_sheet(client, sheet_name):
             existing_morosos_df['Clave_Unica'] = existing_morosos_df.apply(
                 lambda row: generate_unique_key(
                     row.get('Apartamento/Casa', ''), 
-                    row.get('Concepto_Deuda', ''), 
+                    #row['Cedula'],
+                    row.get('Concepto_Deuda', ''),
                     row.get('Fecha_Vencimiento', '')
                 ), axis=1
             )
@@ -170,6 +171,7 @@ def filter_new_records_only(nuevos_morosos_df, existing_keys):
         nuevos_morosos_df['Clave_Unica'] = nuevos_morosos_df.apply(
             lambda row: generate_unique_key(
                 row['Apartamento/Casa'], 
+                #row['Cedula'],
                 row['Concepto_Deuda'], 
                 row['Fecha_Vencimiento']
             ), axis=1
@@ -205,21 +207,30 @@ def filter_new_records_only(nuevos_morosos_df, existing_keys):
         return pd.DataFrame(), [], []
 
 def safe_float_conversion(value):
+    """Convertir valor a float de manera segura"""
+    try:
+        if pd.isna(value) or value == '' or value is None:
+            return 0
+        return value
+    except (ValueError, TypeError):
+        return 0
+
+#def safe_float_conversion(value):
     """Safely convert values to float, handling various input types"""
-    if pd.isna(value):
-        return 0.0
-    if isinstance(value, (int, float)):
-        return float(value)
-    if isinstance(value, str):
-        # Remove common formatting
-        cleaned = value.strip().replace(',', '').replace('$', '')
-        if cleaned == '' or cleaned.lower() == 'nan':
-            return 0.0
-        try:
-            return float(cleaned)
-        except (ValueError, TypeError):
-            return 0.0
-    return 0.0
+#    if pd.isna(value):
+#        return 0
+#    if isinstance(value, (int, float)):
+#        return float(value)
+#    if isinstance(value, str):
+       # Remove common formatting
+#        cleaned = value.strip().replace(',', '').replace('$', '')
+#        if cleaned == '' or cleaned.lower() == 'nan':
+#            return 0.0
+#        try:
+#            return float(cleaned)
+#        except (ValueError, TypeError):
+#            return 0.0
+#    return 0.0
 
 def safe_date_conversion(date_value):
     """Safely convert date values"""
@@ -252,27 +263,30 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
         # Clean and convert Saldo_Pendiente columns to numeric at the start
         df_admin = df_admin.copy()
         existing_morosos_df = existing_morosos_df.copy()
-        
+
+        # Convertir fechas y crear períodos para cuotas pagadas
+        #periodo_pago = df_admin['Fecha'].apply(safe_date_conversion)
         # Aggressive cleaning of Saldo_Pendiente columns
-        df_admin['Saldo_Pendiente'] = df_admin['Saldo_Pendiente'].replace('', '0').fillna('0')
-        existing_morosos_df['Saldo_Pendiente'] = existing_morosos_df['Saldo_Pendiente'].replace('', '0').fillna('0')
+        df_admin['Saldo_Pendiente'] = df_admin['Saldo_Pendiente'].replace('', 0).fillna(0)
+        existing_morosos_df['Saldo_Pendiente'] = existing_morosos_df['Saldo_Pendiente'].replace('', 0).fillna(0)
         
         # Convert to numeric, coercing errors to 0
-        df_admin['Saldo_Pendiente'] = pd.to_numeric(df_admin['Saldo_Pendiente'], errors='coerce').fillna(0.0)
-        existing_morosos_df['Saldo_Pendiente'] = pd.to_numeric(existing_morosos_df['Saldo_Pendiente'], errors='coerce').fillna(0.0)
+        df_admin['Saldo_Pendiente'] = pd.to_numeric(df_admin['Saldo_Pendiente'], errors='coerce').fillna(0)
+        existing_morosos_df['Saldo_Pendiente'] = pd.to_numeric(existing_morosos_df['Saldo_Pendiente'], errors='coerce').fillna(0)
         
-        # Filtrar solo cuotas de mantenimiento pagadas con saldo <= 0
+        # Filtrar solo cuotas de mantenimiento pagadas con saldo > 0
         cuotas_pagadas = df_admin[
             (df_admin['Tipo_Operacion'] == 'Cuota de Mantenimiento') &
-            (df_admin['Estado'] == 'Pendiente') &
-            (df_admin['Saldo_Pendiente'] > 0)
+            (df_admin['Estado'] == 'Pendiente') & 
+            #(df_admin['Fecha'].apply(safe_date_conversion) == periodo_pago) &
+            (df_admin['Monto'] > 0) &
+            (df_admin['Saldo_Pendiente'] > 0) #& (df_admin['Registrado']== 'Principal')
         ].copy()
         
         if cuotas_pagadas.empty:
             st.info("ℹ️ No se encontraron cuotas pagadas completamente")
             return existing_morosos_df, []
         
-        # Convertir fechas y crear períodos para cuotas pagadas
         cuotas_pagadas['Fecha_dt'] = cuotas_pagadas['Fecha'].apply(safe_date_conversion)
         cuotas_pagadas = cuotas_pagadas[~pd.isna(cuotas_pagadas['Fecha_dt'])].copy()
         cuotas_pagadas['periodo'] = cuotas_pagadas['Fecha_dt'].apply(
@@ -285,7 +299,7 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
         existing_morosos_df['periodo_moroso'] = existing_morosos_df['Fecha_Venc_dt'].apply(
             lambda x: x.strftime('%Y-%m') if not pd.isna(x) else None
         )
-        
+        #st.success(f'morosos existentes para eliminar: {existing_morosos_df}')
         # Identificar morosos que corresponden a cuotas ya pagadas
         morosos_a_eliminar = []
         indices_a_eliminar = []
@@ -300,27 +314,26 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
                     # Buscar pagos correspondientes
                     unidad_moroso = str(moroso.get('Apartamento/Casa', '')).strip()
                     periodo_moroso = moroso.get('periodo_moroso')
-                
+                    #st.success(f'unidad moroso: {unidad_moroso}, periodo moroso: {periodo_moroso}')
                 if not unidad_moroso or not periodo_moroso:
                     continue
                 
                 # Verificar si existe pago completo para esta unidad y período
                 pagos_correspondientes = cuotas_pagadas[
-                    (cuotas_pagadas['Unidad'].astype(str).str.strip() == unidad_moroso) &
-                    (cuotas_pagadas['periodo'] == periodo_moroso)
+                   (cuotas_pagadas['Unidad'].astype(str).str.strip() == unidad_moroso) &
+                   (cuotas_pagadas['periodo'] == periodo_moroso)
                 ]
-
-                if not pagos_correspondientes.empty:
+                #3st.success(f'pagos correspondientes: {pagos_correspondientes}, {unidad_moroso},{periodo_moroso}')
+                if  pagos_correspondientes.empty:
                     # Verificar que el saldo pendiente sea efectivamente <= 0
                     saldo_total_pagado = pagos_correspondientes['Saldo_Pendiente'].sum()
-                    
                     if saldo_total_pagado <= 0:
                         morosos_a_eliminar.append({
                             'Apartamento/Casa': unidad_moroso,
                             'Propietario': str(moroso.get('Propietario', '')),
                             'Concepto_Deuda': str(moroso.get('Concepto_Deuda', '')),
                             'Fecha_Vencimiento': str(moroso.get('Fecha_Vencimiento', '')),
-                            'Saldo_Pendiente': float(moroso.get('Saldo_Pendiente', 0)),
+                            'Saldo_Pendiente': moroso.get('Saldo_Pendiente', 0),
                             'Periodo': periodo_moroso,
                             'Motivo': f'Pago completo detectado - Saldo actual: ${saldo_total_pagado:,.2f}'
                         })
@@ -330,7 +343,7 @@ def identify_morosos_to_remove(df_admin, existing_morosos_df):
                 st.warning(f"Error procesando moroso en índice {idx}: {str(e)}")
                 continue
         
-        # Crear DataFrame sin los registros a eliminar
+        # Crear DataFrame sin los registros a eliminar 
         if indices_a_eliminar:
             morosos_actualizados = existing_morosos_df.drop(indices_a_eliminar).reset_index(drop=True)
             morosos_actualizados = clean_dataframe_for_arrow(morosos_actualizados)
@@ -361,7 +374,7 @@ def clean_dataframe_for_arrow(df):
         if col == 'Saldo_Pendiente':
             # Handle numeric columns
             df_clean[col] = df_clean[col].replace('', '0').fillna('0')
-            df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0.0)
+            df_clean[col] = pd.to_numeric(df_clean[col], errors='coerce').fillna(0)
         else:
             # Handle string columns - convert everything to string and handle NaN
             df_clean[col] = df_clean[col].astype(str).replace('nan', '').replace('<NA>', '')
@@ -452,9 +465,9 @@ def update_sheet_data(client, sheet_name, worksheet_name, df):
                     if pd.isna(value):
                         row_data.append("")
                     elif isinstance(value, (int, float)):
-                        row_data.append(float(value) if not pd.isna(value) else 0)
+                        row_data.append(value if not pd.isna(value) else 0)
                     else:
-                        row_data.append(str(value))
+                        row_data.append(value)
                 data_list.append(row_data)
             
             # Insertar datos por lotes para mayor eficiencia
@@ -556,9 +569,9 @@ def insert_new_records_only(client, sheet_name, worksheet_name, df_nuevos):
                     if pd.isna(value):
                         row_data.append("")
                     elif isinstance(value, (int, float)):
-                        row_data.append(float(value) if not pd.isna(value) else 0)
+                        row_data.append(value) if not pd.isna(value) else 0
                     else:
-                        row_data.append(str(value))
+                        row_data.append(value)
                 data_list.append(row_data)
             
             # Insertar en lotes para mejor rendimiento
@@ -594,13 +607,27 @@ def insert_new_records_only(client, sheet_name, worksheet_name, df_nuevos):
         return False
 
 def process_maintenance_fees(df_admin, df_residents):
-    """Procesar cuotas de mantenimiento y realizar cruces"""
+    """
+    Procesar cuotas de mantenimiento y realizar cruces para un periodo específico
+    
+    Args:
+        df_admin: DataFrame con datos administrativos
+        df_residents: DataFrame con datos de residentes
+        periodo_especifico: String en formato 'YYYY-MM' (ej: '2024-12'). Si es None, procesa todos.
+    
+    Returns:
+        tuple: (df_admin_actualizado, morosos_df, actualizados_list)
+    """
     try:
         # Hacer una copia del DataFrame para evitar modificaciones no deseadas
         df_admin_copy = df_admin.copy()
         
-        # Filtrar registros de cuotas de mantenimiento
-        cuotas_df = df_admin_copy[df_admin_copy['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy()
+        # Limpiar y convertir la columna Monto de manera segura
+        if 'Monto' in df_admin_copy.columns:
+            df_admin_copy['Monto'] = df_admin_copy['Monto'].apply(safe_float_conversion)
+        
+            # Filtrar registros de cuotas de mantenimiento
+            cuotas_df = df_admin_copy[df_admin_copy['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy()
         
         if cuotas_df.empty:
             st.warning("No se encontraron registros de Cuota de Mantenimiento")
@@ -627,45 +654,70 @@ def process_maintenance_fees(df_admin, df_residents):
             st.warning("No se pudieron generar períodos válidos")
             return df_admin_copy, pd.DataFrame(), []
         
-        # Separar registros pagados y pendientes
-        # Use bitwise & operator for multiple conditions on DataFrames
-        pagados = cuotas_df[
-            (cuotas_df['Estado'] == 'Pagado') & 
+        # Asegurar que periodo sea string y limpiar valores nulos
+        cuotas_df['periodo'] = cuotas_df['periodo'].fillna('').astype(str)
+        
+        # FILTRAR POR PERIODO ESPECÍFICO SI SE PROPORCIONA
+        #if periodo_especifico:
+        #    cuotas_df = cuotas_df[cuotas_df['periodo'] == periodo_especifico].copy()
+            
+        #    if cuotas_df.empty:
+        #        st.warning(f"No se encontraron registros para el periodo {periodo_especifico}")
+        #        return df_admin_copy, pd.DataFrame(), []
+            
+        #    st.info(f"🎯 Procesando periodo específico: {periodo_especifico}")
+        
+        # Separar registros pendientes (sin considerar el estado actual)
+        # Pendientes son aquellos con Registrado == 'Principal'
+        pendientes = cuotas_df[
+            (cuotas_df['Estado'] == 'Pendiente') &
+            #(cuotas_df['Banco'] != '') &
+            (cuotas_df['periodo'] == cuotas_df['Fecha_dt'].apply(lambda x: x.strftime('%Y-%m') if not pd.isna(x) else None)) ].copy()
+        
+        # Pagos son aquellos que tienen el campo 'Banco' NO nulo
+        pagos = cuotas_df[
+            (~cuotas_df['Banco'].isna()) &
+            (cuotas_df['Banco'].astype(str).str.strip() != '') &
+            (cuotas_df['periodo'] != '') &                                    (cuotas_df['Estado'] != 'Aplicado') &
             (cuotas_df['Registrado'] == 'Principal')
         ].copy()
-        
-        pendientes = cuotas_df[cuotas_df['Estado'] == 'Pendiente'].copy()
-        
-        st.info(f"📊 Procesando: {len(pagados)} pagados, {len(pendientes)} pendientes")
-        
+
+        st.info(f"📊 Procesando: {len(pendientes)} registros principales, {len(pagos)} pagos identificados")
+                
         actualizados = []
         morosos_data = []
         
         for idx, pendiente in pendientes.iterrows():
             try:
-                # Buscar pagos correspondientes
-                pagos_relacionados = pagados[
-                    (pagados['Unidad'] == pendiente['Unidad']) &
-                    (pagados['periodo'] >= pendiente['periodo'])
+                # Buscar pagos correspondientes para la misma unidad y periodo
+                pagos_relacionados = pagos[
+                    (pagos['Unidad'] == pendiente['Unidad']) &
+                    (pagos['periodo'] == pendiente['periodo'])
                 ]
                
-                # Convertir montos a float de manera segura
-                monto_pendiente = safe_float_conversion(pendiente['Monto'])
+                # Los montos ya están convertidos a float al inicio
+                monto_pendiente = pendiente.get('Monto', 0)
+                if pd.isna(monto_pendiente):
+                    monto_pendiente = 0
+                    
                 total_pagado = 0
                 pagos_aplicados = []  # Para rastrear los pagos que se aplicaron
                 
                 if not pagos_relacionados.empty:
                     for _, pago in pagos_relacionados.iterrows():
-                        monto_pago = safe_float_conversion(pago['Monto'])
+                        monto_pago = pago.get('Monto', 0)
+                        if pd.isna(monto_pago):
+                            monto_pago = 0
                         total_pagado += monto_pago
                         pagos_aplicados.append(pago.name)  # Guardar índice del pago aplicado
                 
                 # Calcular saldo pendiente
                 saldo_pendiente = monto_pendiente - total_pagado
                 
-                # Actualizar el registro pendiente en el DataFrame original
+                # Actualizar el saldo pendiente en el DataFrame original
                 df_admin_copy.loc[df_admin_copy.index == idx, 'Saldo_Pendiente'] = saldo_pendiente
-                
+
+                # Actualizar estado solo si el saldo es <= 0 (pago total)
                 if saldo_pendiente <= 0:
                     df_admin_copy.loc[df_admin_copy.index == idx, 'Estado'] = 'Aldia'
                     actualizados.append(f"Unidad {pendiente['Unidad']} - Periodo {pendiente['periodo']}")
@@ -675,7 +727,10 @@ def process_maintenance_fees(df_admin, df_residents):
                         df_admin_copy.loc[df_admin_copy.index == pago_idx, 'Estado'] = 'Aplicado'
                         
                 else:
-                    # Si hay pagos parciales, también marcarlos como aplicados
+                    # Mantener estado como 'Pendiente' si el saldo no está cubierto totalmente
+                    df_admin_copy.loc[df_admin_copy.index == idx, 'Estado'] = 'Pendiente'
+                    
+                    # Si hay pagos parciales, marcarlos como aplicados
                     if pagos_aplicados:
                         for pago_idx in pagos_aplicados:
                             df_admin_copy.loc[df_admin_copy.index == pago_idx, 'Estado'] = 'Aplicado'
@@ -691,11 +746,53 @@ def process_maintenance_fees(df_admin, df_residents):
         
         morosos_df = pd.DataFrame(morosos_data) if morosos_data else pd.DataFrame()
         
+        # Resumen de procesamiento
+        #if periodo_especifico:
+        #    st.success(f"✅ Procesamiento del periodo {periodo_especifico} completado: {len(actualizados)} registros actualizados")
+        #else:
+        #    st.success(f"✅ Procesamiento completado: {len(actualizados)} registros actualizados")
+        
         return df_admin_copy, morosos_df, actualizados
         
     except Exception as e:
         st.error(f"Error procesando cuotas de mantenimiento: {str(e)}")
         return df_admin, pd.DataFrame(), []
+
+# Función auxiliar para obtener periodos disponibles
+def get_available_periods(df_admin):
+    """
+    Obtiene lista de periodos disponibles en el DataFrame
+    
+    Args:
+        df_admin: DataFrame con datos administrativos
+        
+    Returns:
+        list: Lista de periodos en formato 'YYYY-MM' ordenados
+    """
+    try:
+        # Filtrar cuotas de mantenimiento
+        cuotas_df = df_admin[df_admin['Tipo_Operacion'] == 'Cuota de Mantenimiento'].copy()
+        
+        if cuotas_df.empty:
+            return []
+        
+        # Convertir fechas
+        cuotas_df['Fecha_dt'] = cuotas_df['Fecha'].apply(safe_date_conversion)
+        cuotas_df = cuotas_df[~pd.isna(cuotas_df['Fecha_dt'])]
+        
+        # Crear periodos
+        cuotas_df['periodo'] = cuotas_df['Fecha_dt'].apply(
+            lambda x: x.strftime('%Y-%m') if not pd.isna(x) else None
+        )
+        
+        # Obtener periodos únicos y ordenar
+        periodos = sorted(cuotas_df['periodo'].dropna().unique().tolist(), reverse=True)
+        
+        return periodos
+        
+    except Exception as e:
+        st.error(f"Error obteniendo periodos: {str(e)}")
+        return []
 
 def create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pendiente, monto_original):
     """Crear registro de moroso"""
@@ -723,8 +820,10 @@ def create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pend
             fecha_vencimiento = safe_date_conversion(pendiente['Fecha'])
             if pd.isna(fecha_vencimiento):
                 dias_mora = 0
+                #print(f"Dias Mora del if: {dias_mora}")
             else:
                 dias_mora = max(0, (datetime.now() - fecha_vencimiento).days)
+                #print(f"Dias Mora del else: {dias_mora}")
         except:
             dias_mora = 0
         
@@ -736,7 +835,7 @@ def create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pend
             try:
                 # Convertir montos de pagos de manera segura
                 for _, pago in pagos_relacionados.iterrows():
-                    valor_pagado += safe_float_conversion(pago['Monto'])
+                    valor_pagado += pago['Monto']
                 
                 # Obtener fecha de pago más reciente
                 fechas_pago = pagos_relacionados['Fecha'].apply(safe_date_conversion)
@@ -756,7 +855,7 @@ def create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pend
             'Cedula': str(residente_data.get('Identificacion', '')) if residente_data.get('Identificacion') else '',
             'Telefono': str(residente_data.get('Telefono', '')) if residente_data.get('Telefono') else '',
             'Email': str(residente_data.get('Email', '')) if residente_data.get('Email') else '',
-            'Valor_Deuda': float(monto_original) if monto_original else 0,
+            'Valor_Deuda': monto_original if monto_original else 0,
             'Concepto_Deuda': str(pendiente.get('Concepto', 'Cuota de Mantenimiento')),
             'Fecha_Vencimiento': fecha_vencimiento.strftime('%Y-%m-%d') if not pd.isna(fecha_vencimiento) else '',
             'Dias_Mora': int(dias_mora),
@@ -766,11 +865,11 @@ def create_moroso_record(pendiente, df_residents, pagos_relacionados, saldo_pend
             'Observaciones': 'Proceso Control Financiero',
             'Accion_Juridica':'',
             'Fecha_Accion_Juridica':'',
-            'Valor_Pagado': float(valor_pagado),
+            'Valor_Pagado': valor_pagado,
             'Fecha_Pago': fecha_pago,
-            'Saldo_Pendiente': float(saldo_pendiente),
+            'Saldo_Pendiente': saldo_pendiente,
             'Iteres_Mora': 0,
-            'Saldo_Total': float(saldo_pendiente),
+            'Saldo_Total': saldo_pendiente,
             'Clave_Unica': '',  # Se generará después
             'Fecha_Venc_dt': fecha_vencimiento.strftime('%Y-%m-%d') if not pd.isna(fecha_vencimiento) else '',
             'periodo_moroso': get_period_from_date(fecha_vencimiento)
@@ -862,7 +961,7 @@ def control_main():
         # Cargar morosos existentes para identificar los que deben eliminarse
         with st.spinner("Cargando registros de morosos existentes..."):
             existing_morosos_df = load_data_from_sheet(client, sheet_name, "gestion_morosos")
-            #print(f'Cargando registros de morosos existentes...: {existing_morosos_df}')
+            print(f'Cargando registros de morosos existentes...: {existing_morosos_df}')
             if existing_morosos_df is not None:
                 st.session_state.existing_morosos_df = existing_morosos_df
         
@@ -885,7 +984,7 @@ def control_main():
         if st.session_state.existing_morosos_df is not None:
             with st.spinner("🔍 Identificando morosos a eliminar..."):
                 morosos_df_actualizado, morosos_eliminados = identify_morosos_to_remove(df_admin_updated , st.session_state.existing_morosos_df)
-                #print(f'Identificando morosos a eliminar...: {morosos_df_actualizado}, {morosos_eliminados}')
+                print(f'Identificando morosos a eliminar...: {morosos_df_actualizado}, {morosos_eliminados}')
         # Guardar en session_state
         st.session_state.df_admin_updated = df_admin_updated
         st.session_state.morosos_df_nuevos = morosos_df_nuevos
@@ -909,7 +1008,7 @@ def control_main():
         # Mostrar información sobre duplicados
         if st.session_state.duplicados_encontrados:
             st.error(f"🚫 Se encontraron {len(st.session_state.duplicados_encontrados)} registros DUPLICADOS (NO se insertarán)")
-            with st.expander("Ver registros duplicados detectados"):
+            with st.expander("Ver registros duplicados detec tados"):
                 for dup in st.session_state.duplicados_encontrados:
                     st.write(f"• Unidad: {dup.get('Apartamento/Casa', 'N/A')} - Propietario: {dup.get('Propietario', 'N/A')} - Saldo: ${dup.get('Saldo_Pendiente', 0):,.2f}")
         
@@ -928,9 +1027,9 @@ def control_main():
         # Mostrar morosos a eliminar
         if st.session_state.morosos_eliminados:
             st.warning(f"⚠️ Se identificaron {len(st.session_state.morosos_eliminados)} registros de morosos que ya NO están en mora")
-            #with st.expander("Ver registros de morosos a eliminar"):
-            #    for moroso in st.session_state.morosos_eliminados:
-            #        st.write(f"• Unidad: {moroso.get('Apartamento/Casa', 'N/A')} - Propietario: {moroso.get('Propietario', 'N/A')} - Estado actual: Pagado")
+            with st.expander("Ver registros de morosos a eliminar"):
+                for moroso in st.session_state.morosos_eliminados:
+                    st.write(f"• Unidad: {moroso.get('Apartamento/Casa', 'N/A')} - Propietario: {moroso.get('Propietario', 'N/A')} - Estado actual: Pagado")
 
         # Botones de actualización
         st.markdown("### 💾 Actualizar Datos")
