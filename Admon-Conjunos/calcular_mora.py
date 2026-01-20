@@ -59,30 +59,30 @@ def format_currency(value):
     """Formatear valores monetarios con separador de miles (punto)"""
     # Manejar valores None, NaN o vacíos
     if value is None or pd.isna(value):
-        return "0"
+        return 0
     
     # Convertir a float si es necesario
     try:
-        value = float(value)
+        value = value
     except (ValueError, TypeError):
-        return "0"
+        return 0
     
     # Si es cero, retornar 0
     if value == 0:
-        return "0"
+        return 0
     
     # Formatear con separador de miles (punto) sin decimales
-    return f"{int(value):,}".replace(",", ".")
+    return f"{value:,.2f}"
     
     # Formatear con separador de miles (coma)
     # Luego reemplazar coma por punto para formato colombiano
-    formatted = f"${value:,.2f}".replace(',', '.')
+    formatted = f"${value:,.2f}".replace(' ', '')
     return formatted
 
 def format_currency_cop(value):
     """Formatear valor como moneda colombiana"""
     if pd.isna(value) or value == 0:
-        return "$0"
+        return 0
     
     try:
         # Convertir a float si es necesario
@@ -90,38 +90,38 @@ def format_currency_cop(value):
             # Remover caracteres no numéricos excepto punto y coma
             clean_value = ''.join(c for c in value if c.isdigit() or c in '.,')
             if clean_value:
-                value = float(clean_value.replace(',', ''))
+                value = clean_value.replace(',', '')
             else:
-                return "$0"
+                return 0
         
-        value = float(value)
+        value = value
         
         # Formatear con separadores de miles
-        formatted = "{:,.0f}".format(value)
+        formatted = "{:,.2f}".format(value)
         # Reemplazar comas por puntos para formato colombiano
-        formatted = formatted.replace(',', '.')
+        #formatted = formatted.replace(',', '.')
         
-        return f"${formatted}"
+        return f"{formatted}"
     except (ValueError, TypeError):
-        return "$0"
+        return 0
 
 def parse_currency_cop(currency_str):
     """Convertir string de moneda colombiana a número"""
     if not currency_str or currency_str == "$0":
-        return 0.0
+        return 0
     
     try:
         # Remover símbolo de peso y espacios
         clean_str = currency_str.replace('$', '').replace(' ', '')
         # Reemplazar puntos por nada (separadores de miles)
-        clean_str = clean_str.replace('.', '')
+        #clean_str = clean_str.replace('.', '')
         # Si hay coma, es separador decimal
         if ',' in clean_str:
             clean_str = clean_str.replace(',', '.')
         
-        return float(clean_str) if clean_str else 0.0
+        return clean_str if clean_str else 0
     except (ValueError, TypeError):
-        return 0.0
+        return 0
 
 def calculate_mora_days(fecha_vencimiento, fecha_actual=None):
     """Calcular días de mora"""
@@ -136,7 +136,7 @@ def calculate_mora_days(fecha_vencimiento, fecha_actual=None):
             try:
                 fecha_vencimiento = datetime.strptime(fecha_vencimiento, '%d/%m/%Y').date()
             except ValueError:
-                return 0
+                return 0.0
     
     if isinstance(fecha_actual, str):
         try:
@@ -145,7 +145,7 @@ def calculate_mora_days(fecha_vencimiento, fecha_actual=None):
             try:
                 fecha_actual = datetime.strptime(fecha_actual, '%d/%m/%Y').date()
             except ValueError:
-                return 0
+                return 0.0
     
     # Calcular días de mora (solo si está vencido)
     dias_mora = (fecha_actual - fecha_vencimiento).days
@@ -175,11 +175,11 @@ def clean_currency_value(value):
         float: Valor numérico limpio
     """
     if value is None or value == '':
-        return 0.0
+        return 0
     
     # Si ya es numérico, convertir directamente
     if isinstance(value, (int, float)):
-        return float(value)
+        return int(value)
     
     # Si es string, limpiar
     if isinstance(value, str):
@@ -216,11 +216,11 @@ def clean_currency_value(value):
         
         # Convertir a float
         try:
-            return float(value)
+            return value
         except ValueError:
-            return 0.0
+            return 0
     
-    return 0.0
+    return 0
 
 
 def load_data_from_sheet(client, sheet_name="gestion-conjuntos", worksheet_name="gestion_morosos"):
@@ -311,9 +311,8 @@ def update_sheet_data(worksheet, df, periodo_desde=None, periodo_hasta=None):
         for col in money_columns:
             if col in df_to_send.columns:
                 df_to_send[col] = df_to_send[col].apply(
-                    lambda x: format_currency(x) if pd.notna(x) and x != '' else "$0"
-                )
-        
+                        lambda x: f"${x:,.2f}" if pd.notna(x) and x != '' else "0"
+                    )
         # Convertir todo a strings para evitar problemas de serialización
         #df_to_send = df_to_send.astype(str)
         
@@ -391,8 +390,8 @@ def _insert_all_data(worksheet, df):
         for col in money_columns:
             if col in df_to_send.columns:
                 df_to_send[col] = df_to_send[col].apply(
-                    lambda x: format_currency_cop(x) if pd.notna(x) and x != '' else "$0"
-                )
+                        lambda x: f"${x:,.2f}" if pd.notna(x) and x != '' else "0"
+                    )
         
         # Convertir todo a strings
         #df_to_send = df_to_send.astype(str)
@@ -451,7 +450,7 @@ def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual):
             tasa_mensual = tasa_mensual.replace('%', '').strip()
             tasa_mensual = clean_currency_value(tasa_mensual)
         else:
-            tasa_mensual = float(tasa_mensual)
+            tasa_mensual = tasa_mensual
         
         # Si la tasa es mayor a 1, asumir que es porcentaje (ej: 24.36)
         if tasa_mensual > 1:
