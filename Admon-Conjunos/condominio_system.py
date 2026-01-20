@@ -2101,12 +2101,25 @@ def show_financial_module():
                 print(f"Fechas después de conversión: {financiero_df['Fecha'].dtype}")
     
             # Obtener el string de año-mes de la fecha objetivo
-            if isinstance(fecha_vencimiento, str):
+            #if isinstance(fecha_vencimiento, str):
                 # Si viene como string, convertir a datetime primero
-                fecha_vencimiento = pd.to_datetime(fecha_vencimiento)
+            #    fecha_vencimiento = pd.to_datetime(fecha_vencimiento)
     
-            fecha_str = fecha_vencimiento.strftime('%Y-%m')
-            print(f"Fecha objetivo (YYYY-MM): {fecha_str}")
+            #fecha_str = fecha_vencimiento.strftime('%Y-%m')
+            #print(f"Fecha objetivo (YYYY-MM): {fecha_str}")
+
+            # Asegurar que la columna Fecha es datetime
+            financiero_df['Fecha'] = pd.to_datetime(financiero_df['Fecha'], errors='coerce')
+
+            # Obtener la fecha máxima
+            fecha_vencimiento = financiero_df['Fecha'].max()
+
+            # Verificar que no sea NaT (Not a Time)
+            if pd.isna(fecha_vencimiento):
+                print("Error: No se encontró una fecha válida")
+            else:
+                fecha_str = fecha_vencimiento.strftime('%Y-%m')
+                print(f"Fecha objetivo (YYYY-MM): {fecha_str}")
     
             # Debug: Mostrar valores únicos de cada columna crítica
             print("\n=== VALORES ÚNICOS EN COLUMNAS CRÍTICAS ===")
@@ -2726,7 +2739,7 @@ def show_financial_module():
                         filtro_concepto = st.text_input(
                             "Filtrar por Concepto:",
                             key="filtro_concepto_especifica",
-                            placeholder="Ej: Enero 2024, Reparación..."
+                            placeholder="Ej: Enero 2025, Reparación..."
                         )
                 
                     # Aplicar filtros
