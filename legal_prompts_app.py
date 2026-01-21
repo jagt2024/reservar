@@ -533,9 +533,8 @@ if len(df_prompts) == 0:
     st.info("No hay prompts registrados. ¡Agrega el primero!")
 else:
     # Mostrar tabla
-    display_df = df_prompts[['id', 'plataforma', 'fase_analisis', 'marco_juridico', 
-                            'jerarquizacion', 'palabras_clave', 'num_archivos']].copy()
-    display_df.columns = ['ID', 'Plataforma', 'Fase', 'Marco_Juridico', 'Jerarquia', 'Palabras Clave', 'Archivos']
+    display_df = df_prompts[['id', 'plataforma', 'fase_analisis', 'marco_juridico', 'aplicabilidad', 'palabras_clave', 'num_archivos']].copy()
+    display_df.columns = ['ID', 'Plataforma', 'Fase', 'Marco_Juridico', 'Análisis de Aplicabilidad', 'Palabras Clave', 'Archivos']
     
     st.dataframe(display_df, use_container_width=True, hide_index=True)
     
