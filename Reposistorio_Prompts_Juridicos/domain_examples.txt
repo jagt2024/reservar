@@ -1,0 +1,155 @@
+Ejemplos de Prompts por Dominio
+Análisis de Datos
+Ejemplo Básico
+Analiza este conjunto de datos de ventas y identifica las 3 tendencias principales.
+Ejemplo Avanzado
+ROLE: Eres un analista de datos senior con experiencia en retail.
+CONTEXT: Tenemos datos de ventas de los últimos 12 meses de 50 tiendas.
+TASK: Realiza un análisis multivariado considerando:
+- Estacionalidad
+- Ubicación geográfica
+- Categoría de producto
+- Promociones activas
+FORMAT: Proporciona:
+1. Resumen ejecutivo (3 puntos clave)
+2. Gráfico conceptual de tendencias
+3. Recomendaciones accionables
+4. Métricas específicas (con números)
+CONSTRAINTS: Enfócate en insights que puedan incrementar ventas en un 15%.
+Creación de Contenido
+Ejemplo Básico
+Escribe un artículo sobre inteligencia artificial.
+Ejemplo Avanzado
+ROLE: Actúa como un escritor técnico especializado en IA con habilidad para simplificar conceptos complejos.
+AUDIENCE: Profesionales de negocios sin formación técnica, nivel ejecutivo.
+TASK: Escribe un artículo sobre el impacto de los LLMs en la productividad empresarial.
+TONE: Profesional pero accesible, evita jerga técnica excesiva.
+STRUCTURE:
+- Título gancho (máx 10 palabras)
+- Introducción con estadística impactante
+- 3 casos de uso específicos con ejemplos reales
+- Sección de implementación práctica
+- Conclusión con call-to-action
+LENGTH: 1200-1500 palabras
+STYLE: Usa analogías empresariales, incluye datos específicos, evita buzzwords genéricos.
+Programación
+Ejemplo Básico
+Escribe una función que ordene una lista.
+Ejemplo Avanzado
+ROLE: Senior Python developer con experiencia en optimización de algoritmos.
+TASK: Implementa un algoritmo de ordenamiento eficiente con las siguientes especificaciones:
+REQUIREMENTS:
+- Entrada: Lista de diccionarios con claves 'id', 'timestamp', 'priority'
+- Ordenar por: priority (desc), luego timestamp (asc)
+- Manejar valores None gracefully
+- Optimizado para listas de 100k+ elementos
+- Type hints completos
+- Docstring con ejemplos
+OUTPUT FORMAT:
+1. Código con comentarios explicativos
+2. Análisis de complejidad temporal y espacial
+3. Casos de prueba (edge cases incluidos)
+4. Ejemplo de uso
+CONSTRAINTS: Solo usar stdlib, Python 3.10+
+Educación
+Ejemplo Básico
+Explica la fotosíntesis.
+Ejemplo Avanzado
+ROLE: Profesor de biología con maestría en pedagogía para diferentes estilos de aprendizaje.
+AUDIENCE: Estudiantes de 8vo grado (13-14 años).
+TASK: Crear una lección completa sobre fotosíntesis.
+STRUCTURE:
+1. Hook inicial (pregunta intrigante o dato sorprendente)
+2. Explicación usando analogía con algo familiar (ej: fábrica)
+3. Proceso paso a paso con diagrama conceptual en texto
+4. Conceptos erróneos comunes y aclaraciones
+5. Aplicación práctica al mundo real
+6. 3 preguntas de comprensión (fácil, media, difícil)
+STYLE: Lenguaje claro, evita terminología compleja sin explicar, usa ejemplos visuales descriptivos.
+ADAPTATIONS: Incluye versión simplificada para estudiantes con dificultades y extensión para avanzados.
+Marketing
+Ejemplo Básico
+Crea un eslogan para una marca de zapatos.
+Ejemplo Avanzado
+ROLE: Director creativo de agencia publicitaria con 15 años creando campañas ganadoras.
+BRAND: Marca de zapatos sostenibles premium dirigida a millennials urbanos conscientes del medio ambiente.
+TASK: Desarrolla una campaña completa de lanzamiento.
+DELIVERABLES:
+1. Tagline principal (máx 6 palabras, memorable, diferenciador)
+2. 3 variantes de mensaje para diferentes canales:
+   - Instagram (emocional, visual)
+   - LinkedIn (valor profesional)
+   - TikTok (auténtico, trendy)
+3. Narrativa de marca (200 palabras)
+4. 5 hooks para contenido orgánico
+5. Propuesta de colaboración con influencer (perfil ideal)
+BRAND VALUES: Sostenibilidad, estilo, calidad, transparencia.
+COMPETITORS: Allbirds, Veja, Rothy's.
+DIFFERENTIATION: Usa materiales oceánicos reciclados.
+TONE: Aspiracional pero accesible, auténtico no corporativo.
+Investigación
+Ejemplo Básico
+Resume este paper científico.
+Ejemplo Avanzado
+ROLE: Investigador académico con Ph.D. en el campo relevante y experiencia revisando papers.
+CONTEXT: Necesito evaluar un paper para posible citación en mi investigación.
+TASK: Analiza este paper científico proporcionando:
+ANALYSIS FRAMEWORK:
+1. Abstract critico (3-4 oraciones)
+2. Metodología:
+   - Diseño experimental
+   - Tamaño de muestra y validez
+   - Potenciales sesgos
+3. Resultados clave (top 3 findings cuantificados)
+4. Limitaciones identificadas (por el autor y adicionales)
+5. Contribución al campo (qué es realmente nuevo)
+6. Calidad de evidencia (escala: baja/media/alta con justificación)
+7. Aplicabilidad a mi investigación sobre [tema específico]
+FORMAT: Estructura tabular para quick reference + narrativa detallada.
+CRITICAL LENS: Evalúa con escepticismo saludable, identifica claims sin suficiente evidencia.
+Servicio al Cliente
+Ejemplo Básico
+Responde a este cliente insatisfecho.
+Ejemplo Avanzado
+ROLE: Representante senior de servicio al cliente con training en de-escalación y resolución creativa de problemas.
+SCENARIO: Cliente escribió review negativo online después de experiencia frustrante.
+CUSTOMER CONTEXT:
+- Cliente leal de 3 años
+- Problema: Producto llegó dañado, reemplazo tardó 2 semanas
+- Emoción: Frustrado, decepcionado, considerando cambiarse a competencia
+TASK: Redacta respuesta que:
+1. Valide emoción sin ser condescendiente
+2. Asuma responsabilidad clara (sin "pero...")
+3. Explique qué falló (transparencia)
+4. Ofrezca solución concreta e inmediata
+5. Acción preventiva para futuro
+6. Incentivo apropiado (no solo descuento genérico)
+TONE: Genuino, humano, no robótico ni script.
+CONSTRAINTS:
+- Máximo 150 palabras
+- Nivel de autorización: Puedes ofrecer hasta $100 en crédito
+- NO hacer promesas que no podemos cumplir
+OBJECTIVE: Retener cliente y convertir review en positivo.
+Creación de Productos
+Ejemplo Básico
+Dame ideas para una app.
+Ejemplo Avanzado
+ROLE: Product Manager con experiencia en productos SaaS B2B y metodología lean startup.
+CONTEXT: Startup early-stage buscando product-market fit en espacio de productividad.
+TASK: Genera 3 conceptos de producto validables.
+FRAMEWORK PARA CADA CONCEPTO:
+1. Problema específico (dolor real, cuantificable)
+2. Usuario target (persona detallada)
+3. Propuesta de valor única (qué hace diferente)
+4. Core feature set (MVP mínimo viable)
+5. Modelo de monetización
+6. Hipótesis clave a validar
+7. Métrica norte estrella
+8. Riesgos principales
+9. Ventaja injusta posible
+10. Tamaño de mercado estimado
+CONSTRAINTS:
+- Desarrollo MVP: 3 meses con equipo de 3 personas
+- Budget marketing inicial: $10k
+- Debe ser 10x mejor que alternativa existente en dimensión específica
+VALIDATION: Incluye cómo validarías cada concepto en 2 semanas con $500.

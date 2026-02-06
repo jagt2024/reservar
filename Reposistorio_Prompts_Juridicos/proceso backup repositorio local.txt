@@ -1,0 +1,426 @@
+Flujo Correcto para evitar pérdida de archivos
+La próxima vez, usa este flujo:
+bash# 1. Hacer backup de tus cambios locales
+git stash save "Backup antes de pull"
+
+# 2. Traer cambios remotos
+git pull origin main
+
+# 3. Restaurar tus cambios
+git stash pop
+
+# 4. Resolver conflictos si los hay
+# ... editar archivos ...
+git add .
+git commit -m "Merge con cambios locales"
+
+# 5. Push
+git push origin main
+O mejor aún, usa este método:
+bash# 1. Asegurarte de que todos tus cambios estén guardados
+git add .
+git commit -m "Mis cambios locales importantes"
+
+# 2. Ahora sí, hacer pull con merge (no rebase)
+git pull origin main
+
+# 3. Si hay conflictos, Git te preguntará qué hacer
+# Nunca perderás tus archivos porque están en un commit
+
+# 4. Push
+git push origin main
+Script de Emergencia
+Si nada de lo anterior funciona, puedes buscar en todos los commits:
+bash# Ver todos los commits, incluso los "perdidos"
+git fsck --lost-found
+
+# Buscar un archivo específico en todo el historial
+git log --all --full-history -- "*/website_jagt.py"
+¿Qué opción quieres probar primero? Te recomiendo empezar con git rebase --abort si acabas de hacer el rebase, o git reflog seguido de git reset --hard HEAD@{1} si ya pasó algo de tiempo.
+
+Solución Rápida - Abortar el Rebase
+Si acabas de hacer el rebase y aún no has hecho más cambios:
+bash# Esto deshará el rebase y volverá todo como estaba antes
+git rebase --abort
+Si ya completaste el rebase
+Opción 1: Usar el Reflog (Más seguro)
+bash# 1. Ver el historial de cambios de HEAD
+git reflog
+
+# Verás algo como:
+# abc1234 HEAD@{0}: rebase finished: returning to refs/heads/main
+# def5678 HEAD@{1}: commit: tu último commit
+# ghi9012 HEAD@{2}: commit: commit anterior
+
+# 2. Identificar el commit ANTES del rebase (probablemente HEAD@{1})
+# y restaurar a ese punto:
+git reset --hard HEAD@{1}
+
+# O usa el hash específico:
+git reset --hard def5678
+Opción 2: Recuperar archivos específicos
+Si solo quieres recuperar archivos específicos sin deshacer todo:
+bash# Ver el reflog para encontrar el commit
+git reflog
+
+# Recuperar un archivo específico de un commit anterior
+git checkout HEAD@{1} -- ruta/al/archivo.py
+
+# O recuperar todos los archivos de una carpeta
+git checkout HEAD@{1} -- .
+Opción 3: Ver el contenido antes de recuperar
+bash# Ver qué archivos había en el commit anterior
+git show HEAD@{1} --name-only
+
+# Ver el contenido de un archivo específico
+git show HEAD@{1}:website_jagt.py
+
+------------------------------------------------------------------------------------
+error: failed to push some refs to 'https://github.com/jagt2024/reservar.git'
+hint: Updates were rejected because the remote contains work that you do
+hint: not have locally. This is usually caused by another repository pushing
+hint: to the same ref. You may want to first integrate the remote changes
+hint: (e.g., 'git pull ...') before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+
+El error que estás experimentando es común en Git. Ocurre porque el repositorio remoto en GitHub tiene cambios que no están en tu repositorio local. Aquí te explico cómo solucionarlo:
+
+Solución paso a paso:
+Opción 1: Pull y luego Push (Recomendado)
+bash
+# 1. Descargar los cambios del repositorio remoto
+git pull origin main --rebase
+
+# 2. Si hay conflictos, resuélvelos y luego:
+git add .
+git rebase --continue
+
+# 3. Ahora sí, hacer push
+git push origin main
+Opción 2: Pull con merge (Alternativa)
+bash
+# 1. Descargar y fusionar cambios
+git pull origin main
+
+# 2. Si hay conflictos, resuélvelos, luego:
+git add .
+git commit -m "Merge remote changes"
+
+# 3. Hacer push
+git push origin main
+Opción 3: Forzar el push (⚠️ Usar con precaución)
+Solo usa esta opción si estás seguro de que quieres sobrescribir los cambios remotos:
+
+bash
+git push origin main --force
+Opción 4: Si la rama principal es 'master' en lugar de 'main'
+bash
+# Verificar qué ramas existen
+git branch -a
+
+# Si la rama remota es 'master', usar:
+git pull origin master --rebase
+git push origin master
+¿Por qué ocurrió esto?
+Este error generalmente sucede cuando:
+
+Creaste el repositorio en GitHub con archivos iniciales (README, .gitignore, LICENSE)
+Alguien más hizo cambios en el repositorio
+Inicializaste el repositorio local sin clonar primero el remoto
+Flujo recomendado para evitar esto en el futuro:
+bash
+# 1. Clonar el repositorio primero
+git clone https://github.com/jagt2024/reservar.git
+cd reservar
+
+# 2. Hacer tus cambios
+# ... editar archivos ...
+
+# 3. Commit y push
+git add .
+git commit -m "Mensaje descriptivo"
+git push origin main
+
+Seguridad en Repositorios Públicos de GitHub
+⚠️ IMPORTANTE: Limitaciones de Repositorios Públicos
+En un repositorio público, TODO es visible. No puedes ocultar carpetas específicas. Si el repo es público, cualquiera puede ver TODO el contenido.
+Soluciones según tu caso:
+Opción 1: Hacer el Repositorio Privado (Más Seguro)
+bash# En GitHub:
+1. Ve a tu repositorio
+2. Settings → General
+3. Scroll down hasta "Danger Zone"
+4. Click en "Change repository visibility"
+5. Selecciona "Make private"
+Ventajas:
+
+✅ Todo el repositorio es privado
+✅ Solo tú y colaboradores autorizados pueden verlo
+✅ Gratis en GitHub (repositorios privados ilimitados)
+
+Opción 2: Usar .gitignore (Archivos Sensibles)
+Para NO subir archivos sensibles al repositorio:
+bash# Crear archivo .gitignore en la raíz del proyecto
+touch .gitignore
+Ejemplo de .gitignore para tu proyecto:
+gitignore# ============================================
+# ARCHIVOS SENSIBLES - NUNCA SUBIR A GITHUB
+# ============================================
+
+# Credenciales y Secrets
+.streamlit/secrets.toml
+secrets.toml
+*.env
+.env
+.env.local
+.env.production
+config/credentials.json
+credentials.json
+
+# Claves API
+*api_key*
+*secret_key*
+*private_key*
+
+# Archivos de configuración con datos sensibles
+config/database.yml
+config/secrets.yml
+
+# Archivos de Google Cloud
+*service-account*.json
+gcp-credentials.json
+
+# Certificados y llaves
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Tokens
+*token*
+*oauth*
+
+# ============================================
+# ARCHIVOS DE SISTEMA Y TEMPORALES
+# ============================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Bases de datos locales
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# MacOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# ============================================
+# DATOS SENSIBLES DE USUARIOS
+# ============================================
+
+# Carpetas con datos privados
+data/usuarios/
+data/privado/
+backups/
+uploads/usuarios/
+
+# Archivos Excel/CSV con datos sensibles
+data/*_privado.xlsx
+data/*_usuarios.csv
+Aplicar .gitignore:
+bash# 1. Crear el archivo .gitignore
+nano .gitignore
+# (pega el contenido de arriba)
+
+# 2. Si ya subiste archivos sensibles, eliminarlos del historial:
+git rm --cached .streamlit/secrets.toml
+git rm --cached -r data/usuarios/
+
+# 3. Commit
+git add .gitignore
+git commit -m "Añadir .gitignore para proteger archivos sensibles"
+git push origin main
+```
+
+### Opción 3: Usar Variables de Entorno en GitHub
+
+Para secretos necesarios en producción:
+
+**1. En GitHub, ve a:**
+```
+Settings → Secrets and variables → Actions → New repository secret
+```
+
+**2. Añade tus secretos:**
+```
+SMTP_USER = tu_email@gmail.com
+SMTP_PASSWORD = tu_contraseña_app
+GOOGLE_CREDENTIALS = {"type": "service_account", ...}
+3. En tu código, úsalos así:
+pythonimport os
+import streamlit as st
+
+# En lugar de leer de secrets.toml:
+try:
+    # Intenta desde Streamlit Cloud
+    smtp_user = st.secrets['emails']['smtp_user']
+except:
+    # Si falla, usa variables de entorno
+    smtp_user = os.getenv('SMTP_USER')
+Opción 4: Repositorio Híbrido (Código Público + Datos Privados)
+Estructura recomendada:
+bash# Repositorio público (código)
+reservar-publico/
+  ├── src/
+  ├── templates/
+  ├── static/
+  ├── README.md
+  └── .gitignore
+
+# Repositorio privado (datos sensibles)
+reservar-config/  # ← REPO PRIVADO
+  ├── secrets.toml
+  ├── credentials.json
+  └── data/
+Opción 5: Usar Submódulos Privados
+bash# 1. Crear repo privado para configs
+# (Hazlo en GitHub primero)
+
+# 2. Añadir como submódulo
+git submodule add https://github.com/jagt2024/reservar-config.git config
+
+# 3. En .gitignore del repo público:
+echo "config/" >> .gitignore
+
+# 4. El submódulo permanece privado aunque el repo principal sea público
+🔒 Mejores Prácticas de Seguridad
+1. Nunca subas estos archivos:
+python# ❌ NUNCA
+secrets.toml
+.env
+credentials.json
+database.yml
+*_key.pem
+
+# ✅ En su lugar, usa plantillas:
+secrets.toml.example
+.env.example
+Ejemplo de secrets.toml.example:
+toml# secrets.toml.example
+# Copia este archivo a secrets.toml y completa con tus datos
+
+[sheetsemp]
+credentials_sheet = '{"type": "service_account", "project_id": "TU_PROJECT_ID"}'
+
+[emails]
+smtp_user = "tu_email@gmail.com"
+smtp_password = "tu_password_de_app"
+2. Si ya subiste archivos sensibles, límpialo del historial:
+bash# ⚠️ PELIGROSO: Reescribe el historial
+# Hacer backup primero!
+
+# Opción A: Eliminar archivo específico del historial
+git filter-branch --force --index-filter \
+  "git rm --cached --ignore-unmatch .streamlit/secrets.toml" \
+  --prune-empty --tag-name-filter cat -- --all
+
+# Opción B: Usar BFG Repo-Cleaner (más rápido)
+# Descargar de: https://rtyley.github.io/bfg-repo-cleaner/
+java -jar bfg.jar --delete-files secrets.toml
+
+# Luego forzar push
+git push origin --force --all
+```
+
+### 3. **Estructura segura recomendada:**
+```
+reservar/
+├── .gitignore                    # ← Configura bien este archivo
+├── README.md
+├── requirements.txt
+├── website_jagt.py
+├── .streamlit/
+│   ├── config.toml              # ← Config pública OK
+│   └── secrets.toml             # ← EN .gitignore
+├── config/
+│   └── settings.py              # ← Solo settings públicos
+├── data/
+│   ├── .gitkeep
+│   └── *.csv                    # ← EN .gitignore si son sensibles
+└── docs/
+🎯 Recomendación para tu caso específico:
+Basándome en tu código website_jagt.py:
+bash# 1. Crear .gitignore completo
+cat > .gitignore << 'EOF'
+# Secrets y credenciales
+.streamlit/secrets.toml
+secrets.toml
+*.env
+
+# Archivos específicos de tu proyecto
+jagt.jpg
+logo.png
+background_tech.jpg
+
+# Python
+__pycache__/
+*.pyc
+venv/
+
+# Datos sensibles
+data/usuarios/
+backups/
+EOF
+
+# 2. Eliminar archivos sensibles ya subidos
+git rm --cached .streamlit/secrets.toml
+git rm --cached jagt.jpg
+git rm --cached logo.png
+
+# 3. Commit
+git add .gitignore
+git commit -m "Proteger archivos sensibles"
+git push origin main
+
+# 4. Crear archivos de ejemplo
+cp .streamlit/secrets.toml .streamlit/secrets.toml.example
+# Editar y remover valores reales del .example
+
+git add .streamlit/secrets.toml.example
+git commit -m "Añadir plantilla de secrets"
+git push origin main
+✅ Checklist de Seguridad:
+
+ Repositorio es privado (o archivos sensibles en .gitignore)
+ .gitignore configurado correctamente
+ Archivos .example creados para guiar a otros
+ Credenciales en variables de entorno o secrets
+ Historial limpio (sin credenciales antiguas)
+ README con instrucciones de configuración
+ Ningún token, API key o password en el código
+

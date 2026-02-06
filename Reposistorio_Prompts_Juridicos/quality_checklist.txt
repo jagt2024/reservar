@@ -1,0 +1,97 @@
+Checklist de Calidad de Prompts
+Claridad y Especificidad
+
+ Objetivo claro: ¿El prompt especifica exactamente qué resultado se espera?
+ Sin ambigüedad: ¿Hay partes que podrían interpretarse de múltiples maneras?
+ Términos definidos: ¿Se definen términos técnicos o específicos del dominio?
+ Alcance delimitado: ¿Está claro qué incluir y qué excluir?
+
+Contexto
+
+ Información de fondo: ¿Se proporciona contexto suficiente?
+ Audiencia identificada: ¿Se especifica para quién es el output?
+ Restricciones mencionadas: ¿Se comunican limitaciones, presupuestos, tiempo?
+ Casos de uso: ¿Se explica cómo se usará el resultado?
+
+Estructura
+
+ Formato especificado: ¿Se indica cómo estructurar la respuesta?
+ Longitud definida: ¿Hay guía sobre extensión (palabras, párrafos, puntos)?
+ Secciones claras: ¿El prompt mismo está bien organizado?
+ Orden lógico: ¿La información fluye de manera coherente?
+
+Ejemplos
+
+ Ejemplos proporcionados: ¿Se incluyen ejemplos de input/output esperados?
+ Ejemplos diversos: ¿Los ejemplos cubren casos variados?
+ Contraejemplos: ¿Se muestra qué NO hacer cuando es relevante?
+ Calidad de ejemplos: ¿Los ejemplos son claros y representativos?
+
+Tono y Estilo
+
+ Tono especificado: ¿Se indica el tono deseado (formal, casual, técnico)?
+ Estilo definido: ¿Se dan directrices de estilo (activo vs pasivo, primera persona)?
+ Perspectiva clara: ¿Se define desde qué punto de vista responder?
+ Registro apropiado: ¿El nivel de formalidad es apropiado para el contexto?
+
+Criterios de Éxito
+
+ Métricas definidas: ¿Cómo se medirá si el resultado es bueno?
+ Prioridades claras: ¿Qué aspectos son más importantes?
+ Casos límite: ¿Se anticipan escenarios edge case?
+ Validación: ¿Cómo se verificará la calidad del output?
+
+Técnicas Avanzadas
+
+ Razonamiento explícito: ¿Se pide mostrar el proceso de pensamiento cuando es útil?
+ Iteración incorporada: ¿Se solicita autocrítica o refinamiento?
+ Roles asignados: ¿Se usa role prompting efectivamente?
+ Frameworks aplicados: ¿Se usa un framework apropiado (CTF, RISEN, etc.)?
+
+Eficiencia
+
+ Concisión: ¿Se evitan palabras innecesarias?
+ Información relevante: ¿Todo lo incluido es necesario?
+ No redundancia: ¿Se evita repetir la misma información?
+ Tokens optimizados: ¿El prompt es tan breve como puede ser sin perder claridad?
+
+Robustez
+
+ Manejo de errores: ¿Se indica qué hacer si hay datos faltantes?
+ Casos especiales: ¿Se cubren situaciones atípicas?
+ Flexibilidad apropiada: ¿El nivel de rigidez es correcto para la tarea?
+ Escalabilidad: ¿Funciona con variaciones del input?
+
+Ética y Sesgo
+
+ Neutralidad: ¿Se evitan sesgos innecesarios?
+ Inclusividad: ¿El lenguaje y ejemplos son inclusivos?
+ Consideraciones éticas: ¿Se anticipan problemas éticos potenciales?
+ Transparencia: ¿Se es claro sobre limitaciones y suposiciones?
+
+Scoring Guide
+Por cada sección:
+
+75-100% checks: Excelente
+50-74% checks: Bueno, con mejoras identificadas
+25-49% checks: Necesita trabajo significativo
+0-24% checks: Requiere rediseño
+
+Score General:
+
+9-10 secciones excelentes: Prompt de alta calidad
+6-8 secciones excelentes: Prompt sólido
+3-5 secciones excelentes: Prompt funcional pero mejorable
+0-2 secciones excelentes: Prompt necesita revisión mayor
+
+Red Flags
+🚩 Señales de que un prompt necesita mejora urgente:
+
+Vaguedad total: "Dame algo sobre X"
+Múltiples tareas no relacionadas: Intentar hacer demasiado en un prompt
+Contradicciones internas: Instrucciones que se conflictúan
+Ausencia de contexto: Asumir conocimiento que el modelo no tiene
+Sin formato especificado: No indicar cómo estructurar la salida
+Expectativas irreales: Pedir imposibles o cosas fuera del alcance del modelo
+Demasiado restrictivo: Sobre-especificar hasta hacer la tarea imposible
+Lenguaje negativo excesivo: Solo decir qué NO hacer sin guía positiva

@@ -1,0 +1,75 @@
+Técnicas Avanzadas de Prompting
+Chain of Thought (CoT)
+Pedir al modelo que muestre su razonamiento paso a paso.
+Patrón:
+Resuelve esto paso a paso:
+1. Primero...
+2. Luego...
+3. Finalmente...
+Few-Shot Learning
+Proporcionar ejemplos antes de la tarea principal.
+Patrón:
+Aquí hay ejemplos:
+
+Ejemplo 1: [entrada] → [salida esperada]
+Ejemplo 2: [entrada] → [salida esperada]
+
+Ahora haz lo mismo con: [nueva entrada]
+Role Prompting
+Asignar un rol o personaje específico al modelo.
+Patrón:
+Actúa como un [experto/profesional/personaje] con [años de experiencia/características].
+Tu tarea es [objetivo específico].
+Tree of Thoughts (ToT)
+Explorar múltiples caminos de razonamiento.
+Patrón:
+Explora 3 enfoques diferentes para [problema]:
+- Enfoque 1: [descripción]
+- Enfoque 2: [descripción]
+- Enfoque 3: [descripción]
+
+Evalúa cada uno y selecciona el mejor.
+Self-Consistency
+Generar múltiples respuestas y seleccionar la más consistente.
+Patrón:
+Genera 3 soluciones diferentes para [problema].
+Luego identifica la respuesta más consistente y confiable.
+Maieutic Prompting
+Hacer que el modelo se cuestione y refine sus propias respuestas.
+Patrón:
+1. Proporciona una respuesta inicial
+2. Cuestiona tu propia respuesta
+3. Refina basándote en las objeciones
+4. Proporciona la versión mejorada
+Constitutional AI
+Establecer principios y valores que guíen la respuesta.
+Patrón:
+Principios a seguir:
+- [Principio 1]
+- [Principio 2]
+- [Principio 3]
+
+Con estos principios en mente, [tarea].
+Prompt Decomposition
+Dividir tareas complejas en subtareas más simples.
+Patrón:
+Vamos a dividir esto en partes:
+Paso 1: [subtarea 1]
+Paso 2: [subtarea 2]
+Paso 3: [subtarea 3]
+Combina los resultados.
+Meta-Prompting
+Pedir al modelo que mejore el propio prompt.
+Patrón:
+Aquí está mi prompt inicial: [prompt]
+Mejóralo para obtener mejores resultados considerando:
+- Claridad
+- Especificidad
+- Estructura
+Retrieval Augmented Generation (RAG)
+Proporcionar contexto relevante antes de la tarea.
+Patrón:
+Contexto relevante:
+[Información de referencia]
+
+Basándote en este contexto, [tarea].

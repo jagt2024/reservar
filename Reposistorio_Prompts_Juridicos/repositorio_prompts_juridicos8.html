@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Repositorio Prompts Jurídicos</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+
+        .controls {
+            padding: 25px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .form-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+
+        input, select, textarea {
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .table-container {
+            padding: 25px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        th {
+            background: #2a5298;
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 10px 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 10px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .stat-card h4 {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .stat-card p {
+            font-size: 24px;
+            font-weight: 700;
+            color: #2a5298;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Repositorio de Prompts Jurídicos</h1>
+            <p>Creado por María Angélica Ramírez</p>
+        </div>
+
+        <div class="controls">
+            <div class="stats">
+                <div class="stat-card">
+                    <h4>Total Prompts</h4>
+                    <p id="totalPrompts">0</p>
+                </div>
+                <div class="stat-card">
+                    <h4>Plataformas</h4>
+                    <p id="totalPlataformas">0</p>
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-primary" onclick="toggleForm()">➕ Agregar Nuevo Prompt</button>
+                <button class="btn-success" onclick="exportToExcel()">📥 Descargar Excel</button>
+                <button class="btn-info" onclick="importFromExcel()">📤 Importar Excel</button>
+                <input type="file" id="fileInput" accept=".xlsx,.xls" style="display:none" onchange="handleFileUpload(event)">
+            </div>
+
+            <div id="formContainer" style="display:none; margin-top: 20px; padding: 20px; background: white; border-radius: 8px; border: 2px solid #667eea;">
+                <h3 style="margin-bottom: 20px; color: #2a5298;">Nuevo Prompt Jurídico</h3>
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <label>Plataforma IA</label>
+                        <select id="plataforma">
+                            <option value="">Seleccionar...</option>
+                            <option value="ChatGPT">ChatGPT</option>
+                            <option value="Gemini">Gemini</option>
+                            <option value="Claude">Claude</option>
+                            <option value="NotebookLM">NotebookLM</option>
+                            <option value="Perplexity">Perplexity</option>
+                        </select>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Fase de Análisis</label>
+                        <input type="text" id="faseAnalisis" placeholder="Ej: Etapa probatoria">
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Análisis de Viabilidad por Proceso</label>
+                        <input type="text" id="viabilidadProceso" placeholder="Ej: Alta/Media/Baja">
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Viabilidad de Éxito</label>
+                        <input type="text" id="viabilidadExito" placeholder="Porcentaje o valoración">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-wrapper">
+                        <label>Palabras Clave</label>
+                        <input type="text" id="palabrasClave" placeholder="Separadas por comas">
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Marco Jurídico (Normas)</label>
+                        <input type="text" id="marcoJuridico" placeholder="Ej: Ley 1564 de 2012, Art. 165 CGP">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-wrapper" style="grid-column: 1/-1;">
+                        <label>Jerarquización Normativa Colombiana</label>
+                        <textarea id="jerarquizacion" placeholder="Constitución > Bloque de Constitucionalidad > Ley > Decreto..."></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-wrapper" style="grid-column: 1/-1;">
+                        <label>Análisis de Aplicabilidad</label>
+                        <textarea id="aplicabilidad" placeholder="Descripción de la aplicabilidad del prompt"></textarea>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="input-wrapper" style="grid-column: 1/-1;">
+                        <label>Prompt Completo</label>
+                        <textarea id="promptCompleto" placeholder="Escriba aquí el prompt completo..." style="min-height: 120px;"></textarea>
+                    </div>
+                </div>
+                <div class="button-group" style="margin-top: 20px;">
+                    <button class="btn-success" onclick="savePrompt()">💾 Guardar</button>
+                    <button class="btn-danger" onclick="toggleForm()">❌ Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="promptsTable">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Plataforma IA</th>
+                        <th>Fase Análisis</th>
+                        <th>Viabilidad Proceso</th>
+                        <th>Viabilidad Éxito</th>
+                        <th>Palabras Clave</th>
+                        <th>Marco Jurídico</th>
+                        <th>Jerarquización Normativa</th>
+                        <th>Análisis Aplicabilidad</th>
+                        <th>Prompt Completo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr>
+                        <td colspan="11">
+                            <div class="empty-state">
+                                <h3>No hay prompts registrados</h3>
+                                <p>Comienza agregando tu primer prompt jurídico</p>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let prompts = [
+            {
+                plataforma: "ChatGPT",
+                faseAnalisis: "Etapa probatoria",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "85%",
+                palabrasClave: "tutela, derecho fundamental, salud, acción inmediata, mecanismo transitorio",
+                marcoJuridico: "Constitución Política Art. 86, Decreto 2591 de 1991, Sentencia T-760 de 2008",
+                jerarquizacion: "Constitución Política (Art. 86 - Acción de Tutela) > Bloque de Constitucionalidad (Convención Americana DDHH) > Ley Estatutaria (Decreto 2591/91) > Jurisprudencia Constitucional (Sentencia T-760/08)",
+                aplicabilidad: "Aplicable en casos donde se requiera protección inmediata de derechos fundamentales vulnerados o amenazados por acción u omisión de autoridades públicas o particulares. Procedente cuando no exista otro medio de defensa judicial o cuando se utilice como mecanismo transitorio para evitar perjuicio irremediable.",
+                promptCompleto: "Actúa como abogado constitucionalista experto en acciones de tutela en Colombia. Analiza el siguiente caso y elabora una acción de tutela siguiendo la estructura del Decreto 2591 de 1991:\n\nCASO: [Describir situación fáctica]\n\nDebe incluir:\n1. Identificación completa del accionante y accionado\n2. Hechos que generan la vulneración (cronología detallada)\n3. Derechos fundamentales vulnerados (con fundamento constitucional específico)\n4. Requisitos de procedibilidad (subsidiariedad, inmediatez, legitimación)\n5. Pretensiones claras y concretas\n6. Pruebas que se adjuntan\n7. Jurisprudencia aplicable de la Corte Constitucional\n8. Fundamentos de derecho (normatividad vigente)\n\nFormato: Documento formal de tutela listo para presentar ante juez constitucional."
+            },
+            {
+                plataforma: "Claude",
+                faseAnalisis: "Fase de demanda",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "75%",
+                palabrasClave: "proceso ordinario, pretensiones, hechos, derecho, CGP, demanda civil",
+                marcoJuridico: "Código General del Proceso Ley 1564/2012 Art. 82-90, Art. 372-378",
+                jerarquizacion: "Constitución Política (Art. 29 - Debido Proceso) > Ley Procesal (CGP Ley 1564/2012 Arts. 82-90) > Código Civil (sustantivo según materia) > Jurisprudencia de Casación Civil",
+                aplicabilidad: "Aplicable para la estructuración de demandas en procesos declarativos ordinarios que no tengan trámite especial. Permite organizar pretensiones de condena, declarativas, constitutivas o mixtas. Útil para controversias civiles, comerciales y de familia que requieran etapa probatoria completa.",
+                promptCompleto: "Como abogado litigante especializado en derecho procesal colombiano, elabora una demanda de proceso ordinario conforme al Código General del Proceso (Ley 1564 de 2012).\n\nINFORMACIÓN DEL CASO:\n- Demandante: [Nombre completo, identificación, domicilio]\n- Demandado: [Nombre completo, identificación, domicilio]\n- Cuantía aproximada: [Monto]\n- Materia: [Civil/Comercial/Familia]\n\nHECHOS: [Narración cronológica de los hechos relevantes]\n\nESTRUCTURA REQUERIDA según Art. 82 CGP:\n1. Designación del juez competente (factor territorial y cuantía)\n2. Identificación de las partes y sus apoderados\n3. Pretensiones (numeradas, claras y congruentes)\n4. Hechos y omisiones (numerados cronológicamente)\n5. Fundamentos de derecho (normas sustanciales aplicables)\n6. Peticiones (medidas cautelares si aplica)\n7. Anexos (poderes, pruebas documentales, dirección para notificaciones)\n\nINCLUYE: Análisis de competencia, cuantificación de pretensiones, identificación de pruebas documentales necesarias."
+            },
+            {
+                plataforma: "Gemini",
+                faseAnalisis: "Análisis de contratos",
+                viabilidadProceso: "Media-Alta",
+                viabilidadExito: "70%",
+                palabrasClave: "contrato, cláusulas abusivas, desequilibrio contractual, buena fe, Estatuto del Consumidor",
+                marcoJuridico: "Código Civil Arts. 1602-1625, Código de Comercio Arts. 822-869, Ley 1480/2011 (Estatuto del Consumidor) Arts. 37-43",
+                jerarquizacion: "Constitución (Arts. 78, 83 - Protección consumidor, buena fe) > Ley Especial (Ley 1480/2011 Estatuto Consumidor) > Código Civil (Arts. 1602-1625) > Código de Comercio (Arts. 822-869) > Jurisprudencia SIC y Corte Suprema",
+                aplicabilidad: "Aplicable para revisión de contratos de adhesión, contratos de consumo, contratos comerciales B2B y B2C. Permite identificar cláusulas abusivas, desequilibrios contractuales, vicios del consentimiento y posibles incumplimientos normativos. Especialmente útil antes de firma o en fase precontractual.",
+                promptCompleto: "Actúa como abogado especialista en derecho contractual colombiano con énfasis en protección al consumidor.\n\nANALIZA el siguiente contrato identificando:\n\n[PEGAR TEXTO DEL CONTRATO O DESCRIBIR TIPO Y CLÁUSULAS PRINCIPALES]\n\n1. NATURALEZA JURÍDICA DEL CONTRATO\n   - Tipo de contrato según clasificación legal\n   - Partes intervinientes y capacidad\n   - Calificación: ¿Adhesión? ¿Consumo? ¿Paritario?\n\n2. ANÁLISIS DE CLÁUSULAS POTENCIALMENTE ABUSIVAS\n   - Según Art. 42 Ley 1480/2011\n   - Desequilibrio de prestaciones\n   - Limitaciones desproporcionadas\n   - Cláusulas de exoneración de responsabilidad\n\n3. CUMPLIMIENTO NORMATIVO\n   - Requisitos formales según tipo contractual\n   - Información mínima obligatoria\n   - Cláusulas imperativas faltantes\n\n4. RIESGOS JURÍDICOS IDENTIFICADOS\n   - Para cada parte\n   - Nivel de riesgo: Alto/Medio/Bajo\n\n5. RECOMENDACIONES\n   - Modificaciones sugeridas\n   - Cláusulas a incluir/eliminar\n   - Fundamento legal de cada recomendación\n\nRESULTADO: Informe ejecutivo con semáforo de riesgos y propuesta de modificaciones."
+            },
+            {
+                plataforma: "Perplexity",
+                faseAnalisis: "Investigación jurisprudencial",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "90%",
+                palabrasClave: "precedente judicial, línea jurisprudencial, ratio decidendi, unificación jurisprudencial, doctrina probable",
+                marcoJuridico: "Ley 1437/2011 Art. 10, Ley 1564/2012 Art. 7, Art. 230 Constitución Política",
+                jerarquizacion: "Constitución (Art. 230 - Jurisprudencia criterio auxiliar) > Sentencias de Unificación (Consejo de Estado/Corte Suprema) > Jurisprudencia Reiterada > Doctrina Probable > Sentencias de instancia",
+                aplicabilidad: "Aplicable para construcción de líneas jurisprudenciales en temas específicos, identificación de precedentes vinculantes, análisis de cambios jurisprudenciales y elaboración de argumentos basados en doctrina judicial. Fundamental en recursos extraordinarios y casos complejos.",
+                promptCompleto: "Como investigador jurídico experto en análisis jurisprudencial colombiano, realiza una búsqueda y análisis de precedentes judiciales sobre:\n\nTEMA ESPECÍFICO: [Describir tema jurídico concreto]\n\nÁMBITO:\n- Tribunal: [Corte Constitucional / Corte Suprema de Justicia / Consejo de Estado]\n- Sala: [Especificar]\n- Período: [Rango de años]\n\nREQUERIMIENTO:\n\n1. IDENTIFICACIÓN DE SENTENCIAS HITO\n   - Sentencias fundadoras de línea\n   - Sentencias modificadoras\n   - Sentencias de unificación\n\n2. EXTRACCIÓN DE RATIO DECIDENDI\n   - Regla jurisprudencial aplicable\n   - Subreglas derivadas\n   - Excepciones reconocidas\n\n3. LÍNEA JURISPRUDENCIAL\n   - Evolución cronológica del criterio\n   - Cambios de postura (overruling)\n   - Tendencia actual\n\n4. TEST O METODOLOGÍA APLICADA\n   - Pasos del test jurisprudencial\n   - Requisitos de aplicación\n   - Carga probatoria\n\n5. APLICACIÓN AL CASO CONCRETO\n   - ¿Cómo aplicaría este precedente?\n   - Similitudes y diferencias fácticas\n   - Fuerza vinculante\n\nFORMATO: Memorando jurídico con citas exactas, número de sentencia, fecha y magistrado ponente."
+            },
+            {
+                plataforma: "ChatGPT",
+                faseAnalisis: "Etapa de alegatos",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "80%",
+                palabrasClave: "alegatos de conclusión, valoración probatoria, silogismo jurídico, carga de la prueba, sana crítica",
+                marcoJuridico: "CGP Ley 1564/2012 Arts. 176-177, 372-380, Art. 164-174 (pruebas)",
+                jerarquizacion: "Constitución (Art. 29 - Debido proceso, derecho de defensa) > CGP (Arts. 176-177 alegatos, 164-174 pruebas) > Jurisprudencia sobre valoración probatoria > Doctrina procesalista",
+                aplicabilidad: "Aplicable en fase final del proceso antes de sentencia, tanto en primera como segunda instancia. Permite estructurar argumentación persuasiva basada en valoración probatoria, subsunción normativa y precedentes. Útil para procesos declarativos, ejecutivos (excepciones) y especiales.",
+                promptCompleto: "Como abogado litigante experto en técnicas de argumentación jurídica, elabora los alegatos de conclusión para el siguiente proceso:\n\nDATOS DEL PROCESO:\n- Tipo de proceso: [Ordinario/Abreviado/Verbal/Ejecutivo]\n- Posición procesal: [Demandante/Demandado]\n- Pretensiones: [Listar]\n- Excepciones (si aplica): [Listar]\n\nPRUEBAS PRACTICADAS:\n[Listar pruebas documentales, testimoniales, periciales, inspección judicial]\n\nESTRUCTURA DE ALEGATOS:\n\n1. SÍNTESIS FÁCTICA\n   - Hechos probados (con referencia a medio probatorio)\n   - Hechos no probados o controvertidos\n   - Aplicación de presunciones legales\n\n2. ANÁLISIS PROBATORIO\n   - Valoración de cada prueba (Art. 176 CGP - sana crítica)\n   - Demostración de cumplimiento/incumplimiento carga probatoria\n   - Tarifa legal vs libre apreciación\n\n3. SUBSUNCIÓN NORMATIVA\n   - Normas aplicables al caso\n   - Premisa mayor (norma) + Premisa menor (hechos) = Conclusión\n   - Interpretación sistemática y teleológica\n\n4. PRECEDENTE JUDICIAL\n   - Jurisprudencia favorable citada textualmente\n   - Distinción de jurisprudencia contraria (distinguishing)\n\n5. PETICIONES\n   - Solicitud concreta al juez\n   - Condenas accesorias\n   - Costas y agencias en derecho\n\nTONO: Persuasivo, técnico, respetuoso. EXTENSIÓN: Máximo permitido según cuantía del proceso."
+            },
+            {
+                plataforma: "Claude",
+                faseAnalisis: "Recurso extraordinario",
+                viabilidadProceso: "Media",
+                viabilidadExito: "45%",
+                palabrasClave: "casación, violación directa ley, violación indirecta, error de hecho, error de derecho, unificación jurisprudencial",
+                marcoJuridico: "CGP Ley 1564/2012 Arts. 334-349, Ley 1395/2010 Art. 4",
+                jerarquizacion: "Constitución (Art. 235 - Competencia Corte Suprema) > CGP (Arts. 334-349 recurso de casación) > Acuerdos y Reglamentos CSJ > Jurisprudencia de la Corte sobre técnica de casación",
+                aplicabilidad: "Aplicable exclusivamente para procesos con cuantía superior a 500 SMLMV y en materias casables. Procede contra sentencias de segunda instancia de tribunales. Requiere técnica rigurosa y demostración de error manifiesto de derecho o de hecho con incidencia en la decisión.",
+                promptCompleto: "Como abogado casacionista con experiencia ante la Corte Suprema de Justicia, estructura un recurso extraordinario de casación:\n\nDATOS DE LA SENTENCIA RECURRIDA:\n- Tribunal: [Identificación]\n- Fecha sentencia: [DD/MM/AAAA]\n- Radicado: [Número]\n- Cuantía: [Monto en SMLMV]\n\nCARGO DE CASACIÓN:\n[Describir error que se ataca]\n\nESTRUCTURA TÉCNICA:\n\n1. REQUISITOS FORMALES (Art. 334-336 CGP)\n   - Procedencia del recurso (cuantía, materia, oportunidad)\n   - Legitimación para recurrir\n   - Gravamen que justifica recurso\n\n2. FORMULACIÓN DEL CARGO\n   Elija una vía:\n   \n   A) VIOLACIÓN DIRECTA DE LA LEY SUSTANCIAL (Art. 336 num 1)\n      - Norma sustancial infringida (cita exacta)\n      - Forma de violación: aplicación indebida/falta de aplicación/interpretación errónea\n      - Concepto de violación (demostración del error)\n      - Incidencia en la decisión\n   \n   B) VIOLACIÓN INDIRECTA (Art. 336 num 2)\n      - Error de hecho por falso juicio de existencia/identidad\n      - Error de derecho por falso raciocinio/suposición\n      - Prueba mal apreciada (identificación exacta)\n      - Demostración de error manifiesto y trascendente\n\n3. SUSTENTACIÓN DEL CARGO\n   - Demostración de que sentencia se fundó en norma/prueba atacada\n   - Prueba de error ostensible y trascendente\n   - Consecuencia jurídica correcta que debió aplicarse\n\n4. JURISPRUDENCIA DE APOYO\n   - Citar sentencias CSJ que soporten la tesis\n   - Unificación jurisprudencial necesaria\n\n5. PETICIONES\n   - Casar sentencia\n   - Decisión de sustitución esperada\n\nADVERTENCIA: La casación requiere técnica rigurosa. Este recurso debe demostrar error evidente, no simple inconformidad."
+            },
+            {
+                plataforma: "NotebookLM",
+                faseAnalisis: "Due Diligence Legal",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "85%",
+                palabrasClave: "due diligence, debida diligencia, M&A, fusiones, adquisiciones, auditoría legal, contingencias",
+                marcoJuridico: "Código de Comercio, Ley 222/95 (régimen societario), Ley 1581/2012 (datos personales), normativa sectorial según actividad",
+                jerarquizacion: "Constitución > Leyes especiales según sector (financiero, salud, TIC) > Código de Comercio > Código Civil > Estatutos sociales > Reglamentos internos",
+                aplicabilidad: "Aplicable en procesos de compra/venta de empresas, fusiones, adquisiciones, inversiones, financiaciones, joint ventures. Permite identificar riesgos legales, contingencias, cumplimiento normativo y pasivos ocultos antes de cerrar transacción.",
+                promptCompleto: "Como abogado corporativo especializado en M&A y due diligence, realiza una auditoría legal completa de:\n\nEMPRESA OBJETIVO:\n- Razón social: [Nombre]\n- NIT: [Número]\n- Sector: [Industria/Servicios/Comercio]\n- Tipo de transacción: [Compra/Fusión/Inversión]\n\nÁREAS DE REVISIÓN:\n\n1. CORPORATIVO Y SOCIETARIO\n   - Constitución y existencia legal\n   - Libros societarios (actas, acciones)\n   - Estructura accionaria actual\n   - Poderes y facultades de representantes\n   - Cumplimiento deberes formales Cámara Comercio\n   - Conflictos entre socios\n\n2. CUMPLIMIENTO REGULATORIO\n   - Licencias, permisos, autorizaciones vigentes\n   - Normativa sectorial aplicable\n   - Inspecciones, sanciones, requerimientos\n   - Certificaciones de calidad/industria\n\n3. CONTRATOS Y OBLIGACIONES\n   - Contratos principales (clientes, proveedores)\n   - Contratos laborales (nivel directivo)\n   - Arrendamientos, leasing\n   - Contratos de financiación\n   - Cláusulas de cambio de control\n   - Garantías otorgadas\n\n4. LITIGIOS Y CONTINGENCIAS\n   - Procesos judiciales activos/pasivos\n   - Arbitrajes, conciliaciones\n   - Reclamaciones extrajudiciales\n   - Investigaciones administrativas\n   - Cuantificación de contingencias\n\n5. PROPIEDAD INTELECTUAL Y DATOS\n   - Marcas, patentes, derechos de autor\n   - Transferencia de tecnología\n   - Protección de datos personales (Ley 1581/2012)\n   - Secretos empresariales\n\n6. LABORAL Y SEGURIDAD SOCIAL\n   - Nómina y tipos de vinculación\n   - Pasivos laborales ocultos\n   - Cumplimiento SS y parafiscales\n   - Sindicatos y convenciones colectivas\n\n7. TRIBUTARIO\n   - Situación fiscal (paz y salvo DIAN)\n   - Contingencias tributarias\n   - Precios de transferencia\n   - Beneficios tributarios vigentes\n\n8. INMOBILIARIO Y ACTIVOS\n   - Titularidad de inmuebles\n   - Gravámenes y limitaciones\n   - Avalúos y concordancia registral\n\nENTREGABLE:\n- Red Flags identificados (semáforo: crítico/alto/medio/bajo)\n- Matriz de contingencias cuantificadas\n- Recomendaciones pre-cierre\n- Documentos faltantes o a regularizar\n- Cláusulas sugeridas para contrato de compraventa"
+            },
+            {
+                plataforma: "Gemini",
+                faseAnalisis: "Derecho de Petición",
+                viabilidadProceso: "Alta",
+                viabilidadExito: "95%",
+                palabrasClave: "derecho de petición, artículo 23 constitución, solicitud información, queja, reclamo, consulta, CPACA",
+                marcoJuridico: "Constitución Art. 23, Ley 1755/2015 (Código Derecho de Petición), CPACA Ley 1437/2011",
+                jerarquizacion: "Constitución (Art. 23 - Derecho fundamental de petición) > Ley Estatutaria 1755/2015 > CPACA (procedimiento administrativo) > Decretos reglamentarios",
+                aplicabilidad: "Aplicable ante cualquier autoridad pública o privada que preste servicio público. Procede para solicitar información, consultas, quejas, reclamos, manifestaciones, solicitudes de documentos. Respuesta obligatoria en término legal (15 días hábiles general, 10 para información, inmediata en urgencia).",
+                promptCompleto: "Como abogado especialista en derecho administrativo, redacta un derecho de petición conforme a la Ley 1755 de 2015:\n\nDATOS DEL PETICIONARIO:\n- Nombre completo: [Nombres y apellidos]\n- Identificación: [CC/CE/NIT]\n- Dirección notificación: [Dirección física]\n- Correo electrónico: [email]\n- Teléfono: [número]\n- Calidad: [A título personal/representante/apoderado]\n\nDATOS DEL DESTINATARIO:\n- Entidad: [Nombre completo]\n- Cargo (si aplica): [Funcionario específico]\n- Dirección: [Sede]\n\nTIPO DE PETICIÓN:\n[X] Solicitud de información\n[ ] Consulta\n[ ] Queja\n[ ] Reclamo  \n[ ] Solicitud de documentos/copias\n[ ] Manifestación\n\nOBJETO DE LA PETICIÓN:\n[Describir claramente qué se solicita]\n\nESTRUCTURA:\n\n1. ENCABEZAMIENTO\n   - Identificación del peticionario\n   - Identificación del destinatario\n   - Objeto del derecho de petición\n\n2. FUNDAMENTOS FÁCTICOS\n   - Antecedentes relevantes (cronológicos)\n   - Situación actual que motiva la petición\n   - Interés legítimo del peticionario\n\n3. FUNDAMENTOS JURÍDICOS\n   - Art. 23 Constitución Política\n   - Ley 1755 de 2015 (artículos específicos)\n   - Normas sustantivas relacionadas con la solicitud\n   - Jurisprudencia Corte Constitucional (si fortalece)\n\n4. PETICIONES CONCRETAS\n   Numeradas claramente:\n   - Qué información/documento se solicita\n   - En qué formato\n   - Decisión administrativa esperada\n   - Término de respuesta aplicable\n\n5. ANEXOS\n   - Documento de identidad\n   - Poder (si actúa en representación)\n   - Documentos soporte de la petición\n\n6. NOTIFICACIONES\n   - Dirección física\n   - Correo electrónico (autorización notificación electrónica)\n\nADVERTENCIAS A INCLUIR:\n- Término legal de respuesta (Art. 14 Ley 1755/2015)\n- Silencio administrativo positivo (si aplica)\n- Posibilidad de acudir a tutela por vías de hecho\n\nTONO: Respetuoso, claro, técnico. La petición debe ser específica y concreta para facilitar respuesta de fondo."
+            }
+        ];
+        let editingIndex = -1;
+
+        function toggleForm() {
+            const form = document.getElementById('formContainer');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+            if (form.style.display === 'none') {
+                clearForm();
+                editingIndex = -1;
+            }
+        }
+
+        function clearForm() {
+            document.getElementById('plataforma').value = '';
+            document.getElementById('faseAnalisis').value = '';
+            document.getElementById('viabilidadProceso').value = '';
+            document.getElementById('viabilidadExito').value = '';
+            document.getElementById('palabrasClave').value = '';
+            document.getElementById('marcoJuridico').value = '';
+            document.getElementById('jerarquizacion').value = '';
+            document.getElementById('aplicabilidad').value = '';
+            document.getElementById('promptCompleto').value = '';
+        }
+
+        function savePrompt() {
+            const prompt = {
+                plataforma: document.getElementById('plataforma').value,
+                faseAnalisis: document.getElementById('faseAnalisis').value,
+                viabilidadProceso: document.getElementById('viabilidadProceso').value,
+                viabilidadExito: document.getElementById('viabilidadExito').value,
+                palabrasClave: document.getElementById('palabrasClave').value,
+                marcoJuridico: document.getElementById('marcoJuridico').value,
+                jerarquizacion: document.getElementById('jerarquizacion').value,
+                aplicabilidad: document.getElementById('aplicabilidad').value,
+                promptCompleto: document.getElementById('promptCompleto').value
+            };
+
+            if (!prompt.plataforma || !prompt.promptCompleto) {
+                alert('Por favor completa al menos la plataforma y el prompt completo');
+                return;
+            }
+
+            if (editingIndex >= 0) {
+                prompts[editingIndex] = prompt;
+                editingIndex = -1;
+            } else {
+                prompts.push(prompt);
+            }
+
+            renderTable();
+            toggleForm();
+            updateStats();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            if (prompts.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="11">
+                            <div class="empty-state">
+                                <h3>No hay prompts registrados</h3>
+                                <p>Comienza agregando tu primer prompt jurídico</p>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = prompts.map((p, i) => `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${p.plataforma}</strong></td>
+                    <td>${p.faseAnalisis}</td>
+                    <td>${p.viabilidadProceso}</td>
+                    <td>${p.viabilidadExito}</td>
+                    <td>${p.palabrasClave}</td>
+                    <td>${p.marcoJuridico}</td>
+                    <td>${p.jerarquizacion ? p.jerarquizacion.substring(0, 50) + '...' : ''}</td>
+                    <td>${p.aplicabilidad ? p.aplicabilidad.substring(0, 50) + '...' : ''}</td>
+                    <td>${p.promptCompleto.substring(0, 100)}...</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn-warning btn-small" onclick="editPrompt(${i})">✏️</button>
+                            <button class="btn-danger btn-small" onclick="deletePrompt(${i})">🗑️</button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editPrompt(index) {
+            const p = prompts[index];
+            document.getElementById('plataforma').value = p.plataforma;
+            document.getElementById('faseAnalisis').value = p.faseAnalisis;
+            document.getElementById('viabilidadProceso').value = p.viabilidadProceso;
+            document.getElementById('viabilidadExito').value = p.viabilidadExito;
+            document.getElementById('palabrasClave').value = p.palabrasClave;
+            document.getElementById('marcoJuridico').value = p.marcoJuridico;
+            document.getElementById('jerarquizacion').value = p.jerarquizacion;
+            document.getElementById('aplicabilidad').value = p.aplicabilidad;
+            document.getElementById('promptCompleto').value = p.promptCompleto;
+            
+            editingIndex = index;
+            document.getElementById('formContainer').style.display = 'block';
+        }
+
+        function deletePrompt(index) {
+            if (confirm('¿Está seguro de eliminar este prompt?')) {
+                prompts.splice(index, 1);
+                renderTable();
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('totalPrompts').textContent = prompts.length;
+            const plataformas = new Set(prompts.map(p => p.plataforma));
+            document.getElementById('totalPlataformas').textContent = plataformas.size;
+        }
+
+        function exportToExcel() {
+            const data = prompts.map((p, i) => ({
+                'No.': i + 1,
+                'Plataforma IA': p.plataforma,
+                'Fase de Análisis': p.faseAnalisis,
+                'Viabilidad por Proceso': p.viabilidadProceso,
+                'Viabilidad de Éxito': p.viabilidadExito,
+                'Palabras Clave': p.palabrasClave,
+                'Marco Jurídico (Normas)': p.marcoJuridico,
+                'Jerarquización Normativa Colombiana': p.jerarquizacion,
+                'Análisis de Aplicabilidad': p.aplicabilidad,
+                'Prompt Completo': p.promptCompleto
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Prompts Jurídicos');
+            
+            const fecha = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `Repositorio_Prompts_Juridicos_${fecha}.xlsx`);
+        }
+
+        function importFromExcel() {
+            document.getElementById('fileInput').click();
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+
+                prompts = jsonData.map(row => ({
+                    plataforma: row['Plataforma IA'] || '',
+                    faseAnalisis: row['Fase de Análisis'] || '',
+                    viabilidadProceso: row['Viabilidad por Proceso'] || '',
+                    viabilidadExito: row['Viabilidad de Éxito'] || '',
+                    palabrasClave: row['Palabras Clave'] || '',
+                    marcoJuridico: row['Marco Jurídico (Normas)'] || '',
+                    jerarquizacion: row['Jerarquización Normativa Colombiana'] || '',
+                    aplicabilidad: row['Análisis de Aplicabilidad'] || '',
+                    promptCompleto: row['Prompt Completo'] || ''
+                }));
+
+                renderTable();
+                updateStats();
+                alert(`Se importaron ${prompts.length} prompts exitosamente`);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        // Inicializar
+        renderTable();
+        updateStats();
+    </script>
+</body>
+</html>

@@ -1,0 +1,91 @@
+Frameworks de Estructura de Prompts
+Framework CONTEXT-TASK-FORMAT (CTF)
+Estructura:
+CONTEXT: [Información de fondo, rol, situación]
+TASK: [Qué debe hacer exactamente]
+FORMAT: [Cómo debe estructurar la salida]
+Ejemplo:
+CONTEXT: Eres un profesor de física con 20 años de experiencia explicando conceptos complejos a estudiantes de secundaria.
+TASK: Explica el concepto de entropía de manera que un estudiante de 15 años pueda entenderlo.
+FORMAT: Usa una analogía simple, luego 3 puntos clave, y termina con una pregunta reflexiva.
+Framework SMART
+Estructura:
+SPECIFIC: [Objetivo específico y claro]
+MEASURABLE: [Criterios de éxito medibles]
+ACHIEVABLE: [Limitaciones y recursos]
+RELEVANT: [Por qué es importante]
+TIME-BOUND: [Marco temporal o límites]
+Framework RISEN
+Estructura:
+ROLE: [Rol o personaje del modelo]
+INSTRUCTIONS: [Instrucciones claras y secuenciales]
+STEPS: [Pasos específicos a seguir]
+END GOAL: [Resultado final deseado]
+NARROWING: [Restricciones y límites]
+Ejemplo:
+ROLE: Actúa como un consultor de marketing digital senior.
+INSTRUCTIONS: Analiza esta campaña publicitaria y proporciona recomendaciones.
+STEPS:
+1. Evalúa el mensaje actual
+2. Identifica el público objetivo
+3. Analiza la competencia
+4. Propón mejoras específicas
+END GOAL: Un plan de acción de 5 puntos para mejorar el CTR en 30%.
+NARROWING: Enfócate solo en redes sociales, presupuesto máximo de $5000.
+Framework APE (Action-Purpose-Expectation)
+Estructura:
+ACTION: [Qué acción específica tomar]
+PURPOSE: [Por qué es importante esta acción]
+EXPECTATION: [Qué esperas recibir]
+Framework RACE
+Estructura:
+ROLE: [Quién es el modelo]
+ACTION: [Qué debe hacer]
+CONTEXT: [Información relevante]
+EXPECTATION: [Formato y detalle de la salida]
+Framework COAST
+Estructura:
+CONTEXT: [Situación y fondo]
+OBJECTIVE: [Meta específica]
+ACTIONS: [Pasos a realizar]
+SCENARIO: [Condiciones y restricciones]
+TASK: [Tarea final específica]
+Framework CREATE
+Estructura:
+CHARACTER: [Personalidad y rol]
+REQUEST: [Solicitud principal]
+EXAMPLES: [Ejemplos de entrada/salida]
+ADJUSTMENTS: [Refinamientos específicos]
+TYPE: [Tipo de formato de salida]
+EXTRAS: [Consideraciones adicionales]
+Framework STAR
+Estructura:
+SITUATION: [Contexto y escenario]
+TASK: [Tarea específica]
+ACTION: [Acciones a tomar]
+RESULT: [Resultado esperado]
+Framework RTF (Role-Task-Format)
+Estructura simplificada:
+ROLE: [Identidad del modelo]
+TASK: [Objetivo claro]
+FORMAT: [Estructura de salida]
+Framework CRAFT
+Estructura:
+CONTEXT: [Información de fondo]
+ROLE: [Perspectiva a adoptar]
+ACTION: [Qué hacer]
+FORMAT: [Cómo presentarlo]
+TARGET: [Audiencia específica]
+Framework de Especificación Gradual
+Estructura:
+1. Instrucción general amplia
+2. Refinamiento de alcance
+3. Especificaciones técnicas
+4. Ejemplos concretos
+5. Restricciones y excepciones
+Framework Socratic
+Estructura:
+1. Pregunta inicial abierta
+2. Preguntas de seguimiento que profundizan
+3. Solicitud de justificación
+4. Síntesis final
