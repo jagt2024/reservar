@@ -8,8 +8,8 @@ from eliminar_reserva_abo import EliminarReserva
 from servicios_abo import Servicios
 from informacion_abo import Informacion
 from generar_excel_abo import GenerarExcel
-from generaQR.generar_qr_abo import GenerarQr
-from consulta_st_excel import ConsultarAgenda
+from generaQR.generar_qr_abo import GenerarQr, GenerarQr_standalone
+from consulta_st_excel import ConsultarAgenda, ConsultarAgenda_standalone
 from descargar_agenda_abo import download_and_process_data
 from user_management import user_management_system, logout
 from buscar_info import streamlit_app
@@ -18,6 +18,7 @@ from estadisticas_reservas_abo import main_reservas_abo
 from estadisticas_facturacion_abo import main_factura
 from whatsapp_sender_abo import whatsapp_sender
 from ticket_support_app import soporte
+from Reposistorio_Prompts_Juridicos.legal_prompts_app import legal_prompts_main
 import datetime as dt
 from openpyxl import load_workbook
 from calendar import month_name
@@ -30,6 +31,19 @@ import toml
 from PIL import Image
 import sys
 import logging
+
+# Configurar la página y ocultar la opción "Manage app" del menú
+st.set_page_config(
+    page_title="JURIDICO",
+    page_icon="🏢",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': None,
+        'Report a bug': None,
+        'About': None
+    }
+)
 
 # Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
 hide_streamlit_style = """
@@ -62,9 +76,6 @@ def global_exception_handler(exc_type, exc_value, exc_traceback):
 logging.basicConfig(level=logging.DEBUG, filename='main_abo.log', filemode='w',
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-# En diferentes partes de tu código:
-#logging.debug('Entrando en función X')
-
 # Cargar configuraciones desde config.toml
 with open("./.streamlit/config.toml", "r") as f:
     config = toml.load(f)
@@ -85,76 +96,44 @@ def dataBook(hoja):
       for col in ws1.iter_cols(1,ws1.max_column):
         _row.append(col[row].value)   
       data.append(_row[0])
-      #print(f'data {data}')
     return data
 
-fecha_hasta = int('20250228')
-#print(f'fecha hasta: {fecha_hasta}')
+fecha_hasta = int('20261228')
 
 fecha = dt.datetime.now()
 fecha_hoy = int(fecha.strftime("%Y%m%d"))
-#print(f'fecha_hoy: {fecha_hoy}')
-
-#def dif_dias(dias):
-#  fecha = dt.datetime.now()
-#  hoy = dt.datetime(fecha.year, fecha.month, fecha.day)
-  #fecha_hasta = dt.datetime(fecha_hasta.year, fecha_hasta.month, fecha_hasta.day)
-#  parsed_time = dt.datetime(fecha.year, fecha.month, fecha.day)
-#  new_time = (parsed_time + dt.timedelta(days=dias))
-#  old_time = (parsed_time - dt.timedelta(days=dias))
-#  tot_dias = new_time - old_time
-#  delta = tot_dias
-   
-  #print(delta.days)
-#  return hoy, new_time, old_time, delta.days
-
-#hoy, dia, olddia, delta = dif_dias(1)
-
-#fechafin = int(dia.strftime("%Y%m%d"))
-#print(f'hoy: {hoy}, dia: {dia}, difdias: {olddia}, delta: {delta}, fechafin: {fechafin}')
 
 persona = dataBook("sw")
 result_per = np.setdiff1d(persona,'')
 
 sw_persona = result_per
-
-#ws = result_emp
-   #ws = result_emp["A2"].value
-#print(ws)
-#if sw_empresa == ["False"]:
-    #empresa.cell(column=1, row=2).value = ["True"])
-#    sw_empresa = ["True"]
-#    print(sw_empresa)
   
 page_title = 'Agenda Actividad' 
 page_icon= "assets/plantilla-logo-bufete-abogados.avif" 
 title="Resevas"
 layout = 'centered'
 
-#st.set_page_config(page_title=page_title, page_icon=page_icon,layout=layout)
+# Inicializar el estado de sesión si no existe
+if 'current_page' not in st.session_state:
+    st.session_state.current_page = 'Inicio'
 
 class Model:
   
   menuTitle = "Reserve y Agende en Linea"
   option1  = 'Inicio'
-  #option2  = 'Crear Reserva'
   option10 = 'Descargar Agenda'
   option9  = 'Consultar Agenda'
-  #option3  = 'Modificar Reserva'
-  #option4  = 'Eliminar Reserva'
   option5  = 'Nuestros Servicios'
   option6  = 'Mas Informacion'
   option7  = 'Generar Archivos'
   option8  = 'Generar Codigo QR'
+  option17 = 'Repositorio de Prompts Juridicos'
   option11 = 'Buscar Informacion'
   option15 = 'Enviar Whatsapp'
   option12 = 'Facturacion'
   option13 = 'Estadisticas de Resservas'
   option14 = 'Estadisticas de Facturacion'
   option16 = 'Soporte - PQRS'
-  
-  #def __init__(self):
-  #  self.apps=[]
     
   def add_app(self,title, function):
       self.apps.append({
@@ -163,20 +142,6 @@ class Model:
        })
       
   def css_load(css_file):
-    
-    #file_path = r"C:/Users/hp  pc/Desktop/Programas practica Python/App - Reservas/style/main.css"
-    #print(file_path)
-
-    #try:
-    #  if os.path.exists(file_path):
-    #    pass
-        #os.chmod(file_path, 0o666)
-        #print("File permissions modified successfully!")
-    #  else:
-    #    print("File not found:", file_path)
-    #except PermissionError:
-    #  print("Permission denied: You don't have the necessary permissions to change the permissions of this file.")
-    
     try:
       with open(css_file, "r") as file:
         st.markdown(f"<style>{file.read()}</style>",unsafe_allow_html=True)
@@ -196,193 +161,331 @@ if fecha_hasta < fecha_hoy:
 
 else:  
 
-  def view(model):
-    try:
+  # Función para cambiar entre páginas
+  def cambiar_pagina(page_name):
+    st.session_state.current_page = page_name
+    st.rerun()
   
-      with st.sidebar:
+  def view(model):
     
-        app = option_menu(model.menuTitle,
-                         [model.option1, model.option10, model.option9, model.option5,model.option6,model.option7, model.option8, model.option11, model.option15, model.option12, model.option13, model.option14, model.option16],
-                         icons=['bi bi-app-indicator',
-                                'bi bi-calendar2-date', 
-                                'bi bi-calendar2-date',
-                                'bi bi-calendar2-date',
-                                'bi bi-award',
-                                'bi bi-clipboard-minus-fill'
-                               ],
-                         default_index=0,
-                         styles= {
-                           "container":{ "reservas": "5!important",
-                           "background-color":'#acbee9'},
-                           "icon":{"color":"white","font-size":"23px"},
-                           "nav-lik":{"color":"white","font-size":"20px","text-aling":"left", "margin":"0px"},
-                           "nav-lik-selected":{"backgroud-color":"#02ab21"},})
-                       #orientatio'horizontal')
-
-      st.markdown(f"""
-      <style>
-            @import url('https://fonts.googleapis.com/css2?family={config['fonts']['clock_font']}:wght@400;500&display=swap');
-            .clock {{
-              font-family: '{config['fonts']['clock_font']}', sans-serif;
-              font-size: {config['font_sizes']['clock_font_size']};
-              color: {config['colors']['clock_color']};
-              text-shadow: 0 0 10px rgba(255,255,0,0.7);
-              margin-top: {config['layout']['top_margin']};
-              margin-bottom: {config['layout']['bottom_margin']};
-            }}
-            .calendar {{
-              font-family: '{config['fonts']['calendar_font']}', sans-serif;
-              font-size: {config['font_sizes']['calendar_font_size']};
-              color: {config['colors']['calendar_color']};
-              margin-top: {config['layout']['top_margin']};
-              margin-bottom: {config['layout']['bottom_margin']};
-            }}
-      </style>
-      """, unsafe_allow_html=True)
-
-      # Crear columnas para el diseño
-      col1, col2, col3, col4 = st.columns(4)
-
-      # Columna 1: Reloj Digital
-      with col1:
-          #st.header("Reloj Digital")
-          clock_placeholder = st.empty()
-                
-      with col2:
-          st.image(logo, width=150)  # Ajusta el ancho según sea necesario
-        
-        # Columna 2: Calendario
-      with col3:
-          #st.header("Calendario")
-          calendar_placeholder = st.empty()
-          
-      with col4:
-
-         with st.form(key='myform4',clear_on_submit=True):
-            limpiar = st.form_submit_button("Limpiar Opcion")
-            if limpiar:
-              #st.submit_button("Limpiar Opcion")
-              clear_session_state()
-              st.rerun()
-        
-      # Crear los tabs con los estilos personalizados
-               
-      tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion", "Servicios" ])
-    
-      with tabs[0]:
-         Inicio().view(Inicio.Model())
-             
-      with tabs[1]:
-         CrearReserva().view(CrearReserva.Model())
-    
-      with tabs[2]:
-         ModificarReservaAbo().view(ModificarReservaAbo.Model())
-    
-      with tabs[3]:
-          EliminarReserva().view(EliminarReserva.Model())
+    try:
+      current_page = st.session_state.current_page
       
-      with tabs[4]:
-          Informacion().view(Informacion.Model())
-          
-      with tabs[5]:
-          Servicios().view(Servicios.Model())
-          
-      def update_clock_and_calendar():
-         while True:
-              now = datetime.datetime.now(pytz.timezone('America/Bogota'))
-              clock_placeholder.markdown(f'<p class="clock">Hora: {now.strftime("%H:%M:%S")}</p>', unsafe_allow_html=True)
+      # SIDEBAR PRINCIPAL (página de Inicio)
+      if current_page == 'Inicio':
+          with st.sidebar:
+              st.markdown("""
+              <style>
+                  .stButton>button {
+                      width: 100%;
+                      border-radius: 10px;
+                      height: 3em;
+                      background-color: #FF6B6B;
+                      color: white;
+                  }
+                  .stButton>button:hover {
+                      background-color: #FF5252;
+                      color: white;
+                  }
+              </style>
+              """, unsafe_allow_html=True)
+              
+              app = option_menu(
+                  menu_title=model.menuTitle,
+                  options=[
+                      model.option1,
+                      model.option10,
+                      model.option9,
+                      model.option5,
+                      model.option6,
+                      model.option7,
+                      model.option8,
+                      model.option17,
+                      model.option11,
+                      model.option15,
+                      model.option12,
+                      model.option13,
+                      model.option14,
+                      model.option16
+                  ],
+                  icons=[
+                      'house-fill',
+                      'cloud-download-fill',
+                      'calendar-check-fill',
+                      'clipboard-check-fill',
+                      'info-circle-fill',
+                      'file-earmark-excel-fill',
+                      'qr-code',
+                      'book-fill',
+                      'search',
+                      'whatsapp',
+                      'receipt',
+                      'bar-chart-fill',
+                      'pie-chart-fill',
+                      'headset'
+                  ],
+                  menu_icon='calendar-date',
+                  default_index=0,
+                  orientation='vertical',
+                  styles={
+                      "container": {"padding": "5px", "background-color": '#262626'},
+                      "icon": {"color": "white", "font-size": "23px"},
+                      "nav-link": {"color":"white","font-size": "16px", "text-align": "left", "margin":"0px", "--hover-color": "#FF6B6B"},
+                      "nav-link-selected": {"background-color": "#FF6B6B"}
+                  }
+              )
 
-              today = date.today()
-              meses_es = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
-              mes_es = meses_es[today.month - 1]
-              dias_es = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
-              dia_es = dias_es[today.weekday()]
+          st.markdown("""
+          <style>
+            [data-testid=stSidebar] {
+                background-color: #262626;
+            }
+          </style>
+          """, unsafe_allow_html=True)
+
+          # Actualizarif app == model.option:
+          if app == model.option10:
+              cambiar_pagina('download_and_process_data')
+          elif app == model.option9:
+              cambiar_pagina('ConsultarAgenda_standalone')
+          elif app == model.option5:
+              cambiar_pagina('Servicios')
+          elif app == model.option6:
+              cambiar_pagina('Informacion')
+          elif app == model.option7:
+              cambiar_pagina('GenerarExcel')
+          elif app == model.option8:
+              cambiar_pagina('GenerarQr_standalone')
+          elif app == model.option17:
+              cambiar_pagina('legal_prompts_main')
+          elif app == model.option11:
+              cambiar_pagina('streamlit_app')
+          elif app == model.option15:
+              cambiar_pagina('whatsapp_sender')
+          elif app == model.option12:
+              cambiar_pagina('generar_factura')
+          elif app == model.option13:
+              cambiar_pagina('main_reservas_abo')
+          elif app == model.option14:
+              cambiar_pagina('main_factura')
+          elif app == model.option16:
+              cambiar_pagina('soporte')
+
+      # SIDEBARS ESPECÍFICOS PARA CADA PÁGINA
+      elif current_page == 'download_and_process_data':
+         with st.sidebar:
+              st.header("🏢 Descargar Agenda")
+              if st.button("🏠 Volver al Inicio", key="btn_back_download"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'ConsultarAgenda_standalone':
+         with st.sidebar:
+              st.header("🏢 Consultar Clientes")
+              if st.button("🏠 Volver al Inicio", key="btn_back_consultar"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'Servicios':
+         with st.sidebar:
+              st.header("🏢 Nuestros Servicios")
+              if st.button("🏠 Volver al Inicio", key="btn_back_servicios"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'Informacion':
+         with st.sidebar:
+              st.header("🏢 Información")
+              if st.button("🏠 Volver al Inicio", key="btn_back_info"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'GenerarExcel':
+         with st.sidebar:
+              st.header("🏢 Generar Excel")
+              if st.button("🏠 Volver al Inicio", key="btn_back_excel"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'GenerarQr_standalone':
+         with st.sidebar:
+              st.header("🏢 Generar Código QR")
+              if st.button("🏠 Volver al Inicio", key="btn_back_qr"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'legal_prompts_main':
+         with st.sidebar:
+              st.header("🏢 Repositorio Prompts")
+              if st.button("🏠 Volver al Inicio", key="btn_back_prompts"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'streamlit_app':
+          with st.sidebar:
+              st.header("🏢 Buscar Información")
+              if st.button("🏠 Volver al Inicio", key="btn_back_buscar"):
+                  cambiar_pagina('Inicio')
+              st.divider()
+                  
+      elif current_page == 'generar_factura':
+         with st.sidebar:
+              st.header("🏢 Generar Factura")
+              if st.button("🏠 Volver al Inicio", key="btn_back_factura"):
+                  cambiar_pagina('Inicio')
+              st.divider() 
+                    
+      elif current_page == 'main_reservas_abo':
+         with st.sidebar:
+              st.header("🏢 Estadísticas de Reservas")
+              if st.button("🏠 Volver al Inicio", key="btn_back_estadisticas"):
+                  cambiar_pagina('Inicio')
+              st.divider()  
+             
+      elif current_page == 'main_factura':
+         with st.sidebar:
+              st.header("🏢 Estadísticas de Facturación")
+              if st.button("🏠 Volver al Inicio", key="btn_back_facturacion"):
+                  cambiar_pagina('Inicio')
+              st.divider()  
+          
+      elif current_page == 'whatsapp_sender':
+         with st.sidebar:
+              st.header("🏢 Enviar WhatsApp")
+              if st.button("🏠 Volver al Inicio", key="btn_back_whatsapp"):
+                  cambiar_pagina('Inicio')
+              st.divider()  
         
-              calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
+      elif current_page == 'soporte':
+          with st.sidebar:
+              st.header("🏢 Soporte - PQRS")
+              if st.button("🏠 Volver al Inicio", key="btn_back_soporte"):
+                  cambiar_pagina('Inicio')
+              st.divider() 
+      
+      # Crear columnas para el diseño (solo en página de Inicio)
+      if current_page == 'Inicio':
+          col1, col2, col3, col4 = st.columns(4)
+
+          # Columna 1: Reloj Digital
+          with col1:
+                clock_placeholder = st.empty()
+                    
+          with col2:
+                st.image(logo, width=150)
+            
+          # Columna 2: Calendario
+          with col3:
+                calendar_placeholder = st.empty()
+              
+          with col4:
+              with st.form(key='myform4',clear_on_submit=True):
+                  limpiar = st.form_submit_button("Limpiar Opcion")
+                  if limpiar:
+                    clear_session_state()
+                    st.rerun()
         
-              time.sleep(5)
-              #st.experimental_rerun()   
+          # Crear los tabs con los estilos personalizados
+          tabs = st.tabs(["Inicio", "Crear Reserva", "Modificar Reserva", "Eliminar Reserva", "Informacion", "Servicios"])
+        
+          with tabs[0]:
+                Inicio().view(Inicio.Model())
+                 
+          with tabs[1]:
+                CrearReserva().view(CrearReserva.Model())
+        
+          with tabs[2]:
+                ModificarReservaAbo().view(ModificarReservaAbo.Model())
+        
+          with tabs[3]:
+                EliminarReserva().view(EliminarReserva.Model())
+          
+          with tabs[4]:
+                Informacion().view(Informacion.Model())
+              
+          with tabs[5]:
+                Servicios().view(Servicios.Model())
+          
+          def update_clock_and_calendar():
+              while True:
+                  now = datetime.datetime.now(pytz.timezone('America/Bogota'))
+                  clock_placeholder.markdown(f'<p class="clock">Hora: {now.strftime("%H:%M:%S")}</p>', unsafe_allow_html=True)
+
+                  today = date.today()
+                  meses_es = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+                  mes_es = meses_es[today.month - 1]
+                  dias_es = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+                  dia_es = dias_es[today.weekday()]
+            
+                  calendar_placeholder.markdown(f'<p class="calendar">Día: {dia_es.capitalize()} {today.day} de {mes_es} de {today.year}<br></p>', unsafe_allow_html=True)
+            
+                  time.sleep(5)
+      
+      # EJECUTAR LAS FUNCIONES SEGÚN LA PÁGINA SELECCIONADA
+      else:
+          # Mostrar el contenido de la página seleccionada en el área principal
+          if current_page == 'download_and_process_data':
+              download_and_process_data('./.streamlit/secrets.toml')
+              
+          elif current_page == 'ConsultarAgenda_standalone':
+              ConsultarAgenda_standalone()
+              
+          elif current_page == 'Servicios':
+              Servicios().view(Servicios.Model())
+              
+          elif current_page == 'Informacion':
+              Informacion().view(Informacion.Model())
+              
+          elif current_page == 'GenerarExcel':
+              GenerarExcel().view(GenerarExcel.Model())
+              
+          elif current_page == 'GenerarQr_standalone':
+              GenerarQr_standalone()
+              
+          elif current_page == 'legal_prompts_main':
+              legal_prompts_main()
+              
+          elif current_page == 'streamlit_app':
+              streamlit_app()
+              
+          elif current_page == 'generar_factura':
+              generar_factura()
+              
+          elif current_page == 'main_reservas_abo':
+              main_reservas_abo()
+              
+          elif current_page == 'main_factura':
+              main_factura()
+              
+          elif current_page == 'whatsapp_sender':
+              whatsapp_sender()
+              
+          elif current_page == 'soporte':
+              soporte()
 
       with st.sidebar:
-        st.markdown("---")
-        st.text("Version: 0.0.1")
-        st.text("Ano: 2024")
-        st.text("Autor: JAGT")
-        st.markdown("---")
+            st.markdown("---")
+            st.text("Version: 0.0.1")
+            st.text("Ano: 2024")
+            st.text("Autor: JAGT")
+            st.markdown("---")
 
-        st.markdown("""
-        <script>
-          window.onerror = function(message, source, lineno, colno, error) {
-          fetch('/log_error', {
-          method: 'POST',
-          headers: {'Content-Type': 'main_abo/json'},
-          body: JSON.stringify({message, source, lineno, colno, error: error.stack})
-            });
-          };
-        </script>
-        """, unsafe_allow_html=True)
-   
-      if sw_persona == ['True']:
-
-        #st.title('***BUFETE ABOGADOS***')
-
-        if app == model.option1:
-          Inicio().view(Inicio.Model())
-        #if app == model.option2:
-        #  CrearReserva().view(CrearReserva.Model())
-        #if app == model.option3:
-        #  ModificarReservaAbo().view(ModificarReservaAbo.Model())
-        #if app == model.option4:
-        #  EliminarReserva().view(EliminarReserva.Model())
-        if app == model.option5:
-          Servicios().view(Servicios.Model())
-        if app == model.option6:
-          Informacion().view(Informacion.Model())
-        if app == model.option7:
-          GenerarExcel().view(GenerarExcel.Model())
-        if app == model.option8:
-          GenerarQr().view(GenerarQr.Model())
-        if app == model.option9:
-           ConsultarAgenda().view(ConsultarAgenda.Model())
-        if app == model.option10:
-           #if user_management_system():
-           download_and_process_data('./.streamlit/secrets.toml')
-           #  logout()
-        if app == model.option11:
-           streamlit_app()
-        if app == model.option12:
-
-           generar_factura()
-                            
-        if app == model.option13:
-           
-           #if authenticate_user(): 
-            
-           main_reservas_abo()
-                            
-        if app == model.option14:
-           
-           #if authenticate_user():
-          
-           main_factura()
-           
-        if app == model.option15:
-           
-           #if authenticate_user(): 
-           whatsapp_sender()
-        
-        if app == model.option16:
-           soporte()
-               
-        #logging.info('Estado actual: %s', app)
-
+            st.markdown("""
+            <script>
+              window.onerror = function(message, source, lineno, colno, error) {
+              fetch('/log_error', {
+              method: 'POST',
+              headers: {'Content-Type': 'main_abo/json'},
+              body: JSON.stringify({message, source, lineno, colno, error: error.stack})
+                });
+              };
+            </script>
+            """, unsafe_allow_html=True)
+  
     except SystemError as err:
       raise Exception(f'A ocurrido un error en main_abo.py: {err}')
     except Exception as e:
         st.error(f"Ocurrió un error en main_abo.py: {e}")
-    # Iniciar la actualización del reloj y calendario
-    
-    update_clock_and_calendar()
     
     sys.excepthook = global_exception_handler
         

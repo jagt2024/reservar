@@ -79,7 +79,7 @@ def get_binary_file_downloader_html(bin_file, file_label='File'):
     href = f'<a href="data:application/octet-stream;base64,{bin_str}" download="{os.path.basename(bin_file)}">Descargar {file_label}</a>'
     return href
 
-def filter_data_by_last_days(df, num_days=8):
+def filter_data_by_last_days(df, num_days=15):
     if df is None or df.empty:
         st.error("No hay datos para filtrar.")
         return None
@@ -91,7 +91,7 @@ def filter_data_by_last_days(df, num_days=8):
     filtered_df = df[df['FECHA'].notna() & (df['FECHA'].dt.date >= start_date)]
     
     if filtered_df.empty:
-        st.warning("No hay datos en los últimos 8 días.")
+        st.warning("No hay datos en los últimos 15 días.")
         return None
     
     return filtered_df
