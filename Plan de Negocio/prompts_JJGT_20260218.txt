@@ -1,0 +1,303 @@
+PLAN DE NEGOCIO — PROMPTS GENERADOS POR IA
+============================================================
+Negocio: JJGT
+Descripción: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+Modelo destino: 🤖 Claude (Anthropic)
+Generado el: 18/02/2026 09:49
+============================================================
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: RESUMEN EJECUTIVO
+────────────────────────────────────────────────────────────
+
+Actúa como un consultor estratégico senior con más de 20 años de experiencia en startups y empresas consolidadas.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera un RESUMEN EJECUTIVO completo y profesional que incluya:
+
+1. MISIÓN — Declaración clara, concisa y memorable de propósito (máximo 2 oraciones).
+2. VISIÓN — Estado futuro aspiracional a 5 años, específico y medible.
+3. VALORES CORPORATIVOS — 4-5 valores con descripción de cómo se aplican.
+4. OBJETIVOS ESTRATÉGICOS — 5 objetivos SMART para los próximos 12-24 meses.
+5. KPIs PRINCIPALES — 6-8 indicadores clave con metas numéricas y frecuencia de medición.
+6. MODELO DE NEGOCIO — Cómo genera valor, para quién y cómo monetiza.
+7. ESTADO ACTUAL Y PROYECCIÓN — Etapa actual del negocio y proyección a 1, 3 y 5 años.
+
+Formato: usa headers claros, listas numeradas y tablas donde sea útil. Mínimo 600 palabras. Tono profesional y ejecutivo.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: MERCADOS OBJETIVO
+────────────────────────────────────────────────────────────
+
+Actúa como analista de mercado experto con especialización en estrategia de entrada a mercados.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Desarrolla un análisis exhaustivo de MERCADOS OBJETIVO que incluya:
+
+1. ANÁLISIS TAM-SAM-SOM
+   - TAM (Total Addressable Market): tamaño total del mercado global con fuentes estimadas.
+   - SAM (Serviceable Addressable Market): segmento alcanzable con el modelo actual.
+   - SOM (Serviceable Obtainable Market): porción realista en los primeros 3 años.
+
+2. SEGMENTOS PRIORITARIOS (mínimo 4 segmentos)
+   Para cada segmento incluir:
+   - Nombre y descripción detallada del segmento
+   - Tamaño estimado y potencial de ingresos
+   - Características demográficas, psicográficas y conductuales
+   - Necesidad principal que satisface el negocio
+   - Estrategia de entrada y canales de adquisición
+   - Ticket promedio estimado y LTV
+
+3. MAPA DE EMPATÍA DEL CLIENTE IDEAL — Para el segmento #1.
+
+4. ESTRATEGIA DE EXPANSIÓN GEOGRÁFICA — Fases de expansión por regiones/países.
+
+5. TENDENCIAS DE MERCADO — 5 tendencias relevantes que favorecen el negocio.
+
+Mínimo 600 palabras. Sé específico con estimaciones y datos.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: ANÁLISIS COMPETITIVO
+────────────────────────────────────────────────────────────
+
+Actúa como estratega competitivo con expertise en análisis de mercados y posicionamiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Realiza un ANÁLISIS COMPETITIVO completo que incluya:
+
+1. PANORAMA COMPETITIVO
+   - Descripción del ecosistema competitivo actual
+   - Mapa de actores: competidores directos, indirectos y sustitutos potenciales
+
+2. 5 FUERZAS DE PORTER (análisis detallado aplicado a este negocio)
+   - Rivalidad entre competidores existentes
+   - Amenaza de nuevos entrantes
+   - Poder de negociación de proveedores
+   - Poder de negociación de clientes
+   - Amenaza de productos/servicios sustitutos
+   → Para cada fuerza: nivel (alto/medio/bajo), justificación e implicaciones estratégicas.
+
+3. MATRIZ FODA
+   - Fortalezas internas (mínimo 5)
+   - Oportunidades externas (mínimo 5)
+   - Debilidades internas (mínimo 4)
+   - Amenazas externas (mínimo 4)
+
+4. BRECHAS Y OPORTUNIDADES — 4-5 oportunidades concretas no explotadas por la competencia.
+
+5. POSICIONAMIENTO RECOMENDADO — Declaración de posicionamiento y estrategia competitiva sugerida.
+
+Mínimo 600 palabras. Sé analítico y basado en lógica de mercado.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PROPUESTA DE VALOR
+────────────────────────────────────────────────────────────
+
+Actúa como experto en branding estratégico, diseño de propuesta de valor y marketing de posicionamiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Define la PROPUESTA DE VALOR ÚNICA con los siguientes componentes:
+
+1. DECLARACIÓN DE VALOR CENTRAL
+   - Propuesta de valor en una oración poderosa y memorable
+   - Elevator pitch de 30 segundos
+
+2. VALUE PROPOSITION CANVAS
+   - PERFIL DEL CLIENTE:
+     * Trabajos del cliente (Jobs to be done): funcionales, sociales, emocionales
+     * Dolores (Pains): frustraciones, miedos, obstáculos
+     * Ganancias (Gains): beneficios esperados, deseados y sorpresivos
+   - MAPA DE VALOR:
+     * Productos/servicios ofrecidos
+     * Aliviadores de dolores (Pain relievers)
+     * Creadores de ganancias (Gain creators)
+
+3. 3 PILARES DE DIFERENCIACIÓN
+   Para cada pilar: nombre, descripción, argumento concreto y cómo comunicarlo.
+
+4. ESTRATEGIA DE COMUNICACIÓN POR CANAL
+   - Mensaje para redes sociales
+   - Mensaje para email/ventas B2B
+   - Mensaje para publicidad digital
+   - Mensaje para partnerships
+
+5. EVOLUCIÓN DE LA PROPUESTA — Cómo proteger y escalar la propuesta de valor en el tiempo.
+
+Mínimo 600 palabras. Tono creativo y estratégico.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PLAN DE ACCIÓN
+────────────────────────────────────────────────────────────
+
+Actúa como consultor de implementación estratégica especializado en operaciones y crecimiento de empresas.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Desarrolla un PLAN DE ACCIÓN DETALLADO estructurado en 3 fases:
+
+━━━ FASE 1: FUNDAMENTOS (Meses 1-3) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito de la fase con metas numéricas
+- Recursos necesarios (humanos, tecnológicos, financieros)
+- Inversión estimada
+
+━━━ FASE 2: CRECIMIENTO (Meses 4-12) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito con metas numéricas
+- Hitos clave del trimestre
+- Recursos e inversión estimada
+
+━━━ FASE 3: CONSOLIDACIÓN (Meses 13-24) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito con metas numéricas
+- Escenarios de expansión
+- Recursos e inversión estimada
+
+GESTIÓN DE RIESGOS
+- 5 riesgos principales con probabilidad, impacto y plan de mitigación
+
+ACCIONES INMEDIATAS (próximos 30 días)
+- Lista de las 10 primeras acciones a ejecutar hoy
+
+Mínimo 700 palabras. Sé práctico, accionable y específico.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: DESARROLLO DEL NEGOCIO
+────────────────────────────────────────────────────────────
+
+Actúa como experto en desarrollo de negocios, modelos de monetización y estrategia de crecimiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Crea un plan completo de DESARROLLO DEL NEGOCIO que incluya:
+
+1. MODELO DE INGRESOS Y MONETIZACIÓN
+   - Fuentes de ingresos actuales y potenciales
+   - Estructura de precios recomendada con justificación
+   - Proyección de ingresos a 12, 24 y 36 meses (escenario conservador, realista y optimista)
+
+2. ESTRATEGIA DE VENTAS Y CANALES
+   - Proceso de ventas paso a paso
+   - Canales de distribución primarios y secundarios
+   - Estrategia de marketing digital y contenido
+   - Funnel de conversión sugerido con métricas
+
+3. ESTRATEGIA DE PARTNERSHIPS Y ALIANZAS
+   - Tipos de alianzas estratégicas recomendadas
+   - Perfil de socios ideales
+   - Modelo de propuesta para alianzas
+
+4. OPERACIONES Y TECNOLOGÍA
+   - Stack tecnológico recomendado
+   - Procesos clave a automatizar
+   - Estructura organizacional sugerida por etapa
+
+5. FINANCIAMIENTO Y CRECIMIENTO
+   - Opciones de financiamiento adecuadas para cada etapa
+   - Métricas de tracción que buscan los inversores
+   - Roadmap de producto/servicio a 24 meses
+
+6. MÉTRICAS NORTE (North Star Metrics)
+   - 3-5 métricas fundamentales que definen el éxito del negocio
+
+Mínimo 700 palabras. Orientado a resultados y crecimiento escalable.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: IMAGEN & LOGO
+────────────────────────────────────────────────────────────
+
+Actúa como director creativo y diseñador de marca con experiencia en identidad visual para empresas tech y startups.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera los siguientes PROMPTS DE IMAGEN para herramientas de IA (Midjourney, DALL-E, Stable Diffusion, Firefly):
+
+━━━ PROMPT #1 — LOGO PRINCIPAL ━━━
+Genera un prompt detallado en Español para crear el logo principal del negocio. Incluir:
+- Estilo visual (minimalista, moderno, geométrico, etc.)
+- Paleta de colores con justificación de psicología del color
+- Tipografía sugerida
+- Elementos icónicos o simbólicos relevantes al negocio
+- Formato: "professional logo for [negocio], [descripción visual detallada], vector style, clean, scalable, white background, --ar 1:1 --style raw"
+
+━━━ PROMPT #2 — VARIACIONES DEL LOGO ━━━
+- Versión dark/dark mode
+- Versión solo ícono (sin texto)
+- Versión horizontal con tagline
+
+━━━ PROMPT #3 — IDENTIDAD VISUAL DE MARCA ━━━
+Prompt para crear un brandboard completo con paleta de colores, tipografías y elementos visuales.
+
+━━━ PROMPT #4 — IMAGEN HERO / BANNER ━━━
+Prompt para imagen principal de website o redes sociales representando la esencia del negocio.
+
+━━━ PROMPT #5 — PERSONAJE O MASCOTA (opcional) ━━━
+Si aplica, prompt para crear un personaje/mascota que represente la marca.
+
+Para cada prompt: escribe el prompt completo en Español listo para copiar en la herramienta IA, y explica brevemente en español el concepto detrás.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PROMPTS DE VIDEO
+────────────────────────────────────────────────────────────
+
+Actúa como director creativo y productor de video con especialización en contenido para marcas digitales.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera PROMPTS COMPLETOS para crear videos con herramientas de IA (Sora, Runway, Pika, Kling, HeyGen):
+
+━━━ PROMPT #1 — VIDEO PRESENTACIÓN DE MARCA (60 segundos) ━━━
+Prompt detallado para video de presentación corporativa. Incluir:
+- Escenas clave con descripción visual
+- Estilo cinematográfico, paleta de colores, ambiente
+- Música y tono emocional sugerido
+- Texto/narración en off sugerida
+- Formato: "cinematic brand video for [negocio], [descripción de escenas], [estilo], [mood], 4K, professional"
+
+━━━ PROMPT #2 — REEL DE REDES SOCIALES (15-30 segundos) ━━━
+Prompt para video viral de Instagram/TikTok mostrando el negocio en acción.
+
+━━━ PROMPT #3 — VIDEO EXPLICATIVO / EXPLAINER (90 segundos) ━━━
+Prompt para video animado explicando el problema que resuelve y la solución del negocio.
+
+━━━ PROMPT #4 — VIDEO TESTIMONIAL / CASO DE ÉXITO ━━━
+Prompt para video con estructura de storytelling de un cliente satisfecho.
+
+━━━ PROMPT #5 — VIDEO ANUNCIO PUBLICITARIO (15 segundos) ━━━
+Prompt para ad corto, impactante y con CTA claro para publicidad digital.
+
+━━━ GUIÓN NARRATIVO COMPLETO ━━━
+Para el video principal: guión completo con escenas, diálogos/narración, transiciones y CTA.
+
+Para cada prompt: escribe el prompt en Español (listo para la herramienta IA) y el concepto en español. Incluye sugerencias de plataforma ideal para cada video.
+

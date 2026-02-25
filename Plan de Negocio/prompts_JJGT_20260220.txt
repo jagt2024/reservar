@@ -1,0 +1,1406 @@
+PLAN DE NEGOCIO — PROMPTS GENERADOS POR IA
+============================================================
+Negocio: JJGT
+Descripción: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+Modelo destino: 🤖 Claude (Anthropic)
+Generado el: 20/02/2026 11:49
+============================================================
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: RESUMEN EJECUTIVO
+────────────────────────────────────────────────────────────
+
+Actúa como un consultor estratégico senior con más de 20 años de experiencia en startups y empresas consolidadas.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera un RESUMEN EJECUTIVO completo y profesional que incluya:
+
+1. MISIÓN — Declaración clara, concisa y memorable de propósito (máximo 2 oraciones).
+2. VISIÓN — Estado futuro aspiracional a 5 años, específico y medible.
+3. VALORES CORPORATIVOS — 4-5 valores con descripción de cómo se aplican.
+4. OBJETIVOS ESTRATÉGICOS — 5 objetivos SMART para los próximos 12-24 meses.
+5. KPIs PRINCIPALES — 6-8 indicadores clave con metas numéricas y frecuencia de medición.
+6. MODELO DE NEGOCIO — Cómo genera valor, para quién y cómo monetiza.
+7. ESTADO ACTUAL Y PROYECCIÓN — Etapa actual del negocio y proyección a 1, 3 y 5 años.
+
+Formato: usa headers claros, listas numeradas y tablas donde sea útil. Mínimo 600 palabras. Tono profesional y ejecutivo.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: MERCADOS OBJETIVO
+────────────────────────────────────────────────────────────
+
+Actúa como analista de mercado experto con especialización en estrategia de entrada a mercados.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Desarrolla un análisis exhaustivo de MERCADOS OBJETIVO que incluya:
+
+1. ANÁLISIS TAM-SAM-SOM
+   - TAM (Total Addressable Market): tamaño total del mercado global con fuentes estimadas.
+   - SAM (Serviceable Addressable Market): segmento alcanzable con el modelo actual.
+   - SOM (Serviceable Obtainable Market): porción realista en los primeros 3 años.
+
+2. SEGMENTOS PRIORITARIOS (mínimo 4 segmentos)
+   Para cada segmento incluir:
+   - Nombre y descripción detallada del segmento
+   - Tamaño estimado y potencial de ingresos
+   - Características demográficas, psicográficas y conductuales
+   - Necesidad principal que satisface el negocio
+   - Estrategia de entrada y canales de adquisición
+   - Ticket promedio estimado y LTV
+
+3. MAPA DE EMPATÍA DEL CLIENTE IDEAL — Para el segmento #1.
+
+4. ESTRATEGIA DE EXPANSIÓN GEOGRÁFICA — Fases de expansión por regiones/países.
+
+5. TENDENCIAS DE MERCADO — 5 tendencias relevantes que favorecen el negocio.
+
+Mínimo 600 palabras. Sé específico con estimaciones y datos.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: ANÁLISIS COMPETITIVO
+────────────────────────────────────────────────────────────
+
+Actúa como estratega competitivo con expertise en análisis de mercados y posicionamiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Realiza un ANÁLISIS COMPETITIVO completo que incluya:
+
+1. PANORAMA COMPETITIVO
+   - Descripción del ecosistema competitivo actual
+   - Mapa de actores: competidores directos, indirectos y sustitutos potenciales
+
+2. 5 FUERZAS DE PORTER (análisis detallado aplicado a este negocio)
+   - Rivalidad entre competidores existentes
+   - Amenaza de nuevos entrantes
+   - Poder de negociación de proveedores
+   - Poder de negociación de clientes
+   - Amenaza de productos/servicios sustitutos
+   → Para cada fuerza: nivel (alto/medio/bajo), justificación e implicaciones estratégicas.
+
+3. MATRIZ FODA
+   - Fortalezas internas (mínimo 5)
+   - Oportunidades externas (mínimo 5)
+   - Debilidades internas (mínimo 4)
+   - Amenazas externas (mínimo 4)
+
+4. BRECHAS Y OPORTUNIDADES — 4-5 oportunidades concretas no explotadas por la competencia.
+
+5. POSICIONAMIENTO RECOMENDADO — Declaración de posicionamiento y estrategia competitiva sugerida.
+
+Mínimo 600 palabras. Sé analítico y basado en lógica de mercado.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PROPUESTA DE VALOR
+────────────────────────────────────────────────────────────
+
+Actúa como experto en branding estratégico, diseño de propuesta de valor y marketing de posicionamiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Define la PROPUESTA DE VALOR ÚNICA con los siguientes componentes:
+
+1. DECLARACIÓN DE VALOR CENTRAL
+   - Propuesta de valor en una oración poderosa y memorable
+   - Elevator pitch de 30 segundos
+
+2. VALUE PROPOSITION CANVAS
+   - PERFIL DEL CLIENTE:
+     * Trabajos del cliente (Jobs to be done): funcionales, sociales, emocionales
+     * Dolores (Pains): frustraciones, miedos, obstáculos
+     * Ganancias (Gains): beneficios esperados, deseados y sorpresivos
+   - MAPA DE VALOR:
+     * Productos/servicios ofrecidos
+     * Aliviadores de dolores (Pain relievers)
+     * Creadores de ganancias (Gain creators)
+
+3. 3 PILARES DE DIFERENCIACIÓN
+   Para cada pilar: nombre, descripción, argumento concreto y cómo comunicarlo.
+
+4. ESTRATEGIA DE COMUNICACIÓN POR CANAL
+   - Mensaje para redes sociales
+   - Mensaje para email/ventas B2B
+   - Mensaje para publicidad digital
+   - Mensaje para partnerships
+
+5. EVOLUCIÓN DE LA PROPUESTA — Cómo proteger y escalar la propuesta de valor en el tiempo.
+
+Mínimo 600 palabras. Tono creativo y estratégico.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PLAN DE ACCIÓN
+────────────────────────────────────────────────────────────
+
+Actúa como consultor de implementación estratégica especializado en operaciones y crecimiento de empresas.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Desarrolla un PLAN DE ACCIÓN DETALLADO estructurado en 3 fases:
+
+━━━ FASE 1: FUNDAMENTOS (Meses 1-3) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito de la fase con metas numéricas
+- Recursos necesarios (humanos, tecnológicos, financieros)
+- Inversión estimada
+
+━━━ FASE 2: CRECIMIENTO (Meses 4-12) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito con metas numéricas
+- Hitos clave del trimestre
+- Recursos e inversión estimada
+
+━━━ FASE 3: CONSOLIDACIÓN (Meses 13-24) ━━━
+- Objetivo principal de la fase
+- 7 acciones prioritarias con responsable sugerido y plazo
+- KPIs de éxito con metas numéricas
+- Escenarios de expansión
+- Recursos e inversión estimada
+
+GESTIÓN DE RIESGOS
+- 5 riesgos principales con probabilidad, impacto y plan de mitigación
+
+ACCIONES INMEDIATAS (próximos 30 días)
+- Lista de las 10 primeras acciones a ejecutar hoy
+
+Mínimo 700 palabras. Sé práctico, accionable y específico.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: DESARROLLO DEL NEGOCIO
+────────────────────────────────────────────────────────────
+
+Actúa como experto en desarrollo de negocios, modelos de monetización y estrategia de crecimiento.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Crea un plan completo de DESARROLLO DEL NEGOCIO que incluya:
+
+1. MODELO DE INGRESOS Y MONETIZACIÓN
+   - Fuentes de ingresos actuales y potenciales
+   - Estructura de precios recomendada con justificación
+   - Proyección de ingresos a 12, 24 y 36 meses (escenario conservador, realista y optimista)
+
+2. ESTRATEGIA DE VENTAS Y CANALES
+   - Proceso de ventas paso a paso
+   - Canales de distribución primarios y secundarios
+   - Estrategia de marketing digital y contenido
+   - Funnel de conversión sugerido con métricas
+
+3. ESTRATEGIA DE PARTNERSHIPS Y ALIANZAS
+   - Tipos de alianzas estratégicas recomendadas
+   - Perfil de socios ideales
+   - Modelo de propuesta para alianzas
+
+4. OPERACIONES Y TECNOLOGÍA
+   - Stack tecnológico recomendado
+   - Procesos clave a automatizar
+   - Estructura organizacional sugerida por etapa
+
+5. FINANCIAMIENTO Y CRECIMIENTO
+   - Opciones de financiamiento adecuadas para cada etapa
+   - Métricas de tracción que buscan los inversores
+   - Roadmap de producto/servicio a 24 meses
+
+6. MÉTRICAS NORTE (North Star Metrics)
+   - 3-5 métricas fundamentales que definen el éxito del negocio
+
+Mínimo 700 palabras. Orientado a resultados y crecimiento escalable.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: IMAGEN & LOGO
+────────────────────────────────────────────────────────────
+
+Actúa como director creativo y diseñador de marca con experiencia en identidad visual para empresas tech y startups.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera los siguientes PROMPTS DE IMAGEN para herramientas de IA (Midjourney, DALL-E, Stable Diffusion, Firefly):
+
+━━━ PROMPT #1 — LOGO PRINCIPAL ━━━
+Genera un prompt detallado en español para crear el logo principal del negocio. Incluir:
+- Estilo visual (minimalista, moderno, geométrico, etc.)
+- Paleta de colores con justificación de psicología del color
+- Tipografía sugerida
+- Elementos icónicos o simbólicos relevantes al negocio
+- Formato: "professional logo for [negocio], [descripción visual detallada], vector style, clean, scalable, white background, --ar 1:1 --style raw"
+
+━━━ PROMPT #2 — VARIACIONES DEL LOGO ━━━
+- Versión dark/dark mode
+- Versión solo ícono (sin texto)
+- Versión horizontal con tagline
+
+━━━ PROMPT #3 — IDENTIDAD VISUAL DE MARCA ━━━
+Prompt para crear un brandboard completo con paleta de colores, tipografías y elementos visuales.
+
+━━━ PROMPT #4 — IMAGEN HERO / BANNER ━━━
+Prompt para imagen principal de website o redes sociales representando la esencia del negocio.
+
+━━━ PROMPT #5 — PERSONAJE O MASCOTA (opcional) ━━━
+Si aplica, prompt para crear un personaje/mascota que represente la marca.
+
+Para cada prompt: escribe el prompt completo en español listo para copiar en la herramienta IA, y explica brevemente en español el concepto detrás.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: PROMPTS DE VIDEO
+────────────────────────────────────────────────────────────
+
+Actúa como director creativo y productor de video con especialización en contenido para marcas digitales.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Genera PROMPTS COMPLETOS para crear videos con herramientas de IA (Sora, Runway, Pika, Kling, HeyGen):
+
+━━━ PROMPT #1 — VIDEO PRESENTACIÓN DE MARCA (60 segundos) ━━━
+Prompt detallado para video de presentación corporativa. Incluir:
+- Escenas clave con descripción visual
+- Estilo cinematográfico, paleta de colores, ambiente
+- Música y tono emocional sugerido
+- Texto/narración en off sugerida
+- Formato: "cinematic brand video for [negocio], [descripción de escenas], [estilo], [mood], 4K, professional"
+
+━━━ PROMPT #2 — REEL DE REDES SOCIALES (15-30 segundos) ━━━
+Prompt para video viral de Instagram/TikTok mostrando el negocio en acción.
+
+━━━ PROMPT #3 — VIDEO EXPLICATIVO / EXPLAINER (90 segundos) ━━━
+Prompt para video animado explicando el problema que resuelve y la solución del negocio.
+
+━━━ PROMPT #4 — VIDEO TESTIMONIAL / CASO DE ÉXITO ━━━
+Prompt para video con estructura de storytelling de un cliente satisfecho.
+
+━━━ PROMPT #5 — VIDEO ANUNCIO PUBLICITARIO (15 segundos) ━━━
+Prompt para ad corto, impactante y con CTA claro para publicidad digital.
+
+━━━ GUIÓN NARRATIVO COMPLETO ━━━
+Para el video principal: guión completo con escenas, diálogos/narración, transiciones y CTA.
+
+Para cada prompt: escribe el prompt en español (listo para la herramienta IA) y el concepto en español. Incluye sugerencias de plataforma ideal para cada video.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: LANDING PAGE / WEB
+────────────────────────────────────────────────────────────
+
+Actúa como un equipo experto combinando: Diseñador UI/UX Senior, Desarrollador Front-End Full-Stack, Copywriter especialista en conversión, Estratega de Marketing Digital y Experto en SEO.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Tu misión es generar el CÓDIGO COMPLETO HTML/CSS/JavaScript de una landing page de alta conversión, visualmente extraordinaria y lista para publicar.
+
+══════════════════════════════════════════════════════════
+ INSTRUCCIONES DE DISEÑO Y ESTÉTICA
+══════════════════════════════════════════════════════════
+
+IDENTIDAD VISUAL:
+- Diseña una paleta de colores premium basada en la esencia del negocio "JJGT" (propón colores primario, secundario, acento y neutros con sus códigos HEX).
+- Elige tipografías de Google Fonts que sean únicas, memorables y apropiadas para la marca (NO uses Inter, Roboto ni Arial). Una fuente display para títulos y una fuente legible para cuerpo.
+- El logo del negocio debe integrarse en el header como un SVG inline elegante o como texto estilizado con la fuente display si no hay imagen disponible; diseña un isologotipo de texto que se vea como una marca real.
+- Integra placeholders realistas para las imágenes generadas por IA usando elementos CSS/SVG creativos (no simples rectángulos grises), con descripciones del tipo de imagen que irá ahí (hero, equipo, producto, testimonios, etc.).
+
+ESTÉTICA Y ATMÓSFERA:
+- Elige una dirección estética clara y ejecútala con precisión: puede ser luxury/refinado, editorial/magazine, bold/minimalista, tech/futurista, orgánico/natural, art deco, etc. — lo que mejor represente al negocio.
+- Usa fondos con profundidad: gradientes mesh, texturas sutiles, noise overlays, formas geométricas flotantes o patrones que creen atmósfera.
+- Incluye animaciones CSS impactantes: entrada de elementos con scroll (Intersection Observer), efectos hover memorables, parallax sutil, contador animado de métricas.
+- Diseño asimétrico, con elementos que rompan el grid de forma intencional, overlap de secciones, uso dramático del espacio negativo.
+
+══════════════════════════════════════════════════════════
+ ESTRUCTURA DE LA LANDING PAGE (TODAS LAS SECCIONES)
+══════════════════════════════════════════════════════════
+
+1. HEADER / NAVEGACIÓN FIJA
+   - Logo del negocio (SVG inline o texto estilizado como marca real)
+   - Menú de navegación con links suaves (smooth scroll) a cada sección
+   - CTA principal en el header ("Empezar gratis", "Contactar", etc.)
+   - Efecto glassmorphism o sólido según la estética elegida
+   - Hamburger menu animado para móvil
+
+2. HERO SECTION — PRIMERA IMPRESIÓN (Above the fold)
+   - Headline principal: frase de máximo impacto que comunique la transformación del cliente (NO el nombre del producto, SÍ el beneficio)
+   - Subheadline: complemento que clarifica la propuesta de valor en 1-2 líneas
+   - 2 botones CTA: primario (acción principal) y secundario (ver demo/saber más)
+   - Elemento visual hero: mockup del producto, ilustración SVG animada o imagen placeholder descriptiva
+   - Social proof inicial: "Más de X clientes" o logos de empresas / métricas clave con animación de conteo
+   - Efecto de fondo animado (partículas, gradiente en movimiento, formas geométricas)
+
+3. BARRA DE LOGOS — CREDIBILIDAD SOCIAL
+   - Sección "Confían en nosotros" con logos de empresas/medios/partners (usa nombres ficticios representativos)
+   - Animación de scroll infinito horizontal (marquee/carousel)
+
+4. PROBLEMA / SOLUCIÓN — STORYTELLING
+   - Sección narrativa: primero agitar el dolor del cliente ("¿Cansado de...?")
+   - Luego presentar la solución de forma clara y visual
+   - Usar iconografía SVG inline animada, no emojis
+   - Diseño de dos columnas con contraste visual fuerte
+
+5. CARACTERÍSTICAS / BENEFICIOS — PROPUESTA DE VALOR
+   - Grid de 3-6 features con icono SVG único, título y descripción
+   - Cada tarjeta con efecto hover 3D o elevación
+   - Highlight del diferenciador principal con diseño destacado
+   - Tabs o acordeones si hay mucho contenido
+
+6. CÓMO FUNCIONA — PROCESO EN 3 PASOS
+   - Numeración visual grande y decorativa
+   - Descripción clara de cada paso con icono
+   - Línea conectora animada entre pasos
+   - Screenshot o mockup placeholder por cada paso
+
+7. MÉTRICAS / RESULTADOS — PRUEBA SOCIAL NUMÉRICA
+   - 4-6 números impactantes con contador animado al hacer scroll
+   - Ej: "97% de satisfacción", "10,000+ usuarios", "3x más rápido"
+   - Fondo con imagen o gradiente dramático (sección oscura si el resto es claro)
+
+8. TESTIMONIOS — PRUEBA SOCIAL CUALITATIVA
+   - 3 testimonios con foto placeholder circular, nombre, cargo/empresa y texto
+   - Calificación en estrellas SVG
+   - Diseño en tarjetas con carousel o grid masonry
+   - Cita destacada más grande para el testimonio principal
+
+9. PRECIOS — TABLA DE PLANES (si aplica)
+   - 3 planes (Básico, Pro, Enterprise) con toggle Mensual/Anual
+   - Resaltar plan recomendado con badge "Más Popular"
+   - Lista de features con checkmarks SVG coloridos
+   - CTA por cada plan
+   - Garantía (ej: "30 días de prueba gratuita sin tarjeta de crédito")
+
+10. FAQ — PREGUNTAS FRECUENTES
+    - 5-7 preguntas relevantes al negocio con acordeón animado
+    - Diseño limpio con líneas separadoras sutiles
+
+11. CTA FINAL — SECCIÓN DE CONVERSIÓN
+    - Headline poderoso orientado a urgencia o transformación
+    - Formulario de captura: nombre, email, (teléfono opcional), botón CTA grande
+    - Elementos de confianza: candado SSL, sin spam, garantía
+    - Fondo contrastante dramático con la identidad visual
+
+12. FOOTER COMPLETO
+    - Logo + tagline
+    - 4 columnas: Producto, Empresa, Recursos, Legal
+    - Redes sociales con iconos SVG animados
+    - Newsletter signup inline
+    - Copyright y links de privacidad/términos
+
+══════════════════════════════════════════════════════════
+ COPYWRITING Y MARKETING
+══════════════════════════════════════════════════════════
+
+- Escribe copy real y específico para "JJGT", NO texto placeholder genérico
+- Aplica fórmulas probadas: AIDA (Atención-Interés-Deseo-Acción), PAS (Problema-Agitación-Solución)
+- Cada CTA debe ser específico y orientado a beneficio ("Empieza a crecer hoy", NO "Enviar")
+- Integra palabras clave de SEO de forma natural en headings y párrafos
+- Microcopy de confianza: "Sin tarjeta de crédito", "Cancela cuando quieras", "Soporte 24/7"
+
+══════════════════════════════════════════════════════════
+ ESPECIFICACIONES TÉCNICAS
+══════════════════════════════════════════════════════════
+
+CÓDIGO:
+- HTML5 semántico completo (un solo archivo .html autocontenido)
+- CSS3 moderno con variables CSS (--color-primary, etc.), Flexbox y Grid
+- JavaScript vanilla ES6+ sin dependencias externas
+- Google Fonts via @import en el CSS
+- Todos los iconos como SVG inline (NO FontAwesome, NO imágenes externas)
+- Intersection Observer para animaciones on-scroll
+- Formulario con validación JS y feedback visual
+
+RESPONSIVE DESIGN:
+- Mobile-first con breakpoints: 480px, 768px, 1024px, 1440px
+- Navegación hamburger en móvil completamente funcional
+- Imágenes y tipografías fluidas con clamp()
+- Touch-friendly en todos los elementos interactivos
+
+SEO Y PERFORMANCE:
+- Meta tags completos: title, description, og:tags, twitter:card
+- Schema.org markup para LocalBusiness o SoftwareApplication
+- Atributos alt descriptivos en todas las imágenes
+- Lazy loading en imágenes
+- Estructura de headings H1→H2→H3 correcta
+
+ACCESIBILIDAD:
+- Roles ARIA en elementos interactivos
+- Focus styles visibles
+- Contraste de colores WCAG AA mínimo
+- Skip navigation link
+
+══════════════════════════════════════════════════════════
+ INSTRUCCIONES DE ENTREGA
+══════════════════════════════════════════════════════════
+
+Entrega:
+1. Primero, un BRIEF DE DISEÑO (10-15 líneas): paleta de colores elegida con HEX, tipografías, dirección estética y concepto general de la marca.
+2. Luego, el CÓDIGO HTML COMPLETO del archivo index.html (todo en un solo archivo, incluyendo <style> y <script>).
+3. Al final, una GUÍA DE IMPLEMENTACIÓN: cómo reemplazar los placeholders de imágenes por las generadas con IA, y qué imágenes específicas se necesitan generadas (con sus prompts sugeridos para Midjourney/DALL-E).
+
+El código debe estar listo para abrirse en el navegador sin configuración adicional y verse de forma extraordinaria. Prioriza calidad visual y conversión sobre simplicidad de código.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: TIENDA VIRTUAL
+────────────────────────────────────────────────────────────
+
+Actúa como un equipo élite combinando: Arquitecto de E-Commerce Senior, Diseñador UI/UX especialista en tiendas online, Desarrollador Full-Stack con experiencia en comercio electrónico, Experto en UX de conversión (CRO), Copywriter de producto y Estratega de marketing digital para ventas online.
+
+NEGOCIO: {name}
+DESCRIPCIÓN: {desc}
+
+Tu misión es generar el CÓDIGO COMPLETO HTML/CSS/JavaScript de una tienda virtual completamente funcional, visualmente extraordinaria, fácil de usar e intuitiva — todo en un único archivo autocontenido listo para abrir en el navegador.
+
+══════════════════════════════════════════════════════════════
+ IDENTIDAD VISUAL Y ESTÉTICA DE LA TIENDA
+══════════════════════════════════════════════════════════════
+
+DISEÑO DE MARCA:
+- Crea una paleta de colores premium y coherente al negocio "{name}" (primario, secundario, acento, fondo, texto con códigos HEX).
+- Tipografías exclusivas vía Google Fonts: una display para títulos y precios, una sans-serif legible para descripciones. NUNCA uses Inter, Roboto ni Arial.
+- Logo integrado como SVG inline en el header con isologotipo de texto estilizado que luzca como una marca real de e-commerce.
+- Iconografía SVG inline personalizada para carrito, wishlist, búsqueda, usuario, estrellas, filtros, categorías. NUNCA uses FontAwesome.
+- Placeholders de imágenes de producto con CSS gradient art + descripción del tipo de foto (fondo blanco, lifestyle, detalle, etc.).
+- Estética diferenciada: luxury/minimalista, bold/colorida, editorial/magazine, tech/moderna, boutique/artesanal — la que mejor represente al negocio.
+
+ATMÓSFERA Y MOTION:
+- Animaciones CSS fluidas: fade-in de productos al scroll (Intersection Observer), hover cards con zoom suave + sombra elevada, skeleton loading simulado.
+- Micro-interacciones: botón "Agregar al carrito" con efecto bounce + cambio de estado, animación de corazón en wishlist, badge del carrito con pulso al agregar item.
+- Fondo con profundidad: gradiente sutil, patrón geométrico fino o textura que no compita con los productos.
+
+══════════════════════════════════════════════════════════════
+ ARQUITECTURA Y PÁGINAS DE LA TIENDA (single-page app)
+══════════════════════════════════════════════════════════════
+
+Implementa las siguientes VISTAS navegables con JavaScript (router simple con hashchange):
+
+━━━ VISTA 1 — HOME ━━━
+- Hero banner rotativo (3 slides, autoplay, indicadores, flechas) con headline + CTA + countdown de oferta
+- Barra de beneficios: envío gratis / devoluciones / pago seguro / soporte 24h (iconos SVG)
+- Categorías destacadas: grid 4-6 con imagen placeholder y nombre
+- Productos más vendidos: carrusel horizontal de 8 tarjetas
+- Banner de oferta especial con urgencia y CTA
+- Nuevos productos: grid 4 columnas
+- ¿Por qué elegirnos?: 4 íconos SVG + título + descripción
+- Testimonios: 3 cards con foto placeholder, nombre, ciudad, estrellas y texto
+- Newsletter signup con validación JS y mensaje de confirmación
+
+━━━ VISTA 2 — CATÁLOGO ━━━
+- Breadcrumb + toolbar (resultados, ordenar, toggle grid/lista)
+- Sidebar de filtros desktop / drawer animado móvil:
+  * Categoría (checkboxes con conteo), precio (slider dual range), rating, disponibilidad
+  * Botones "Aplicar" y "Limpiar"
+- Grid productos (4/2/1 col por breakpoint): badge dinámico, wishlist toggle, rating, precio tachado/actual, botones "Ver" y "Agregar"
+- Paginación con números
+- Estado vacío con ilustración SVG y CTA
+- Quick-view modal al pasar cursor sobre la tarjeta
+
+━━━ VISTA 3 — DETALLE DE PRODUCTO ━━━
+- Galería: imagen principal + 4 miniaturas clicables + zoom hover
+- Badge disponibilidad y stock restante
+- Selector de variantes (color/talla), selector de cantidad +-
+- CTAs: "Agregar al carrito" (primario) + "Wishlist"
+- Información de envío con campo de ciudad
+- Badges de confianza: SSL / devolución 30 días / envío asegurado
+- Tabs: Descripción / Especificaciones / Reseñas / FAQ
+- Sección reseñas: 4 reviews + formulario para dejar reseña
+- Productos relacionados: carrusel 4 items
+
+━━━ VISTA 4 — CARRITO ━━━
+- Lista de items: imagen, nombre, variante, cantidad (/+), subtotal, eliminar
+- Campo de cupón con validación JS (código "PROMO20" = 20% off)
+- Resumen: subtotal, descuento, envío, impuesto, TOTAL en tiempo real
+- Barra de progreso "Faltan $X para envío gratis"
+- CTAs: "Seguir comprando" + "Ir al pago"
+- Estado vacío + sugerencias de productos
+
+━━━ VISTA 5 — CHECKOUT ━━━
+- Stepper: Información → Envío → Pago → Confirmación
+- Paso 1: datos del comprador (nombre, email, teléfono)
+- Paso 2: dirección + opciones de envío (estándar/express/recogida) con costos y días
+- Paso 3: método de pago en tabs (tarjeta / PSE / transferencia / contra entrega)
+  * Form de tarjeta con formateo automático y visualización 3D animada que voltea al ingresar CVV
+- Paso 4: confirmación con número de orden, estimado de entrega y CTA volver a tienda
+
+━━━ VISTA 6 — WISHLIST ━━━
+- Grid de favoritos con botón "Agregar al carrito" y "Eliminar"
+- Botón "Agregar todo al carrito"
+
+━━━ MODAL MI CUENTA ━━━
+- Tabs: Login / Registro (solo UI, sin backend)
+
+══════════════════════════════════════════════════════════════
+ COMPONENTES GLOBALES
+══════════════════════════════════════════════════════════════
+
+HEADER FIJO:
+- Logo SVG + barra de búsqueda central con autocompletado JS + iconos cuenta/wishlist/carrito con contadores
+- Mega-menú hover desktop con subcategorías + featured product
+- Hamburger fullscreen en móvil
+
+BANNER SUPERIOR DISMISSIBLE: oferta + código promocional + botón X (localStorage)
+
+FOOTER: logo, 4 columnas de links, métodos de pago SVG, newsletter, redes, copyright
+
+SISTEMAS GLOBALES:
+- Toast notifications apilables (esquina sup der, auto-dismiss 3s)
+- Botón "volver arriba" flotante (aparece > 300px scroll)
+- Modal de búsqueda con overlay y resultados en tiempo real
+- Skeleton loading: simular carga de productos 500ms
+
+══════════════════════════════════════════════════════════════
+ CATÁLOGO DE DATOS
+══════════════════════════════════════════════════════════════
+
+Genera en JavaScript un catálogo de MÍNIMO 20 PRODUCTOS coherentes con "{name}" y su descripción. Cada producto debe tener: id, nombre, categoría, precio original, precio oferta, descripción, rating (4.0-5.0), numReseñas, stock, variantes, tags, esNuevo, esOferta, imagenDesc (descripción del placeholder).
+Organiza en 4-6 CATEGORÍAS lógicas con nombre, descripción e ícono SVG path.
+
+══════════════════════════════════════════════════════════════
+ FUNCIONALIDADES JAVASCRIPT REQUERIDAS
+══════════════════════════════════════════════════════════════
+
+- Router SPA (hashchange/history API)
+- Estado global carrito: agregar, quitar, actualizar, vaciar, persistir localStorage
+- Estado wishlist: toggle, persistir localStorage
+- Contadores header en tiempo real
+- Filtros catálogo: categoría, rango precio, rating — en tiempo real
+- Ordenamiento: precio asc/desc, popularidad, novedad
+- Toggle vista grid/lista
+- Buscador: filtrado en tiempo real por nombre/categoría/tag + autocompletado
+- Countdown de oferta con setInterval
+- Contador animado de métricas (Intersection Observer)
+- Carrusel hero: autoplay 4s + manual + indicadores
+- Carrusel relacionados con drag/swipe en móvil
+- Validación completa de checkout: email, teléfono, campos requeridos
+- Cupón de descuento con validación y aplicación al total
+- Animación tarjeta 3D en checkout (flip al ingresar CVV)
+- Toast notifications apilables
+- Skeleton loading (setTimeout 500ms)
+- Quick-view modal de producto
+- Acordeón FAQ con animación de altura
+- Tabs de producto suaves
+- Galería de producto con thumbnail click + zoom
+- Persistir preferencia grid/lista en localStorage
+
+══════════════════════════════════════════════════════════════
+ RESPONSIVE Y ACCESIBILIDAD
+══════════════════════════════════════════════════════════════
+
+- Mobile-first, breakpoints: 480px / 768px / 1024px / 1280px / 1440px
+- Grid productos: 1 col (móvil) / 2 col (tablet) / 3-4 col (desktop)
+- Sidebar filtros → drawer en móvil
+- Touch/swipe en carruseles
+- Botones y áreas táctiles mínimo 44px
+- Roles ARIA, labels en inputs, focus trap en modales, contraste WCAG AA
+
+══════════════════════════════════════════════════════════════
+ SEO Y META TAGS
+══════════════════════════════════════════════════════════════
+
+- Title y meta description actualizados por vista con JS
+- Open Graph y Twitter Card
+- Schema.org: Organization + WebSite + Product
+- Breadcrumb structured data
+
+══════════════════════════════════════════════════════════════
+ INSTRUCCIONES DE ENTREGA
+══════════════════════════════════════════════════════════════
+
+Entrega en este orden:
+
+1. BRIEF DE DISEÑO E-COMMERCE (15 líneas):
+   Nombre tienda, slogan, paleta HEX completa, tipografías elegidas, estética, concepto visual.
+
+2. JSON DEL CATÁLOGO:
+   Array de 20+ productos con todos sus campos + array de categorías con ícono SVG path.
+
+3. CÓDIGO HTML COMPLETO (un solo archivo index.html):
+   HTML semántico + <style> CSS completo + <script> JS completo. Sin dependencias externas (solo Google Fonts por @import). Funcional al abrir directamente en navegador.
+
+4. GUÍA DE IMÁGENES:
+   Lista de todas las imágenes necesarias (20+ productos + 3 banners + 6 categorías).
+   Para cada imagen: prompt en español listo para Midjourney/DALL-E 3/Firefly.
+   Instrucciones de cómo reemplazar placeholders CSS.
+
+5. GUÍA DE INTEGRACIÓN DE PAGO:
+   Cómo conectar con MercadoPago, PayU, Wompi (Colombia) o Stripe.
+   Snippet de código de ejemplo para cada pasarela.
+
+La tienda debe ser FUNCIONAL, HERMOSA e INTUITIVA: cualquier persona puede navegar, filtrar, comprar y pagar sin necesitar instrucciones.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: CRM COMPLETO
+────────────────────────────────────────────────────────────
+
+Actúa como un equipo de élite compuesto por: Desarrollador Senior Python/Streamlit, Arquitecto de Software especialista en CRM y SaaS, Diseñador UI/UX de aplicaciones empresariales, Experto en procesos de ventas y automatización de marketing, y Consultor de negocios especializado en retención y fidelización de clientes.
+
+NEGOCIO: {name}
+DESCRIPCIÓN: {desc}
+
+Tu misión es generar el CÓDIGO COMPLETO Python de un CRM (Customer Relationship Management) totalmente funcional, profesional e intuitivo en Streamlit, diseñado específicamente para las necesidades del negocio "{name}", listo para ejecutar con `streamlit run crm.py`.
+
+══════════════════════════════════════════════════════════════
+ INSTALACIÓN Y DEPENDENCIAS
+══════════════════════════════════════════════════════════════
+
+Incluir al inicio del script:
+```
+# Instalación:
+# pip install streamlit pandas plotly openpyxl pillow sqlite3
+#
+# Ejecución:
+# streamlit run crm.py
+```
+
+══════════════════════════════════════════════════════════════
+ CONFIGURACIÓN Y DISEÑO DE LA APP
+══════════════════════════════════════════════════════════════
+
+SETUP INICIAL:
+- st.set_page_config(page_title="CRM · {name}", page_icon="🤝", layout="wide", initial_sidebar_state="expanded")
+- CSS personalizado vía st.markdown(<style>) para:
+  * Fondo corporativo profesional (degradado oscuro o claro según la estética del negocio)
+  * Tarjetas KPI con borde izquierdo coloreado, sombra suave y hover elevado
+  * Tablas con filas alternadas, badges de color por estado y tipografía monoespaciada para números
+  * Sidebar con fondo más oscuro, íconos alineados y separadores visuales por sección
+  * Botones con colores corporativos, bordes redondeados y transición hover
+  * Formularios con inputs estilizados, labels flotantes y feedback visual
+  * Badges de estado: verde=activo/ganado, amarillo=en proceso, rojo=perdido/vencido, gris=inactivo
+  * Header de cada módulo con icono SVG inline + título + descripción breve
+- Logo textual estilizado del negocio "{name}" en el sidebar con CSS
+
+SIDEBAR DE NAVEGACIÓN:
+- Título del CRM con logo e icono
+- st.radio o botones para navegar entre módulos con íconos:
+  🏠 Dashboard | 👥 Contactos | 🏢 Empresas | 💼 Pipeline | 📅 Actividades | ✅ Tareas | 📧 Comunicaciones | 📊 Reportes | 🎯 Campañas | ⚙️ Configuración
+- Métricas rápidas en sidebar: clientes activos, deals abiertos, tareas hoy
+- Footer del sidebar: versión del CRM y nombre del negocio
+
+══════════════════════════════════════════════════════════════
+ MÓDULOS DE LA APLICACIÓN
+══════════════════════════════════════════════════════════════
+
+━━━ MÓDULO 1 — DASHBOARD PRINCIPAL ━━━
+- Fila de st.metric() con delta: Total Clientes, Deals Activos, Ingresos del Mes ($), Tasa de Conversión (%), Tareas Pendientes, NPS Score
+- Gráfico de barras Plotly: ventas mensuales últimos 12 meses (objetivo vs real) con colores corporativos
+- Gráfico de dona Plotly: distribución de deals por etapa del pipeline
+- Gráfico de línea Plotly: nuevos clientes por mes con área sombreada
+- Tabla de últimas 10 actividades con badges de color por tipo
+- st.expander "🚨 Alertas": deals sin actividad > 7 días, tareas vencidas, clientes sin contacto > 30 días
+- Top 5 clientes por valor con barra de progreso visual
+- Columnas bien distribuidas: st.columns([2,1]) para gráficas + KPIs laterales
+
+━━━ MÓDULO 2 — CONTACTOS / CLIENTES ━━━
+VISTA LISTADO:
+- Filtros en st.columns: búsqueda texto (nombre/email/empresa), selectbox estado (Todos/Lead/Prospecto/Cliente/Inactivo), selectbox ciudad, selectbox fuente de origen, date_input rango de fechas
+- Botones: "➕ Nuevo Contacto" | "📥 Importar CSV" | "📤 Exportar CSV" | "🔄 Actualizar"
+- st.dataframe con columnas: Avatar (iniciales coloreadas en HTML), Nombre, Empresa, Email, Teléfono, Estado (badge), Ciudad, Última Actividad, Valor Total ($), Acciones
+- use_container_width=True, column_config con tipos y formatos
+- Paginación manual con st.session_state (10/25/50 por página)
+- Selección de filas y acciones masivas (cambiar estado, exportar seleccionados, eliminar)
+
+VISTA DETALLE DE CONTACTO (st.expander o página dedicada):
+- Header: nombre grande, empresa, badge estado, botones acción rápida
+- st.tabs(["📋 Datos", "📈 Actividad", "💼 Deals", "✅ Tareas", "📎 Archivos", "📧 Emails"])
+  * Datos: formulario editable con todos los campos
+  * Actividad: timeline con st.container por cada evento (llamada/email/reunión/nota)
+  * Deals: tabla de oportunidades asociadas con estado y valor
+  * Tareas: lista de tareas con checkbox de completar
+  * Archivos: lista de documentos con icono por tipo
+  * Emails: historial de correos enviados/recibidos
+- Puntuación del lead (0-100) con st.progress y color semáforo
+- Etiquetas con st.multiselect de colores
+
+FORMULARIO NUEVO/EDITAR CONTACTO (st.form):
+- Datos personales: nombre, apellido, cargo, email, teléfono, teléfono alternativo
+- Datos empresa: empresa, industria, sitio web, tamaño empresa
+- Ubicación: dirección, ciudad, departamento, país
+- CRM: estado, fuente de origen (Redes/Referido/Web/Evento/Frío), responsable asignado, etiquetas, notas
+- Validación: email formato, teléfono numérico, campos requeridos
+- st.form_submit_button con estados: "Guardando..." y confirmación
+
+━━━ MÓDULO 3 — EMPRESAS / CUENTAS ━━━
+- Lista de empresas con filtros (industria, tamaño, ciudad, estado)
+- CRUD completo: nombre, NIT, industria, tamaño (1-10/11-50/51-200/200+), facturación anual, website, dirección, contacto principal
+- Vista detalle con contactos asociados, deals, actividades e historial
+- Importar/exportar CSV de empresas
+
+━━━ MÓDULO 4 — PIPELINE DE VENTAS / DEALS ━━━
+VISTA KANBAN (simulada en Streamlit con st.columns):
+- Una columna por etapa: Prospecto | Calificado | Propuesta | Negociación | ✅ Ganado | ❌ Perdido
+- Encabezado de columna: nombre etapa, cantidad deals, valor total con formato $
+- Cada tarjeta de deal en st.container con borde izquierdo de color por etapa:
+  * Nombre del deal, empresa/contacto, valor $ grande
+  * Barra de progreso = probabilidad de cierre
+  * Fecha estimada de cierre con color rojo si está vencida
+  * Avatar responsable + días en etapa
+  * Botones mini: ✏️ Editar | ➡️ Avanzar etapa | 🗑️ Eliminar
+
+VISTA LISTA (st.dataframe completo):
+- Todas las columnas ordenables: Deal, Contacto, Empresa, Valor, Etapa, Probabilidad, Cierre, Responsable, Días en etapa, Acciones
+
+VISTA FORECAST:
+- Tabla pivote por responsable y mes: suma de deals ponderados por probabilidad
+- Gráfico de barras: proyección vs objetivo por mes
+
+FORMULARIO NUEVO DEAL (st.form):
+- Nombre del deal, contacto (st.selectbox buscable), empresa, valor ($), moneda
+- Etapa inicial, probabilidad (st.slider 0-100%), fecha estimada cierre
+- Responsable asignado, descripción, fuente del deal
+- Productos/servicios involucrados (st.multiselect del catálogo)
+
+━━━ MÓDULO 5 — ACTIVIDADES ━━━
+- Calendario visual: st.date_input + tabla de actividades del día/semana seleccionado
+- Lista de actividades con filtros: tipo (Llamada/Email/Reunión/Demo/Follow-up), estado, responsable, contacto, rango fechas
+- Por cada actividad: icono tipo, título, contacto/empresa enlazado, fecha/hora, duración, responsable, estado badge, notas
+- Formulario nueva actividad: tipo, título, contacto (selectbox), fecha, hora inicio, duración, responsable, descripción, resultado, estado
+- Vista "Próximas 7 días" con agrupar por día usando st.expander por fecha
+- Estadísticas: actividades por tipo esta semana con st.metric y mini gráfico de barras
+
+━━━ MÓDULO 6 — TAREAS ━━━
+- Filtros: responsable, prioridad (🔴 Alta/🟡 Media/🟢 Baja), estado, vencimiento, entidad asociada
+- st.tabs(["📋 Lista", "📊 Kanban"])
+  * Lista: tabla con checkbox de completar, prioridad badge, fecha vencimiento (rojo si vencida), responsable
+  * Kanban: st.columns(4) para Por Hacer / En Progreso / Bloqueado / Completado — cards con drag simulado via botones
+- Formulario nueva tarea: título, descripción, prioridad, fecha vencimiento, responsable, asociar a (contacto/deal/empresa), subtareas (st.data_editor)
+- Resumen: tareas vencidas en rojo, vencen hoy en amarillo, completadas hoy en verde
+
+━━━ MÓDULO 7 — COMUNICACIONES / EMAIL ━━━
+- Bandeja de entrada simulada: st.dataframe con De, Asunto, Preview, Fecha, Estado (leído/no leído badge)
+- Vista detalle de email: st.expander con hilo de conversación, botón "Responder"
+- Composer de email: To (st.multiselect de contactos), CC, Asunto, cuerpo (st.text_area), plantilla predefinida (st.selectbox)
+- Plantillas precargadas coherentes con "{name}": Bienvenida, Seguimiento, Propuesta, Recordatorio pago, Reactivación, Confirmación reunión
+- Registro automático: al "enviar" se registra como actividad del contacto
+- Estadísticas email: enviados este mes, tasa apertura estimada, plantilla más usada
+
+━━━ MÓDULO 8 — REPORTES Y ANALYTICS ━━━
+- Selector de período: st.date_input rango o st.selectbox (Esta semana/Este mes/Trimestre/Año/Personalizado)
+- st.tabs(["📈 Ventas", "👥 Clientes", "⚡ Actividad", "💼 Pipeline", "🏆 Equipo"])
+  * Ventas: ingresos por mes (barras Plotly), ticket promedio, tasa de cierre, top productos vendidos
+  * Clientes: nuevos por mes, por fuente de origen (dona), por ciudad (barras horizontales), tasa de retención
+  * Actividad: llamadas/emails/reuniones por semana, por responsable, ratio actividades → deals
+  * Pipeline: conversión por etapa (funnel Plotly), tiempo promedio en cada etapa, deals perdidos por razón
+  * Equipo: tabla de rendimiento por representante: deals cerrados, valor, actividades, tasa conversión
+- Botón "📥 Exportar a Excel" con openpyxl: genera archivo con múltiples sheets (una por reporte)
+- Botón "📄 Descargar Reporte PDF" (con reportlab o impresión CSS)
+
+━━━ MÓDULO 9 — CAMPAÑAS Y SEGMENTACIÓN ━━━
+- Segmentos: crear grupos dinámicos con filtros combinados (industria AND ciudad AND valor > X)
+  * Vista previa del tamaño del segmento en tiempo real
+  * Guardar segmento con nombre y descripción
+- Campañas:
+  * Listado con: nombre, segmento, plantilla, fecha envío, estado badge, métricas (enviados/abiertos/clics)
+  * Formulario nueva campaña: nombre, segmento objetivo, plantilla de email, fecha programada, descripción
+  * Simulación de envío con st.progress y st.spinner
+  * Resultados simulados: métricas de apertura y engagement
+- Automatizaciones (UI de configuración):
+  * Listar reglas activas: Trigger → Condición → Acción
+  * Formulario nueva regla: trigger (nuevo lead/deal avanza/sin contacto X días), condición, acción (enviar email/crear tarea/notificar)
+
+━━━ MÓDULO 10 — CONFIGURACIÓN ━━━
+- st.tabs(["👤 Mi Perfil", "🏢 Negocio", "👥 Usuarios", "🔧 Pipeline", "🏷️ Etiquetas", "📤 Datos", "🔗 Integraciones"])
+  * Mi Perfil: nombre, email, cargo, zona horaria, cambiar contraseña (UI)
+  * Negocio: nombre "{name}", logo (st.file_uploader), NIT, dirección, teléfono, email corporativo, sector
+  * Usuarios: tabla de usuarios con rol (Admin/Vendedor/Soporte/Lectura), toggle activo, botón invitar
+  * Pipeline: st.data_editor para etapas (nombre, color, probabilidad default, orden) con add/delete row
+  * Etiquetas: st.data_editor con nombre, color (color picker), descripción
+  * Datos: exportar todo a Excel/JSON, importar contactos desde CSV (con st.file_uploader y mapeo de columnas), vaciar datos de demo
+  * Integraciones: cards con logo SVG y toggle on/off: WhatsApp Business, Gmail, Outlook, Slack, Zapier, Calendly, MercadoPago, Stripe
+
+══════════════════════════════════════════════════════════════
+ BASE DE DATOS SQLITE3
+══════════════════════════════════════════════════════════════
+
+Crear con sqlite3 (sin dependencias externas) las siguientes tablas:
+
+- contactos: id, nombre, apellido, email, telefono, telefono2, cargo, empresa_id, estado, ciudad, departamento, pais, direccion, fuente, responsable, puntuacion, notas, etiquetas, creado_en, actualizado_en
+- empresas: id, nombre, nit, industria, tamano, facturacion, website, direccion, ciudad, pais, telefono, email, contacto_principal_id, estado, notas, creado_en
+- deals: id, nombre, contacto_id, empresa_id, valor, moneda, etapa, probabilidad, fecha_cierre, responsable, fuente, descripcion, estado, creado_en, actualizado_en
+- actividades: id, tipo, titulo, contacto_id, empresa_id, deal_id, fecha, hora, duracion, responsable, estado, notas, resultado, creado_en
+- tareas: id, titulo, descripcion, prioridad, estado, fecha_vencimiento, responsable, contacto_id, deal_id, empresa_id, completada_en, creado_en
+- emails: id, de_email, para_emails, asunto, cuerpo, plantilla_id, contacto_id, estado, enviado_en, abierto_en
+- campanas: id, nombre, segmento_json, plantilla_id, fecha_programada, estado, enviados, abiertos, clics, creado_en
+- usuarios: id, nombre, email, rol, activo, creado_en
+- configuracion: clave TEXT PRIMARY KEY, valor TEXT
+- etiquetas: id, nombre, color, descripcion
+
+Función init_db() que:
+1. Crea todas las tablas si no existen
+2. Precarga datos de demostración coherentes con "{name}":
+   - 20 contactos realistas con todos los campos
+   - 8 empresas con sus sectores y tamaños
+   - 15 deals en diferentes etapas con valores coherentes al negocio
+   - 25 actividades históricas y futuras
+   - 12 tareas con prioridades variadas
+   - 5 emails en bandeja
+   - 3 campañas de ejemplo
+   - Usuarios de demo: Admin, 2 vendedores, 1 soporte
+
+══════════════════════════════════════════════════════════════
+ FUNCIONALIDADES DE SESSION STATE Y UX
+══════════════════════════════════════════════════════════════
+
+- st.session_state para: módulo activo, filtros por módulo, paginación, contacto/deal seleccionado, modo edición
+- Caché con @st.cache_data para consultas pesadas a SQLite
+- st.rerun() para actualizar vistas tras CRUD
+- st.spinner() en operaciones que simulan carga (exportar, importar, "enviar" campaña)
+- st.success / st.error / st.warning para feedback de todas las acciones
+- st.dialog o st.popover para confirmación antes de eliminar
+- Búsqueda global en el sidebar: busca en tiempo real en contactos, deals y tareas
+
+══════════════════════════════════════════════════════════════
+ INSTRUCCIONES DE ENTREGA
+══════════════════════════════════════════════════════════════
+
+Entrega el script completo con esta estructura clara y bien comentada:
+
+1. ENCABEZADO DEL SCRIPT:
+   Comentario con descripción, instalación (pip install ...) y comando de ejecución.
+
+2. IMPORTS, CONSTANTES Y CONFIGURACIÓN:
+   Imports, st.set_page_config(), CSS personalizado, constantes de colores y etapas del pipeline.
+
+3. BASE DE DATOS:
+   init_db() + todas las funciones CRUD organizadas por entidad.
+
+4. FUNCIONES DE UTILIDAD:
+   Formateo de moneda, fechas, badges HTML, avatares con iniciales, exportar CSV/Excel.
+
+5. FUNCIONES DE GRÁFICAS:
+   Cada gráfica Plotly como función independiente que recibe los datos y retorna fig.
+
+6. MÓDULOS/PÁGINAS:
+   Una función por módulo: show_dashboard(), show_contactos(), show_empresas(), show_pipeline(), show_actividades(), show_tareas(), show_comunicaciones(), show_reportes(), show_campanas(), show_configuracion().
+
+7. MAIN:
+   Sidebar con navegación + routing al módulo activo basado en st.session_state.
+
+El script debe:
+- Ejecutarse con `streamlit run crm.py` sin configuración adicional
+- Incluir 20+ registros de demo coherentes con "{name}"
+- Todas las gráficas funcionales con Plotly
+- Exportación real a CSV y Excel (openpyxl)
+- Funcionar completamente offline con SQLite
+- Código limpio, modular, comentado y fácil de extender
+- Sentirse como un CRM SaaS real que cualquier equipo de ventas puede usar desde el primer día
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: APP MÓVIL (PWA)
+────────────────────────────────────────────────────────────
+
+Actúa como un equipo de élite compuesto por: Arquitecto de Apps Móviles Senior, Diseñador UI/UX Mobile especialista en experiencias táctiles, Desarrollador Full-Stack con expertise en Progressive Web Apps (PWA) y React Native Web, Experto en UX de conversión móvil, Especialista en rendimiento y animaciones móviles.
+
+NEGOCIO: {name}
+DESCRIPCIÓN: {desc}
+
+Tu misión es generar el CÓDIGO COMPLETO HTML/CSS/JavaScript de una Progressive Web App (PWA) totalmente funcional, con apariencia y comportamiento de app móvil nativa, diseñada específicamente para "{name}" — todo en un único archivo autocontenido instalable en cualquier dispositivo.
+
+══════════════════════════════════════════════════════════════
+ CONCEPTO Y TIPO DE APP
+══════════════════════════════════════════════════════════════
+
+Analiza la descripción del negocio "{name}" y determina el TIPO DE APP más adecuado. Puede ser una combinación de:
+- App de servicio/reservas (agenda, calendario, citas)
+- App de pedidos y delivery (catálogo móvil, carrito, seguimiento)
+- App de fidelización y loyalty (puntos, recompensas, historial)
+- App de comunidad/contenido (feed, perfiles, interacciones)
+- App de gestión interna (dashboard para el equipo en campo)
+- App de onboarding y cliente (bienvenida, seguimiento de proceso)
+
+Escoge el tipo que mejor sirva al negocio y justifícalo en el brief de diseño.
+
+══════════════════════════════════════════════════════════════
+ IDENTIDAD VISUAL MOBILE-FIRST
+══════════════════════════════════════════════════════════════
+
+DISEÑO NATIVO-FEELING:
+- Paleta de colores vibrante y coherente con "{name}": primario, secundario, acento, fondo (claro y oscuro), superficie, con HEX.
+- Tipografías Google Fonts: una display para headings grandes, una sans-serif legible para cuerpo. NUNCA Inter, Roboto ni Arial.
+- Iconografía SVG inline de sistema consistente: tabs, acciones, estados, categorías. Estilo línea o filled cohesivo.
+- Splash screen animada al abrir la app (logo + animación de entrada 2s)
+- Avatares con iniciales coloreadas para usuarios sin foto
+- Imágenes placeholder con gradientes artísticos + descripción de contenido
+
+ESTÉTICA MOBILE PREMIUM:
+- Bottom navigation bar (estilo iOS/Android nativo): 4-5 tabs con íconos SVG + labels + badge de notificaciones
+- Swipe gestures: deslizar tarjetas, pull-to-refresh, swipe para eliminar/archivar
+- Haptic feedback simulado: micro-animaciones en cada tap que imitan vibración táctil
+- Transitions entre vistas: slide horizontal (iOS-style) o fade + scale (Android-style)
+- Cards elevadas con sombras suaves, bordes redondeados generosos (16-24px)
+- Safe area handling: respeta notch y home indicator con CSS env()
+- Scroll con momentum y snappoints
+- Modo oscuro automático (prefers-color-scheme) + toggle manual
+
+══════════════════════════════════════════════════════════════
+ ESTRUCTURA DE LA APP (pantallas y flujos)
+══════════════════════════════════════════════════════════════
+
+━━━ FLUJO 0 — ONBOARDING (primera vez) ━━━
+□ Splash screen: logo animado + gradiente del negocio (2.5s auto)
+□ 3 slides de onboarding con ilustración SVG + título + descripción + botón "Siguiente"
+□ Último slide: "Crear cuenta" (primario) + "Ya tengo cuenta" (secundario)
+□ Guardar en localStorage si ya vio el onboarding (no mostrar de nuevo)
+
+━━━ FLUJO 1 — AUTENTICACIÓN ━━━
+□ Pantalla de login: logo, email, contraseña, "¿Olvidaste tu contraseña?", botón entrar
+□ Login con Google / Apple (botones UI, sin implementación real)
+□ Pantalla de registro: nombre, email, contraseña, confirmar, términos checkbox
+□ Pantalla recuperar contraseña: email + instrucciones
+□ Validación en tiempo real con mensajes de error debajo de cada campo
+□ Animación de loading en botones + feedback de éxito/error
+
+━━━ PANTALLA PRINCIPAL — HOME / FEED ━━━ (según tipo de app elegido para "{name}")
+□ Header: logo/avatar del usuario, saludo personalizado, notificaciones badge
+□ Sección destacada: banner hero o card grande con acción principal del negocio
+□ Sección de accesos rápidos: grid 2x2 o 3x2 con íconos grandes y labels (las acciones más usadas)
+□ Feed o listado principal: cards desplazables verticalmente con imagen, título, descripción corta, metadata (fecha/precio/distancia/estado)
+□ Pull-to-refresh: animación de recarga al arrastrar hacia abajo
+□ Skeleton loading: placeholders animados mientras carga el contenido
+
+━━━ PANTALLA EXPLORAR / CATÁLOGO / SERVICIOS ━━━
+□ Barra de búsqueda sticky + filtros horizontales en chips scrollables
+□ Tabs de categorías: scroll horizontal con indicador de activa
+□ Grid o lista de items (toggle): imagen, nombre, precio/duración, rating, favorito
+□ Filtros avanzados: bottom sheet deslizable hacia arriba con opciones
+□ Mapa de ubicación (placeholder visual con SVG) si el negocio es físico/delivery
+□ Carga infinita al hacer scroll (simular con "Ver más" y animación)
+
+━━━ PANTALLA DETALLE (producto/servicio/item) ━━━
+□ Header con imagen grande (parallax al scroll) + botón back + botón compartir + favorito
+□ Información principal: nombre, precio/duración, rating con estrellas y reseñas
+□ Galería horizontal scrollable de imágenes
+□ Descripción expandible (Ver más / Ver menos)
+□ Opciones/variantes: selector tipo chips o cards
+□ Sección de reseñas: 3 reviews + botón "Ver todas"
+□ Botón CTA sticky en bottom: "Agregar al carrito" / "Reservar ahora" / "Contratar"
+□ Compartir: bottom sheet con opciones de compartir
+
+━━━ PANTALLA CARRITO / RESERVA / PROCESO ━━━
+□ Lista de items seleccionados con imagen, nombre, cantidad (+/-), precio
+□ Resumen de costos: subtotal, descuento, envío/servicio, total
+□ Campo de cupón/código de descuento
+□ Sección de dirección de entrega o confirmación de cita
+□ Botón CTA grande "Confirmar y pagar" / "Confirmar reserva"
+□ Animación de éxito: pantalla de confirmación con checkmark animado SVG, número de orden/reserva, próximos pasos
+
+━━━ PANTALLA HISTORIAL / MIS PEDIDOS ━━━
+□ Lista de transacciones/reservas con estado badge (activo/completado/cancelado/en proceso)
+□ Filtros por estado en tabs
+□ Cada item: imagen miniatura, nombre, fecha, total, estado, botón "Ver detalle"
+□ Detalle de pedido/reserva en pantalla completa con timeline de estados
+□ Opción de repetir pedido / re-agendar
+
+━━━ PANTALLA PERFIL / CUENTA ━━━
+□ Header: foto de perfil (placeholder con iniciales), nombre, email, nivel/tier si hay programa de fidelidad
+□ Estadísticas personales: total gastado, pedidos realizados, puntos acumulados
+□ Menú de opciones con íconos SVG: Mis datos, Mis direcciones, Métodos de pago, Notificaciones, Privacidad, Ayuda, Cerrar sesión
+□ Programa de lealtad / puntos: tarjeta de membresía animada con nivel, puntos, próxima recompensa, barra de progreso
+□ Referidos: código personal + botón compartir
+
+━━━ PANTALLA NOTIFICACIONES ━━━
+□ Lista agrupada por fecha (Hoy / Ayer / Esta semana)
+□ Por cada notificación: ícono tipo, título, descripción corta, tiempo relativo, estado leído/no leído
+□ Swipe left para eliminar (animación de salida)
+□ Botón "Marcar todo como leído"
+□ Estado vacío con ilustración SVG
+
+━━━ PANTALLA SOPORTE / CHAT ━━━
+□ Interfaz de chat: burbuja del agente y del usuario, timestamp, estado enviado/leído
+□ Input con adjuntar foto, emoji, enviar
+□ Bot de bienvenida con respuestas rápidas predefinidas (según el negocio)
+□ FAQ integrado: lista de preguntas frecuentes con acordeón
+□ Opciones de contacto alternativas: llamar, email, WhatsApp (íconos + links)
+
+══════════════════════════════════════════════════════════════
+ COMPONENTES GLOBALES DE LA APP
+══════════════════════════════════════════════════════════════
+
+BOTTOM NAVIGATION BAR:
+- 4-5 tabs: Home / Explorar / [Acción principal] / Historial / Perfil
+- Íconos SVG con estado activo/inactivo
+- Badge de notificaciones en tabs relevantes
+- Animación de transición al cambiar de tab
+- Ocultar al hacer scroll hacia abajo, mostrar al scroll hacia arriba
+
+TOP APP BAR:
+- Contextual según la pantalla activa (título, botón back, acciones)
+- Modo transparente sobre imágenes (hero sections)
+
+BOTTOM SHEETS:
+- Panel deslizable desde abajo para: filtros, compartir, opciones, confirmaciones
+- Drag handle visible, overlay oscuro, cierre con swipe down o tap overlay
+- Animación spring nativa
+
+TOAST / SNACKBAR:
+- Notificaciones en la parte inferior (sobre el bottom nav)
+- Auto-dismiss 3s, botón "Deshacer" cuando aplique
+- Tipos: éxito (verde), error (rojo), info (azul), advertencia (naranja)
+
+FAB (Floating Action Button):
+- Botón circular flotante sobre el bottom nav para la acción principal
+- Animación de expansión a múltiples opciones (speed dial)
+
+══════════════════════════════════════════════════════════════
+ PWA — PROGRESSIVE WEB APP
+══════════════════════════════════════════════════════════════
+
+□ Manifest.json inline (como variable JS): name, short_name, icons, theme_color, background_color, display: standalone, orientation: portrait
+□ Service Worker inline (como Blob URL): cache de assets estáticos, offline fallback page
+□ Prompt de instalación "Agregar a pantalla de inicio" (beforeinstallprompt)
+□ Pantalla offline: ilustración SVG + mensaje + botón reintentar
+□ Meta tags para iOS: apple-mobile-web-app-capable, status-bar-style, icons
+□ Meta tags para Android: theme-color, manifest
+
+══════════════════════════════════════════════════════════════
+ MOCK DATA Y CONTENIDO
+══════════════════════════════════════════════════════════════
+
+Genera en JavaScript contenido de demostración coherente con "{name}":
+- 15 productos/servicios/items con imagen descriptor, precio, rating, descripción
+- 5 categorías con ícono SVG path
+- 8 pedidos/reservas en historial con diferentes estados
+- 12 notificaciones categorizadas
+- 6 reseñas de usuarios
+- Perfil de usuario de demostración con estadísticas
+- 200 puntos de fidelidad con nivel "Silver" y 3 recompensas disponibles
+
+══════════════════════════════════════════════════════════════
+ FUNCIONALIDADES JAVASCRIPT REQUERIDAS
+══════════════════════════════════════════════════════════════
+
+- Router SPA: transiciones entre pantallas con animación slide/fade
+- Gestión de estado global: carrito, usuario, notificaciones, favoritos
+- Persistencia localStorage: usuario, carrito, favoritos, preferencias, onboarding visto
+- Swipe gestures: detectar swipe left/right/up/down con touch events nativos
+- Pull-to-refresh: detectar drag hacia abajo desde el top y simular recarga
+- Swipe-to-delete en listas: drag horizontal con botón de eliminar revelado
+- Bottom sheet: drag gesture para abrir/cerrar + snap points
+- Infinite scroll: simular carga de más items al llegar al fondo
+- Búsqueda en tiempo real: filtrado del catálogo al tipear
+- Chips de filtro: toggle multiple selection con actualización visual
+- Modo oscuro: toggle + prefers-color-scheme + localStorage
+- Onboarding: slides con animación + persistencia de "ya visto"
+- Animación de carga: skeleton screens con shimmer effect
+- Contadores animados de estadísticas (Intersection Observer)
+- Chat básico: enviar mensajes, respuestas automáticas del bot con delay
+- Compartir: Web Share API con fallback a clipboard
+- Programa de puntos: acumular y canjear puntos en compras simuladas
+- Código de referido: copiar al portapapeles con feedback visual
+- PWA: registrar service worker, prompt de instalación, offline fallback
+- Haptic feedback simulado: clases CSS de animación en cada tap importante
+- Keyboard: detectar apertura del teclado virtual y ajustar layout (visualViewport API)
+
+══════════════════════════════════════════════════════════════
+ RENDIMIENTO Y ACCESIBILIDAD MÓVIL
+══════════════════════════════════════════════════════════════
+
+- CSS con variables, evitar layout shifts (CLS = 0)
+- Imágenes lazy load, aspect-ratio declarado en placeholders
+- Fuentes con font-display: swap
+- Áreas táctiles mínimo 44x44px en todos los elementos interactivos
+- Scroll: -webkit-overflow-scrolling: touch, overscroll-behavior: contain
+- Viewport: width=device-width, initial-scale=1, viewport-fit=cover
+- Safe areas: padding con env(safe-area-inset-bottom/top)
+- Reduced motion: @media (prefers-reduced-motion) para usuarios sensibles
+- Focus visible para usuarios de teclado/switch control
+- Contraste WCAG AA en todos los textos
+
+══════════════════════════════════════════════════════════════
+ INSTRUCCIONES DE ENTREGA
+══════════════════════════════════════════════════════════════
+
+Entrega en este orden:
+
+1. BRIEF DE DISEÑO MOBILE (12 líneas):
+   Tipo de app elegido y justificación, paleta HEX, tipografías, estética, concepto de UX.
+
+2. MAPA DE PANTALLAS:
+   Diagrama textual ASCII del flujo de navegación entre todas las pantallas.
+
+3. CÓDIGO HTML COMPLETO (un solo archivo index.html):
+   HTML + <style> CSS + <script> JS + manifest + service worker como Blob.
+   Abre directamente en el navegador y funciona como app móvil.
+   Optimizado para pantallas de 390px-430px (iPhone 14/15) y 360px-412px (Android).
+
+4. GUÍA DE IMÁGENES:
+   Lista de todas las imágenes necesarias para la app.
+   Prompts en español para Midjourney/DALL-E 3 para cada imagen.
+   Instrucciones para reemplazar placeholders.
+
+5. GUÍA DE PUBLICACIÓN:
+   Cómo publicar la PWA en un dominio propio.
+   Cómo envolver la PWA en una app nativa con Capacitor.js o WebView Android/iOS.
+   Cómo subir a Google Play Store y App Store usando PWABuilder o Trusted Web Activities.
+
+La app debe verse y sentirse como una app nativa de App Store, funcionar sin internet (modo offline básico) e instalarse en el dispositivo del usuario.
+
+
+
+────────────────────────────────────────────────────────────
+  PROMPT: MÓDULO DE FACTURACIÓN
+────────────────────────────────────────────────────────────
+
+Actúa como un equipo experto combinando: Desarrollador Senior Python/Streamlit, Contador Público con especialización en facturación electrónica, Diseñador UI/UX de aplicaciones empresariales y Experto en normativa tributaria latinoamericana.
+
+NEGOCIO: JJGT
+DESCRIPCIÓN: Espacios de descanso personales en cabinas o espacios individuales, que funcionara al interior de una terminal de trasportes, mientras esperas la salida de tu transporte, tendrá un servicio de 24 horas, se cobrará por hora y tendrás acceso a baño, conexión de internet y carga de tú celular, portátil o tableta
+
+Tu misión es generar el CÓDIGO COMPLETO de una aplicación de MÓDULO DE FACTURACIÓN en Streamlit, lista para ejecutar con `streamlit run facturacion.py`, específicamente diseñada para el negocio "JJGT".
+
+══════════════════════════════════════════════════════════════
+ INSTALACIÓN Y DEPENDENCIAS
+══════════════════════════════════════════════════════════════
+
+Incluir al inicio del script las dependencias necesarias como comentario:
+```
+# Instalación:
+# pip install streamlit pandas reportlab pillow qrcode openpyxl babel
+```
+
+══════════════════════════════════════════════════════════════
+ DISEÑO Y ESTÉTICA DE LA APP
+══════════════════════════════════════════════════════════════
+
+IDENTIDAD VISUAL:
+- Usa st.set_page_config con título, ícono y layout="wide"
+- CSS personalizado vía st.markdown con <style> para:
+  * Fondo degradado oscuro profesional coherente con el negocio
+  * Tarjetas con bordes redondeados y sombras suaves
+  * Botones con colores corporativos del negocio y efectos hover
+  * Tipografía limpia y legible para documentos financieros
+  * Header de la app con logo textual estilizado y nombre del negocio
+  * Colores semáforo: verde (pagado), amarillo (pendiente), rojo (vencido)
+- Sidebar de navegación con íconos para cada módulo
+- Diseño responsive que se vea bien en pantalla completa
+
+══════════════════════════════════════════════════════════════
+ MÓDULOS DE LA APLICACIÓN (navegación por sidebar)
+══════════════════════════════════════════════════════════════
+
+━━━ MÓDULO 1 — DASHBOARD DE FACTURACIÓN ━━━
+- Métricas principales en st.metric(): Facturas del mes, Total facturado, Total cobrado, Total pendiente, Facturas vencidas
+- Gráfico de barras (st.bar_chart o plotly): ingresos por mes últimos 6 meses
+- Gráfico de dona: estado de facturas (pagadas/pendientes/vencidas/anuladas)
+- Tabla resumen de las últimas 10 facturas con estado en color
+- Alertas: facturas próximas a vencer y facturas vencidas sin pagar
+
+━━━ MÓDULO 2 — CREAR NUEVA FACTURA ━━━
+Formulario completo con st.form():
+
+SECCIÓN ENCABEZADO:
+- Número de factura: autogenerado (FACT-YYYY-NNNN) + editable
+- Tipo de documento: Factura / Cotización / Nota débito / Nota crédito
+- Fecha de emisión: st.date_input (default hoy)
+- Fecha de vencimiento: st.date_input (default +30 días)
+- Moneda: COP / USD / EUR (selector)
+
+SECCIÓN DATOS DEL EMISOR (precargados desde configuración):
+- Nombre/Razón social del negocio "JJGT"
+- NIT/RUT/RFC, dirección, ciudad, teléfono, email, régimen tributario
+
+SECCIÓN DATOS DEL CLIENTE:
+- Buscar cliente existente (st.selectbox con búsqueda) O crear nuevo
+- Campos: nombre/razón social, NIT/cédula/RUT, dirección, ciudad, departamento, país, teléfono, email, contacto
+- Tipo de persona: natural / jurídica
+- Régimen tributario del cliente
+
+SECCIÓN ÍTEMS / LÍNEAS DE DETALLE:
+- Tabla dinámica con st.data_editor para agregar/editar/eliminar líneas
+- Columnas: # / Código / Descripción / Cantidad / Unidad / Precio Unitario / % Descuento / % IVA / Subtotal
+- Generación automática de al menos 5-8 productos/servicios de ejemplo coherentes con "JJGT"
+- Posibilidad de agregar líneas dinámicamente con botón "＋ Agregar ítem"
+- Campos de totales calculados automáticamente en tiempo real
+
+SECCIÓN TOTALES:
+- Subtotal antes de impuestos
+- Descuento global (% o valor fijo)
+- Base gravable IVA
+- IVA (0%, 5%, 19% según producto — seleccionable por línea)
+- Retención en la fuente (si aplica)
+- ICA (Impuesto de Industria y Comercio, si aplica)
+- TOTAL A PAGAR en grande y destacado
+
+SECCIÓN CONDICIONES:
+- Condiciones de pago: Contado / 15 días / 30 días / 60 días / personalizado
+- Método de pago: Efectivo / Transferencia / Tarjeta / Cheque / Otro
+- Datos bancarios para pago (precargados desde config)
+- Observaciones/notas de la factura (st.text_area)
+- Campo para términos y condiciones
+
+BOTONES DE ACCIÓN:
+- "👁️ Vista Previa" → mostrar factura renderizada en HTML dentro de la app
+- "📄 Generar PDF" → crear PDF completo con ReportLab y ofrecer descarga
+- "💾 Guardar Borrador" → guardar en SQLite como borrador
+- "✅ Emitir Factura" → guardar como emitida, bloquear edición, generar PDF automático
+- "🔄 Nueva Factura" → limpiar formulario
+
+━━━ MÓDULO 3 — LISTADO Y GESTIÓN DE FACTURAS ━━━
+- Filtros: rango de fechas, estado (todas/emitidas/pagadas/pendientes/vencidas/anuladas), cliente, rango de monto
+- Tabla interactiva con: #factura, fecha, cliente, concepto, subtotal, IVA, total, estado (badge de color), acciones
+- Paginación (20 por página)
+- Acciones por factura: Ver PDF / Editar borrador / Marcar como pagada / Enviar por email / Anular / Duplicar
+- Botón "Exportar a Excel" con openpyxl
+- Búsqueda global por número o cliente
+
+━━━ MÓDULO 4 — CLIENTES ━━━
+- Lista de clientes con búsqueda y filtros
+- Formulario CRUD completo: crear, ver, editar, eliminar cliente
+- Historial de facturas por cliente con totales
+- Estado de cuenta por cliente (total facturado, cobrado, pendiente)
+- Exportar lista de clientes a Excel
+
+━━━ MÓDULO 5 — PRODUCTOS Y SERVICIOS ━━━
+- Catálogo de productos/servicios del negocio con precios
+- CRUD completo: código, nombre, descripción, precio, unidad, % IVA, categoría, activo/inactivo
+- Precargar catálogo de ejemplo coherente con "JJGT" (mínimo 10 items)
+- Importar desde Excel (plantilla descargable)
+
+━━━ MÓDULO 6 — REPORTES FINANCIEROS ━━━
+- Reporte de ingresos por período (mensual/trimestral/anual)
+- Libro de ventas: listado cronológico para declaración de IVA
+- Top 10 clientes por facturación
+- Productos/servicios más facturados
+- Reporte de cartera: facturas pendientes de cobro con días vencidos
+- Gráficos interactivos con Plotly/Altair
+- Exportar todos los reportes a PDF y Excel
+
+━━━ MÓDULO 7 — CONFIGURACIÓN DEL NEGOCIO ━━━
+- Datos del emisor: nombre "JJGT", NIT, dirección, teléfono, email, logo (upload)
+- Configuración tributaria: régimen (simplificado/común/gran contribuyente), tarifa IVA por defecto, retención
+- Numeración: prefijo de factura, número inicial, resolución DIAN (si aplica)
+- Datos bancarios para pago
+- Personalización de la factura: colores, logo, pie de página, términos estándar
+- Correo electrónico: configuración SMTP para envío automático
+- Backup y restauración de la base de datos
+
+══════════════════════════════════════════════════════════════
+ GENERACIÓN DEL PDF DE FACTURA (con ReportLab)
+══════════════════════════════════════════════════════════════
+
+El PDF generado debe incluir:
+
+ENCABEZADO:
+- Logo del negocio (si hay) o nombre en tipografía grande y estilizada
+- Nombre, NIT, dirección, teléfono, email del emisor
+- FACTURA DE VENTA (o tipo de documento) en texto grande
+- Número de factura, fecha de emisión, fecha de vencimiento
+- Código QR con los datos principales de la factura (usando qrcode library)
+- Resolución DIAN / número de autorización si aplica
+
+DATOS DEL CLIENTE:
+- Facturar a: nombre, NIT, dirección, ciudad, teléfono, email
+
+TABLA DE ÍTEMS:
+- Tabla con columnas: #, Descripción, Cantidad, Unidad, Precio Unit., Descuento, IVA%, Subtotal
+- Filas alternadas en gris claro/blanco
+- Fuente monoespaciada para números y precios alineados a la derecha
+- Separadores de miles y decimales formateados
+
+SECCIÓN DE TOTALES:
+- Caja de totales alineada a la derecha: Subtotal, Descuentos, Base IVA, IVA, Retenciones, TOTAL
+- TOTAL en negrita grande con fondo de color corporativo
+
+PIE DE FACTURA:
+- Condiciones de pago y método
+- Datos bancarios para transferencia
+- Código QR (datos de la factura o URL de pago)
+- Observaciones y notas
+- Términos y condiciones
+- "Documento generado electrónicamente — JJGT"
+- Número de página y total de páginas
+
+DISEÑO VISUAL DEL PDF:
+- Colores corporativos del negocio en encabezado y totales
+- Logo o isologotipo en encabezado
+- Tipografía profesional (Helvetica o Times)
+- Márgenes y espaciado profesional
+- Soporte para facturas multilínea (varias páginas si hay muchos items)
+
+══════════════════════════════════════════════════════════════
+ BASE DE DATOS SQLITE
+══════════════════════════════════════════════════════════════
+
+Crear y gestionar con sqlite3 (sin dependencias externas) las siguientes tablas:
+
+- facturas: id, numero, tipo, fecha_emision, fecha_vencimiento, cliente_id, subtotal, descuento, iva, retenciones, total, estado, moneda, notas, creado_en, actualizado_en
+- factura_items: id, factura_id, codigo, descripcion, cantidad, unidad, precio_unitario, descuento_pct, iva_pct, subtotal
+- clientes: id, nombre, tipo_documento, numero_documento, direccion, ciudad, departamento, pais, telefono, email, contacto, regimen, tipo_persona, activo, creado_en
+- productos: id, codigo, nombre, descripcion, precio, unidad, iva_pct, categoria, activo
+- configuracion: clave, valor (tabla key-value para todos los ajustes)
+
+Incluir función de inicialización que crea las tablas y precarga datos de ejemplo coherentes con "JJGT".
+
+══════════════════════════════════════════════════════════════
+ FUNCIONALIDADES ADICIONALES
+══════════════════════════════════════════════════════════════
+
+- Cálculo automático de totales en tiempo real al modificar cantidades/precios
+- Validación de formularios: campos requeridos, formatos de NIT/email/teléfono
+- Numeración automática de facturas con formato configurable
+- Búsqueda de clientes por nombre o NIT con autocompletado
+- Duplicar factura existente para crear nueva similar
+- Cambio de estado de factura con historial de cambios
+- Vista previa de la factura en HTML dentro de la app antes de generar PDF
+- Indicadores de alertas en sidebar: facturas por vencer, facturas vencidas
+- Toast de éxito/error con st.success / st.error / st.warning
+- Confirmación antes de anular o eliminar (st.dialog o checkbox de confirmación)
+
+══════════════════════════════════════════════════════════════
+ INSTRUCCIONES DE ENTREGA
+══════════════════════════════════════════════════════════════
+
+Entrega el script completo con esta estructura:
+
+1. ENCABEZADO DEL SCRIPT:
+   Comentario con descripción, instalación (pip install ...) y ejecución (streamlit run facturacion.py)
+
+2. IMPORTS Y CONFIGURACIÓN GLOBAL:
+   Todos los imports, st.set_page_config, CSS personalizado
+
+3. FUNCIONES DE BASE DE DATOS:
+   init_db(), funciones CRUD para cada entidad, funciones de reportes
+
+4. FUNCIONES DE GENERACIÓN PDF:
+   Función completa generate_pdf_factura() con ReportLab
+
+5. FUNCIONES DE NEGOCIO:
+   Cálculo de totales, validaciones, generación de número de factura, formateo
+
+6. MÓDULOS/PÁGINAS:
+   Función para cada módulo (dashboard, nueva_factura, listado, clientes, productos, reportes, configuracion)
+
+7. MAIN/ROUTER:
+   Sidebar de navegación + llamada al módulo seleccionado
+
+El script debe:
+- Ejecutarse con `streamlit run facturacion.py` sin configuración adicional
+- Incluir datos de ejemplo precargados coherentes con "JJGT"
+- Generar PDFs reales y descargables de inmediato
+- Funcionar completamente offline con SQLite
+- Ser modular, bien comentado y fácil de extender
+
