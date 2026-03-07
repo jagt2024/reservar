@@ -575,6 +575,16 @@ def _metric_card(label: str, value, color: str = "#2979FF") -> str:
 # ── Detalle de vehículo ────────────────────────────────────────────────────────
 def page_vehicle_detail():
     _btn_inicio("detail")
+
+    # Mostrar resultado de publicación si viene de página Publicar
+    _pub_result = st.session_state.pop("_pub_result", None)
+    if _pub_result:
+        level, msg = _pub_result
+        if level == "ok":
+            st.success(msg)
+        else:
+            st.warning(msg)
+
     v = st.session_state.selected_vehicle
     if not v:
         go("explore")
@@ -1379,102 +1389,6 @@ def page_publish():
             if st.button("📝 Registrarme",  key="pub_register", use_container_width=True): go("register")
         return
 
-    _pending = st.session_state.pop("_pub_pending", None)
-    if _pending:
-        new_id     = _pending["new_id"]
-        fotos_data = st.session_state.pop("_pub_fotos_data", [])
-        video_data = st.session_state.pop("_pub_video_data", None)
-        TIPO_MAP   = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
-
-        fotos_urls_csv = ""
-        video_url_str  = ""
-        drive_ok = False
-        b64_ok   = False
-        with st.spinner("📤 Guardando imágenes…"):
-            try:
-                from media_sync import upload_media
-                fotos_urls_csv, video_url_str = upload_media(
-                    new_id, fotos_data, video_data)
-                # Detectar qué método se usó
-                drive_ok = any(r.strip().startswith("gdrive:") for r in fotos_urls_csv.split(",") if r.strip())
-                b64_ok   = any(r.strip().startswith("b64:")    for r in fotos_urls_csv.split(",") if r.strip())
-            except Exception as e_media:
-                st.error(f"⚠️ Error al guardar imágenes: {e_media}")
-
-        # Mostrar errores de Drive si los hay
-        drive_errs = st.session_state.pop("_drive_upload_errors", [])
-        if drive_errs and not drive_ok:
-            st.warning(f"⚠️ Drive no disponible ({drive_errs[0][:100]}). "
-                       f"{'Imagen guardada como base64 en Sheets.' if b64_ok else 'Sin imagen persistente.'}")
-
-        # Usar bytes originales — son los más confiables para mostrar de inmediato
-        # fotos_urls_csv queda guardado para reconstruir en recargas futuras
-        fotos_con_preview = fotos_data  # bytes ya leídos del archivo subido
-
-        new_pub = {
-            "id":           new_id,
-            "name":         _pending["pub_marca"],
-            "model":        _pending["pub_modelo"],
-            "year":         int(_pending["pub_anio"]),
-            "price":        _pending.get("pub_precio", 0),
-            "km":           _pending["pub_km"],
-            "fuel":         _pending["pub_comb"],
-            "trans":        _pending["pub_trans"],
-            "city":         _pending["pub_city"],
-            "color":        _pending["pub_color"],
-            "type":         TIPO_MAP.get(_pending["pub_tipo"], "venta"),
-            "cat":          "sedan",
-            "rating":       0,
-            "reviews":      0,
-            "desc":         _pending["pub_desc"],
-            "seller":       _pending["pub_sname"],
-            "phone":        _pending["pub_sphone"],
-            "seller_phone": _pending["pub_sphone"],
-            "seller_email": _pending["pub_semail"],
-            "fotos":        fotos_con_preview,
-            "video":        video_data,
-            "fotos_urls":   fotos_urls_csv,
-            "video_url":    video_url_str,
-            "grad":         0,
-            "estado":       "Activo",
-            "isUserPub":    True,
-            "fecha":        datetime.now().strftime("%d/%m/%Y"),
-        }
-
-        existing_ids = {p.get("id") for p in st.session_state.user_publications}
-        if new_id not in existing_ids:
-            st.session_state.user_publications.insert(0, new_pub)
-            st.session_state.history_items.insert(0, {
-                "id":     new_id,
-                "name":   f"{_pending['pub_marca']} {_pending['pub_modelo']} {_pending['pub_anio']}",
-                "price":  new_pub["price"],
-                "date":   new_pub["fecha"],
-                "status": "activo",
-                "type":   _pending["pub_tipo"],
-                "km":     _pending["pub_km"],
-                "seller": _pending["pub_sname"],
-                "buyer":  "—",
-                "city":   _pending["pub_city"],
-                "notes":  "Publicación recién creada",
-                "points": 50,
-                "pubRef": new_pub,
-            })
-            st.session_state.loyalty_points += 50
-
-        st.session_state.selected_vehicle = new_pub
-        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
-        if drive_ok:
-            media_msg = " · 📸 Imágenes en Drive"
-        elif b64_ok:
-            media_msg = " · 📸 Imagen guardada en Sheets"
-        else:
-            media_msg = ""
-        if ok:
-            st.success(f"🎉 ¡Publicado con éxito! +50 pts · ☁️ Guardado{media_msg}")
-        else:
-            st.success(f"🎉 ¡Publicado con éxito! +50 pts{media_msg}")
-        go("vehicle_detail")
-        return
 
     ini = "".join(w[0].upper() for w in st.session_state.user_name.split()[:2])
     st.markdown(f"""
@@ -2836,6 +2750,103 @@ def page_forgot():
         if st.button("← Volver al login", key="fg_back"):
             go("login")
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PROCESAMIENTO PENDIENTE — se ejecuta en CUALQUIER ciclo, antes del router
+# ══════════════════════════════════════════════════════════════════════════════
+_pending = st.session_state.pop("_pub_pending", None)
+if _pending:
+    _new_id     = _pending["new_id"]
+    _fotos_data = st.session_state.pop("_pub_fotos_data", [])
+    _video_data = st.session_state.pop("_pub_video_data", None)
+    _TIPO_MAP   = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
+
+    # Subir imágenes
+    _fotos_urls_csv = ""
+    _video_url_str  = ""
+    _drive_ok = False
+    _b64_ok   = False
+    _upload_err = ""
+    try:
+        from media_sync import upload_media as _upload_media
+        _fotos_urls_csv, _video_url_str = _upload_media(_new_id, _fotos_data, _video_data)
+        _drive_ok = any(r.strip().startswith("gdrive:") for r in _fotos_urls_csv.split(",") if r.strip())
+        _b64_ok   = any(r.strip().startswith("b64:")    for r in _fotos_urls_csv.split(",") if r.strip())
+    except Exception as _e:
+        _upload_err = str(_e)
+
+    _new_pub = {
+        "id":           _new_id,
+        "name":         _pending["pub_marca"],
+        "model":        _pending["pub_modelo"],
+        "year":         int(_pending["pub_anio"]),
+        "price":        _pending.get("pub_precio", 0),
+        "km":           _pending["pub_km"],
+        "fuel":         _pending["pub_comb"],
+        "trans":        _pending["pub_trans"],
+        "city":         _pending["pub_city"],
+        "color":        _pending["pub_color"],
+        "type":         _TIPO_MAP.get(_pending["pub_tipo"], "venta"),
+        "cat":          "sedan",
+        "rating":       0,
+        "reviews":      0,
+        "desc":         _pending["pub_desc"],
+        "seller":       _pending["pub_sname"],
+        "phone":        _pending["pub_sphone"],
+        "seller_phone": _pending["pub_sphone"],
+        "seller_email": _pending["pub_semail"],
+        "fotos":        _fotos_data,
+        "video":        _video_data,
+        "fotos_urls":   _fotos_urls_csv,
+        "video_url":    _video_url_str,
+        "grad":         0,
+        "estado":       "Activo",
+        "isUserPub":    True,
+        "fecha":        datetime.now().strftime("%d/%m/%Y"),
+    }
+
+    _existing_ids = {p.get("id") for p in st.session_state.user_publications}
+    if _new_id not in _existing_ids:
+        st.session_state.user_publications.insert(0, _new_pub)
+        st.session_state.history_items.insert(0, {
+            "id":     _new_id,
+            "name":   f"{_pending['pub_marca']} {_pending['pub_modelo']} {_pending['pub_anio']}",
+            "price":  _new_pub["price"],
+            "date":   _new_pub["fecha"],
+            "status": "activo",
+            "type":   _pending["pub_tipo"],
+            "km":     _pending["pub_km"],
+            "seller": _pending["pub_sname"],
+            "buyer":  "—",
+            "city":   _pending["pub_city"],
+            "notes":  "Publicación recién creada",
+            "points": 50,
+            "pubRef": _new_pub,
+        })
+        st.session_state.loyalty_points += 50
+
+    st.session_state.selected_vehicle = _new_pub
+
+    _sheets_ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+
+    # Guardar resultado para mostrarlo en la siguiente página
+    if _drive_ok:
+        st.session_state._pub_result = ("ok", f"🎉 ¡Publicado! +50 pts · ☁️ Sheets · 📸 Imágenes en Drive")
+    elif _b64_ok:
+        st.session_state._pub_result = ("ok", f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets")
+    elif _upload_err:
+        st.session_state._pub_result = ("warn",
+            f"🎉 Publicado (+50 pts) {'· ☁️ Sheets' if _sheets_ok else '· ⚠️ Sin Sheets'}\n"
+            f"⚠️ Error imágenes: {_upload_err[:120]}")
+    else:
+        st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ No se guardó en Sheets — reintenta desde Perfil'}")
+
+    st.session_state.page = "vehicle_detail"
+    st.session_state.det_action      = None
+    st.session_state.det_edit_mode   = False
+    st.session_state.det_confirm_del = False
+    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HEADER + ROUTER
