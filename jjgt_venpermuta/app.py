@@ -584,6 +584,14 @@ def page_vehicle_detail():
             st.success(msg)
         else:
             st.warning(msg)
+        # Si hay error de Sheets, ofrecer reintento inmediato
+        if level == "warn" and "Sin Sheets" in msg:
+            if st.button("🔄 Reintentar guardar en Sheets", key="retry_sheets_pub", type="primary"):
+                _ok2 = save_section_silent(["publicaciones", "historial", "vehiculos"])
+                if _ok2:
+                    st.success("✅ ¡Guardado en Sheets correctamente!")
+                else:
+                    st.error("❌ Sigue fallando. Verifica credenciales en secrets.toml y permisos del archivo en Google Sheets.")
 
     v = st.session_state.selected_vehicle
     if not v:
@@ -2827,20 +2835,37 @@ if _pending:
 
     st.session_state.selected_vehicle = _new_pub
 
-    _sheets_ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+    # Guardar en Sheets — capturar error exacto
+    _sheets_ok    = False
+    _sheets_errors = {}
+    try:
+        from excel_sync import save_to_sheets as _save_to_sheets
+        _sheets_results = _save_to_sheets(["publicaciones", "historial", "vehiculos"])
+        _sheets_ok = all(r["ok"] for r in _sheets_results.values())
+        if not _sheets_ok:
+            _sheets_errors = {k: r["msg"] for k, r in _sheets_results.items() if not r["ok"]}
+    except Exception as _se:
+        _sheets_errors = {"general": str(_se)}
 
-    # Guardar resultado para mostrarlo en la siguiente página
+    # Construir mensaje de resultado con diagnóstico completo
+    _sheets_detail = ""
+    if not _sheets_ok and _sheets_errors:
+        _first_err = list(_sheets_errors.values())[0]
+        _sheets_detail = f"\n\n🔍 Error Sheets: `{_first_err[:200]}`"
+
     if _drive_ok:
-        st.session_state._pub_result = ("ok", f"🎉 ¡Publicado! +50 pts · ☁️ Sheets · 📸 Imágenes en Drive")
+        st.session_state._pub_result = ("ok",
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Drive{_sheets_detail}")
     elif _b64_ok:
-        st.session_state._pub_result = ("ok", f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets")
+        st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets{_sheets_detail}")
     elif _upload_err:
         st.session_state._pub_result = ("warn",
-            f"🎉 Publicado (+50 pts) {'· ☁️ Sheets' if _sheets_ok else '· ⚠️ Sin Sheets'}\n"
-            f"⚠️ Error imágenes: {_upload_err[:120]}")
+            f"🎉 Publicado +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}\n"
+            f"⚠️ Error imágenes: `{_upload_err[:120]}`{_sheets_detail}")
     else:
         st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ No se guardó en Sheets — reintenta desde Perfil'}")
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}{_sheets_detail}")
 
     st.session_state.page = "vehicle_detail"
     st.session_state.det_action      = None
