@@ -156,13 +156,14 @@ _read_local = _leer_local
 def _subir_a_drive(nombre: str, data: bytes) -> str | None:
     """
     Sube bytes a Drive y retorna el file_id, o None si falla.
-    El archivo queda con permiso público de lectura para poder
-    servirlo como miniatura / descarga directa.
+    El archivo queda con permiso público de lectura.
     """
     try:
         from googleapiclient.http import MediaIoBaseUpload
         svc = _get_drive_service()
-        if not svc or not DRIVE_FOLDER_ID.strip():
+        if not svc:
+            return None
+        if not DRIVE_FOLDER_ID.strip():
             return None
         mime  = mimetypes.guess_type(nombre)[0] or "application/octet-stream"
         media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime, resumable=False)
@@ -172,14 +173,17 @@ def _subir_a_drive(nombre: str, data: bytes) -> str | None:
         file_id = file_.get("id")
         if not file_id:
             return None
-        # Hacer público (lector anónimo) para poder servirlo como URL
+        # Hacer público (lector anónimo)
         _retry(
             svc.permissions().create(
                 fileId=file_id,
                 body={"role": "reader", "type": "anyone"},
             ).execute)
         return file_id
-    except Exception:
+    except Exception as e:
+        # Guardar el error para diagnóstico en sidebar
+        errs = st.session_state.setdefault("_drive_upload_errors", [])
+        errs.append(str(e)[:200])
         return None
 
 
@@ -222,52 +226,110 @@ def _file_id_from_ref(s: str) -> str:
 
 def upload_media(pub_id: str, fotos: list, video: dict | None):
     """
-    Guarda fotos/video. Flujo:
-      1. Intentar subir a Drive → retorna "gdrive:<file_id>"
-      2. Si Drive no disponible → guardar en JJGT_Media/ local (fallback)
+    Guarda fotos/video. Flujo por prioridad:
+      1. Drive → "gdrive:<file_id>"  (persiste entre reinicios del servidor)
+      2. base64 embebido en la referencia → "b64:<base64_jpeg>"  (garantizado)
+         Solo para la portada (primera foto) para no exceder el límite de Sheets.
+      3. Local JJGT_Media/ → ruta relativa (solo útil en desarrollo local)
 
-    Retorna (fotos_csv, video_path) donde cada entrada puede ser
-    "gdrive:<id>" o una ruta local "JJGT_Media/...".
+    Retorna (fotos_csv, video_path).
     """
     os.makedirs(MEDIA_DIR, exist_ok=True)
-    svc_ok = _get_drive_service() is not None
+    # Limpiar errores anteriores
+    st.session_state.pop("_drive_upload_errors", None)
 
+    svc_ok = _get_drive_service() is not None
     foto_paths = []
+
     for i, f in enumerate(fotos or []):
         nombre = f"foto_{i:02d}_{f.get('name', 'foto.jpg')}"
         data   = f.get("bytes", b"")
         if not data:
             continue
 
+        ref = None
+
+        # 1. Intentar Drive
         if svc_ok:
             fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
             if fid:
-                foto_paths.append(f"{_DRIVE_PREFIX}{fid}")
+                ref = f"{_DRIVE_PREFIX}{fid}"
                 time.sleep(0.1)
-                continue
-        # fallback local
-        ruta = _guardar_local(pub_id, nombre, data)
-        foto_paths.append(ruta)
-        time.sleep(0.05)
+
+        # 2. Fallback: base64 para la portada (primera foto), local para las demás
+        if ref is None:
+            if i == 0:
+                # Portada: comprimir y guardar como base64 inline
+                ref = _foto_a_b64_ref(data, max_w=600)
+            else:
+                # Fotos adicionales: intentar local (solo persiste en dev)
+                ref = _guardar_local(pub_id, nombre, data)
+
+        if ref:
+            foto_paths.append(ref)
 
     video_path = ""
     if video:
         nombre = f"video_{video.get('name', 'video.mp4')}"
         data   = video.get("bytes", b"")
         if data:
+            ref = None
             if svc_ok:
                 fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
                 if fid:
-                    video_path = f"{_DRIVE_PREFIX}{fid}"
-            if not video_path:
-                video_path = _guardar_local(pub_id, nombre, data)
+                    ref = f"{_DRIVE_PREFIX}{fid}"
+            if not ref:
+                ref = _guardar_local(pub_id, nombre, data)
+            video_path = ref or ""
 
     return ",".join(foto_paths), video_path
 
 
+def _foto_a_b64_ref(data: bytes, max_w: int = 400) -> str:
+    """
+    Comprime la imagen y retorna referencia 'b64:<base64>'.
+    Objetivo: < 40KB base64 para caber en una celda de Google Sheets (límite ~50K chars).
+    """
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(data))
+        # Reducir a tamaño pequeño
+        img.thumbnail((max_w, max_w))
+        # Intentar con calidad decreciente hasta que quepa
+        for quality in [60, 45, 30, 20]:
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            raw = buf.getvalue()
+            b64 = base64.b64encode(raw).decode()
+            if len(b64) < 40_000:   # margen seguro bajo el límite de Sheets
+                return f"b64:{b64}"
+        # Último recurso: escalar más pequeño
+        img.thumbnail((200, 200))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=20)
+        b64 = base64.b64encode(buf.getvalue()).decode()
+        return f"b64:{b64}"
+    except Exception:
+        # Sin PIL: comprimir bruto si es pequeño, o vacío si es muy grande
+        b64 = base64.b64encode(data).decode()
+        if len(b64) < 40_000:
+            return f"b64:{b64}"
+        return ""
+
+
+_B64_PREFIX = "b64:"
+
+def _is_b64_ref(s: str) -> bool:
+    return isinstance(s, str) and s.startswith(_B64_PREFIX)
+
+def _bytes_from_b64_ref(s: str) -> bytes:
+    return base64.b64decode(s[len(_B64_PREFIX):])
+
+
 def load_media_from_urls(fotos_csv: str, video_url: str):
     """
-    Lee fotos/video desde sus referencias (Drive o local).
+    Lee fotos/video desde sus referencias.
+    Soporta: "gdrive:<id>", "b64:<base64>", rutas locales.
     Retorna (lista_fotos, video_dict).
     """
     fotos = []
@@ -278,6 +340,9 @@ def load_media_from_urls(fotos_csv: str, video_url: str):
             fid  = _file_id_from_ref(ref)
             raw  = _leer_de_drive(fid)
             name = fid
+        elif _is_b64_ref(ref):
+            raw  = _bytes_from_b64_ref(ref)
+            name = "portada.jpg"
         else:
             raw  = _leer_local(ref)
             name = os.path.basename(ref)
@@ -299,6 +364,9 @@ def load_media_from_urls(fotos_csv: str, video_url: str):
             fid  = _file_id_from_ref(vref)
             raw  = _leer_de_drive(fid)
             name = fid
+        elif _is_b64_ref(vref):
+            raw  = _bytes_from_b64_ref(vref)
+            name = "video.mp4"
         else:
             raw  = _leer_local(vref)
             name = os.path.basename(vref)
@@ -353,10 +421,23 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
     if not primera:
         return ""
 
-    # 3 — miniatura de Drive (URL directa, sin descargar)
+    # 3 — según tipo de referencia
     if _is_drive_ref(primera):
+        # Miniatura Drive (URL directa, sin descargar)
         fid = _file_id_from_ref(primera)
         return _thumbnail_url_drive(fid, max_w)
+
+    if _is_b64_ref(primera):
+        # Base64 embebido → data URI directa
+        raw = _bytes_from_b64_ref(primera)
+        uri = _bytes_a_uri(raw)
+        if uri:
+            if not isinstance(v.get("fotos"), list):
+                v["fotos"] = []
+            if not v["fotos"]:
+                v["fotos"].insert(0, {"name": "portada.jpg", "bytes": raw,
+                                      "path": primera, "data_uri": uri})
+            return uri
 
     # 4 — local (fallback sin Drive)
     raw = _leer_local(primera)

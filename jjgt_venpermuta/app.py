@@ -1389,14 +1389,23 @@ def page_publish():
         fotos_urls_csv = ""
         video_url_str  = ""
         drive_ok = False
+        b64_ok   = False
         with st.spinner("📤 Guardando imágenes…"):
             try:
                 from media_sync import upload_media
                 fotos_urls_csv, video_url_str = upload_media(
                     new_id, fotos_data, video_data)
-                drive_ok = bool(fotos_urls_csv or video_url_str)
+                # Detectar qué método se usó
+                drive_ok = any(r.strip().startswith("gdrive:") for r in fotos_urls_csv.split(",") if r.strip())
+                b64_ok   = any(r.strip().startswith("b64:")    for r in fotos_urls_csv.split(",") if r.strip())
             except Exception as e_media:
-                st.warning(f"⚠️ No se pudieron guardar las imágenes: {e_media}")
+                st.error(f"⚠️ Error al guardar imágenes: {e_media}")
+
+        # Mostrar errores de Drive si los hay
+        drive_errs = st.session_state.pop("_drive_upload_errors", [])
+        if drive_errs and not drive_ok:
+            st.warning(f"⚠️ Drive no disponible ({drive_errs[0][:100]}). "
+                       f"{'Imagen guardada como base64 en Sheets.' if b64_ok else 'Sin imagen persistente.'}")
 
         # Usar bytes originales — son los más confiables para mostrar de inmediato
         # fotos_urls_csv queda guardado para reconstruir en recargas futuras
@@ -1454,11 +1463,16 @@ def page_publish():
 
         st.session_state.selected_vehicle = new_pub
         ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
-        media_msg = " · 📸 Imágenes en Drive" if drive_ok else ""
+        if drive_ok:
+            media_msg = " · 📸 Imágenes en Drive"
+        elif b64_ok:
+            media_msg = " · 📸 Imagen guardada en Sheets"
+        else:
+            media_msg = ""
         if ok:
             st.success(f"🎉 ¡Publicado con éxito! +50 pts · ☁️ Guardado{media_msg}")
         else:
-            st.success("🎉 ¡Publicado con éxito! +50 pts")
+            st.success(f"🎉 ¡Publicado con éxito! +50 pts{media_msg}")
         go("vehicle_detail")
         return
 
