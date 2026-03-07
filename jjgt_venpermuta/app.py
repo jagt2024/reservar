@@ -614,8 +614,8 @@ def page_vehicle_detail():
 
     with col_m:
         # ══════════════════════════════════════════════════════════════════════
-        # FIX 1: GALERÍA DE IMÁGENES
-        # Prioridad: preview_url de Drive → bytes en memoria → fotos_urls CSV
+        # GALERÍA DE IMÁGENES
+        # Prioridad: bytes RAM (recién publicado) → Drive / local (al recargar)
         # ══════════════════════════════════════════════════════════════════════
         img_items = []  # cada item es data_uri str o PIL Image
 
@@ -634,7 +634,7 @@ def page_vehicle_detail():
                 if uri:
                     img_items.append(uri)
 
-        # Prioridad 2: leer desde carpeta local JJGT_Media (al recargar)
+        # Prioridad 2: descargar desde Drive o leer desde JJGT_Media local
         if not img_items:
             fotos_csv = (v.get("fotos_urls") or "").strip()
             if fotos_csv:
@@ -674,22 +674,25 @@ def page_vehicle_detail():
         # ══════════════════════════════════════════════════════════════════════
         # FIX 2: VIDEO — bytes via API Drive, fallback iframe embed
         # ══════════════════════════════════════════════════════════════════════
-        # VIDEO: bytes en memoria → leer desde JJGT_Media local
+        # VIDEO: bytes en memoria → Drive → archivo local
         video_mostrado = False
 
         # Bytes en memoria (recién publicado en esta sesión)
         video_bytes = video.get("bytes") if isinstance(video, dict) else None
 
-        # Si no hay bytes, leer desde carpeta local
+        # Si no hay bytes, leer desde la referencia guardada
         if not video_bytes:
-            vpath = ""
+            vref = ""
             if isinstance(video, dict):
-                vpath = video.get("path", "")
-            if not vpath:
-                vpath = (v.get("video_url") or "").strip()
-            if vpath:
-                from media_sync import _read_local
-                video_bytes = _read_local(vpath)
+                vref = video.get("path", "")
+            if not vref:
+                vref = (v.get("video_url") or "").strip()
+            if vref:
+                from media_sync import _is_drive_ref, _file_id_from_ref, _leer_de_drive, _read_local
+                if _is_drive_ref(vref):
+                    video_bytes = _leer_de_drive(_file_id_from_ref(vref))
+                else:
+                    video_bytes = _read_local(vref)
 
         if video_bytes:
             try:
@@ -1386,15 +1389,14 @@ def page_publish():
         fotos_urls_csv = ""
         video_url_str  = ""
         drive_ok = False
-        if st.session_state.get("_gs_client"):
-            with st.spinner("📤 Subiendo imágenes a Google Drive…"):
-                try:
-                    from media_sync import upload_media
-                    fotos_urls_csv, video_url_str = upload_media(
-                        new_id, fotos_data, video_data)
-                    drive_ok = True
-                except Exception as e_media:
-                    st.warning(f"⚠️ No se pudieron subir a Drive: {e_media}")
+        with st.spinner("📤 Guardando imágenes…"):
+            try:
+                from media_sync import upload_media
+                fotos_urls_csv, video_url_str = upload_media(
+                    new_id, fotos_data, video_data)
+                drive_ok = bool(fotos_urls_csv or video_url_str)
+            except Exception as e_media:
+                st.warning(f"⚠️ No se pudieron guardar las imágenes: {e_media}")
 
         # Usar bytes originales — son los más confiables para mostrar de inmediato
         # fotos_urls_csv queda guardado para reconstruir en recargas futuras

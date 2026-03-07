@@ -1,92 +1,44 @@
 """
-JJGT — media_sync.py  v5.0
-Almacenamiento local en JJGT_Media/. Simple y directo.
+JJGT — media_sync.py  v6.0
+═══════════════════════════════════════════════════════════════════════════════
+ESTRATEGIA v6.0 — GOOGLE DRIVE COMO FUENTE PRIMARIA
+────────────────────────────────────────────────────
+En entornos web (Streamlit Cloud) el sistema de archivos local es efímero:
+cualquier archivo en JJGT_Media/ se pierde al reiniciar el servidor.
+
+Solución: Google Drive es la única fuente de persistencia real.
+
+• upload_media()      → sube bytes directamente a Drive; devuelve file_ids CSV
+• load_media_from_urls() → descarga bytes desde Drive usando los file_ids
+• get_portada_data_uri() → obtiene miniatura desde Drive o memoria RAM
+• JJGT_Media/         → solo se usa como caché local temporal (best-effort)
+
+Compatibilidad: si no hay conexión a Drive (sin credenciales) se guarda en
+JJGT_Media/ como fallback, igual que en v5.0, para no romper entornos locales.
+═══════════════════════════════════════════════════════════════════════════════
 """
 from __future__ import annotations
 import io, os, time, random, mimetypes, base64
 import streamlit as st
 
-MEDIA_DIR      = "JJGT_Media"
+MEDIA_DIR       = "JJGT_Media"
 DRIVE_FOLDER_ID = "10CRIboHnD1-_v6kEN2BlBrJWFrqivJ8r"
-_MAX_RETRIES   = 3
-_BASE_DELAY    = 2.0
-_MAX_DELAY     = 16.0
+_MAX_RETRIES    = 3
+_BASE_DELAY     = 2.0
+_MAX_DELAY      = 16.0
+
+# ─── prefijo que identifica IDs de Drive dentro de fotos_urls ────────────────
+_DRIVE_PREFIX = "gdrive:"   # "gdrive:<file_id>"
 
 
-# ─── rutas ────────────────────────────────────────────────────────────────────
-def _pub_dir(pub_id):
-    # Usar siempre el directorio de trabajo actual (donde está app.py)
-    path = os.path.join(os.getcwd(), MEDIA_DIR, str(pub_id))
-    os.makedirs(path, exist_ok=True)
-    return path
+# ════════════════════════════════════════════════════════════════════════════
+# HELPERS INTERNOS
+# ════════════════════════════════════════════════════════════════════════════
 
-
-def _leer(ruta):
-    """Lee bytes de una ruta local. Soporta rutas absolutas y relativas."""
-    if not ruta:
-        return None
-    ruta = ruta.strip()
-
-    def _abrir(p):
-        try:
-            if os.path.isfile(p):
-                with open(p, "rb") as f:
-                    return f.read()
-        except Exception:
-            pass
-        return None
-
-    # 1. Ruta tal cual (funciona si es absoluta y válida)
-    r = _abrir(ruta)
-    if r:
-        return r
-
-    # 2. Normalizar separadores Windows/Unix
-    ruta_norm = os.path.normpath(ruta.replace("/", os.sep))
-    r = _abrir(ruta_norm)
-    if r:
-        return r
-
-    # 3. Extraer segmento JJGT_Media/... y buscar desde cwd
-    ruta_unix = ruta.replace("\\", "/")
-    if "JJGT_Media" in ruta_unix:
-        idx = ruta_unix.find("JJGT_Media")
-        segmento = ruta_unix[idx:].replace("/", os.sep)
-        for base in [os.getcwd(), os.path.dirname(os.path.abspath(__file__))]:
-            r = _abrir(os.path.join(base, segmento))
-            if r:
-                return r
-
-    return None
-
-
-def _guardar(pub_id, nombre, data):
-    """Guarda bytes y retorna ruta relativa JJGT_Media/pub_id/nombre."""
-    carpeta  = _pub_dir(pub_id)
-    filepath = os.path.join(carpeta, nombre)
-    with open(filepath, "wb") as f:
-        f.write(data)
-    # Retornar SIEMPRE ruta relativa desde JJGT_Media — portable entre PCs
-    return f"JJGT_Media/{pub_id}/{nombre}"
-
-
-def _a_data_uri(raw, max_w=600):
-    """Convierte bytes de imagen a data URI base64."""
-    try:
-        from PIL import Image
-        img = Image.open(io.BytesIO(raw))
-        img.thumbnail((max_w, max_w))
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=80)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-    except Exception:
-        b64 = base64.b64encode(raw).decode()
-    return f"data:image/jpeg;base64,{b64}"
-
-
-# ─── Drive (backup opcional) ──────────────────────────────────────────────────
 def _is_quota_err(e):
-    return any(x in str(e).lower() for x in ["429","quota","rate limit","exhausted","too many"])
+    return any(x in str(e).lower() for x in
+               ["429", "quota", "rate limit", "exhausted", "too many"])
+
 
 def _retry(fn, *args, **kwargs):
     delay = _BASE_DELAY
@@ -97,12 +49,14 @@ def _retry(fn, *args, **kwargs):
             if attempt == _MAX_RETRIES - 1:
                 raise
             if _is_quota_err(e) or any(c in str(e) for c in ["500","502","503","504"]):
-                time.sleep(min(delay + random.uniform(0, delay*0.25), _MAX_DELAY))
-                delay = min(delay*2, _MAX_DELAY)
+                time.sleep(min(delay + random.uniform(0, delay * 0.25), _MAX_DELAY))
+                delay = min(delay * 2, _MAX_DELAY)
             else:
                 raise
 
+
 def _get_drive_service():
+    """Devuelve cliente Drive autenticado (cachea en session_state)."""
     svc = st.session_state.get("_drive_service")
     if svc:
         return svc
@@ -121,77 +75,250 @@ def _get_drive_service():
     except Exception:
         return None
 
-def _subir_drive_bg(ruta_local, nombre):
-    """Sube a Drive como backup sin bloquear."""
+
+def _a_data_uri(raw: bytes, max_w: int = 600) -> str:
+    """Convierte bytes de imagen a data URI base64 (con redimensionado si hay PIL)."""
+    if not raw:
+        return ""
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(raw))
+        img.thumbnail((max_w, max_w))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80)
+        b64 = base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        b64 = base64.b64encode(raw).decode()
+    return f"data:image/jpeg;base64,{b64}"
+
+
+# ─── Rutas locales (caché / fallback sin Drive) ───────────────────────────────
+
+def _pub_dir(pub_id: str) -> str:
+    path = os.path.join(os.getcwd(), MEDIA_DIR, str(pub_id))
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def _guardar_local(pub_id: str, nombre: str, data: bytes) -> str:
+    """Guarda bytes localmente y retorna ruta relativa JJGT_Media/pub_id/nombre."""
+    carpeta  = _pub_dir(pub_id)
+    filepath = os.path.join(carpeta, nombre)
+    with open(filepath, "wb") as f:
+        f.write(data)
+    return f"JJGT_Media/{pub_id}/{nombre}"
+
+
+def _leer_local(ruta: str) -> bytes | None:
+    """Lee bytes de una ruta local. Soporta rutas absolutas y relativas."""
+    if not ruta:
+        return None
+    ruta = ruta.strip()
+
+    def _abrir(p):
+        try:
+            if os.path.isfile(p):
+                with open(p, "rb") as f:
+                    return f.read()
+        except Exception:
+            pass
+        return None
+
+    r = _abrir(ruta)
+    if r:
+        return r
+
+    ruta_norm = os.path.normpath(ruta.replace("/", os.sep))
+    r = _abrir(ruta_norm)
+    if r:
+        return r
+
+    ruta_unix = ruta.replace("\\", "/")
+    if "JJGT_Media" in ruta_unix:
+        idx      = ruta_unix.find("JJGT_Media")
+        segmento = ruta_unix[idx:].replace("/", os.sep)
+        for base in [os.getcwd(), os.path.dirname(os.path.abspath(__file__))]:
+            r = _abrir(os.path.join(base, segmento))
+            if r:
+                return r
+    return None
+
+
+# alias de compatibilidad con código anterior
+_leer      = _leer_local
+_read_local = _leer_local
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# GOOGLE DRIVE — subida y descarga
+# ════════════════════════════════════════════════════════════════════════════
+
+def _subir_a_drive(nombre: str, data: bytes) -> str | None:
+    """
+    Sube bytes a Drive y retorna el file_id, o None si falla.
+    El archivo queda con permiso público de lectura para poder
+    servirlo como miniatura / descarga directa.
+    """
     try:
         from googleapiclient.http import MediaIoBaseUpload
         svc = _get_drive_service()
         if not svc or not DRIVE_FOLDER_ID.strip():
-            return
-        raw  = _leer(ruta_local)
-        if not raw:
-            return
-        mime = mimetypes.guess_type(nombre)[0] or "application/octet-stream"
-        media = MediaIoBaseUpload(io.BytesIO(raw), mimetype=mime, resumable=False)
+            return None
+        mime  = mimetypes.guess_type(nombre)[0] or "application/octet-stream"
+        media = MediaIoBaseUpload(io.BytesIO(data), mimetype=mime, resumable=False)
         meta  = {"name": nombre, "parents": [DRIVE_FOLDER_ID.strip()]}
-        _retry(svc.files().create(body=meta, media_body=media, fields="id").execute)
+        file_ = _retry(
+            svc.files().create(body=meta, media_body=media, fields="id").execute)
+        file_id = file_.get("id")
+        if not file_id:
+            return None
+        # Hacer público (lector anónimo) para poder servirlo como URL
+        _retry(
+            svc.permissions().create(
+                fileId=file_id,
+                body={"role": "reader", "type": "anyone"},
+            ).execute)
+        return file_id
     except Exception:
-        pass
+        return None
 
 
-# ─── API pública ──────────────────────────────────────────────────────────────
-def upload_media(pub_id, fotos, video):
-    """Guarda fotos/video en JJGT_Media/<pub_id>/. Retorna (fotos_csv, video_path)."""
+def _leer_de_drive(file_id: str) -> bytes | None:
+    """Descarga bytes de un archivo en Drive por su file_id."""
+    if not file_id:
+        return None
+    try:
+        from googleapiclient.http import MediaIoBaseDownload
+        svc = _get_drive_service()
+        if not svc:
+            return None
+        request  = svc.files().get_media(fileId=file_id)
+        buf      = io.BytesIO()
+        downloader = MediaIoBaseDownload(buf, request)
+        done = False
+        while not done:
+            _, done = downloader.next_chunk()
+        return buf.getvalue()
+    except Exception:
+        return None
+
+
+def _thumbnail_url_drive(file_id: str, size: int = 400) -> str:
+    """URL pública de miniatura de Drive (no requiere autenticación)."""
+    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w{size}"
+
+
+def _is_drive_ref(s: str) -> bool:
+    return isinstance(s, str) and s.startswith(_DRIVE_PREFIX)
+
+
+def _file_id_from_ref(s: str) -> str:
+    return s[len(_DRIVE_PREFIX):]
+
+
+# ════════════════════════════════════════════════════════════════════════════
+# API PÚBLICA
+# ════════════════════════════════════════════════════════════════════════════
+
+def upload_media(pub_id: str, fotos: list, video: dict | None):
+    """
+    Guarda fotos/video. Flujo:
+      1. Intentar subir a Drive → retorna "gdrive:<file_id>"
+      2. Si Drive no disponible → guardar en JJGT_Media/ local (fallback)
+
+    Retorna (fotos_csv, video_path) donde cada entrada puede ser
+    "gdrive:<id>" o una ruta local "JJGT_Media/...".
+    """
     os.makedirs(MEDIA_DIR, exist_ok=True)
+    svc_ok = _get_drive_service() is not None
+
     foto_paths = []
     for i, f in enumerate(fotos or []):
-        nombre = f"foto_{i:02d}_{f.get('name','foto.jpg')}"
-        ruta   = _guardar(pub_id, nombre, f["bytes"])
+        nombre = f"foto_{i:02d}_{f.get('name', 'foto.jpg')}"
+        data   = f.get("bytes", b"")
+        if not data:
+            continue
+
+        if svc_ok:
+            fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
+            if fid:
+                foto_paths.append(f"{_DRIVE_PREFIX}{fid}")
+                time.sleep(0.1)
+                continue
+        # fallback local
+        ruta = _guardar_local(pub_id, nombre, data)
         foto_paths.append(ruta)
-        _subir_drive_bg(ruta, f"{pub_id}_{nombre}")
-        time.sleep(0.1)
+        time.sleep(0.05)
 
     video_path = ""
     if video:
-        nombre     = f"video_{video.get('name','video.mp4')}"
-        video_path = _guardar(pub_id, nombre, video["bytes"])
-        _subir_drive_bg(video_path, f"{pub_id}_{nombre}")
+        nombre = f"video_{video.get('name', 'video.mp4')}"
+        data   = video.get("bytes", b"")
+        if data:
+            if svc_ok:
+                fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
+                if fid:
+                    video_path = f"{_DRIVE_PREFIX}{fid}"
+            if not video_path:
+                video_path = _guardar_local(pub_id, nombre, data)
 
     return ",".join(foto_paths), video_path
 
 
-def load_media_from_urls(fotos_csv, video_url):
-    """Lee fotos/video desde rutas locales. Retorna (lista_fotos, video_dict)."""
+def load_media_from_urls(fotos_csv: str, video_url: str):
+    """
+    Lee fotos/video desde sus referencias (Drive o local).
+    Retorna (lista_fotos, video_dict).
+    """
     fotos = []
-    for ruta in [r.strip() for r in (fotos_csv or "").split(",") if r.strip()]:
-        raw = _leer(ruta)
+    for ref in [r.strip() for r in (fotos_csv or "").split(",") if r.strip()]:
+        raw  = None
+        name = ""
+        if _is_drive_ref(ref):
+            fid  = _file_id_from_ref(ref)
+            raw  = _leer_de_drive(fid)
+            name = fid
+        else:
+            raw  = _leer_local(ref)
+            name = os.path.basename(ref)
+
         if raw:
             fotos.append({
-                "name":     os.path.basename(ruta),
+                "name":     name,
                 "bytes":    raw,
-                "path":     ruta,
+                "path":     ref,
                 "data_uri": _a_data_uri(raw, 800),
             })
 
     video = None
-    vpath = (video_url or "").strip()
-    if vpath:
-        raw = _leer(vpath)
+    vref  = (video_url or "").strip()
+    if vref:
+        raw  = None
+        name = ""
+        if _is_drive_ref(vref):
+            fid  = _file_id_from_ref(vref)
+            raw  = _leer_de_drive(fid)
+            name = fid
+        else:
+            raw  = _leer_local(vref)
+            name = os.path.basename(vref)
         if raw:
-            video = {"name": os.path.basename(vpath), "bytes": raw, "path": vpath}
+            video = {"name": name, "bytes": raw, "path": vref}
 
     return fotos, video
 
 
-def get_portada_data_uri(v, max_w=400):
+def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
     """
     Retorna data URI de la portada del vehículo.
-    Orden: data_uri cacheado → bytes en fotos → leer desde fotos_urls
+    Orden de prioridad:
+      1. data_uri ya cacheado en fotos[]
+      2. bytes en fotos[] RAM (publicación reciente)
+      3. thumbnail de Drive (rápido, sin descargar el archivo)
+      4. Descarga completa desde Drive
+      5. Leer desde archivo local JJGT_Media/
     """
-    import base64 as _b64
-
-    def _bytes_a_uri(raw):
-        """Convierte bytes a data URI, con o sin PIL."""
+    def _bytes_a_uri(raw: bytes) -> str:
         if not raw:
             return ""
         try:
@@ -203,9 +330,9 @@ def get_portada_data_uri(v, max_w=400):
             data = buf.getvalue()
         except Exception:
             data = raw
-        return "data:image/jpeg;base64," + _b64.b64encode(data).decode()
+        return "data:image/jpeg;base64," + base64.b64encode(data).decode()
 
-    # 1. Buscar en fotos en memoria
+    # 1 & 2 — fotos en memoria (RAM)
     for f in (v.get("fotos") or []):
         if not isinstance(f, dict):
             continue
@@ -215,46 +342,45 @@ def get_portada_data_uri(v, max_w=400):
         if raw:
             uri = _bytes_a_uri(raw)
             if uri:
-                f["data_uri"] = uri  # cachear
+                f["data_uri"] = uri
                 return uri
 
-    # 2. Leer desde ruta en fotos_urls
     fotos_csv = (v.get("fotos_urls") or "").strip()
     if not fotos_csv:
         return ""
 
-    for ruta in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-        raw = _leer(ruta)
-        if raw:
-            uri = _bytes_a_uri(raw)
-            if uri:
-                # Cachear en fotos para no releer
-                if not isinstance(v.get("fotos"), list):
-                    v["fotos"] = []
-                v["fotos"].insert(0, {
-                    "name":     os.path.basename(ruta),
-                    "bytes":    raw,
-                    "path":     ruta,
-                    "data_uri": uri,
-                })
-                return uri
+    primera = fotos_csv.split(",")[0].strip()
+    if not primera:
+        return ""
+
+    # 3 — miniatura de Drive (URL directa, sin descargar)
+    if _is_drive_ref(primera):
+        fid = _file_id_from_ref(primera)
+        return _thumbnail_url_drive(fid, max_w)
+
+    # 4 — local (fallback sin Drive)
+    raw = _leer_local(primera)
+    if raw:
+        uri = _bytes_a_uri(raw)
+        if uri:
+            if not isinstance(v.get("fotos"), list):
+                v["fotos"] = []
+            v["fotos"].insert(0, {
+                "name":     os.path.basename(primera),
+                "bytes":    raw,
+                "path":     primera,
+                "data_uri": uri,
+            })
+            return uri
 
     return ""
 
 
-def _extract_file_id(url):
-    import re
-    for pat in [r"[?&]id=([a-zA-Z0-9_-]+)", r"/file/d/([a-zA-Z0-9_-]+)"]:
-        m = re.search(pat, url or "")
-        if m:
-            return m.group(1)
-    return None
+# ════════════════════════════════════════════════════════════════════════════
+# HELPERS DE VISUALIZACIÓN
+# ════════════════════════════════════════════════════════════════════════════
 
-# alias para compatibilidad
-_read_local = _leer
-
-
-def show_fotos(fotos, cols=3):
+def show_fotos(fotos: list, cols: int = 3):
     if not fotos:
         return
     columnas = st.columns(min(len(fotos), cols))
@@ -264,11 +390,12 @@ def show_fotos(fotos, cols=3):
             if not uri and foto.get("bytes"):
                 uri = _a_data_uri(foto["bytes"])
             if uri:
-                st.markdown(f'<img src="{uri}" style="width:100%;border-radius:8px;">',
-                            unsafe_allow_html=True)
+                st.markdown(
+                    f'<img src="{uri}" style="width:100%;border-radius:8px;">',
+                    unsafe_allow_html=True)
 
 
-def show_video(video=None):
+def show_video(video: dict | None = None):
     if not video:
         return
     raw = video.get("bytes")
@@ -279,13 +406,16 @@ def show_video(video=None):
             st.caption("⚠️ No se pudo reproducir el video.")
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# CORREO DE PERMUTA
+# ════════════════════════════════════════════════════════════════════════════
+
 def send_permuta_email(destinatarios, propuesta, vehiculo_ofrecido, vehiculo_deseado):
     try:
         import smtplib
         from email.mime.multipart import MIMEMultipart
         from email.mime.text      import MIMEText
 
-        # Leer credenciales desde st.secrets["emails"]
         smtp_user = st.secrets["emails"]["smtp_user"]
         smtp_pass = st.secrets["emails"]["smtp_password"]
         smtp_host = "smtp.gmail.com"
@@ -346,3 +476,12 @@ def send_permuta_email(destinatarios, propuesta, vehiculo_ofrecido, vehiculo_des
     except Exception as e:
         st.warning(f"Error enviando correo: {e}")
         return False
+
+
+def _extract_file_id(url: str) -> str | None:
+    import re
+    for pat in [r"[?&]id=([a-zA-Z0-9_-]+)", r"/file/d/([a-zA-Z0-9_-]+)"]:
+        m = re.search(pat, url or "")
+        if m:
+            return m.group(1)
+    return None
