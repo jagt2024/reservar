@@ -16,6 +16,20 @@ from datetime import datetime
 from PIL import Image
 from media_sync import load_media_from_urls, show_fotos, show_video, get_portada_data_uri
 
+# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
+hide_streamlit_style = """
+            <style>
+            #MainMenu {visibility: hidden;}
+            footer {visibility: hidden;}
+            header {visibility: hidden;}
+            .stDeployButton {display:none;}
+            .css-1rs6os {visibility: hidden;}
+            .css-14xtw13 {visibility: hidden;}
+            .css-1avcm0n {visibility: hidden;}
+            </style>
+            """
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
 def _dedup_vehicles():
     """Une user_publications + vehicles sin duplicados por ID."""
     seen, result = set(), []
@@ -1065,7 +1079,7 @@ def page_vehicle_detail():
             share_body  = (f"{name} {model} {year} · {fmt_price(price)} · "
                            f"{km:,} km · {city} · {fuel}\n"
                            f"Publica y vende sin intermediarios en JJGT 🚗🇨🇴")
-            share_url   = "https://jjgt.streamlit.app"
+            share_url   = "https://jjgt-autos.streamlit.app/"
 
             t_enc  = _up.quote(share_body + "\n" + share_url)
             ti_enc = _up.quote(share_title)
