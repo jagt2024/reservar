@@ -1596,11 +1596,12 @@ def page_history():
                             label_visibility="collapsed")
 
             if modo == "📝 Crear cuenta nueva":
+                _prefill_email = st.session_state.pop("_hist_prefill_email", "")
                 with st.form("hist_register_form"):
                     st.markdown("#### 👤 Crear cuenta")
                     name  = st.text_input("Nombre *",   key="hrg_name")
                     phone = st.text_input("Celular *",  placeholder="300 000 0000", key="hrg_phone")
-                    email = st.text_input("Correo *",   key="hrg_email")
+                    email = st.text_input("Correo *",   value=_prefill_email, key="hrg_email")
                     city  = st.selectbox("Ciudad",
                         ["Bogotá","Medellín","Cali","Barranquilla",
                          "Bucaramanga","Pereira","Cartagena"], key="hrg_city")
@@ -1656,25 +1657,47 @@ def page_history():
                                                      use_container_width=True, type="primary")
                     if lg_sub:
                         import hashlib as _hl
-                        pw_hash = _hl.sha256(lg_pw.encode()).hexdigest()
+                        pw_hash  = _hl.sha256(lg_pw.encode()).hexdigest()
                         usuarios = st.session_state.get("_usuarios", [])
-                        match = next((u for u in usuarios
-                                      if u.get("correo","").lower() == lg_email.strip().lower()
-                                      and u.get("password_hash","") == pw_hash), None)
-                        if match:
-                            st.session_state.logged_in          = True
-                            st.session_state.user_name          = match.get("nombre","")
-                            st.session_state.user_email         = match.get("correo","")
-                            st.session_state.user_phone         = match.get("celular","")
-                            st.session_state.user_city          = match.get("ciudad","")
-                            st.session_state.active_cities      = [match.get("ciudad","")]
-                            st.session_state.user_password_hash = pw_hash
-                            st.session_state.loyalty_points     = int(match.get("puntos", 0) or 0)
-                            st.session_state.notifications      = list(get_notifs_base())
-                            st.success(f"✅ ¡Bienvenido {match.get('nombre','').split()[0]}!")
-                            st.rerun()
+                        email_norm = lg_email.strip().lower()
+
+                        # Buscar si el correo existe (sin importar contraseña)
+                        usuario_existe = next(
+                            (u for u in usuarios
+                             if u.get("correo","").strip().lower() == email_norm), None)
+
+                        if usuario_existe:
+                            # Correo existe — verificar contraseña
+                            if usuario_existe.get("password_hash","") == pw_hash:
+                                st.session_state.logged_in          = True
+                                st.session_state.user_name          = usuario_existe.get("nombre","")
+                                st.session_state.user_email         = usuario_existe.get("correo","")
+                                st.session_state.user_phone         = usuario_existe.get("celular","")
+                                st.session_state.user_city          = usuario_existe.get("ciudad","")
+                                st.session_state.active_cities      = [usuario_existe.get("ciudad","")]
+                                st.session_state.user_password_hash = pw_hash
+                                st.session_state.loyalty_points     = int(usuario_existe.get("puntos", 0) or 0)
+                                st.session_state.notifications      = list(get_notifs_base())
+                                st.success(f"✅ ¡Bienvenido {usuario_existe.get('nombre','').split()[0]}!")
+                                st.rerun()
+                            else:
+                                st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
                         else:
-                            st.error("❌ Correo o contraseña incorrectos.")
+                            # Correo no registrado — guardar para pre-llenar el form de registro
+                            st.session_state["_hist_prefill_email"] = lg_email.strip()
+                            st.error(
+                                f"❌ El correo **{lg_email.strip()}** no está registrado. "
+                                f"Cambia a **'📝 Crear cuenta nueva'** para registrarte."
+                            )
+
+                # Si hay un correo pre-llenado por intento fallido, mostrar botón de acceso rápido
+                if st.session_state.get("_hist_prefill_email"):
+                    _pf = st.session_state["_hist_prefill_email"]
+                    st.info(f"💡 ¿Quieres crear una cuenta con **{_pf}**?")
+                    if st.button("📝 Crear cuenta con este correo", key="hist_goto_register",
+                                 type="primary", use_container_width=True):
+                        st.session_state["hist_auth_modo"] = "📝 Crear cuenta nueva"
+                        st.rerun()
         return
 
     top1, top2 = st.columns([3, 1])
