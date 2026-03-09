@@ -21,28 +21,11 @@ hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
+            header {visibility: hidden;}
             .stDeployButton {display:none;}
             .css-1rs6os {visibility: hidden;}
             .css-14xtw13 {visibility: hidden;}
             .css-1avcm0n {visibility: hidden;}
-            /* Ocultar header pero mantener el botón del sidebar visible */
-            header[data-testid="stHeader"] {visibility: hidden; height: 0; min-height: 0;}
-            section[data-testid="stSidebar"] > div:first-child {padding-top: 0;}
-            /* Botón para abrir/cerrar sidebar — siempre visible */
-            button[kind="header"],
-            [data-testid="collapsedControl"],
-            button[data-testid="baseButton-header"] {
-                visibility: visible !important;
-                display: flex !important;
-                opacity: 1 !important;
-                z-index: 999999 !important;
-                position: fixed !important;
-                top: 0.5rem !important;
-                left: 0.5rem !important;
-                background: rgba(196,30,58,0.9) !important;
-                border-radius: 8px !important;
-                color: white !important;
-            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -592,24 +575,6 @@ def _metric_card(label: str, value, color: str = "#2979FF") -> str:
 # ── Detalle de vehículo ────────────────────────────────────────────────────────
 def page_vehicle_detail():
     _btn_inicio("detail")
-
-    # Mostrar resultado de publicación si viene de página Publicar
-    _pub_result = st.session_state.pop("_pub_result", None)
-    if _pub_result:
-        level, msg = _pub_result
-        if level == "ok":
-            st.success(msg)
-        else:
-            st.warning(msg)
-        # Si hay error de Sheets, ofrecer reintento inmediato
-        if level == "warn" and "Sin Sheets" in msg:
-            if st.button("🔄 Reintentar guardar en Sheets", key="retry_sheets_pub", type="primary"):
-                _ok2 = save_section_silent(["publicaciones", "historial", "vehiculos"])
-                if _ok2:
-                    st.success("✅ ¡Guardado en Sheets correctamente!")
-                else:
-                    st.error("❌ Sigue fallando. Verifica credenciales en secrets.toml y permisos del archivo en Google Sheets.")
-
     v = st.session_state.selected_vehicle
     if not v:
         go("explore")
@@ -649,8 +614,8 @@ def page_vehicle_detail():
 
     with col_m:
         # ══════════════════════════════════════════════════════════════════════
-        # GALERÍA DE IMÁGENES
-        # Prioridad: bytes RAM (recién publicado) → Drive / local (al recargar)
+        # FIX 1: GALERÍA DE IMÁGENES
+        # Prioridad: preview_url de Drive → bytes en memoria → fotos_urls CSV
         # ══════════════════════════════════════════════════════════════════════
         img_items = []  # cada item es data_uri str o PIL Image
 
@@ -669,7 +634,7 @@ def page_vehicle_detail():
                 if uri:
                     img_items.append(uri)
 
-        # Prioridad 2: descargar desde Drive o leer desde JJGT_Media local
+        # Prioridad 2: leer desde carpeta local JJGT_Media (al recargar)
         if not img_items:
             fotos_csv = (v.get("fotos_urls") or "").strip()
             if fotos_csv:
@@ -709,25 +674,22 @@ def page_vehicle_detail():
         # ══════════════════════════════════════════════════════════════════════
         # FIX 2: VIDEO — bytes via API Drive, fallback iframe embed
         # ══════════════════════════════════════════════════════════════════════
-        # VIDEO: bytes en memoria → Drive → archivo local
+        # VIDEO: bytes en memoria → leer desde JJGT_Media local
         video_mostrado = False
 
         # Bytes en memoria (recién publicado en esta sesión)
         video_bytes = video.get("bytes") if isinstance(video, dict) else None
 
-        # Si no hay bytes, leer desde la referencia guardada
+        # Si no hay bytes, leer desde carpeta local
         if not video_bytes:
-            vref = ""
+            vpath = ""
             if isinstance(video, dict):
-                vref = video.get("path", "")
-            if not vref:
-                vref = (v.get("video_url") or "").strip()
-            if vref:
-                from media_sync import _is_drive_ref, _file_id_from_ref, _leer_de_drive, _read_local
-                if _is_drive_ref(vref):
-                    video_bytes = _leer_de_drive(_file_id_from_ref(vref))
-                else:
-                    video_bytes = _read_local(vref)
+                vpath = video.get("path", "")
+            if not vpath:
+                vpath = (v.get("video_url") or "").strip()
+            if vpath:
+                from media_sync import _read_local
+                video_bytes = _read_local(vpath)
 
         if video_bytes:
             try:
@@ -1414,6 +1376,89 @@ def page_publish():
             if st.button("📝 Registrarme",  key="pub_register", use_container_width=True): go("register")
         return
 
+    _pending = st.session_state.pop("_pub_pending", None)
+    if _pending:
+        new_id     = _pending["new_id"]
+        fotos_data = st.session_state.pop("_pub_fotos_data", [])
+        video_data = st.session_state.pop("_pub_video_data", None)
+        TIPO_MAP   = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
+
+        fotos_urls_csv = ""
+        video_url_str  = ""
+        drive_ok = False
+        if st.session_state.get("_gs_client"):
+            with st.spinner("📤 Subiendo imágenes a Google Drive…"):
+                try:
+                    from media_sync import upload_media
+                    fotos_urls_csv, video_url_str = upload_media(
+                        new_id, fotos_data, video_data)
+                    drive_ok = True
+                except Exception as e_media:
+                    st.warning(f"⚠️ No se pudieron subir a Drive: {e_media}")
+
+        # Usar bytes originales — son los más confiables para mostrar de inmediato
+        # fotos_urls_csv queda guardado para reconstruir en recargas futuras
+        fotos_con_preview = fotos_data  # bytes ya leídos del archivo subido
+
+        new_pub = {
+            "id":           new_id,
+            "name":         _pending["pub_marca"],
+            "model":        _pending["pub_modelo"],
+            "year":         int(_pending["pub_anio"]),
+            "price":        _pending.get("pub_precio", 0),
+            "km":           _pending["pub_km"],
+            "fuel":         _pending["pub_comb"],
+            "trans":        _pending["pub_trans"],
+            "city":         _pending["pub_city"],
+            "color":        _pending["pub_color"],
+            "type":         TIPO_MAP.get(_pending["pub_tipo"], "venta"),
+            "cat":          "sedan",
+            "rating":       0,
+            "reviews":      0,
+            "desc":         _pending["pub_desc"],
+            "seller":       _pending["pub_sname"],
+            "phone":        _pending["pub_sphone"],
+            "seller_phone": _pending["pub_sphone"],
+            "seller_email": _pending["pub_semail"],
+            "fotos":        fotos_con_preview,
+            "video":        video_data,
+            "fotos_urls":   fotos_urls_csv,
+            "video_url":    video_url_str,
+            "grad":         0,
+            "estado":       "Activo",
+            "isUserPub":    True,
+            "fecha":        datetime.now().strftime("%d/%m/%Y"),
+        }
+
+        existing_ids = {p.get("id") for p in st.session_state.user_publications}
+        if new_id not in existing_ids:
+            st.session_state.user_publications.insert(0, new_pub)
+            st.session_state.history_items.insert(0, {
+                "id":     new_id,
+                "name":   f"{_pending['pub_marca']} {_pending['pub_modelo']} {_pending['pub_anio']}",
+                "price":  new_pub["price"],
+                "date":   new_pub["fecha"],
+                "status": "activo",
+                "type":   _pending["pub_tipo"],
+                "km":     _pending["pub_km"],
+                "seller": _pending["pub_sname"],
+                "buyer":  "—",
+                "city":   _pending["pub_city"],
+                "notes":  "Publicación recién creada",
+                "points": 50,
+                "pubRef": new_pub,
+            })
+            st.session_state.loyalty_points += 50
+
+        st.session_state.selected_vehicle = new_pub
+        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+        media_msg = " · 📸 Imágenes en Drive" if drive_ok else ""
+        if ok:
+            st.success(f"🎉 ¡Publicado con éxito! +50 pts · ☁️ Guardado{media_msg}")
+        else:
+            st.success("🎉 ¡Publicado con éxito! +50 pts")
+        go("vehicle_detail")
+        return
 
     ini = "".join(w[0].upper() for w in st.session_state.user_name.split()[:2])
     st.markdown(f"""
@@ -1617,18 +1662,49 @@ def page_history():
             can_edit = sc in ("activo","pendiente")
             if can_edit:
                 bc1, bc2, bc3 = st.columns(3)
-                with bc1:
-                    if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}", use_container_width=True):
-                        ref = h.get("pubRef")
-                        if not ref:
-                            ref = next((v for v in get_vehicles()
-                                        if v.get("name","") in h.get("name","")), None)
-                        if ref:
-                            st.session_state.selected_vehicle = ref
-                            go("vehicle_detail")
+            else:
+                bc1, bc2 = st.columns(2)
+                bc3 = None
+
+            # Botón VER — siempre visible
+            with bc1:
+                if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}", use_container_width=True):
+                    ref = h.get("pubRef")
+                    if not ref:
+                        pid = str(h.get("id", ""))
+                        ref = next((p for p in st.session_state.user_publications
+                                    if str(p.get("id", "")) == pid), None)
+                    if not ref:
+                        ref = next((v for v in get_vehicles()
+                                    if str(v.get("id", "")) == str(h.get("id", ""))
+                                    or v.get("name", "") in h.get("name", "")), None)
+                    if ref:
+                        st.session_state.selected_vehicle = ref
+                        go("vehicle_detail")
+                    else:
+                        st.warning("⚠️ No se encontró el detalle de este aviso.")
+
+            if can_edit:
                 with bc2:
                     if st.button("✏️ Editar", key=f"hist_edit_{hkey}_{idx}", use_container_width=True):
                         st.session_state["_editing_pub_id"] = h.get("id")
+                with bc3:
+                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}", use_container_width=True):
+                        hid = h.get("id")
+                        st.session_state.history_items = [
+                            x for x in st.session_state.history_items if x.get("id") != hid]
+                        st.session_state.user_publications = [
+                            p for p in st.session_state.user_publications if p.get("id") != hid]
+                        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+                        if ok:
+                            st.success("✅ Eliminado y guardado en Google Sheets")
+                        else:
+                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
+                        st.rerun()
+            else:
+                with bc2:
+                    if st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}", use_container_width=True):
+                        go("publish")
 
         # Formulario de edición inline
         if st.session_state.get("_editing_pub_id") == h.get("id"):
@@ -1675,30 +1751,6 @@ def page_history():
                     if cancelar:
                         st.session_state["_editing_pub_id"] = None
                         st.rerun()
-                with bc3:
-                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}", use_container_width=True):
-                        hid = h.get("id")
-                        st.session_state.history_items = [
-                            x for x in st.session_state.history_items if x.get("id") != hid]
-                        st.session_state.user_publications = [
-                            p for p in st.session_state.user_publications if p.get("id") != hid]
-                        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
-                        if ok:
-                            st.success("✅ Eliminado y guardado en Google Sheets")
-                        else:
-                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
-                        st.rerun()
-            else:
-                bc1, bc2 = st.columns(2)
-                with bc1:
-                    if st.button("👁️ Ver", key=f"hist_view2_{hkey}_{idx}", use_container_width=True):
-                        ref = next((v for v in get_vehicles()
-                                    if v.get("name","") in h.get("name","")), None)
-                        if ref:
-                            st.session_state.selected_vehicle = ref
-                            go("vehicle_detail")
-                with bc2:
-                    st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}", use_container_width=True)
 
     st.divider()
     st.markdown("**💾 Guardar cambios**")
@@ -2775,139 +2827,6 @@ def page_forgot():
         if st.button("← Volver al login", key="fg_back"):
             go("login")
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PROCESAMIENTO PENDIENTE — se ejecuta en CUALQUIER ciclo, antes del router
-# ══════════════════════════════════════════════════════════════════════════════
-_pending = st.session_state.pop("_pub_pending", None)
-if _pending:
-    _new_id     = _pending["new_id"]
-    _fotos_data = st.session_state.pop("_pub_fotos_data", [])
-    _video_data = st.session_state.pop("_pub_video_data", None)
-    _TIPO_MAP   = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
-
-    # Subir imágenes
-    _fotos_urls_csv = ""
-    _video_url_str  = ""
-    _drive_ok = False
-    _b64_ok   = False
-    _upload_err = ""
-    try:
-        from media_sync import upload_media as _upload_media
-        _fotos_urls_csv, _video_url_str = _upload_media(_new_id, _fotos_data, _video_data)
-        _drive_ok = any(r.strip().startswith("gdrive:") for r in _fotos_urls_csv.split(",") if r.strip())
-        _b64_ok   = any(r.strip().startswith("b64:")    for r in _fotos_urls_csv.split(",") if r.strip())
-    except Exception as _e:
-        _upload_err = str(_e)
-
-    _new_pub = {
-        "id":           _new_id,
-        "name":         _pending["pub_marca"],
-        "model":        _pending["pub_modelo"],
-        "year":         int(_pending["pub_anio"]),
-        "price":        _pending.get("pub_precio", 0),
-        "km":           _pending["pub_km"],
-        "fuel":         _pending["pub_comb"],
-        "trans":        _pending["pub_trans"],
-        "city":         _pending["pub_city"],
-        "color":        _pending["pub_color"],
-        "type":         _TIPO_MAP.get(_pending["pub_tipo"], "venta"),
-        "cat":          "sedan",
-        "rating":       0,
-        "reviews":      0,
-        "desc":         _pending["pub_desc"],
-        "seller":       _pending["pub_sname"],
-        "phone":        _pending["pub_sphone"],
-        "seller_phone": _pending["pub_sphone"],
-        "seller_email": _pending["pub_semail"],
-        "fotos":        _fotos_data,
-        "video":        _video_data,
-        "fotos_urls":   _fotos_urls_csv,
-        "video_url":    _video_url_str,
-        "grad":         0,
-        "estado":       "Activo",
-        "isUserPub":    True,
-        "fecha":        datetime.now().strftime("%d/%m/%Y"),
-    }
-
-    _existing_ids = {p.get("id") for p in st.session_state.user_publications}
-    if _new_id not in _existing_ids:
-        st.session_state.user_publications.insert(0, _new_pub)
-        st.session_state.history_items.insert(0, {
-            "id":     _new_id,
-            "name":   f"{_pending['pub_marca']} {_pending['pub_modelo']} {_pending['pub_anio']}",
-            "price":  _new_pub["price"],
-            "date":   _new_pub["fecha"],
-            "status": "activo",
-            "type":   _pending["pub_tipo"],
-            "km":     _pending["pub_km"],
-            "seller": _pending["pub_sname"],
-            "buyer":  "—",
-            "city":   _pending["pub_city"],
-            "notes":  "Publicación recién creada",
-            "points": 50,
-            "pubRef": _new_pub,
-        })
-        st.session_state.loyalty_points += 50
-
-    st.session_state.selected_vehicle = _new_pub
-
-    # Guardar en Sheets — capturar error exacto
-    _sheets_ok    = False
-    _sheets_errors = {}
-    try:
-        from excel_sync import save_to_sheets as _save_to_sheets
-        _sheets_results = _save_to_sheets(["publicaciones", "historial", "vehiculos"])
-        _sheets_ok = all(r["ok"] for r in _sheets_results.values())
-        if not _sheets_ok:
-            _sheets_errors = {k: r["msg"] for k, r in _sheets_results.items() if not r["ok"]}
-    except Exception as _se:
-        _sheets_errors = {"general": str(_se)}
-
-    # Construir mensaje de resultado con diagnóstico completo
-    _sheets_detail = ""
-    if not _sheets_ok and _sheets_errors:
-        _first_err = list(_sheets_errors.values())[0]
-        _sheets_detail = f"\n\n🔍 Error Sheets: `{_first_err[:200]}`"
-
-    # ── Enviar correo automático al admin y al vendedor ───────────────────────
-    _email_ok  = False
-    _email_err = ""
-    try:
-        from media_sync import send_nueva_publicacion_email as _send_pub_email
-        # Obtener miniatura de portada (URL de Drive si está disponible)
-        _portada_uri = ""
-        if _drive_ok and _fotos_urls_csv:
-            from media_sync import _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive
-            _primera = _fotos_urls_csv.split(",")[0].strip()
-            if _is_drive_ref(_primera):
-                _portada_uri = _thumbnail_url_drive(_file_id_from_ref(_primera), 500)
-        _email_ok = _send_pub_email(ADMIN_EMAIL, _new_pub, _portada_uri)
-        _email_err = st.session_state.pop("_email_pub_error", "")
-    except Exception as _ee:
-        _email_err = str(_ee)
-
-    _email_tag = " · ✉️ Correo enviado" if _email_ok else (f" · ⚠️ Correo: {_email_err[:60]}" if _email_err else "")
-
-    if _drive_ok:
-        st.session_state._pub_result = ("ok",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Drive{_email_tag}{_sheets_detail}")
-    elif _b64_ok:
-        st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets{_email_tag}{_sheets_detail}")
-    elif _upload_err:
-        st.session_state._pub_result = ("warn",
-            f"🎉 Publicado +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}\n"
-            f"⚠️ Error imágenes: `{_upload_err[:120]}`{_email_tag}{_sheets_detail}")
-    else:
-        st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}{_email_tag}{_sheets_detail}")
-
-    st.session_state.page = "vehicle_detail"
-    st.session_state.det_action      = None
-    st.session_state.det_edit_mode   = False
-    st.session_state.det_confirm_del = False
-    st.rerun()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # HEADER + ROUTER
