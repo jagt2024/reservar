@@ -1579,8 +1579,102 @@ def page_history():
     _btn_inicio("history")
     st.markdown("## 📋 Mis avisos")
     if not st.session_state.logged_in:
-        st.info("🔐 Inicia sesión para ver tus publicaciones.")
-        if st.button("Ingresar", key="hist_login", type="primary"): go("login")
+        # ── Selector de modo: Registrarse / Ingresar ─────────────────────────
+        _, col, _ = st.columns([1, 2, 1])
+        with col:
+            st.markdown("""
+            <div style="text-align:center;padding:12px 0 8px;">
+              <div style="font-size:38px;font-weight:900;letter-spacing:4px;
+                  background:linear-gradient(135deg,#C41E3A,#F5A623);
+                  -webkit-background-clip:text;-webkit-text-fill-color:transparent;">JJGT</div>
+              <div style="font-size:13px;color:#6B6B8A;margin-top:4px;">
+                  Para ver o crear avisos necesitas una cuenta</div>
+            </div>""", unsafe_allow_html=True)
+
+            modo = st.radio("", ["📝 Crear cuenta nueva", "🔐 Ya tengo cuenta"],
+                            horizontal=True, key="hist_auth_modo",
+                            label_visibility="collapsed")
+
+            if modo == "📝 Crear cuenta nueva":
+                with st.form("hist_register_form"):
+                    st.markdown("#### 👤 Crear cuenta")
+                    name  = st.text_input("Nombre *",   key="hrg_name")
+                    phone = st.text_input("Celular *",  placeholder="300 000 0000", key="hrg_phone")
+                    email = st.text_input("Correo *",   key="hrg_email")
+                    city  = st.selectbox("Ciudad",
+                        ["Bogotá","Medellín","Cali","Barranquilla",
+                         "Bucaramanga","Pereira","Cartagena"], key="hrg_city")
+                    pw1   = st.text_input("Contraseña *",         type="password", key="hrg_pw1")
+                    pw2   = st.text_input("Confirmar contraseña *", type="password", key="hrg_pw2")
+                    terms = st.checkbox("✅ Acepto Términos y condiciones", key="hrg_terms")
+                    sub   = st.form_submit_button("🎉 Crear cuenta y ver mis avisos",
+                                                  use_container_width=True, type="primary")
+                    if sub:
+                        errs = []
+                        if not name.strip():  errs.append("Nombre")
+                        if not email.strip(): errs.append("Correo")
+                        if not phone.strip(): errs.append("Celular")
+                        if not pw1:           errs.append("Contraseña")
+                        if pw1 != pw2:        errs.append("Las contraseñas no coinciden")
+                        if not terms:         errs.append("Acepta los términos")
+                        if errs:
+                            st.error("❌ " + " · ".join(errs))
+                        else:
+                            import hashlib as _hl
+                            pw_hash = _hl.sha256(pw1.encode()).hexdigest()
+                            new_user = {
+                                "id": int(datetime.now().timestamp()),
+                                "nombre": name, "correo": email, "celular": phone,
+                                "documento": "", "ciudad": city, "rol": "Usuario",
+                                "publicaciones": 0, "ventas": 0, "puntos": 50,
+                                "nivel": "Bronze",
+                                "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
+                                "password_hash": pw_hash,
+                            }
+                            st.session_state.logged_in          = True
+                            st.session_state.user_name          = name
+                            st.session_state.user_email         = email
+                            st.session_state.user_phone         = phone
+                            st.session_state.user_city          = city
+                            st.session_state.active_cities      = [city]
+                            st.session_state.user_password_hash = pw_hash
+                            st.session_state.history_items      = []
+                            st.session_state.notifications      = list(get_notifs_base())
+                            usuarios_list = list(st.session_state.get("_usuarios", []))
+                            usuarios_list.append(new_user)
+                            st.session_state._usuarios = usuarios_list
+                            save_section_silent(["usuarios"])
+                            st.success(f"🎉 ¡Bienvenido {name.split()[0]}! Cuenta creada.")
+                            st.rerun()
+
+            else:  # Ya tengo cuenta
+                with st.form("hist_login_form"):
+                    st.markdown("#### 🔐 Ingresar")
+                    lg_email = st.text_input("Correo", key="hlg_email")
+                    lg_pw    = st.text_input("Contraseña", type="password", key="hlg_pw")
+                    lg_sub   = st.form_submit_button("Ingresar",
+                                                     use_container_width=True, type="primary")
+                    if lg_sub:
+                        import hashlib as _hl
+                        pw_hash = _hl.sha256(lg_pw.encode()).hexdigest()
+                        usuarios = st.session_state.get("_usuarios", [])
+                        match = next((u for u in usuarios
+                                      if u.get("correo","").lower() == lg_email.strip().lower()
+                                      and u.get("password_hash","") == pw_hash), None)
+                        if match:
+                            st.session_state.logged_in          = True
+                            st.session_state.user_name          = match.get("nombre","")
+                            st.session_state.user_email         = match.get("correo","")
+                            st.session_state.user_phone         = match.get("celular","")
+                            st.session_state.user_city          = match.get("ciudad","")
+                            st.session_state.active_cities      = [match.get("ciudad","")]
+                            st.session_state.user_password_hash = pw_hash
+                            st.session_state.loyalty_points     = int(match.get("puntos", 0) or 0)
+                            st.session_state.notifications      = list(get_notifs_base())
+                            st.success(f"✅ ¡Bienvenido {match.get('nombre','').split()[0]}!")
+                            st.rerun()
+                        else:
+                            st.error("❌ Correo o contraseña incorrectos.")
         return
 
     top1, top2 = st.columns([3, 1])
@@ -1662,49 +1756,18 @@ def page_history():
             can_edit = sc in ("activo","pendiente")
             if can_edit:
                 bc1, bc2, bc3 = st.columns(3)
-            else:
-                bc1, bc2 = st.columns(2)
-                bc3 = None
-
-            # Botón VER — siempre visible
-            with bc1:
-                if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}", use_container_width=True):
-                    ref = h.get("pubRef")
-                    if not ref:
-                        pid = str(h.get("id", ""))
-                        ref = next((p for p in st.session_state.user_publications
-                                    if str(p.get("id", "")) == pid), None)
-                    if not ref:
-                        ref = next((v for v in get_vehicles()
-                                    if str(v.get("id", "")) == str(h.get("id", ""))
-                                    or v.get("name", "") in h.get("name", "")), None)
-                    if ref:
-                        st.session_state.selected_vehicle = ref
-                        go("vehicle_detail")
-                    else:
-                        st.warning("⚠️ No se encontró el detalle de este aviso.")
-
-            if can_edit:
+                with bc1:
+                    if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}", use_container_width=True):
+                        ref = h.get("pubRef")
+                        if not ref:
+                            ref = next((v for v in get_vehicles()
+                                        if v.get("name","") in h.get("name","")), None)
+                        if ref:
+                            st.session_state.selected_vehicle = ref
+                            go("vehicle_detail")
                 with bc2:
                     if st.button("✏️ Editar", key=f"hist_edit_{hkey}_{idx}", use_container_width=True):
                         st.session_state["_editing_pub_id"] = h.get("id")
-                with bc3:
-                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}", use_container_width=True):
-                        hid = h.get("id")
-                        st.session_state.history_items = [
-                            x for x in st.session_state.history_items if x.get("id") != hid]
-                        st.session_state.user_publications = [
-                            p for p in st.session_state.user_publications if p.get("id") != hid]
-                        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
-                        if ok:
-                            st.success("✅ Eliminado y guardado en Google Sheets")
-                        else:
-                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
-                        st.rerun()
-            else:
-                with bc2:
-                    if st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}", use_container_width=True):
-                        go("publish")
 
         # Formulario de edición inline
         if st.session_state.get("_editing_pub_id") == h.get("id"):
@@ -1751,6 +1814,30 @@ def page_history():
                     if cancelar:
                         st.session_state["_editing_pub_id"] = None
                         st.rerun()
+                with bc3:
+                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}", use_container_width=True):
+                        hid = h.get("id")
+                        st.session_state.history_items = [
+                            x for x in st.session_state.history_items if x.get("id") != hid]
+                        st.session_state.user_publications = [
+                            p for p in st.session_state.user_publications if p.get("id") != hid]
+                        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+                        if ok:
+                            st.success("✅ Eliminado y guardado en Google Sheets")
+                        else:
+                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
+                        st.rerun()
+            else:
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("👁️ Ver", key=f"hist_view2_{hkey}_{idx}", use_container_width=True):
+                        ref = next((v for v in get_vehicles()
+                                    if v.get("name","") in h.get("name","")), None)
+                        if ref:
+                            st.session_state.selected_vehicle = ref
+                            go("vehicle_detail")
+                with bc2:
+                    st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}", use_container_width=True)
 
     st.divider()
     st.markdown("**💾 Guardar cambios**")
