@@ -154,6 +154,7 @@ def _row_usr(u: dict) -> dict:
         "Puntos":         _safe(u.get("puntos",0)),
         "Nivel":          _safe(u.get("nivel","Bronze")),
         "Fecha Registro": _safe(u.get("fecha_registro","")),
+        "Password Hash":  _safe(u.get("password_hash","")),
     }
 
 def _row_perm(p: dict) -> dict:

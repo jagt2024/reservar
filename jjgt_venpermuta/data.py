@@ -361,6 +361,7 @@ def _df_to_usuarios(df: pd.DataFrame) -> list:
             "puntos":         _int(row.get("Puntos", 0)),
             "nivel":          str(row.get("Nivel", "Bronze")),
             "fecha_registro": str(row.get("Fecha Registro", "—")),
+            "password_hash":  str(row.get("Password Hash", "")),
         })
     return out
 
@@ -597,54 +598,48 @@ def init_data():
                 (WS_NOTIF,"🔔 Notificaciones",  "_notifs_base",   _df_to_notifications),
             ]
             errores = []
-            _status_container = st.empty()
-            with _status_container:
-                with st.status("📊 Cargando jjgt_gestion…", expanded=True) as status:
-                    for ws_name, label, ss_key, transformer in _hojas:
-                        st.write(f"Leyendo {label}…")
-                        try:
-                            df = load_data_from_sheet(client, SHEET_FILE, ws_name)
-                            datos = transformer(df)
-                            # Reconstruir media local desde JJGT_Media
-                            if ss_key in ("_vehicles", "_publicaciones"):
-                                datos = _reconstruir_media_local(datos)
-                            st.session_state[ss_key] = datos
-                            # Cargar publicaciones en user_publications para que aparezcan en la app
-                            if ss_key == "_publicaciones" and datos:
-                                existing = {p.get("id") for p in st.session_state.get("user_publications", [])}
-                                nuevas = [p for p in datos if p.get("id") not in existing]
-                                st.session_state.setdefault("user_publications", [])
-                                st.session_state["user_publications"] = nuevas + st.session_state["user_publications"]
-                            if ss_key == "_resenas" and datos:
-                                st.session_state["resenas"] = datos
-                            n_rows = len(st.session_state[ss_key])
-                            st.write(f"✅ {label}: {n_rows} registros")
-                            time.sleep(0.6)   # pausa entre lecturas para no saturar cuota
-                        except Exception as e_hoja:
-                            st.session_state[ss_key] = []
-                            msg = str(e_hoja)
-                            if _is_quota_err(e_hoja):
-                                msg = (f"⚠️ Cuota excedida ({label}). "
-                                       f"Espera ~1 minuto y recarga la página. "
-                                       f"(Error 429 – Quota exceeded)")
-                            else:
-                                msg = f"⚠️ Error en {label}: {e_hoja}"
-                            st.write(msg)
-                            errores.append(label)
+            with st.status("📊 Cargando jjgt_gestion…", expanded=True) as status:
+                for ws_name, label, ss_key, transformer in _hojas:
+                    st.write(f"Leyendo {label}…")
+                    try:
+                        df = load_data_from_sheet(client, SHEET_FILE, ws_name)
+                        datos = transformer(df)
+                        # Reconstruir media local desde JJGT_Media
+                        if ss_key in ("_vehicles", "_publicaciones"):
+                            datos = _reconstruir_media_local(datos)
+                        st.session_state[ss_key] = datos
+                        # Cargar publicaciones en user_publications para que aparezcan en la app
+                        if ss_key == "_publicaciones" and datos:
+                            existing = {p.get("id") for p in st.session_state.get("user_publications", [])}
+                            nuevas = [p for p in datos if p.get("id") not in existing]
+                            st.session_state.setdefault("user_publications", [])
+                            st.session_state["user_publications"] = nuevas + st.session_state["user_publications"]
+                        if ss_key == "_resenas" and datos:
+                            st.session_state["resenas"] = datos
+                        n_rows = len(st.session_state[ss_key])
+                        st.write(f"✅ {label}: {n_rows} registros")
+                        time.sleep(0.6)   # pausa entre lecturas para no saturar cuota
+                    except Exception as e_hoja:
+                        st.session_state[ss_key] = []
+                        msg = str(e_hoja)
+                        if _is_quota_err(e_hoja):
+                            msg = (f"⚠️ Cuota excedida ({label}). "
+                                   f"Espera ~1 minuto y recarga la página. "
+                                   f"(Error 429 – Quota exceeded)")
+                        else:
+                            msg = f"⚠️ Error en {label}: {e_hoja}"
+                        st.write(msg)
+                        errores.append(label)
 
-                    if errores:
-                        status.update(
-                            label=f"⚠️ Cargado con errores en: {', '.join(errores)}",
-                            state="error", expanded=True)
-                    else:
-                        n = len(st.session_state.get("_vehicles", []))
-                        status.update(
-                            label=f"☁️ jjgt_gestion cargado · {n} vehículos",
-                            state="complete", expanded=False)
-
-            # Si no hubo errores, limpiar el contenedor — no mostrar nada en la página principal
-            if not errores:
-                _status_container.empty()
+                if errores:
+                    status.update(
+                        label=f"⚠️ Cargado con errores en: {', '.join(errores)}",
+                        state="error", expanded=True)
+                else:
+                    n = len(st.session_state.get("_vehicles", []))
+                    status.update(
+                        label=f"☁️ jjgt_gestion cargado · {n} vehículos",
+                        state="complete", expanded=False)
 
         except Exception as e:
             msg = str(e)

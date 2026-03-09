@@ -2926,12 +2926,11 @@ def page_login():
                        if u.get("correo","").strip().lower() == _enorm), None)
 
             if _u is None:
-                # Correo no registrado → error y opciones de acción
+                # Correo no registrado
                 st.error(
-                    f"❌ El correo **{_lemail}** no está registrado en el sistema. "
+                    f"❌ El correo **{_lemail}** no está registrado. "
                     f"Verifica que sea correcto o crea una cuenta nueva."
                 )
-                st.warning("💡 ¿Qué deseas hacer?")
                 _a1, _a2 = st.columns(2)
                 with _a1:
                     if st.button("📝 Crear cuenta nueva", key="lg_goto_register",
@@ -2942,14 +2941,20 @@ def page_login():
                                  use_container_width=True):
                         go("home")
 
-            elif _u.get("password_hash","") and _u.get("password_hash","") != _pw_hash:
-                # Correo existe pero contraseña incorrecta
+            elif _u.get("password_hash","") not in ("", "nan", "None") \
+                    and _u.get("password_hash","") != _pw_hash:
+                # Correo existe, contraseña incorrecta
                 st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
                 if st.button("🔓 Recuperar contraseña", key="lg_forgot_btn"):
                     go("forgot")
 
             else:
-                # Login exitoso
+                # Login exitoso (contraseña correcta, o usuario sin hash aún — primera vez)
+                # Si no tenía hash, guardarlo ahora
+                if not _u.get("password_hash","").strip() or _u.get("password_hash","") in ("nan","None"):
+                    _u["password_hash"] = _pw_hash
+                    save_section_silent(["usuarios"])
+
                 st.session_state.logged_in          = True
                 st.session_state.user_name          = _u.get("nombre", _lemail.split("@")[0].title())
                 st.session_state.user_email         = _u.get("correo", _lemail)
