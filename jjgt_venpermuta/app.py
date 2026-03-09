@@ -1614,41 +1614,50 @@ def page_history():
                                                   use_container_width=True, type="primary")
                     if sub:
                         errs = []
-                        if not name.strip(): errs.append("Nombre")
+                        if not name.strip():  errs.append("Nombre")
                         if not phone.strip(): errs.append("Celular")
-                        if not pw1:          errs.append("Contraseña")
-                        if pw1 != pw2:       errs.append("Las contraseñas no coinciden")
-                        if not terms:        errs.append("Acepta los términos")
+                        if not pw1:           errs.append("Contraseña")
+                        if pw1 != pw2:        errs.append("Las contraseñas no coinciden")
+                        if not terms:         errs.append("Acepta los términos")
                         if errs:
                             st.error("❌ " + " · ".join(errs))
                         else:
-                            import hashlib as _hl
-                            pw_hash  = _hl.sha256(pw1.encode()).hexdigest()
-                            new_user = {
-                                "id": int(datetime.now().timestamp()),
-                                "nombre": name, "correo": _email_no_existe, "celular": phone,
-                                "documento": "", "ciudad": city, "rol": "Usuario",
-                                "publicaciones": 0, "ventas": 0, "puntos": 50,
-                                "nivel": "Bronze",
-                                "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
-                                "password_hash": pw_hash,
+                            # Guardar datos para procesar FUERA del form
+                            st.session_state["_hist_reg_data"] = {
+                                "name": name, "phone": phone, "city": city,
+                                "pw1": pw1, "email": _email_no_existe,
                             }
-                            st.session_state.logged_in          = True
-                            st.session_state.user_name          = name
-                            st.session_state.user_email         = _email_no_existe
-                            st.session_state.user_phone         = phone
-                            st.session_state.user_city          = city
-                            st.session_state.active_cities      = [city]
-                            st.session_state.user_password_hash = pw_hash
-                            st.session_state.history_items      = []
-                            st.session_state.notifications      = list(get_notifs_base())
-                            usuarios_list = list(st.session_state.get("_usuarios", []))
-                            usuarios_list.append(new_user)
-                            st.session_state._usuarios = usuarios_list
-                            st.session_state.pop("_hist_email_no_existe", None)
-                            save_section_silent(["usuarios"])
-                            st.success(f"🎉 ¡Bienvenido {name.split()[0]}! Cuenta creada.")
-                            st.rerun()
+
+                # ── Procesar registro FUERA del form ─────────────────────────
+                _rdata = st.session_state.pop("_hist_reg_data", None)
+                if _rdata:
+                    import hashlib as _hl
+                    pw_hash  = _hl.sha256(_rdata["pw1"].encode()).hexdigest()
+                    new_user = {
+                        "id": int(datetime.now().timestamp()),
+                        "nombre": _rdata["name"], "correo": _rdata["email"],
+                        "celular": _rdata["phone"], "documento": "",
+                        "ciudad": _rdata["city"], "rol": "Usuario",
+                        "publicaciones": 0, "ventas": 0, "puntos": 50,
+                        "nivel": "Bronze",
+                        "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
+                        "password_hash": pw_hash,
+                    }
+                    st.session_state.logged_in          = True
+                    st.session_state.user_name          = _rdata["name"]
+                    st.session_state.user_email         = _rdata["email"]
+                    st.session_state.user_phone         = _rdata["phone"]
+                    st.session_state.user_city          = _rdata["city"]
+                    st.session_state.active_cities      = [_rdata["city"]]
+                    st.session_state.user_password_hash = pw_hash
+                    st.session_state.history_items      = []
+                    st.session_state.notifications      = list(get_notifs_base())
+                    usuarios_list = list(st.session_state.get("_usuarios", []))
+                    usuarios_list.append(new_user)
+                    st.session_state._usuarios = usuarios_list
+                    st.session_state.pop("_hist_email_no_existe", None)
+                    save_section_silent(["usuarios"])
+                    st.rerun()
 
                 if st.button("← Usar otro correo", key="hist_back_login"):
                     st.session_state.pop("_hist_email_no_existe", None)
@@ -1686,32 +1695,40 @@ def page_history():
                         if errs:
                             st.error("❌ " + " · ".join(errs))
                         else:
-                            import hashlib as _hl
-                            pw_hash = _hl.sha256(pw1.encode()).hexdigest()
-                            new_user = {
-                                "id": int(datetime.now().timestamp()),
-                                "nombre": name, "correo": email, "celular": phone,
-                                "documento": "", "ciudad": city, "rol": "Usuario",
-                                "publicaciones": 0, "ventas": 0, "puntos": 50,
-                                "nivel": "Bronze",
-                                "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
-                                "password_hash": pw_hash,
+                            st.session_state["_hist_reg_data"] = {
+                                "name": name, "phone": phone, "city": city,
+                                "pw1": pw1, "email": email.strip(),
                             }
-                            st.session_state.logged_in          = True
-                            st.session_state.user_name          = name
-                            st.session_state.user_email         = email
-                            st.session_state.user_phone         = phone
-                            st.session_state.user_city          = city
-                            st.session_state.active_cities      = [city]
-                            st.session_state.user_password_hash = pw_hash
-                            st.session_state.history_items      = []
-                            st.session_state.notifications      = list(get_notifs_base())
-                            usuarios_list = list(st.session_state.get("_usuarios", []))
-                            usuarios_list.append(new_user)
-                            st.session_state._usuarios = usuarios_list
-                            save_section_silent(["usuarios"])
-                            st.success(f"🎉 ¡Bienvenido {name.split()[0]}! Cuenta creada.")
-                            st.rerun()
+
+                # ── Procesar registro FUERA del form ─────────────────────────
+                _rdata2 = st.session_state.pop("_hist_reg_data", None)
+                if _rdata2:
+                    import hashlib as _hl
+                    pw_hash = _hl.sha256(_rdata2["pw1"].encode()).hexdigest()
+                    new_user = {
+                        "id": int(datetime.now().timestamp()),
+                        "nombre": _rdata2["name"], "correo": _rdata2["email"],
+                        "celular": _rdata2["phone"], "documento": "",
+                        "ciudad": _rdata2["city"], "rol": "Usuario",
+                        "publicaciones": 0, "ventas": 0, "puntos": 50,
+                        "nivel": "Bronze",
+                        "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
+                        "password_hash": pw_hash,
+                    }
+                    st.session_state.logged_in          = True
+                    st.session_state.user_name          = _rdata2["name"]
+                    st.session_state.user_email         = _rdata2["email"]
+                    st.session_state.user_phone         = _rdata2["phone"]
+                    st.session_state.user_city          = _rdata2["city"]
+                    st.session_state.active_cities      = [_rdata2["city"]]
+                    st.session_state.user_password_hash = pw_hash
+                    st.session_state.history_items      = []
+                    st.session_state.notifications      = list(get_notifs_base())
+                    usuarios_list = list(st.session_state.get("_usuarios", []))
+                    usuarios_list.append(new_user)
+                    st.session_state._usuarios = usuarios_list
+                    save_section_silent(["usuarios"])
+                    st.rerun()
 
             else:  # Ya tengo cuenta
                 with st.form("hist_login_form"):
@@ -1721,36 +1738,41 @@ def page_history():
                     lg_sub   = st.form_submit_button("Ingresar",
                                                      use_container_width=True, type="primary")
                     if lg_sub:
-                        import hashlib as _hl
-                        pw_hash  = _hl.sha256(lg_pw.encode()).hexdigest()
-                        usuarios = st.session_state.get("_usuarios", [])
-                        email_norm = lg_email.strip().lower()
+                        # Guardar datos del intento — la validación se hace FUERA del form
+                        st.session_state["_hist_login_attempt"] = {
+                            "email": lg_email.strip(),
+                            "pw":    lg_pw,
+                        }
 
-                        # Buscar si el correo existe (sin importar contraseña)
-                        usuario_existe = next(
-                            (u for u in usuarios
-                             if u.get("correo","").strip().lower() == email_norm), None)
+                # ── Validación FUERA del form (st.rerun() funciona aquí) ──────
+                _attempt = st.session_state.pop("_hist_login_attempt", None)
+                if _attempt:
+                    import hashlib as _hl
+                    _lemail    = _attempt["email"]
+                    _pw_hash   = _hl.sha256(_attempt["pw"].encode()).hexdigest()
+                    _usuarios  = st.session_state.get("_usuarios", [])
+                    _enorm     = _lemail.lower()
 
-                        if usuario_existe:
-                            # Correo existe — verificar contraseña
-                            if usuario_existe.get("password_hash","") == pw_hash:
-                                st.session_state.logged_in          = True
-                                st.session_state.user_name          = usuario_existe.get("nombre","")
-                                st.session_state.user_email         = usuario_existe.get("correo","")
-                                st.session_state.user_phone         = usuario_existe.get("celular","")
-                                st.session_state.user_city          = usuario_existe.get("ciudad","")
-                                st.session_state.active_cities      = [usuario_existe.get("ciudad","")]
-                                st.session_state.user_password_hash = pw_hash
-                                st.session_state.loyalty_points     = int(usuario_existe.get("puntos", 0) or 0)
-                                st.session_state.notifications      = list(get_notifs_base())
-                                st.success(f"✅ ¡Bienvenido {usuario_existe.get('nombre','').split()[0]}!")
-                                st.rerun()
-                            else:
-                                st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
-                        else:
-                            # Correo no registrado → guardar y forzar formulario de registro
-                            st.session_state["_hist_email_no_existe"] = lg_email.strip()
-                            st.rerun()
+                    _u = next((u for u in _usuarios
+                                if u.get("correo","").strip().lower() == _enorm), None)
+
+                    if _u is None:
+                        # Correo no existe → bloquear con formulario de registro
+                        st.session_state["_hist_email_no_existe"] = _lemail
+                        st.rerun()
+                    elif _u.get("password_hash","") != _pw_hash:
+                        st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
+                    else:
+                        st.session_state.logged_in          = True
+                        st.session_state.user_name          = _u.get("nombre","")
+                        st.session_state.user_email         = _u.get("correo","")
+                        st.session_state.user_phone         = _u.get("celular","")
+                        st.session_state.user_city          = _u.get("ciudad","")
+                        st.session_state.active_cities      = [_u.get("ciudad","")]
+                        st.session_state.user_password_hash = _pw_hash
+                        st.session_state.loyalty_points     = int(_u.get("puntos", 0) or 0)
+                        st.session_state.notifications      = list(get_notifs_base())
+                        st.rerun()
 
         return
 
