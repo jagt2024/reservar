@@ -1,295 +1,254 @@
 """
-JJGT — Estilos CSS globales para Streamlit
+styles.py — Hoja de estilos global para JJGT Vehículos Colombia
+Importar en app.py:  from styles import get_css
+Usar con:            st.markdown(get_css(), unsafe_allow_html=True)
 """
 
 def get_css() -> str:
     return """
 <style>
-/* ── GOOGLE FONTS ── */
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
-
-/* ── VARIABLES ── */
+/* ══════════════════════════════════════════
+   VARIABLES DE COLOR JJGT
+══════════════════════════════════════════ */
 :root {
-    --primary: #C41E3A;
-    --primary-dark: #9B1729;
-    --secondary: #1A1A2E;
-    --accent: #F5A623;
-    --success: #00C9A7;
-    --info: #2979FF;
-    --warning: #F5A623;
-    --error: #E53935;
-    --bg: #F4F5F7;
-    --surface: #FFFFFF;
-    --text: #1A1A2E;
-    --text2: #6B6B8A;
-    --border: #E0E0EC;
-    --radius: 18px;
-    --font-display: 'Bebas Neue', 'Arial Black', sans-serif;
-    --font-body: 'DM Sans', 'Segoe UI', sans-serif;
+    --jjgt-red:      #C41E3A;
+    --jjgt-red-dark: #9B1729;
+    --jjgt-gold:     #F5A623;
+    --jjgt-navy:     #1A1A2E;
+    --jjgt-navy2:    #2E2E5A;
+    --jjgt-bg:       #F4F5F7;
+    --jjgt-card:     #FFFFFF;
+    --jjgt-text:     #1A1A2E;
+    --jjgt-muted:    #6B6B8A;
+    --jjgt-border:   #E5E7EB;
+    --jjgt-radius:   14px;
+    --jjgt-shadow:   0 2px 16px rgba(0,0,0,.08);
 }
 
-/* ── RESET & BASE ── */
-* { font-family: var(--font-body) !important; }
-
-html, body, [data-testid="stAppViewContainer"] {
-    background: var(--bg) !important;
-    color: var(--text) !important;
+/* ══════════════════════════════════════════
+   LAYOUT PRINCIPAL — igual local y web
+══════════════════════════════════════════ */
+/* Fondo general */
+.stApp,
+[data-testid="stAppViewContainer"] {
+    background: var(--jjgt-bg) !important;
+    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif !important;
 }
 
-/* ── HIDE STREAMLIT DEFAULTS ── */
-#MainMenu, footer, header,
-[data-testid="stToolbar"],
-[data-testid="stDecoration"] { display: none !important; }
-
-/* ── MAIN CONTENT ── */
-[data-testid="stAppViewContainer"] > .main .block-container {
-    padding: 1rem 2rem 2rem !important;
-    max-width: 1200px !important;
+/* Contenedor central — móvil-first, máximo 500px */
+[data-testid="stMainBlockContainer"],
+.block-container,
+.main .block-container {
+    max-width: 500px !important;
+    padding: 1rem 1rem 4rem 1rem !important;
+    margin: 0 auto !important;
 }
 
-/* ── SIDEBAR ── */
+/* Quitar padding extra del main en ambos entornos */
+section[data-testid="stMain"] > div:first-child {
+    padding-top: 0.5rem !important;
+}
+
+/* ══════════════════════════════════════════
+   HEADER / FOOTER STREAMLIT — ocultar
+══════════════════════════════════════════ */
+#MainMenu { visibility: hidden !important; }
+footer    { visibility: hidden !important; }
+.stDeployButton { display: none !important; }
+
+header[data-testid="stHeader"] {
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+}
+
+/* Botón abrir/cerrar sidebar — siempre visible */
+[data-testid="collapsedControl"],
+button[data-testid="baseButton-header"] {
+    visibility: visible !important;
+    display: flex !important;
+    opacity: 1 !important;
+    z-index: 999999 !important;
+    position: fixed !important;
+    top: 0.4rem !important;
+    left: 0.4rem !important;
+    background: rgba(196,30,58,0.85) !important;
+    border-radius: 8px !important;
+    color: white !important;
+}
+
+/* ══════════════════════════════════════════
+   SIDEBAR
+══════════════════════════════════════════ */
 [data-testid="stSidebar"] {
-    background: #1A1A2E !important;
-    border-right: 1px solid rgba(255,255,255,0.08) !important;
+    background: linear-gradient(180deg, var(--jjgt-navy) 0%, var(--jjgt-navy2) 100%) !important;
 }
 [data-testid="stSidebar"] * {
-    color: #EAEAF5 !important;
+    color: #fff !important;
 }
 [data-testid="stSidebar"] .stButton > button {
-    background: rgba(255,255,255,0.06) !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-    color: #EAEAF5 !important;
-    border-radius: 12px !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s !important;
-    margin-bottom: 4px !important;
+    background: rgba(255,255,255,.08) !important;
+    border: 1px solid rgba(255,255,255,.15) !important;
+    color: #fff !important;
+    border-radius: 10px !important;
+    transition: background .2s;
 }
 [data-testid="stSidebar"] .stButton > button:hover {
-    background: rgba(196,30,58,0.25) !important;
-    border-color: rgba(196,30,58,0.5) !important;
-    transform: translateX(3px);
-}
-[data-testid="stSidebar"] .stButton > [data-baseweb="button"][kind="primary"] > button,
-[data-testid="stSidebar"] button[kind="primary"] {
-    background: linear-gradient(135deg, #C41E3A, #9B1729) !important;
-    border-color: transparent !important;
-}
-[data-testid="stSidebar"] hr {
-    border-color: rgba(255,255,255,0.1) !important;
+    background: rgba(196,30,58,.5) !important;
 }
 
-/* ── BUTTONS ── */
+/* ══════════════════════════════════════════
+   BOTONES GLOBALES
+══════════════════════════════════════════ */
 .stButton > button {
     border-radius: 12px !important;
     font-weight: 600 !important;
     font-size: 14px !important;
-    transition: all 0.2s ease !important;
+    padding: 0.5rem 1rem !important;
+    transition: all .18s ease !important;
     border: none !important;
-    padding: 10px 20px !important;
 }
+
+/* Botón primario */
 .stButton > button[kind="primary"],
-button[kind="primary"] {
-    background: linear-gradient(135deg, #C41E3A, #9B1729) !important;
-    color: white !important;
-    box-shadow: 0 4px 14px rgba(196,30,58,0.35) !important;
+.stButton > button[data-testid*="primary"] {
+    background: linear-gradient(135deg, var(--jjgt-red), var(--jjgt-red-dark)) !important;
+    color: #fff !important;
+    box-shadow: 0 3px 12px rgba(196,30,58,.3) !important;
 }
 .stButton > button[kind="primary"]:hover {
-    transform: translateY(-2px) !important;
-    box-shadow: 0 6px 20px rgba(196,30,58,0.45) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 5px 18px rgba(196,30,58,.45) !important;
 }
+
+/* Botón secundario */
 .stButton > button[kind="secondary"] {
-    background: #F4F5F7 !important;
-    color: #1A1A2E !important;
-    border: 1.5px solid #E0E0EC !important;
+    background: var(--jjgt-card) !important;
+    color: var(--jjgt-text) !important;
+    border: 1.5px solid var(--jjgt-border) !important;
 }
 .stButton > button[kind="secondary"]:hover {
-    background: #E8E9EE !important;
-    transform: translateY(-1px) !important;
+    border-color: var(--jjgt-red) !important;
+    color: var(--jjgt-red) !important;
 }
 
-/* ── INPUTS ── */
-.stTextInput > div > div > input,
-.stTextArea > div > div > textarea,
-.stSelectbox > div > div > div,
-.stNumberInput > div > div > input {
-    border-radius: 12px !important;
-    border: 1.5px solid var(--border) !important;
-    background: white !important;
-    font-size: 14px !important;
-    padding: 10px 14px !important;
-    transition: border-color 0.2s !important;
-}
-.stTextInput > div > div > input:focus,
-.stTextArea > div > div > textarea:focus,
-.stNumberInput > div > div > input:focus {
-    border-color: var(--primary) !important;
-    box-shadow: 0 0 0 3px rgba(196,30,58,0.12) !important;
-}
-label {
-    font-weight: 600 !important;
-    font-size: 13px !important;
-    color: var(--text2) !important;
-}
-
-/* ── FILE UPLOADER ── */
-[data-testid="stFileUploader"] {
-    background: rgba(196,30,58,0.04) !important;
-    border: 2px dashed rgba(196,30,58,0.3) !important;
-    border-radius: 14px !important;
-    padding: 8px !important;
-}
-[data-testid="stFileUploader"]:hover {
-    border-color: var(--primary) !important;
-    background: rgba(196,30,58,0.07) !important;
-}
-
-/* ── METRICS ── */
-[data-testid="stMetric"] {
-    background: white !important;
-    border-radius: 14px !important;
-    padding: 16px !important;
-    box-shadow: 0 4px 20px rgba(26,26,46,0.08) !important;
-    border: 1px solid var(--border) !important;
-}
-[data-testid="stMetricValue"] {
-    font-size: 28px !important;
-    font-weight: 800 !important;
-    color: var(--primary) !important;
-}
-[data-testid="stMetricLabel"] {
-    font-size: 12px !important;
-    color: var(--text2) !important;
-}
-
-/* ── EXPANDER ── */
-.stExpander > details {
-    background: white !important;
-    border-radius: 12px !important;
-    border: 1px solid var(--border) !important;
-    margin-bottom: 8px !important;
-}
-.stExpander > details > summary {
-    font-weight: 600 !important;
-    padding: 14px 16px !important;
-    font-size: 14px !important;
-}
-
-/* ── TABS (radio used as tabs) ── */
-.stRadio > div {
-    display: flex !important;
-    gap: 8px !important;
-    flex-wrap: wrap !important;
-}
-.stRadio label {
-    background: #F4F5F7 !important;
+/* ══════════════════════════════════════════
+   FORMULARIOS / INPUTS
+══════════════════════════════════════════ */
+.stTextInput input,
+.stTextArea textarea,
+.stSelectbox select,
+.stNumberInput input {
     border-radius: 10px !important;
-    padding: 8px 16px !important;
-    cursor: pointer !important;
-    font-weight: 600 !important;
-    font-size: 13px !important;
-    border: 1.5px solid transparent !important;
-    transition: all 0.2s !important;
+    border: 1.5px solid var(--jjgt-border) !important;
+    padding: 0.5rem 0.75rem !important;
+    font-size: 14px !important;
+    background: var(--jjgt-card) !important;
+    transition: border-color .2s !important;
 }
-.stRadio label:hover {
-    background: rgba(196,30,58,0.08) !important;
-    border-color: rgba(196,30,58,0.3) !important;
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus {
+    border-color: var(--jjgt-red) !important;
+    box-shadow: 0 0 0 3px rgba(196,30,58,.12) !important;
 }
 
-/* ── DIVIDER ── */
+/* Labels */
+.stTextInput label,
+.stTextArea label,
+.stSelectbox label,
+.stNumberInput label,
+.stCheckbox label,
+.stRadio label {
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    color: var(--jjgt-text) !important;
+}
+
+/* ══════════════════════════════════════════
+   CARDS / CONTAINERS
+══════════════════════════════════════════ */
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: var(--jjgt-radius) !important;
+    border: 1px solid var(--jjgt-border) !important;
+    box-shadow: var(--jjgt-shadow) !important;
+    background: var(--jjgt-card) !important;
+    padding: 12px !important;
+}
+
+/* ══════════════════════════════════════════
+   MÉTRICAS
+══════════════════════════════════════════ */
+[data-testid="stMetric"] {
+    background: var(--jjgt-card) !important;
+    border-radius: var(--jjgt-radius) !important;
+    padding: 12px 16px !important;
+    border: 1px solid var(--jjgt-border) !important;
+    box-shadow: var(--jjgt-shadow) !important;
+}
+[data-testid="stMetricLabel"] { font-size: 12px !important; color: var(--jjgt-muted) !important; }
+[data-testid="stMetricValue"] { font-size: 22px !important; font-weight: 800 !important; color: var(--jjgt-red) !important; }
+
+/* ══════════════════════════════════════════
+   ALERTAS
+══════════════════════════════════════════ */
+.stAlert {
+    border-radius: 12px !important;
+    font-size: 13px !important;
+}
+
+/* ══════════════════════════════════════════
+   TABS
+══════════════════════════════════════════ */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px !important;
+    background: transparent !important;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    padding: 6px 14px !important;
+    color: var(--jjgt-muted) !important;
+}
+.stTabs [aria-selected="true"] {
+    background: var(--jjgt-red) !important;
+    color: #fff !important;
+}
+
+/* ══════════════════════════════════════════
+   RADIO / TOGGLE
+══════════════════════════════════════════ */
+.stRadio [data-testid="stWidgetLabel"] { font-weight: 700 !important; }
+.stToggle > label { font-size: 13px !important; }
+
+/* ══════════════════════════════════════════
+   DIVIDERS
+══════════════════════════════════════════ */
 hr {
     border: none !important;
-    height: 1px !important;
-    background: var(--border) !important;
-    margin: 16px 0 !important;
+    border-top: 1px solid var(--jjgt-border) !important;
+    margin: 1rem 0 !important;
 }
 
-/* ── ALERTS ── */
-.stSuccess, .stInfo, .stWarning, .stError {
-    border-radius: 12px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-}
-.stSuccess { background: rgba(0,201,167,0.1) !important; }
-.stInfo { background: rgba(41,121,255,0.1) !important; }
-.stWarning { background: rgba(245,166,35,0.1) !important; }
-.stError { background: rgba(229,57,53,0.1) !important; }
-
-/* ── IMAGES ── */
-[data-testid="stImage"] img {
-    border-radius: 14px !important;
-    max-height: 280px !important;
-    object-fit: cover !important;
-}
-
-/* ── VIDEO ── */
-[data-testid="stVideo"] video {
-    border-radius: 14px !important;
-}
-
-/* ── TOGGLE ── */
-.stCheckbox > label,
-[data-testid="stCheckbox"] label {
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    color: var(--text) !important;
-}
-
-/* ── SCROLLBAR ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+/* ══════════════════════════════════════════
+   SCROLLBAR
+══════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(196,30,58,0.3); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(196,30,58,0.6); }
+::-webkit-scrollbar-thumb { background: var(--jjgt-red); border-radius: 4px; }
 
-/* ── FORM ── */
-[data-testid="stForm"] {
-    background: white !important;
-    border-radius: 18px !important;
-    padding: 24px !important;
-    box-shadow: 0 4px 20px rgba(26,26,46,0.08) !important;
-    border: 1px solid var(--border) !important;
-}
+/* ══════════════════════════════════════════
+   SPINNER
+══════════════════════════════════════════ */
+.stSpinner > div { border-top-color: var(--jjgt-red) !important; }
 
-/* ── NUMBER INPUT BUTTONS ── */
-[data-testid="stNumberInput"] button {
-    border-radius: 8px !important;
-    background: #F4F5F7 !important;
-    border: 1px solid var(--border) !important;
-}
-
-/* ── RESPONSIVE ── */
-@media (max-width: 768px) {
-    [data-testid="stAppViewContainer"] > .main .block-container {
-        padding: 0.5rem 1rem 1rem !important;
-    }
-}
-
-/* ── HEADING STYLES ── */
-h1, h2, h3 {
-    font-family: var(--font-display) !important;
-    color: var(--text) !important;
-    letter-spacing: 0.5px !important;
-}
-h2 { font-size: 32px !important; }
-h3 { font-size: 24px !important; }
-
-/* ── DATE INPUT ── */
-[data-testid="stDateInput"] input {
-    border-radius: 12px !important;
-    border: 1.5px solid var(--border) !important;
-}
-
-/* ── SELECT BOX ── */
-.stSelectbox > div [data-baseweb="select"] {
-    border-radius: 12px !important;
-}
-
-/* ── CAPTION ── */
-.stCaption {
-    color: var(--text2) !important;
-    font-size: 12px !important;
+/* ══════════════════════════════════════════
+   IMAGEN / FOTO
+══════════════════════════════════════════ */
+.stImage img {
+    border-radius: var(--jjgt-radius) !important;
+    max-width: 100% !important;
 }
 </style>
 """
