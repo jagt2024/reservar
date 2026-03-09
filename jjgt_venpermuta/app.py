@@ -21,11 +21,26 @@ hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
-            header {visibility: hidden;}
             .stDeployButton {display:none;}
             .css-1rs6os {visibility: hidden;}
             .css-14xtw13 {visibility: hidden;}
             .css-1avcm0n {visibility: hidden;}
+            /* Ocultar header pero mantener botón del sidebar visible */
+            header[data-testid="stHeader"] {visibility: hidden; height: 0; min-height: 0;}
+            /* Botón abrir/cerrar sidebar — siempre visible */
+            [data-testid="collapsedControl"],
+            button[data-testid="baseButton-header"] {
+                visibility: visible !important;
+                display: flex !important;
+                opacity: 1 !important;
+                z-index: 999999 !important;
+                position: fixed !important;
+                top: 0.4rem !important;
+                left: 0.4rem !important;
+                background: rgba(196,30,58,0.85) !important;
+                border-radius: 8px !important;
+                color: white !important;
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -404,6 +419,11 @@ def sidebar():
 # ══════════════════════════════════════════════════════════════════════════════
 def page_home():
     vehicles = _dedup_vehicles()
+
+    # Mensaje de bienvenida tras login exitoso
+    _wm = st.session_state.pop("_welcome_msg", None)
+    if _wm:
+        st.success(_wm)
 
     if not st.session_state.logged_in:
         st.markdown("""
@@ -2876,14 +2896,67 @@ def page_profile_privacy():
         ("Mostrar ciudad exacta",        True),
     ]:
         st.toggle(label, value=default, key=f"priv_{label[:18].replace(' ','_')}")
+
+    st.divider()
+    st.markdown("#### 🔑 Cambiar contraseña")
+
+    with st.form("priv_pw_form"):
+        pw_actual  = st.text_input("Contraseña actual",       type="password", key="priv_pw_actual")
+        pw_nueva   = st.text_input("Nueva contraseña",        type="password", key="priv_pw_nueva")
+        pw_confirma = st.text_input("Confirmar nueva contraseña", type="password", key="priv_pw_conf")
+        sub_pw = st.form_submit_button("💾 Guardar nueva contraseña",
+                                       use_container_width=True, type="primary")
+        if sub_pw:
+            errs = []
+            if not pw_actual:   errs.append("Escribe tu contraseña actual")
+            if not pw_nueva:    errs.append("Escribe la nueva contraseña")
+            if len(pw_nueva) < 6: errs.append("La nueva contraseña debe tener al menos 6 caracteres")
+            if pw_nueva != pw_confirma: errs.append("Las contraseñas no coinciden")
+            if errs:
+                st.error("❌ " + " · ".join(errs))
+            else:
+                st.session_state["_pw_change_data"] = {
+                    "actual": pw_actual, "nueva": pw_nueva
+                }
+
+    # ── Procesar cambio FUERA del form ───────────────────────────────────────
+    _pcd = st.session_state.pop("_pw_change_data", None)
+    if _pcd:
+        import hashlib as _hl
+        _hash_actual = _hl.sha256(_pcd["actual"].encode()).hexdigest()
+        _hash_nueva  = _hl.sha256(_pcd["nueva"].encode()).hexdigest()
+        _email_usr   = (st.session_state.get("user_email") or "").strip().lower()
+
+        # Buscar usuario en lista
+        _u_list  = st.session_state.get("_usuarios", [])
+        _u_match = next((u for u in _u_list
+                         if u.get("correo","").strip().lower() == _email_usr), None)
+
+        if not _u_match:
+            st.error("❌ No se encontró tu usuario. Vuelve a iniciar sesión.")
+        else:
+            _hash_guardado = (_u_match.get("password_hash","") or "").strip()
+            _sin_hash      = _hash_guardado in ("", "nan", "None")
+
+            if not _sin_hash and _hash_guardado != _hash_actual:
+                st.error("❌ La contraseña actual es incorrecta.")
+            else:
+                _u_match["password_hash"] = _hash_nueva
+                st.session_state.user_password_hash = _hash_nueva
+                ok = save_section_silent(["usuarios"])
+                if ok:
+                    st.success("✅ Contraseña actualizada correctamente.")
+                else:
+                    st.warning("⚠️ Contraseña cambiada en sesión pero no se guardó en Sheets.")
+
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("🔑 Cambiar contraseña", key="priv_pw",  use_container_width=True): st.success("✉️ Enlace enviado")
-        if st.button("📱 Auth 2 pasos",        key="priv_2fa", use_container_width=True): st.success("✅ 2FA activado")
+        if st.button("📱 Auth 2 pasos",    key="priv_2fa", use_container_width=True): st.info("Próximamente")
     with c2:
-        if st.button("⬇️ Mis datos",           key="priv_dl",  use_container_width=True): st.success("📧 Recibirás info en 24h")
-        if st.button("🗑️ Eliminar cuenta",     key="priv_del", use_container_width=True): st.warning("⚠️ Contacta soporte.")
+        if st.button("⬇️ Mis datos",       key="priv_dl",  use_container_width=True): st.info("📧 Recibirás info en 24h")
+    if st.button("🗑️ Eliminar cuenta", key="priv_del", use_container_width=True, type="secondary"):
+        st.warning("⚠️ Para eliminar tu cuenta contacta a soporte.")
 
 
 # ── Login ──────────────────────────────────────────────────────────────────────
@@ -2971,6 +3044,9 @@ def page_login():
                 st.session_state.loyalty_level      = _u.get("nivel", "Bronze")
                 st.session_state.history_items      = list(get_history_base())
                 st.session_state.notifications      = list(get_notifs_base())
+                _nombre_corto = _u.get("nombre", "").split()[0] or "usuario"
+                st.session_state["_welcome_msg"] = f"✅ ¡Bienvenido {_nombre_corto}! Sesión iniciada."
+                st.session_state.page = "home"
                 st.rerun()
 
         c1, c2 = st.columns(2)
