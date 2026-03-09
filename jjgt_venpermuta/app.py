@@ -2899,30 +2899,69 @@ def page_login():
             <div style="font-size:11px;color:#6B6B8A;letter-spacing:2px;">VEHÍCULOS COLOMBIA</div>
         </div>""", unsafe_allow_html=True)
         st.markdown("### Ingresar a tu cuenta")
+
         with st.form("login_form"):
             email = st.text_input("✉️ Correo", placeholder="correo@ejemplo.com", key="lg_email")
-            pw    = st.text_input("🔑 Contraseña", type="password",              key="lg_pw")
+            pw    = st.text_input("🔑 Contraseña", type="password", key="lg_pw")
             st.checkbox("Recordarme", key="lg_rem")
             sub = st.form_submit_button("🚀 Ingresar", use_container_width=True, type="primary")
             if sub:
                 if not email or not pw:
                     st.error("❌ Completa todos los campos")
                 else:
-                    usuarios = get_usuarios()
-                    match = next((u for u in usuarios if u.get("correo","").lower()==email.lower()), None)
-                    name = match["nombre"] if match else email.split("@")[0].replace("."," ").title()
-                    if match:
-                        st.session_state.loyalty_points = match.get("puntos", 200)
-                        st.session_state.loyalty_level  = match.get("nivel",  "Silver")
-                        st.session_state.user_city      = match.get("ciudad", "Bogotá")
-                        st.session_state.user_phone     = match.get("celular","")
-                    st.session_state.logged_in  = True
-                    st.session_state.user_name  = name
-                    st.session_state.user_email = email
-                    st.session_state.history_items = list(get_history_base())
-                    st.session_state.notifications = list(get_notifs_base())
-                    st.success(f"✅ ¡Bienvenido {name.split()[0]}!")
-                    go("home")
+                    # Guardar intento para procesar FUERA del form
+                    st.session_state["_login_attempt"] = {"email": email.strip(), "pw": pw}
+
+        # ── Validación FUERA del form (st.rerun() funciona aquí) ─────────────
+        _attempt = st.session_state.pop("_login_attempt", None)
+        if _attempt:
+            import hashlib as _hl
+            _lemail   = _attempt["email"]
+            _pw_hash  = _hl.sha256(_attempt["pw"].encode()).hexdigest()
+            _usuarios = get_usuarios()
+            _enorm    = _lemail.lower()
+
+            # 1. ¿Existe el correo?
+            _u = next((u for u in _usuarios
+                       if u.get("correo","").strip().lower() == _enorm), None)
+
+            if _u is None:
+                # Correo no registrado → error y opciones de acción
+                st.error(
+                    f"❌ El correo **{_lemail}** no está registrado en el sistema. "
+                    f"Verifica que sea correcto o crea una cuenta nueva."
+                )
+                st.warning("💡 ¿Qué deseas hacer?")
+                _a1, _a2 = st.columns(2)
+                with _a1:
+                    if st.button("📝 Crear cuenta nueva", key="lg_goto_register",
+                                 type="primary", use_container_width=True):
+                        go("register")
+                with _a2:
+                    if st.button("🏠 Volver al inicio", key="lg_goto_home",
+                                 use_container_width=True):
+                        go("home")
+
+            elif _u.get("password_hash","") and _u.get("password_hash","") != _pw_hash:
+                # Correo existe pero contraseña incorrecta
+                st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
+                if st.button("🔓 Recuperar contraseña", key="lg_forgot_btn"):
+                    go("forgot")
+
+            else:
+                # Login exitoso
+                st.session_state.logged_in          = True
+                st.session_state.user_name          = _u.get("nombre", _lemail.split("@")[0].title())
+                st.session_state.user_email         = _u.get("correo", _lemail)
+                st.session_state.user_phone         = _u.get("celular", "")
+                st.session_state.user_city          = _u.get("ciudad", "Bogotá")
+                st.session_state.active_cities      = [_u.get("ciudad", "Bogotá")]
+                st.session_state.user_password_hash = _pw_hash
+                st.session_state.loyalty_points     = int(_u.get("puntos", 0) or 0)
+                st.session_state.loyalty_level      = _u.get("nivel", "Bronze")
+                st.session_state.history_items      = list(get_history_base())
+                st.session_state.notifications      = list(get_notifs_base())
+                st.rerun()
 
         c1, c2 = st.columns(2)
         with c1:
