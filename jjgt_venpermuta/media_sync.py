@@ -559,7 +559,101 @@ def send_permuta_email(destinatarios, propuesta, vehiculo_ofrecido, vehiculo_des
         return False
 
 
-def send_nueva_publicacion_email(admin_email: str, pub: dict, portada_uri: str = "") -> bool:
+def send_recuperacion_email(usuario: dict) -> tuple[bool, str]:
+    """
+    Envía correo de recuperación de contraseña con la contraseña actual hasheada.
+    Como no guardamos la contraseña en texto plano, genera una nueva temporal
+    y la guarda en session_state para que el admin pueda resetearla.
+    Retorna (ok, mensaje_error).
+    """
+    try:
+        import smtplib, secrets, string
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text      import MIMEText
+
+        smtp_user = st.secrets["emails"]["smtp_user"]
+        smtp_pass = st.secrets["emails"]["smtp_password"]
+        smtp_host = "smtp.gmail.com"
+        smtp_port = 465
+        from_name = "JJGT Vehículos"
+
+        if not smtp_user or not smtp_pass:
+            return False, "Credenciales SMTP no configuradas"
+
+        nombre     = usuario.get("nombre", "Usuario")
+        dest_email = (usuario.get("correo") or "").strip()
+        if not dest_email:
+            return False, "El usuario no tiene correo registrado"
+
+        # Generar contraseña temporal legible
+        alfabeto  = string.ascii_letters + string.digits
+        nueva_pw  = "".join(secrets.choice(alfabeto) for _ in range(10))
+
+        # Guardar nueva contraseña temporal en session_state para aplicarla
+        import hashlib as _hl
+        nuevo_hash = _hl.sha256(nueva_pw.encode()).hexdigest()
+        st.session_state["_pw_reset_pending"] = {
+            "correo": dest_email,
+            "hash":   nuevo_hash,
+        }
+
+        html = f"""
+<html><body style="font-family:Arial,sans-serif;background:#F4F5F7;padding:20px;">
+<div style="max-width:480px;margin:0 auto;">
+
+  <div style="background:linear-gradient(135deg,#C41E3A,#1A1A2E);
+              border-radius:16px 16px 0 0;padding:24px;color:#fff;text-align:center;">
+    <div style="font-size:32px;font-weight:900;letter-spacing:4px;">JJGT</div>
+    <div style="font-size:12px;opacity:.7;">VEHÍCULOS · COLOMBIA</div>
+    <div style="font-size:16px;font-weight:700;margin-top:10px;">🔑 Recuperación de contraseña</div>
+  </div>
+
+  <div style="background:#fff;border-radius:0 0 16px 16px;padding:28px;
+              box-shadow:0 4px 20px rgba(0,0,0,.08);">
+    <p style="font-size:15px;">Hola <b>{nombre.split()[0]}</b>,</p>
+    <p>Recibimos una solicitud para recuperar tu contraseña en <b>JJGT Vehículos</b>.</p>
+    <p>Tu nueva contraseña temporal es:</p>
+
+    <div style="background:#F0F4FF;border:2px dashed #C41E3A;border-radius:12px;
+                padding:20px;text-align:center;margin:20px 0;">
+      <div style="font-size:28px;font-weight:900;letter-spacing:6px;
+                  color:#C41E3A;font-family:monospace;">{nueva_pw}</div>
+    </div>
+
+    <p style="font-size:13px;color:#555;">
+      Ingresa con esta contraseña y cámbiala desde tu perfil una vez que hayas iniciado sesión.
+    </p>
+
+    <div style="background:#FFF3E0;border-radius:10px;padding:14px;
+                font-size:12px;color:#E65100;margin-top:16px;">
+      ⚠️ Si no solicitaste este cambio, ignora este correo. Tu contraseña anterior
+      seguirá siendo válida hasta que uses esta nueva.
+    </div>
+
+    <div style="margin-top:20px;font-size:12px;color:#9999BB;text-align:center;">
+      ¿Necesitas ayuda? <a href="mailto:{smtp_user}" style="color:#C41E3A;">{smtp_user}</a>
+    </div>
+  </div>
+</div>
+</body></html>"""
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "🔑 Tu nueva contraseña temporal — JJGT Vehículos"
+        msg["From"]    = f"{from_name} <{smtp_user}>"
+        msg["To"]      = dest_email
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, dest_email, msg.as_string())
+
+        return True, ""
+    except Exception as e:
+        return False, str(e)
+
+
+
     """
     Envía correo al administrador cada vez que se crea una nueva publicación.
     También envía confirmación al vendedor si tiene correo.

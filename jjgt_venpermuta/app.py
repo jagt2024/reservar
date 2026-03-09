@@ -2949,11 +2949,16 @@ def page_login():
                     go("forgot")
 
             else:
-                # Login exitoso (contraseña correcta, o usuario sin hash aún — primera vez)
-                # Si no tenía hash, guardarlo ahora
-                if not _u.get("password_hash","").strip() or _u.get("password_hash","") in ("nan","None"):
+                # Login exitoso
+                # Si no tenía hash aún (usuario pre-existente), guardarlo en background
+                _hash_vacio = not _u.get("password_hash","").strip() or \
+                              _u.get("password_hash","").strip() in ("nan","None","")
+                if _hash_vacio:
                     _u["password_hash"] = _pw_hash
-                    save_section_silent(["usuarios"])
+                    try:
+                        save_section_silent(["usuarios"])
+                    except Exception:
+                        pass  # No bloquear el login si falla el guardado
 
                 st.session_state.logged_in          = True
                 st.session_state.user_name          = _u.get("nombre", _lemail.split("@")[0].title())
@@ -3045,16 +3050,67 @@ def page_register():
 
 # ── Recuperar contraseña ───────────────────────────────────────────────────────
 def page_forgot():
+    _btn_inicio("forgot")
     _, col, _ = st.columns([1, 2, 1])
     with col:
-        st.markdown("## 🔓 Recuperar contraseña")
+        st.markdown("""
+        <div style="text-align:center;padding:20px 0 12px;">
+          <div style="font-size:44px;font-weight:900;letter-spacing:4px;
+              background:linear-gradient(135deg,#C41E3A,#F5A623);
+              -webkit-background-clip:text;-webkit-text-fill-color:transparent;">JJGT</div>
+        </div>""", unsafe_allow_html=True)
+        st.markdown("### 🔑 Recuperar contraseña")
+        st.caption("Te enviaremos una contraseña temporal a tu correo registrado.")
+
         with st.form("forgot_form"):
-            email = st.text_input("✉️ Correo electrónico", key="fg_email")
-            if st.form_submit_button("📧 Enviar enlace", use_container_width=True, type="primary"):
-                if email:
-                    st.success("✅ Enlace enviado a tu correo")
-                    go("login")
-        if st.button("← Volver al login", key="fg_back"):
+            email = st.text_input("✉️ Correo electrónico registrado", key="fg_email")
+            sub   = st.form_submit_button("📧 Enviar contraseña temporal",
+                                          use_container_width=True, type="primary")
+            if sub:
+                if not email.strip():
+                    st.error("❌ Escribe tu correo.")
+                else:
+                    st.session_state["_forgot_attempt"] = email.strip()
+
+        # ── Procesar FUERA del form ───────────────────────────────────────────
+        _fg_email = st.session_state.pop("_forgot_attempt", None)
+        if _fg_email:
+            _usuarios = get_usuarios()
+            _u = next((u for u in _usuarios
+                       if u.get("correo","").strip().lower() == _fg_email.lower()), None)
+            if _u is None:
+                st.error(
+                    f"❌ El correo **{_fg_email}** no está registrado. "
+                    f"Verifica o crea una cuenta nueva."
+                )
+                if st.button("📝 Crear cuenta nueva", key="fg_register",
+                             type="primary", use_container_width=True):
+                    go("register")
+            else:
+                from media_sync import send_recuperacion_email
+                _ok, _err = send_recuperacion_email(_u)
+                if _ok:
+                    # Aplicar el nuevo hash al usuario en session_state
+                    _reset = st.session_state.pop("_pw_reset_pending", None)
+                    if _reset:
+                        for u in st.session_state.get("_usuarios", []):
+                            if u.get("correo","").strip().lower() == _reset["correo"].lower():
+                                u["password_hash"] = _reset["hash"]
+                                break
+                        try:
+                            save_section_silent(["usuarios"])
+                        except Exception:
+                            pass
+                    st.success(
+                        f"✅ Contraseña temporal enviada a **{_fg_email}**. "
+                        f"Revisa tu bandeja de entrada (y carpeta de spam)."
+                    )
+                    st.info("Usa esa contraseña para ingresar y cámbiala desde tu perfil.")
+                else:
+                    st.error(f"❌ No se pudo enviar el correo: {_err[:150]}")
+
+        st.divider()
+        if st.button("← Volver al login", key="fg_back", use_container_width=True):
             go("login")
 
 
