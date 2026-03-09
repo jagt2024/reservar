@@ -597,48 +597,54 @@ def init_data():
                 (WS_NOTIF,"🔔 Notificaciones",  "_notifs_base",   _df_to_notifications),
             ]
             errores = []
-            with st.status("📊 Cargando jjgt_gestion…", expanded=True) as status:
-                for ws_name, label, ss_key, transformer in _hojas:
-                    st.write(f"Leyendo {label}…")
-                    try:
-                        df = load_data_from_sheet(client, SHEET_FILE, ws_name)
-                        datos = transformer(df)
-                        # Reconstruir media local desde JJGT_Media
-                        if ss_key in ("_vehicles", "_publicaciones"):
-                            datos = _reconstruir_media_local(datos)
-                        st.session_state[ss_key] = datos
-                        # Cargar publicaciones en user_publications para que aparezcan en la app
-                        if ss_key == "_publicaciones" and datos:
-                            existing = {p.get("id") for p in st.session_state.get("user_publications", [])}
-                            nuevas = [p for p in datos if p.get("id") not in existing]
-                            st.session_state.setdefault("user_publications", [])
-                            st.session_state["user_publications"] = nuevas + st.session_state["user_publications"]
-                        if ss_key == "_resenas" and datos:
-                            st.session_state["resenas"] = datos
-                        n_rows = len(st.session_state[ss_key])
-                        st.write(f"✅ {label}: {n_rows} registros")
-                        time.sleep(0.6)   # pausa entre lecturas para no saturar cuota
-                    except Exception as e_hoja:
-                        st.session_state[ss_key] = []
-                        msg = str(e_hoja)
-                        if _is_quota_err(e_hoja):
-                            msg = (f"⚠️ Cuota excedida ({label}). "
-                                   f"Espera ~1 minuto y recarga la página. "
-                                   f"(Error 429 – Quota exceeded)")
-                        else:
-                            msg = f"⚠️ Error en {label}: {e_hoja}"
-                        st.write(msg)
-                        errores.append(label)
+            _status_container = st.empty()
+            with _status_container:
+                with st.status("📊 Cargando jjgt_gestion…", expanded=True) as status:
+                    for ws_name, label, ss_key, transformer in _hojas:
+                        st.write(f"Leyendo {label}…")
+                        try:
+                            df = load_data_from_sheet(client, SHEET_FILE, ws_name)
+                            datos = transformer(df)
+                            # Reconstruir media local desde JJGT_Media
+                            if ss_key in ("_vehicles", "_publicaciones"):
+                                datos = _reconstruir_media_local(datos)
+                            st.session_state[ss_key] = datos
+                            # Cargar publicaciones en user_publications para que aparezcan en la app
+                            if ss_key == "_publicaciones" and datos:
+                                existing = {p.get("id") for p in st.session_state.get("user_publications", [])}
+                                nuevas = [p for p in datos if p.get("id") not in existing]
+                                st.session_state.setdefault("user_publications", [])
+                                st.session_state["user_publications"] = nuevas + st.session_state["user_publications"]
+                            if ss_key == "_resenas" and datos:
+                                st.session_state["resenas"] = datos
+                            n_rows = len(st.session_state[ss_key])
+                            st.write(f"✅ {label}: {n_rows} registros")
+                            time.sleep(0.6)   # pausa entre lecturas para no saturar cuota
+                        except Exception as e_hoja:
+                            st.session_state[ss_key] = []
+                            msg = str(e_hoja)
+                            if _is_quota_err(e_hoja):
+                                msg = (f"⚠️ Cuota excedida ({label}). "
+                                       f"Espera ~1 minuto y recarga la página. "
+                                       f"(Error 429 – Quota exceeded)")
+                            else:
+                                msg = f"⚠️ Error en {label}: {e_hoja}"
+                            st.write(msg)
+                            errores.append(label)
 
-                if errores:
-                    status.update(
-                        label=f"⚠️ Cargado con errores en: {', '.join(errores)}",
-                        state="error", expanded=True)
-                else:
-                    n = len(st.session_state.get("_vehicles", []))
-                    status.update(
-                        label=f"☁️ jjgt_gestion cargado · {n} vehículos",
-                        state="complete", expanded=False)
+                    if errores:
+                        status.update(
+                            label=f"⚠️ Cargado con errores en: {', '.join(errores)}",
+                            state="error", expanded=True)
+                    else:
+                        n = len(st.session_state.get("_vehicles", []))
+                        status.update(
+                            label=f"☁️ jjgt_gestion cargado · {n} vehículos",
+                            state="complete", expanded=False)
+
+            # Si no hubo errores, limpiar el contenedor — no mostrar nada en la página principal
+            if not errores:
+                _status_container.empty()
 
         except Exception as e:
             msg = str(e)
@@ -709,35 +715,40 @@ def init_data():
 # ════════════════════════════════════════════════════════════════════════════
 def reconstruct_media(v: dict) -> dict:
     """
-    Reconstruye fotos/video desde referencias almacenadas en fotos_urls / video_url.
+    Reconstruye fotos/video desde URLs de Drive.
 
-    v6.0: Soporta referencias "gdrive:<file_id>" (Drive) y rutas locales
-    "JJGT_Media/..." (fallback sin Drive).
-
-    Lógica:
-      - Si fotos[] ya tiene bytes en RAM (publicación reciente) → no pisar.
-      - Si fotos_urls tiene referencias gdrive: → descargar desde Drive.
-      - Si fotos_urls tiene rutas locales → leer del filesystem.
-      - Para tarjetas (get_portada_data_uri) las referencias gdrive: se
-        sirven como thumbnail URL directa (sin descarga).
+    FIX v2.3: La lógica anterior bloqueaba la reconstrucción si fotos[]
+    estaba vacío (vehículos de Sheets siempre llegan con fotos:[]).
+    Ahora la condición correcta es:
+      - ¿Ya tiene preview_url? → ya fue reconstruido, no tocar.
+      - ¿Tiene fotos_urls en Drive? → reconstruir siempre.
     """
     fotos_list = v.get("fotos") or []
     video_dict = v.get("video")
     fotos_urls = (v.get("fotos_urls") or "").strip()
     video_url  = (v.get("video_url")  or "").strip()
 
+    # ¿Ya tiene preview_url? → ya fue reconstruido con el nuevo sistema
+    fotos_ya_reconstruidas = any(
+        isinstance(f, dict) and f.get("preview_url")
+        for f in fotos_list
+    )
     # ¿Ya hay bytes en memoria (publicación recién subida)?
     fotos_tienen_bytes = any(
         isinstance(f, dict) and f.get("bytes")
         for f in fotos_list
     )
-    # ¿Video ya tiene bytes?
-    video_ok = isinstance(video_dict, dict) and video_dict.get("bytes")
+    # ¿Video ya tiene embed_url?
+    video_ok = isinstance(video_dict, dict) and (
+        video_dict.get("embed_url") or video_dict.get("bytes"))
 
+    # Si ya está todo listo, no hacer nada
+    if fotos_ya_reconstruidas and (video_ok or not video_url):
+        return v
     # Si tiene bytes propios (publicación nueva), no pisar
     if fotos_tienen_bytes and (video_ok or not video_url):
         return v
-    # Sin referencias → nada que hacer
+    # Sin URLs de Drive → nada que hacer
     if not fotos_urls and not video_url:
         return v
 
@@ -749,7 +760,7 @@ def reconstruct_media(v: dict) -> dict:
         if fotos_nuevas and not fotos_tienen_bytes:
             v["fotos"] = fotos_nuevas
 
-        # Video: reconstruir si llegó y no había bytes propios
+        # Video: reconstruir si llegó embed_url Y no había bytes propios
         if video_nuevo and not video_ok:
             v["video"] = video_nuevo
 
