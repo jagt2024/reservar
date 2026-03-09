@@ -1591,6 +1591,71 @@ def page_history():
                   Para ver o crear avisos necesitas una cuenta</div>
             </div>""", unsafe_allow_html=True)
 
+            # ── Correo no encontrado: forzar registro antes de continuar ─────
+            _email_no_existe = st.session_state.get("_hist_email_no_existe", "")
+            if _email_no_existe:
+                st.error(
+                    f"❌ El correo **{_email_no_existe}** no está registrado. "
+                    f"Para continuar debes crear una cuenta primero."
+                )
+                with st.form("hist_force_register_form"):
+                    st.markdown("#### 👤 Crear tu cuenta")
+                    name  = st.text_input("Nombre *", key="hfr_name")
+                    phone = st.text_input("Celular *", placeholder="300 000 0000", key="hfr_phone")
+                    st.text_input("Correo", value=_email_no_existe, key="hfr_email_show",
+                                  disabled=True)
+                    city  = st.selectbox("Ciudad",
+                        ["Bogotá","Medellín","Cali","Barranquilla",
+                         "Bucaramanga","Pereira","Cartagena"], key="hfr_city")
+                    pw1   = st.text_input("Contraseña *", type="password", key="hfr_pw1")
+                    pw2   = st.text_input("Confirmar contraseña *", type="password", key="hfr_pw2")
+                    terms = st.checkbox("✅ Acepto Términos y condiciones", key="hfr_terms")
+                    sub   = st.form_submit_button("🎉 Crear cuenta y continuar",
+                                                  use_container_width=True, type="primary")
+                    if sub:
+                        errs = []
+                        if not name.strip(): errs.append("Nombre")
+                        if not phone.strip(): errs.append("Celular")
+                        if not pw1:          errs.append("Contraseña")
+                        if pw1 != pw2:       errs.append("Las contraseñas no coinciden")
+                        if not terms:        errs.append("Acepta los términos")
+                        if errs:
+                            st.error("❌ " + " · ".join(errs))
+                        else:
+                            import hashlib as _hl
+                            pw_hash  = _hl.sha256(pw1.encode()).hexdigest()
+                            new_user = {
+                                "id": int(datetime.now().timestamp()),
+                                "nombre": name, "correo": _email_no_existe, "celular": phone,
+                                "documento": "", "ciudad": city, "rol": "Usuario",
+                                "publicaciones": 0, "ventas": 0, "puntos": 50,
+                                "nivel": "Bronze",
+                                "fecha_registro": datetime.now().strftime("%d/%m/%Y"),
+                                "password_hash": pw_hash,
+                            }
+                            st.session_state.logged_in          = True
+                            st.session_state.user_name          = name
+                            st.session_state.user_email         = _email_no_existe
+                            st.session_state.user_phone         = phone
+                            st.session_state.user_city          = city
+                            st.session_state.active_cities      = [city]
+                            st.session_state.user_password_hash = pw_hash
+                            st.session_state.history_items      = []
+                            st.session_state.notifications      = list(get_notifs_base())
+                            usuarios_list = list(st.session_state.get("_usuarios", []))
+                            usuarios_list.append(new_user)
+                            st.session_state._usuarios = usuarios_list
+                            st.session_state.pop("_hist_email_no_existe", None)
+                            save_section_silent(["usuarios"])
+                            st.success(f"🎉 ¡Bienvenido {name.split()[0]}! Cuenta creada.")
+                            st.rerun()
+
+                if st.button("← Usar otro correo", key="hist_back_login"):
+                    st.session_state.pop("_hist_email_no_existe", None)
+                    st.rerun()
+                return  # No mostrar nada más hasta que se registre
+
+            # ── Selector normal: Registrarse / Ingresar ──────────────────────
             modo = st.radio("", ["📝 Crear cuenta nueva", "🔐 Ya tengo cuenta"],
                             horizontal=True, key="hist_auth_modo",
                             label_visibility="collapsed")
@@ -1683,21 +1748,10 @@ def page_history():
                             else:
                                 st.error("❌ Contraseña incorrecta. Verifica e intenta de nuevo.")
                         else:
-                            # Correo no registrado — guardar para pre-llenar el form de registro
-                            st.session_state["_hist_prefill_email"] = lg_email.strip()
-                            st.error(
-                                f"❌ El correo **{lg_email.strip()}** no está registrado. "
-                                f"Cambia a **'📝 Crear cuenta nueva'** para registrarte."
-                            )
+                            # Correo no registrado → guardar y forzar formulario de registro
+                            st.session_state["_hist_email_no_existe"] = lg_email.strip()
+                            st.rerun()
 
-                # Si hay un correo pre-llenado por intento fallido, mostrar botón de acceso rápido
-                if st.session_state.get("_hist_prefill_email"):
-                    _pf = st.session_state["_hist_prefill_email"]
-                    st.info(f"💡 ¿Quieres crear una cuenta con **{_pf}**?")
-                    if st.button("📝 Crear cuenta con este correo", key="hist_goto_register",
-                                 type="primary", use_container_width=True):
-                        st.session_state["hist_auth_modo"] = "📝 Crear cuenta nueva"
-                        st.rerun()
         return
 
     top1, top2 = st.columns([3, 1])
