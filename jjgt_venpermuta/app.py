@@ -21,11 +21,28 @@ hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}
             footer {visibility: hidden;}
-            header {visibility: hidden;}
             .stDeployButton {display:none;}
             .css-1rs6os {visibility: hidden;}
             .css-14xtw13 {visibility: hidden;}
             .css-1avcm0n {visibility: hidden;}
+            /* Ocultar header pero mantener el botón del sidebar visible */
+            header[data-testid="stHeader"] {visibility: hidden; height: 0; min-height: 0;}
+            section[data-testid="stSidebar"] > div:first-child {padding-top: 0;}
+            /* Botón para abrir/cerrar sidebar — siempre visible */
+            button[kind="header"],
+            [data-testid="collapsedControl"],
+            button[data-testid="baseButton-header"] {
+                visibility: visible !important;
+                display: flex !important;
+                opacity: 1 !important;
+                z-index: 999999 !important;
+                position: fixed !important;
+                top: 0.5rem !important;
+                left: 0.5rem !important;
+                background: rgba(196,30,58,0.9) !important;
+                border-radius: 8px !important;
+                color: white !important;
+            }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -2853,19 +2870,38 @@ if _pending:
         _first_err = list(_sheets_errors.values())[0]
         _sheets_detail = f"\n\n🔍 Error Sheets: `{_first_err[:200]}`"
 
+    # ── Enviar correo automático al admin y al vendedor ───────────────────────
+    _email_ok  = False
+    _email_err = ""
+    try:
+        from media_sync import send_nueva_publicacion_email as _send_pub_email
+        # Obtener miniatura de portada (URL de Drive si está disponible)
+        _portada_uri = ""
+        if _drive_ok and _fotos_urls_csv:
+            from media_sync import _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive
+            _primera = _fotos_urls_csv.split(",")[0].strip()
+            if _is_drive_ref(_primera):
+                _portada_uri = _thumbnail_url_drive(_file_id_from_ref(_primera), 500)
+        _email_ok = _send_pub_email(ADMIN_EMAIL, _new_pub, _portada_uri)
+        _email_err = st.session_state.pop("_email_pub_error", "")
+    except Exception as _ee:
+        _email_err = str(_ee)
+
+    _email_tag = " · ✉️ Correo enviado" if _email_ok else (f" · ⚠️ Correo: {_email_err[:60]}" if _email_err else "")
+
     if _drive_ok:
         st.session_state._pub_result = ("ok",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Drive{_sheets_detail}")
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Drive{_email_tag}{_sheets_detail}")
     elif _b64_ok:
         st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets{_sheets_detail}")
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'} · 📸 Portada en Sheets{_email_tag}{_sheets_detail}")
     elif _upload_err:
         st.session_state._pub_result = ("warn",
             f"🎉 Publicado +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}\n"
-            f"⚠️ Error imágenes: `{_upload_err[:120]}`{_sheets_detail}")
+            f"⚠️ Error imágenes: `{_upload_err[:120]}`{_email_tag}{_sheets_detail}")
     else:
         st.session_state._pub_result = ("ok" if _sheets_ok else "warn",
-            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}{_sheets_detail}")
+            f"🎉 ¡Publicado! +50 pts · {'☁️ Sheets OK' if _sheets_ok else '⚠️ Sin Sheets'}{_email_tag}{_sheets_detail}")
 
     st.session_state.page = "vehicle_detail"
     st.session_state.det_action      = None

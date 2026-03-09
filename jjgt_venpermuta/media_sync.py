@@ -559,6 +559,204 @@ def send_permuta_email(destinatarios, propuesta, vehiculo_ofrecido, vehiculo_des
         return False
 
 
+def send_nueva_publicacion_email(admin_email: str, pub: dict, portada_uri: str = "") -> bool:
+    """
+    Envía correo al administrador cada vez que se crea una nueva publicación.
+    También envía confirmación al vendedor si tiene correo.
+    """
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text      import MIMEText
+
+        smtp_user = st.secrets["emails"]["smtp_user"]
+        smtp_pass = st.secrets["emails"]["smtp_password"]
+        smtp_host = "smtp.gmail.com"
+        smtp_port = 465
+        from_name = "JJGT Vehículos"
+
+        if not smtp_user or not smtp_pass:
+            return False
+
+        precio   = float(pub.get("price", 0) or 0)
+        nombre   = f"{pub.get('name','')} {pub.get('model','')} {pub.get('year','')}".strip()
+        tipo_map = {"venta": "🏷️ Venta", "permuta": "🔄 Permuta", "ambos": "🔄 Venta + Permuta"}
+        tipo_lbl = tipo_map.get(pub.get("type", "venta"), "Venta")
+
+        # Imagen de portada (solo si es data URI pequeño, no b64 largo)
+        img_html = ""
+        if portada_uri and portada_uri.startswith("https://"):
+            img_html = (f'<img src="{portada_uri}" '
+                        f'style="width:100%;max-height:220px;object-fit:cover;'
+                        f'border-radius:10px;margin-bottom:16px;">')
+
+        # ── Correo al ADMINISTRADOR ───────────────────────────────────────────
+        html_admin = f"""
+<html><body style="font-family:Arial,sans-serif;background:#F4F5F7;padding:20px;">
+<div style="max-width:560px;margin:0 auto;">
+
+  <div style="background:linear-gradient(135deg,#C41E3A,#1A1A2E);border-radius:16px 16px 0 0;
+              padding:24px;color:#fff;text-align:center;">
+    <div style="font-size:32px;font-weight:900;letter-spacing:4px;">JJGT</div>
+    <div style="font-size:12px;opacity:.7;margin-top:2px;">VEHÍCULOS · COLOMBIA</div>
+    <div style="font-size:16px;font-weight:700;margin-top:12px;">🚗 Nueva publicación recibida</div>
+  </div>
+
+  <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;
+              box-shadow:0 4px 20px rgba(0,0,0,.08);">
+    {img_html}
+
+    <div style="background:#F0F4FF;border-radius:10px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:20px;font-weight:800;color:#1A1A2E;">{nombre}</div>
+      <div style="margin-top:6px;">
+        <span style="background:#C41E3A22;color:#C41E3A;font-size:11px;font-weight:700;
+                     padding:2px 10px;border-radius:20px;">{tipo_lbl}</span>
+      </div>
+    </div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr style="background:#F9F9FB;">
+        <td style="padding:8px 12px;color:#6B6B8A;width:40%;">💰 Precio</td>
+        <td style="padding:8px 12px;font-weight:700;color:#C41E3A;font-size:16px;">
+            ${precio:,.0f} COP</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;color:#6B6B8A;">📅 Año</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('year','')}</td>
+      </tr>
+      <tr style="background:#F9F9FB;">
+        <td style="padding:8px 12px;color:#6B6B8A;">📏 Kilómetros</td>
+        <td style="padding:8px 12px;font-weight:600;">{int(pub.get('km',0) or 0):,} km</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;color:#6B6B8A;">⛽ Combustible</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('fuel','')}</td>
+      </tr>
+      <tr style="background:#F9F9FB;">
+        <td style="padding:8px 12px;color:#6B6B8A;">⚙️ Transmisión</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('trans','')}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;color:#6B6B8A;">🎨 Color</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('color','')}</td>
+      </tr>
+      <tr style="background:#F9F9FB;">
+        <td style="padding:8px 12px;color:#6B6B8A;">📍 Ciudad</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('city','')}</td>
+      </tr>
+      <tr>
+        <td style="padding:8px 12px;color:#6B6B8A;">📋 ID Publicación</td>
+        <td style="padding:8px 12px;font-weight:600;font-family:monospace;">{pub.get('id','')}</td>
+      </tr>
+      <tr style="background:#F9F9FB;">
+        <td style="padding:8px 12px;color:#6B6B8A;">📅 Fecha</td>
+        <td style="padding:8px 12px;font-weight:600;">{pub.get('fecha','')}</td>
+      </tr>
+    </table>
+
+    <div style="background:#E8F5E9;border-radius:10px;padding:14px;margin-top:16px;">
+      <div style="font-size:12px;font-weight:700;color:#2E7D32;margin-bottom:6px;">👤 VENDEDOR</div>
+      <div style="font-size:14px;font-weight:700;">{pub.get('seller','')}</div>
+      <div style="font-size:13px;color:#555;margin-top:4px;">
+        📱 {pub.get('seller_phone', pub.get('phone',''))} &nbsp;·&nbsp;
+        ✉️ {pub.get('seller_email','')}
+      </div>
+    </div>
+
+    {"<div style='background:#F9F9FB;border-radius:10px;padding:14px;margin-top:14px;font-size:13px;color:#555;line-height:1.6;'><b>📝 Descripción:</b><br>" + str(pub.get('desc','')).replace('<','&lt;') + "</div>" if pub.get('desc') else ""}
+
+    <div style="margin-top:20px;padding:14px;background:#FFF3E0;border-radius:10px;
+                font-size:12px;color:#E65100;text-align:center;">
+      ⚡ Publicación en vivo en <b>JJGT Vehículos Colombia</b>
+    </div>
+  </div>
+
+  <div style="text-align:center;font-size:11px;color:#9999BB;margin-top:16px;">
+    JJGT · Sistema de Gestión · Colombia 🇨🇴
+  </div>
+</div>
+</body></html>"""
+
+        # ── Correo de CONFIRMACIÓN al vendedor ────────────────────────────────
+        html_vendedor = f"""
+<html><body style="font-family:Arial,sans-serif;background:#F4F5F7;padding:20px;">
+<div style="max-width:540px;margin:0 auto;">
+
+  <div style="background:linear-gradient(135deg,#C41E3A,#1A1A2E);border-radius:16px 16px 0 0;
+              padding:24px;color:#fff;text-align:center;">
+    <div style="font-size:30px;font-weight:900;letter-spacing:4px;">JJGT</div>
+    <div style="font-size:14px;margin-top:10px;">🎉 ¡Tu vehículo ya está publicado!</div>
+  </div>
+
+  <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;
+              box-shadow:0 4px 20px rgba(0,0,0,.08);">
+    <p style="font-size:15px;">Hola <b>{pub.get('seller','')}</b>,</p>
+    <p>Tu publicación ha sido creada exitosamente en <b>JJGT Vehículos Colombia</b>.</p>
+
+    <div style="background:linear-gradient(135deg,#C41E3A22,#1A1A2E11);
+                border-radius:12px;padding:18px;margin:16px 0;text-align:center;">
+      <div style="font-size:18px;font-weight:800;">{nombre}</div>
+      <div style="font-size:28px;font-weight:900;color:#C41E3A;margin-top:8px;">
+          ${precio:,.0f} COP</div>
+      <div style="font-size:12px;color:#6B6B8A;margin-top:4px;">
+          {pub.get('city','')} · {int(pub.get('km',0) or 0):,} km · {pub.get('fuel','')}</div>
+    </div>
+
+    <div style="font-size:13px;color:#555;line-height:1.8;">
+      <b>📋 ID de tu publicación:</b>
+      <span style="font-family:monospace;background:#F0F0F0;padding:2px 8px;
+                   border-radius:4px;">{pub.get('id','')}</span><br>
+      <b>📅 Fecha:</b> {pub.get('fecha','')}<br>
+      <b>📞 Contacto visible:</b> {pub.get('seller_phone', pub.get('phone',''))}
+    </div>
+
+    <div style="margin-top:20px;padding:14px;background:#E3F2FD;border-radius:10px;
+                font-size:13px;color:#1565C0;">
+      💡 Los interesados te contactarán directamente por WhatsApp o teléfono.
+      Mantén tu celular activo para no perder oportunidades.
+    </div>
+
+    <div style="margin-top:16px;font-size:12px;color:#9999BB;text-align:center;">
+      ¿Necesitas ayuda? Escríbenos a
+      <a href="mailto:{smtp_user}" style="color:#C41E3A;">{smtp_user}</a>
+    </div>
+  </div>
+</div>
+</body></html>"""
+
+        destinatarios = [admin_email]
+        seller_email  = (pub.get("seller_email") or "").strip()
+        if seller_email and seller_email.lower() != admin_email.lower():
+            destinatarios.append(seller_email)
+
+        with smtplib.SMTP_SSL(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.login(smtp_user, smtp_pass)
+
+            # Correo al admin
+            msg_admin = MIMEMultipart("alternative")
+            msg_admin["Subject"] = f"🚗 Nueva publicación: {nombre} — ${precio:,.0f}"
+            msg_admin["From"]    = f"{from_name} <{smtp_user}>"
+            msg_admin["To"]      = admin_email
+            msg_admin.attach(MIMEText(html_admin, "html"))
+            server.sendmail(smtp_user, admin_email, msg_admin.as_string())
+
+            # Correo al vendedor (si tiene correo distinto al admin)
+            if seller_email and seller_email.lower() != admin_email.lower():
+                msg_vend = MIMEMultipart("alternative")
+                msg_vend["Subject"] = f"🎉 Tu vehículo ya está publicado en JJGT — {nombre}"
+                msg_vend["From"]    = f"{from_name} <{smtp_user}>"
+                msg_vend["To"]      = seller_email
+                msg_vend.attach(MIMEText(html_vendedor, "html"))
+                server.sendmail(smtp_user, seller_email, msg_vend.as_string())
+
+        return True
+    except Exception as e:
+        # No bloquear la publicación si el correo falla
+        st.session_state["_email_pub_error"] = str(e)
+        return False
+
+
 def _extract_file_id(url: str) -> str | None:
     import re
     for pat in [r"[?&]id=([a-zA-Z0-9_-]+)", r"/file/d/([a-zA-Z0-9_-]+)"]:
