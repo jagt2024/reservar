@@ -2886,8 +2886,14 @@ def page_profile_notifconfig():
 
 def page_profile_privacy():
     _btn_inicio("profile_privacy")
-    if st.button("← Volver", key="priv_back"): go("profile")
+    if st.button("← Volver al perfil", key="priv_back"): go("profile")
     st.markdown("## 🔒 Privacidad y seguridad")
+
+    if not st.session_state.get("logged_in"):
+        st.warning("🔐 Debes iniciar sesión para acceder a esta sección.")
+        if st.button("Ingresar", key="priv_login", type="primary"): go("login")
+        return
+
     st.info("🛡️ Tu información es tuya. Solo compartimos lo necesario.")
     for label, default in [
         ("Mostrar mi número de celular", True),
@@ -2899,19 +2905,42 @@ def page_profile_privacy():
 
     st.divider()
     st.markdown("#### 🔑 Cambiar contraseña")
+    st.caption(f"Cuenta: **{st.session_state.get('user_email', '')}**")
+
+    # Mostrar mensaje de resultado si viene de submit anterior
+    _pw_result = st.session_state.pop("_pw_change_result", None)
+    if _pw_result:
+        if _pw_result["ok"]:
+            st.success(_pw_result["msg"])
+        else:
+            st.error(_pw_result["msg"])
 
     with st.form("priv_pw_form"):
-        pw_actual  = st.text_input("Contraseña actual",       type="password", key="priv_pw_actual")
-        pw_nueva   = st.text_input("Nueva contraseña",        type="password", key="priv_pw_nueva")
-        pw_confirma = st.text_input("Confirmar nueva contraseña", type="password", key="priv_pw_conf")
+        _email_usr    = (st.session_state.get("user_email") or "").strip().lower()
+        _u_list       = st.session_state.get("_usuarios", [])
+        _u_match      = next((u for u in _u_list
+                              if u.get("correo","").strip().lower() == _email_usr), None)
+        _tiene_hash   = _u_match and (_u_match.get("password_hash","") or "").strip() \
+                        not in ("", "nan", "None")
+
+        if not _tiene_hash:
+            st.info("ℹ️ Aún no tienes contraseña configurada. Escribe directamente la nueva.")
+            pw_actual = st.text_input("Contraseña actual", type="password",
+                                      key="priv_pw_actual", placeholder="(déjala vacía si no tienes)",
+                                      value="")
+        else:
+            pw_actual = st.text_input("Contraseña actual *", type="password", key="priv_pw_actual")
+
+        pw_nueva    = st.text_input("Nueva contraseña *",        type="password", key="priv_pw_nueva")
+        pw_confirma = st.text_input("Confirmar nueva contraseña *", type="password", key="priv_pw_conf")
+
         sub_pw = st.form_submit_button("💾 Guardar nueva contraseña",
                                        use_container_width=True, type="primary")
         if sub_pw:
             errs = []
-            if not pw_actual:   errs.append("Escribe tu contraseña actual")
-            if not pw_nueva:    errs.append("Escribe la nueva contraseña")
-            if len(pw_nueva) < 6: errs.append("La nueva contraseña debe tener al menos 6 caracteres")
-            if pw_nueva != pw_confirma: errs.append("Las contraseñas no coinciden")
+            if not pw_nueva:              errs.append("Escribe la nueva contraseña")
+            if len(pw_nueva) < 6:         errs.append("Mínimo 6 caracteres")
+            if pw_nueva != pw_confirma:   errs.append("Las contraseñas no coinciden")
             if errs:
                 st.error("❌ " + " · ".join(errs))
             else:
@@ -2923,39 +2952,54 @@ def page_profile_privacy():
     _pcd = st.session_state.pop("_pw_change_data", None)
     if _pcd:
         import hashlib as _hl
-        _hash_actual = _hl.sha256(_pcd["actual"].encode()).hexdigest()
-        _hash_nueva  = _hl.sha256(_pcd["nueva"].encode()).hexdigest()
-        _email_usr   = (st.session_state.get("user_email") or "").strip().lower()
-
-        # Buscar usuario en lista
-        _u_list  = st.session_state.get("_usuarios", [])
-        _u_match = next((u for u in _u_list
-                         if u.get("correo","").strip().lower() == _email_usr), None)
+        _hash_actual   = _hl.sha256(_pcd["actual"].encode()).hexdigest() if _pcd["actual"] else ""
+        _hash_nueva    = _hl.sha256(_pcd["nueva"].encode()).hexdigest()
+        _email_usr     = (st.session_state.get("user_email") or "").strip().lower()
+        _u_list        = st.session_state.get("_usuarios", [])
+        _u_match       = next((u for u in _u_list
+                               if u.get("correo","").strip().lower() == _email_usr), None)
 
         if not _u_match:
-            st.error("❌ No se encontró tu usuario. Vuelve a iniciar sesión.")
+            st.session_state["_pw_change_result"] = {
+                "ok": False, "msg": "❌ No se encontró tu usuario. Vuelve a iniciar sesión."}
+            st.rerun()
         else:
             _hash_guardado = (_u_match.get("password_hash","") or "").strip()
             _sin_hash      = _hash_guardado in ("", "nan", "None")
 
             if not _sin_hash and _hash_guardado != _hash_actual:
-                st.error("❌ La contraseña actual es incorrecta.")
+                st.session_state["_pw_change_result"] = {
+                    "ok": False, "msg": "❌ La contraseña actual es incorrecta."}
+                st.rerun()
             else:
-                _u_match["password_hash"] = _hash_nueva
+                _u_match["password_hash"]           = _hash_nueva
                 st.session_state.user_password_hash = _hash_nueva
-                ok = save_section_silent(["usuarios"])
-                if ok:
-                    st.success("✅ Contraseña actualizada correctamente.")
-                else:
-                    st.warning("⚠️ Contraseña cambiada en sesión pero no se guardó en Sheets.")
+                try:
+                    _ok = save_section_silent(["usuarios"])
+                    if _ok:
+                        st.session_state["_pw_change_result"] = {
+                            "ok": True, "msg": "✅ Contraseña actualizada y guardada correctamente."}
+                    else:
+                        st.session_state["_pw_change_result"] = {
+                            "ok": True,
+                            "msg": "✅ Contraseña actualizada en sesión. "
+                                   "⚠️ No se pudo guardar en Sheets — reintenta desde perfil."}
+                except Exception as _e:
+                    st.session_state["_pw_change_result"] = {
+                        "ok": True,
+                        "msg": f"✅ Contraseña actualizada. Error al guardar: {str(_e)[:80]}"}
+                st.rerun()
 
     st.divider()
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("📱 Auth 2 pasos",    key="priv_2fa", use_container_width=True): st.info("Próximamente")
+        if st.button("📱 Auth 2 pasos",  key="priv_2fa", use_container_width=True):
+            st.info("Próximamente")
     with c2:
-        if st.button("⬇️ Mis datos",       key="priv_dl",  use_container_width=True): st.info("📧 Recibirás info en 24h")
-    if st.button("🗑️ Eliminar cuenta", key="priv_del", use_container_width=True, type="secondary"):
+        if st.button("⬇️ Mis datos",     key="priv_dl",  use_container_width=True):
+            st.info("📧 Recibirás info en 24h")
+    if st.button("🗑️ Eliminar cuenta", key="priv_del",
+                 use_container_width=True, type="secondary"):
         st.warning("⚠️ Para eliminar tu cuenta contacta a soporte.")
 
 
