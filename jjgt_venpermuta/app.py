@@ -74,12 +74,12 @@ from excel_sync import (
 from media_sync import send_permuta_email
 
 # ── Configuración de página ────────────────────────────────────────────────────
-st.set_page_config(
-    page_title="JJGT — Vehículos Colombia",
-    page_icon="🚗", layout="wide",
-    initial_sidebar_state="collapsed",
-)
-st.markdown(get_css(), unsafe_allow_html=True)
+#st.set_page_config(
+#    page_title="JJGT — Vehículos Colombia",
+#    page_icon="🚗", layout="wide",
+#    initial_sidebar_state="collapsed",
+#)
+#st.markdown(get_css(), unsafe_allow_html=True)
 
 # ── Session state ──────────────────────────────────────────────────────────────
 _DEFAULTS = {
@@ -1859,6 +1859,8 @@ def page_history():
         sfg, sbg, slbl = SS.get(sc, ("#6B6B8A","#F4F5F7","ESTADO"))
         hkey = str(h.get("id","x")).replace("#","").replace("-","_")
 
+        can_edit = sc in ("activo","pendiente")
+
         with st.container(border=True):
             r1, r2 = st.columns([4, 1])
             with r1:
@@ -1872,23 +1874,85 @@ def page_history():
                             f'text-align:center;margin-top:6px;">{slbl}</div>',
                             unsafe_allow_html=True)
 
-            can_edit = sc in ("activo","pendiente")
             if can_edit:
                 bc1, bc2, bc3 = st.columns(3)
                 with bc1:
-                    if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}", use_container_width=True):
+                    if st.button("👁️ Ver", key=f"hist_view_{hkey}_{idx}",
+                                 use_container_width=True):
+                        # Buscar referencia: 1) pubRef directo, 2) user_publications por id,
+                        # 3) get_vehicles() por id, 4) get_vehicles() por nombre exacto
                         ref = h.get("pubRef")
-                        if not ref:
+                        hid = str(h.get("id","")).strip()
+                        if not ref and hid:
+                            ref = next((p for p in st.session_state.user_publications
+                                        if str(p.get("id","")).strip() == hid), None)
+                        if not ref and hid:
                             ref = next((v for v in get_vehicles()
-                                        if v.get("name","") in h.get("name","")), None)
+                                        if str(v.get("id","")).strip() == hid), None)
+                        if not ref:
+                            hname = h.get("name","").strip().lower()
+                            ref = next((v for v in get_vehicles()
+                                        if v.get("name","").strip().lower() == hname), None)
+                        if not ref:
+                            hname = h.get("name","").strip().lower()
+                            ref = next((p for p in st.session_state.user_publications
+                                        if p.get("name","").strip().lower() == hname), None)
                         if ref:
                             st.session_state.selected_vehicle = ref
                             go("vehicle_detail")
+                        else:
+                            st.warning("⚠️ No se encontró el detalle del vehículo.")
                 with bc2:
-                    if st.button("✏️ Editar", key=f"hist_edit_{hkey}_{idx}", use_container_width=True):
+                    if st.button("✏️ Editar", key=f"hist_edit_{hkey}_{idx}",
+                                 use_container_width=True):
                         st.session_state["_editing_pub_id"] = h.get("id")
+                with bc3:
+                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}",
+                                 use_container_width=True):
+                        hid = h.get("id")
+                        st.session_state.history_items = [
+                            x for x in st.session_state.history_items
+                            if x.get("id") != hid]
+                        st.session_state.user_publications = [
+                            p for p in st.session_state.user_publications
+                            if p.get("id") != hid]
+                        ok = save_section_silent(["publicaciones","historial","vehiculos"])
+                        if ok:
+                            st.success("✅ Eliminado y guardado en Google Sheets")
+                        else:
+                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
+                        st.rerun()
+            else:
+                bc1, bc2 = st.columns(2)
+                with bc1:
+                    if st.button("👁️ Ver", key=f"hist_view2_{hkey}_{idx}",
+                                 use_container_width=True):
+                        ref = h.get("pubRef")
+                        hid = str(h.get("id","")).strip()
+                        if not ref and hid:
+                            ref = next((p for p in st.session_state.user_publications
+                                        if str(p.get("id","")).strip() == hid), None)
+                        if not ref and hid:
+                            ref = next((v for v in get_vehicles()
+                                        if str(v.get("id","")).strip() == hid), None)
+                        if not ref:
+                            hname = h.get("name","").strip().lower()
+                            ref = next((v for v in get_vehicles()
+                                        if v.get("name","").strip().lower() == hname), None)
+                        if not ref:
+                            hname = h.get("name","").strip().lower()
+                            ref = next((p for p in st.session_state.user_publications
+                                        if p.get("name","").strip().lower() == hname), None)
+                        if ref:
+                            st.session_state.selected_vehicle = ref
+                            go("vehicle_detail")
+                        else:
+                            st.warning("⚠️ No se encontró el detalle del vehículo.")
+                with bc2:
+                    st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}",
+                              use_container_width=True)
 
-        # Formulario de edición inline
+        # Formulario de edición inline (fuera del container, después de él)
         if st.session_state.get("_editing_pub_id") == h.get("id"):
             pub_ref = next((p for p in st.session_state.user_publications
                             if str(p.get("id","")) == str(h.get("id",""))), None)
@@ -1897,25 +1961,31 @@ def page_history():
                     st.markdown("#### ✏️ Editar publicación")
                     e1, e2 = st.columns(2)
                     with e1:
-                        new_price  = st.number_input("Precio", value=int(pub_ref.get("price",0) or 0), step=1000000)
-                        new_city   = st.text_input("Ciudad", value=str(pub_ref.get("city","")))
+                        new_price = st.number_input("Precio",
+                            value=int(pub_ref.get("price",0) or 0), step=1000000)
+                        new_city  = st.text_input("Ciudad",
+                            value=str(pub_ref.get("city","")))
                     with e2:
-                        new_km     = st.number_input("Km", value=int(pub_ref.get("km",0) or 0), step=1000)
-                        tipo_opts  = ["Venta","Permuta","Venta y Permuta"]
-                        tipo_vals  = ["venta","permuta","ambos"]
-                        cur_tipo   = pub_ref.get("type","venta")
-                        tipo_idx   = tipo_vals.index(cur_tipo) if cur_tipo in tipo_vals else 0
-                        new_tipo   = st.selectbox("Tipo aviso", tipo_opts, index=tipo_idx)
-                    new_desc   = st.text_area("Descripción", value=str(pub_ref.get("desc","")), height=80)
-                    est_opts   = ["Activo","Pausado","Cerrado"]
-                    cur_est    = pub_ref.get("estado","Activo")
-                    est_idx    = est_opts.index(cur_est) if cur_est in est_opts else 0
+                        new_km    = st.number_input("Km",
+                            value=int(pub_ref.get("km",0) or 0), step=1000)
+                        tipo_opts = ["Venta","Permuta","Venta y Permuta"]
+                        tipo_vals = ["venta","permuta","ambos"]
+                        cur_tipo  = pub_ref.get("type","venta")
+                        tipo_idx  = tipo_vals.index(cur_tipo) if cur_tipo in tipo_vals else 0
+                        new_tipo  = st.selectbox("Tipo aviso", tipo_opts, index=tipo_idx)
+                    new_desc  = st.text_area("Descripción",
+                        value=str(pub_ref.get("desc","")), height=80)
+                    est_opts  = ["Activo","Pausado","Cerrado"]
+                    cur_est   = pub_ref.get("estado","Activo")
+                    est_idx   = est_opts.index(cur_est) if cur_est in est_opts else 0
                     new_estado = st.selectbox("Estado", est_opts, index=est_idx)
-                    es1, es2   = st.columns(2)
+                    es1, es2  = st.columns(2)
                     with es1:
-                        guardar  = st.form_submit_button("💾 Guardar", type="primary", use_container_width=True)
+                        guardar  = st.form_submit_button("💾 Guardar",
+                            type="primary", use_container_width=True)
                     with es2:
-                        cancelar = st.form_submit_button("❌ Cancelar", use_container_width=True)
+                        cancelar = st.form_submit_button("❌ Cancelar",
+                            use_container_width=True)
                     if guardar:
                         TIPO_MAP = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
                         pub_ref["price"]  = new_price
@@ -1933,30 +2003,6 @@ def page_history():
                     if cancelar:
                         st.session_state["_editing_pub_id"] = None
                         st.rerun()
-                with bc3:
-                    if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}", use_container_width=True):
-                        hid = h.get("id")
-                        st.session_state.history_items = [
-                            x for x in st.session_state.history_items if x.get("id") != hid]
-                        st.session_state.user_publications = [
-                            p for p in st.session_state.user_publications if p.get("id") != hid]
-                        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
-                        if ok:
-                            st.success("✅ Eliminado y guardado en Google Sheets")
-                        else:
-                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
-                        st.rerun()
-            else:
-                bc1, bc2 = st.columns(2)
-                with bc1:
-                    if st.button("👁️ Ver", key=f"hist_view2_{hkey}_{idx}", use_container_width=True):
-                        ref = next((v for v in get_vehicles()
-                                    if v.get("name","") in h.get("name","")), None)
-                        if ref:
-                            st.session_state.selected_vehicle = ref
-                            go("vehicle_detail")
-                with bc2:
-                    st.button("🔁 Republicar", key=f"hist_rep_{hkey}_{idx}", use_container_width=True)
 
     st.divider()
     st.markdown("**💾 Guardar cambios**")
@@ -2975,19 +3021,22 @@ def page_profile_privacy():
                 _u_match["password_hash"]           = _hash_nueva
                 st.session_state.user_password_hash = _hash_nueva
                 try:
-                    _ok = save_section_silent(["usuarios"])
+                    from excel_sync import save_password_hash_to_sheets as _sph
+                    _ok, _msg = _sph(_email_usr, _hash_nueva)
                     if _ok:
                         st.session_state["_pw_change_result"] = {
-                            "ok": True, "msg": "✅ Contraseña actualizada y guardada correctamente."}
+                            "ok": True,
+                            "msg": "✅ Contraseña actualizada y guardada en Google Sheets."}
                     else:
                         st.session_state["_pw_change_result"] = {
-                            "ok": True,
-                            "msg": "✅ Contraseña actualizada en sesión. "
-                                   "⚠️ No se pudo guardar en Sheets — reintenta desde perfil."}
+                            "ok": False,
+                            "msg": f"✅ Contraseña cambiada en sesión, pero no se guardó en Sheets.\n\n"
+                                   f"🔍 Error: `{_msg}`"}
                 except Exception as _e:
                     st.session_state["_pw_change_result"] = {
-                        "ok": True,
-                        "msg": f"✅ Contraseña actualizada. Error al guardar: {str(_e)[:80]}"}
+                        "ok": False,
+                        "msg": f"✅ Contraseña cambiada en sesión.\n\n"
+                               f"🔍 Excepción: `{str(_e)[:200]}`"}
                 st.rerun()
 
     st.divider()
@@ -3073,7 +3122,8 @@ def page_login():
                 if _hash_vacio:
                     _u["password_hash"] = _pw_hash
                     try:
-                        save_section_silent(["usuarios"])
+                        from excel_sync import save_password_hash_to_sheets as _sph
+                        _sph(_lemail, _pw_hash)
                     except Exception:
                         pass  # No bloquear el login si falla el guardado
 
@@ -3210,7 +3260,7 @@ def page_forgot():
                 from media_sync import send_recuperacion_email
                 _ok, _err = send_recuperacion_email(_u)
                 if _ok:
-                    # Aplicar el nuevo hash al usuario en session_state
+                    # Aplicar el nuevo hash al usuario en session_state y Sheets
                     _reset = st.session_state.pop("_pw_reset_pending", None)
                     if _reset:
                         for u in st.session_state.get("_usuarios", []):
@@ -3218,7 +3268,8 @@ def page_forgot():
                                 u["password_hash"] = _reset["hash"]
                                 break
                         try:
-                            save_section_silent(["usuarios"])
+                            from excel_sync import save_password_hash_to_sheets as _sph
+                            _sph(_reset["correo"], _reset["hash"])
                         except Exception:
                             pass
                     st.success(
