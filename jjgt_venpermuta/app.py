@@ -73,6 +73,59 @@ from excel_sync import (
 
 from media_sync import send_permuta_email
 
+# ── Helper: escribir password_hash directo en Sheets (sin depender de excel_sync externo) ──
+def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
+    """Escribe pw_hash en la celda exacta de la hoja USUARIOS buscando por correo."""
+    try:
+        import time as _time, string as _string
+        from data import load_credentials_from_toml, get_google_sheets_connection
+        from excel_sync import SHEET_FILE
+        creds, _ = load_credentials_from_toml()
+        if not creds:
+            return False, "Sin credenciales Google"
+        client = get_google_sheets_connection(creds)
+        sh = client.open(SHEET_FILE)
+        ws = sh.worksheet("👥 USUARIOS")
+        all_vals = ws.get_all_values()
+        if not all_vals:
+            return False, "Hoja USUARIOS vacía"
+        headers = list(all_vals[0])
+        # Buscar o crear columna Password Hash
+        PH = "Password Hash"
+        if PH in headers:
+            ph_idx = headers.index(PH)
+        else:
+            ph_idx = len(headers)
+            headers.append(PH)
+            ws.update("A1", [headers])
+            _time.sleep(0.4)
+        # Buscar columna Correo
+        correo_idx = next((headers.index(c) for c in ("Correo","correo","Email","email")
+                           if c in headers), None)
+        if correo_idx is None:
+            return False, "No se encontró columna Correo"
+        # Buscar fila del usuario
+        correo_norm = correo.strip().lower()
+        target_row  = None
+        for i, row in enumerate(all_vals[1:], start=2):
+            if correo_idx < len(row) and row[correo_idx].strip().lower() == correo_norm:
+                target_row = i
+                break
+        if target_row is None:
+            return False, f"Correo '{correo}' no encontrado en USUARIOS"
+        # Letra de columna
+        def _col(idx):
+            r = ""
+            idx += 1
+            while idx:
+                idx, rem = divmod(idx - 1, 26)
+                r = _string.ascii_uppercase[rem] + r
+            return r
+        ws.update(f"{_col(ph_idx)}{target_row}", [[pw_hash]])
+        return True, "OK"
+    except Exception as e:
+        return False, str(e)
+
 # ── Configuración de página ────────────────────────────────────────────────────
 #st.set_page_config(
 #    page_title="JJGT — Vehículos Colombia",
@@ -3021,8 +3074,7 @@ def page_profile_privacy():
                 _u_match["password_hash"]           = _hash_nueva
                 st.session_state.user_password_hash = _hash_nueva
                 try:
-                    from excel_sync import save_password_hash_to_sheets as _sph
-                    _ok, _msg = _sph(_email_usr, _hash_nueva)
+                    _ok, _msg = _save_pw_hash(_email_usr, _hash_nueva)
                     if _ok:
                         st.session_state["_pw_change_result"] = {
                             "ok": True,
@@ -3122,8 +3174,7 @@ def page_login():
                 if _hash_vacio:
                     _u["password_hash"] = _pw_hash
                     try:
-                        from excel_sync import save_password_hash_to_sheets as _sph
-                        _sph(_lemail, _pw_hash)
+                        _save_pw_hash(_lemail, _pw_hash)
                     except Exception:
                         pass  # No bloquear el login si falla el guardado
 
@@ -3268,8 +3319,7 @@ def page_forgot():
                                 u["password_hash"] = _reset["hash"]
                                 break
                         try:
-                            from excel_sync import save_password_hash_to_sheets as _sph
-                            _sph(_reset["correo"], _reset["hash"])
+                            _save_pw_hash(_reset["correo"], _reset["hash"])
                         except Exception:
                             pass
                     st.success(
