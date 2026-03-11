@@ -1524,12 +1524,23 @@ def page_publish():
             st.session_state.loyalty_points += 50
 
         st.session_state.selected_vehicle = new_pub
-        ok = save_section_silent(["publicaciones", "historial", "vehiculos"])
+        ok = save_section_silent(["publicaciones", "historial"])  # ← NO "vehiculos": evita sobreescribir km/color del catálogo
         media_msg = " · 📸 Imágenes en Drive" if drive_ok else ""
+
+        # ── Enviar correo al administrador ───────────────────────────────────
+        _email_msg = ""
+        try:
+            from media_sync import send_nueva_publicacion_email, get_portada_data_uri
+            _portada_uri = get_portada_data_uri(new_pub, max_w=400) if new_pub.get("fotos") or new_pub.get("fotos_urls") else ""
+            _email_ok = send_nueva_publicacion_email(ADMIN_EMAIL, new_pub, _portada_uri)
+            _email_msg = " · ✉️ Correo enviado" if _email_ok else " · ⚠️ Correo no enviado"
+        except Exception as _em:
+            _email_msg = f" · ⚠️ Error correo: {str(_em)[:60]}"
+
         if ok:
-            st.success(f"🎉 ¡Publicado con éxito! +50 pts · ☁️ Guardado{media_msg}")
+            st.success(f"🎉 ¡Publicado con éxito! +50 pts · ☁️ Guardado{media_msg}{_email_msg}")
         else:
-            st.success("🎉 ¡Publicado con éxito! +50 pts")
+            st.success(f"🎉 ¡Publicado con éxito! +50 pts{media_msg}{_email_msg}")
         go("vehicle_detail")
         return
 
