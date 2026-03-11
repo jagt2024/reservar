@@ -858,3 +858,96 @@ def _extract_file_id(url: str) -> str | None:
         if m:
             return m.group(1)
     return None
+
+
+def send_nueva_publicacion_email(admin_email: str, pub: dict, portada_uri: str = "") -> bool:
+    """
+    Envía correo HTML al administrador cuando se crea una nueva publicación.
+    Retorna True si se envió correctamente.
+    """
+    try:
+        import smtplib
+        from email.mime.multipart import MIMEMultipart
+        from email.mime.text import MIMEText
+
+        smtp_user = st.secrets["emails"]["smtp_user"]
+        smtp_pass = st.secrets["emails"]["smtp_password"]
+        if not smtp_user or not smtp_pass:
+            return False
+
+        nombre_vendedor = pub.get("seller", pub.get("name", "—"))
+        telefono        = pub.get("phone", pub.get("seller_phone", "—"))
+        correo_vendedor = pub.get("seller_email", "—")
+        nombre_vehiculo = f"{pub.get('name','')} {pub.get('model','')} {pub.get('year','')}".strip()
+        precio          = pub.get("price", 0)
+        ciudad          = pub.get("city", "—")
+        tipo            = pub.get("type", "venta").capitalize()
+        km              = pub.get("km", 0)
+        color           = pub.get("color", "—")
+        desc            = pub.get("desc", "")[:300]
+        fecha           = pub.get("fecha", "—")
+        pub_id          = pub.get("id", "—")
+
+        def _fmt(n):
+            try: return f"$ {int(n):,}".replace(",",".")
+            except: return str(n)
+
+        portada_html = ""
+        if portada_uri and portada_uri.startswith("data:"):
+            portada_html = f'<img src="{portada_uri}" style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;margin-bottom:16px;" />'
+
+        html = f"""
+<html><body style="font-family:Arial,sans-serif;background:#F4F5F7;padding:20px;margin:0;">
+<div style="max-width:500px;margin:0 auto;">
+
+  <div style="background:linear-gradient(135deg,#C41E3A,#1A1A2E);border-radius:16px 16px 0 0;
+              padding:22px 24px;color:#fff;text-align:center;">
+    <div style="font-size:30px;font-weight:900;letter-spacing:4px;">JJGT</div>
+    <div style="font-size:11px;opacity:.7;letter-spacing:2px;">VEHÍCULOS · COLOMBIA</div>
+    <div style="font-size:15px;font-weight:700;margin-top:10px;">🚗 Nueva publicación recibida</div>
+  </div>
+
+  <div style="background:#fff;border-radius:0 0 16px 16px;padding:24px;
+              box-shadow:0 4px 20px rgba(0,0,0,.08);">
+    {portada_html}
+
+    <h2 style="margin:0 0 4px;font-size:18px;color:#1A1A2E;">{nombre_vehiculo}</h2>
+    <div style="font-size:22px;font-weight:900;color:#C41E3A;margin-bottom:16px;">{_fmt(precio)}</div>
+
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+      <tr style="background:#F8F9FA;"><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">📅 Fecha</td><td style="padding:8px 10px;">{fecha}</td></tr>
+      <tr><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">🆔 ID Pub</td><td style="padding:8px 10px;">{pub_id}</td></tr>
+      <tr style="background:#F8F9FA;"><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">📍 Ciudad</td><td style="padding:8px 10px;">{ciudad}</td></tr>
+      <tr><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">🔁 Tipo</td><td style="padding:8px 10px;">{tipo}</td></tr>
+      <tr style="background:#F8F9FA;"><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">🛣️ Km</td><td style="padding:8px 10px;">{km:,}</td></tr>
+      <tr><td style="padding:8px 10px;color:#6B6B8A;font-weight:600;">🎨 Color</td><td style="padding:8px 10px;">{color}</td></tr>
+    </table>
+
+    <div style="background:#F0F4FF;border-radius:10px;padding:14px;margin:16px 0;">
+      <div style="font-size:12px;font-weight:700;color:#6B6B8A;margin-bottom:6px;">👤 VENDEDOR</div>
+      <div style="font-size:14px;font-weight:700;color:#1A1A2E;">{nombre_vendedor}</div>
+      <div style="font-size:13px;color:#555;">📱 {telefono}</div>
+      <div style="font-size:13px;color:#555;">✉️ {correo_vendedor}</div>
+    </div>
+
+    {"<div style='background:#FAFAFA;border-radius:8px;padding:12px;font-size:13px;color:#444;'>" + desc + "</div>" if desc else ""}
+
+    <div style="margin-top:20px;font-size:11px;color:#9999BB;text-align:center;">
+      JJGT Vehículos · Notificación automática
+    </div>
+  </div>
+</div>
+</body></html>"""
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = f"🚗 Nueva publicación: {nombre_vehiculo} — JJGT"
+        msg["From"]    = f"JJGT Vehículos <{smtp_user}>"
+        msg["To"]      = admin_email
+        msg.attach(MIMEText(html, "html"))
+
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_user, admin_email, msg.as_string())
+        return True
+    except Exception:
+        return False

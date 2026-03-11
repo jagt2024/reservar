@@ -132,7 +132,7 @@ def _delete_pub_from_sheets(pub_id: str) -> tuple:
     try:
         import time as _time
         from data import load_credentials_from_toml, get_google_sheets_connection
-        from excel_sync import SHEET_FILE, WS, PK
+        from excel_sync import SHEET_FILE, WS
         creds, _ = load_credentials_from_toml()
         if not creds:
             return False, "Sin credenciales Google"
@@ -140,29 +140,54 @@ def _delete_pub_from_sheets(pub_id: str) -> tuple:
         sh      = client.open(SHEET_FILE)
         pid_str = str(pub_id).strip()
         msgs    = []
-        for ws_key in ("vehiculos", "publicaciones"):
-            ws_name = WS[ws_key]
-            pk_col  = PK[ws_key]
+
+        # Cada hoja usa un PK diferente — definirlo explícitamente
+        hojas = [
+            ("vehiculos",     WS["vehiculos"],     "ID"),        # 🚗 VEHÍCULOS  → col "ID"
+            ("publicaciones", WS["publicaciones"], "ID Pub"),    # 📋 PUBLICACIONES → col "ID Pub"
+        ]
+
+        for ws_key, ws_name, pk_col in hojas:
             try:
                 ws = sh.worksheet(ws_name)
-            except Exception:
-                msgs.append(f"{ws_name}: no encontrada")
+            except Exception as _we:
+                msgs.append(f"{ws_name}: no encontrada ({_we})")
                 continue
+
             all_vals = ws.get_all_values()
             if not all_vals:
                 msgs.append(f"{ws_name}: vacía")
                 continue
+
             headers = all_vals[0]
-            if pk_col not in headers:
-                msgs.append(f"{ws_name}: sin columna ID")
+
+            # Buscar columna PK — puede tener espacios o codificación diferente
+            pk_idx = None
+            for i, h in enumerate(headers):
+                if h.strip() == pk_col.strip():
+                    pk_idx = i
+                    break
+
+            if pk_idx is None:
+                msgs.append(f"{ws_name}: columna '{pk_col}' no encontrada (headers: {headers[:5]})")
                 continue
-            pk_idx = headers.index(pk_col)
-            to_del = [i + 2 for i, row in enumerate(all_vals[1:])
-                      if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str]
+
+            to_del = [
+                i + 2  # +2 porque all_vals[1:] empieza en fila 2 de Sheets
+                for i, row in enumerate(all_vals[1:])
+                if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str
+            ]
+
+            if not to_del:
+                msgs.append(f"{ws_name}: ID '{pid_str}' no encontrado")
+                continue
+
             for row_num in sorted(to_del, reverse=True):
                 ws.delete_rows(row_num)
-                _time.sleep(0.15)
-            msgs.append(f"{ws_name}: {len(to_del)} fila(s) borrada(s)")
+                _time.sleep(0.2)
+
+            msgs.append(f"{ws_name}: ✅ {len(to_del)} fila(s) eliminada(s)")
+
         return True, " · ".join(msgs)
     except Exception as e:
         return False, str(e)
