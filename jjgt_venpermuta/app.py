@@ -126,6 +126,48 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
     except Exception as e:
         return False, str(e)
 
+
+def _delete_pub_from_sheets(pub_id: str) -> tuple:
+    """Elimina la fila con pub_id de Vehículos y Publicaciones en Sheets. No toca Historial."""
+    try:
+        import time as _time
+        from data import load_credentials_from_toml, get_google_sheets_connection
+        from excel_sync import SHEET_FILE, WS, PK
+        creds, _ = load_credentials_from_toml()
+        if not creds:
+            return False, "Sin credenciales Google"
+        client = get_google_sheets_connection(creds)
+        sh      = client.open(SHEET_FILE)
+        pid_str = str(pub_id).strip()
+        msgs    = []
+        for ws_key in ("vehiculos", "publicaciones"):
+            ws_name = WS[ws_key]
+            pk_col  = PK[ws_key]
+            try:
+                ws = sh.worksheet(ws_name)
+            except Exception:
+                msgs.append(f"{ws_name}: no encontrada")
+                continue
+            all_vals = ws.get_all_values()
+            if not all_vals:
+                msgs.append(f"{ws_name}: vacía")
+                continue
+            headers = all_vals[0]
+            if pk_col not in headers:
+                msgs.append(f"{ws_name}: sin columna ID")
+                continue
+            pk_idx = headers.index(pk_col)
+            to_del = [i + 2 for i, row in enumerate(all_vals[1:])
+                      if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str]
+            for row_num in sorted(to_del, reverse=True):
+                ws.delete_rows(row_num)
+                _time.sleep(0.15)
+            msgs.append(f"{ws_name}: {len(to_del)} fila(s) borrada(s)")
+        return True, " · ".join(msgs)
+    except Exception as e:
+        return False, str(e)
+
+
 # ── Configuración de página ────────────────────────────────────────────────────
 #st.set_page_config(
 #    page_title="JJGT — Vehículos Colombia",
@@ -1973,18 +2015,37 @@ def page_history():
                 with bc3:
                     if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}",
                                  use_container_width=True):
+                        st.session_state[f"_confirm_del_{hkey}"] = True
+
+            # Confirmación fuera del container
+            if st.session_state.pop(f"_confirm_del_{hkey}", False):
+                st.warning(f"⚠️ ¿Eliminar **{h.get('name','')}**? Esta acción borrará la fila de Sheets.")
+                _cd1, _cd2 = st.columns(2)
+                with _cd1:
+                    if st.button("✅ Sí, eliminar", key=f"hist_del_yes_{hkey}_{idx}",
+                                 type="primary", use_container_width=True):
                         hid = h.get("id")
-                        st.session_state.history_items = [
-                            x for x in st.session_state.history_items
-                            if x.get("id") != hid]
+                        # 1. Quitar de session_state (historial se conserva, solo cambia status)
                         st.session_state.user_publications = [
                             p for p in st.session_state.user_publications
                             if p.get("id") != hid]
-                        ok = save_section_silent(["publicaciones","historial","vehiculos"])
-                        if ok:
-                            st.success("✅ Eliminado y guardado en Google Sheets")
+                        for _hi in st.session_state.history_items:
+                            if _hi.get("id") == hid:
+                                _hi["status"] = "completado"
+                                _hi["notes"]  = "Eliminado por el usuario"
+                        # 2. Borrar fila en Sheets (Vehículos + Publicaciones)
+                        with st.spinner("🗑️ Eliminando de Google Sheets…"):
+                            _ok, _msg = _delete_pub_from_sheets(hid)
+                        # 3. Guardar historial actualizado
+                        save_section_silent(["historial"])
+                        if _ok:
+                            st.success(f"✅ Eliminado de Sheets · {_msg}")
                         else:
-                            st.warning("⚠️ Eliminado de la sesión. Usa '☁️ Guardar' para sincronizar.")
+                            st.warning(f"⚠️ Eliminado de sesión, pero error en Sheets: {_msg}")
+                        st.rerun()
+                with _cd2:
+                    if st.button("❌ Cancelar", key=f"hist_del_no_{hkey}_{idx}",
+                                 use_container_width=True):
                         st.rerun()
             else:
                 bc1, bc2 = st.columns(2)

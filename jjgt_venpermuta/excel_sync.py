@@ -656,6 +656,138 @@ def save_and_notify(sections:    Optional[list[str]] = None,
             st.markdown(f"{icon} **{WS.get(k,k)}** — {r['msg']}")
 
 
+def delete_publication_from_sheets(pub_id: str) -> tuple[bool, str]:
+    """
+    Elimina la fila con pub_id de las hojas de Vehículos y Publicaciones.
+    No toca el historial. Retorna (ok, mensaje).
+    """
+    try:
+        import time as _time
+        client = _get_client()
+        if not client:
+            return False, "Sin cliente Google Sheets — revisa secrets.toml"
+
+        sh      = client.open(SHEET_FILE)
+        pid_str = str(pub_id).strip()
+        results = []
+
+        for ws_key in ("vehiculos", "publicaciones"):
+            ws_name = WS[ws_key]          # "🚗 VEHÍCULOS" / "📋 PUBLICACIONES"
+            pk_col  = PK[ws_key]          # "ID"
+            try:
+                ws = sh.worksheet(ws_name)
+            except Exception:
+                results.append(f"{ws_name}: hoja no encontrada")
+                continue
+
+            all_vals = ws.get_all_values()
+            if not all_vals:
+                results.append(f"{ws_name}: vacía")
+                continue
+
+            headers = all_vals[0]
+            if pk_col not in headers:
+                results.append(f"{ws_name}: sin columna '{pk_col}'")
+                continue
+
+            pk_idx = headers.index(pk_col)
+
+            # Buscar fila (recorrer de abajo hacia arriba para no alterar índices al borrar)
+            rows_to_delete = []
+            for i, row in enumerate(all_vals[1:], start=2):  # 1-based sheet rows
+                val = str(row[pk_idx]).strip() if pk_idx < len(row) else ""
+                if val == pid_str:
+                    rows_to_delete.append(i)
+
+            if not rows_to_delete:
+                results.append(f"{ws_name}: ID {pid_str} no encontrado")
+                continue
+
+            # Borrar de abajo hacia arriba para no desplazar índices
+            for row_num in sorted(rows_to_delete, reverse=True):
+                ws.delete_rows(row_num)
+                _time.sleep(0.2)
+
+            results.append(f"{ws_name}: {len(rows_to_delete)} fila(s) eliminada(s)")
+
+        return True, " · ".join(results)
+
+    except Exception as e:
+        return False, str(e)
+
+
+def save_password_hash_to_sheets(correo: str, pw_hash: str) -> tuple[bool, str]:
+    """
+    Escribe el password_hash directamente en la celda correcta de la hoja USUARIOS.
+    Busca la fila por correo y actualiza (o crea) la columna 'Password Hash'.
+    Retorna (ok, mensaje).
+    """
+    try:
+        client = _get_client()
+        if not client:
+            return False, "Sin cliente Google Sheets — revisa secrets.toml"
+
+        sh = client.open(SHEET_FILE)
+        ws = sh.worksheet(WS["usuarios"])   # "👥 USUARIOS"
+
+        all_vals = ws.get_all_values()
+        if not all_vals:
+            return False, "Hoja USUARIOS vacía"
+
+        headers = all_vals[0]
+
+        # Buscar o crear columna Password Hash
+        PH_COL = "Password Hash"
+        if PH_COL in headers:
+            ph_idx = headers.index(PH_COL)   # 0-based
+        else:
+            # Agregar columna al final
+            ph_idx = len(headers)
+            headers.append(PH_COL)
+            ws.update("A1", [headers])
+            time.sleep(0.4)
+
+        # Buscar columna Correo
+        correo_col_names = ["Correo", "correo", "Email", "email"]
+        correo_idx = None
+        for name in correo_col_names:
+            if name in headers:
+                correo_idx = headers.index(name)
+                break
+        if correo_idx is None:
+            return False, "No se encontró columna 'Correo' en USUARIOS"
+
+        # Buscar fila del usuario por correo
+        correo_norm = correo.strip().lower()
+        target_row  = None   # 1-based sheet row
+        for i, row in enumerate(all_vals[1:], start=2):
+            cell_val = str(row[correo_idx]).strip().lower() if correo_idx < len(row) else ""
+            if cell_val == correo_norm:
+                target_row = i
+                break
+
+        if target_row is None:
+            return False, f"Correo '{correo}' no encontrado en USUARIOS"
+
+        # Calcular letra de columna (A=0, B=1, ...)
+        import string as _string
+        def _col_letter(idx: int) -> str:
+            result = ""
+            idx += 1
+            while idx:
+                idx, rem = divmod(idx - 1, 26)
+                result = _string.ascii_uppercase[rem] + result
+            return result
+
+        cell_addr = f"{_col_letter(ph_idx)}{target_row}"
+        ws.update(cell_addr, [[pw_hash]])
+        time.sleep(0.2)
+        return True, f"Password Hash actualizado en celda {cell_addr}"
+
+    except Exception as e:
+        return False, str(e)
+
+
 def save_section_silent(sections: list = None, update_dash: bool = True) -> bool:
     try:
         results = save_to_sheets(sections)
