@@ -127,6 +127,62 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
         return False, str(e)
 
 
+def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
+    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos."""
+    try:
+        import time as _time
+        from data import load_credentials_from_toml, get_google_sheets_connection
+        from excel_sync import SHEET_FILE, WS, _row_veh, _safe
+        creds, _ = load_credentials_from_toml()
+        if not creds:
+            return False, "Sin credenciales Google"
+        client  = get_google_sheets_connection(creds)
+        sh      = client.open(SHEET_FILE)
+        ws      = sh.worksheet(WS["vehiculos"])   # 🚗 VEHÍCULOS
+        all_v   = ws.get_all_values()
+        row_d   = _row_veh(pub)
+        headers = list(row_d.keys())
+        values  = [_safe(v) for v in row_d.values()]
+        pid_str = str(pub.get("id","")).strip()
+
+        if not all_v:
+            ws.append_row(headers)
+            _time.sleep(0.3)
+            ws.append_row(values)
+            return True, "Fila creada en Vehículos"
+
+        # Verificar/actualizar encabezados
+        if all_v[0] != headers:
+            ws.update("A1", [headers])
+            _time.sleep(0.3)
+            all_v = ws.get_all_values()
+
+        # Buscar fila por ID
+        pk_idx  = headers.index("ID")
+        target  = None
+        for i, row in enumerate(all_v[1:], start=2):
+            if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str:
+                target = i
+                break
+
+        import string as _s
+        def _col(n):
+            r, n = "", n+1
+            while n:
+                n, rem = divmod(n-1, 26)
+                r = _s.ascii_uppercase[rem] + r
+            return r
+
+        if target:
+            ws.update(f"A{target}:{_col(len(values)-1)}{target}", [values])
+            return True, f"Vehículo actualizado en fila {target}"
+        else:
+            ws.append_row(values)
+            return True, "Vehículo agregado a Vehículos"
+    except Exception as e:
+        return False, str(e)
+
+
 def _delete_pub_from_sheets(pub_id: str) -> tuple:
     """Elimina la fila con pub_id de Vehículos y Publicaciones en Sheets. No toca Historial."""
     try:
@@ -1591,8 +1647,13 @@ def page_publish():
             st.session_state.loyalty_points += 50
 
         st.session_state.selected_vehicle = new_pub
-        ok = save_section_silent(["publicaciones", "historial"])  # ← NO "vehiculos": evita sobreescribir km/color del catálogo
+        ok = save_section_silent(["publicaciones", "historial"])
         media_msg = " · 📸 Imágenes en Drive" if drive_ok else ""
+
+        # Guardar en hoja Vehículos (solo la fila nueva, sin tocar el catálogo)
+        _veh_ok, _veh_msg = _upsert_vehiculo_in_sheets(new_pub)
+        if not _veh_ok:
+            st.warning(f"⚠️ No se guardó en hoja Vehículos: {_veh_msg}")
 
         # ── Enviar correo al administrador ───────────────────────────────────
         _email_msg = ""
