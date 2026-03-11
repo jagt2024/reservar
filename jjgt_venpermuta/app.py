@@ -2040,37 +2040,42 @@ def page_history():
                 with bc3:
                     if st.button("🗑️ Eliminar", key=f"hist_del_{hkey}_{idx}",
                                  use_container_width=True):
-                        st.session_state[f"_confirm_del_{hkey}"] = True
+                        st.session_state["_del_pending_id"]   = h.get("id")
+                        st.session_state["_del_pending_name"] = h.get("name", "")
+                        st.rerun()
 
-            # Confirmación fuera del container
-            if st.session_state.pop(f"_confirm_del_{hkey}", False):
-                st.warning(f"⚠️ ¿Eliminar **{h.get('name','')}**? Esta acción borrará la fila de Sheets.")
+            # ── Confirmación de eliminación ──────────────────────────────────
+            if str(st.session_state.get("_del_pending_id","")) == str(h.get("id","")):
+                st.warning(f"⚠️ ¿Eliminar **{h.get('name','')}**? Se borrará de Vehículos y Publicaciones en Sheets.")
                 _cd1, _cd2 = st.columns(2)
                 with _cd1:
                     if st.button("✅ Sí, eliminar", key=f"hist_del_yes_{hkey}_{idx}",
                                  type="primary", use_container_width=True):
-                        hid = h.get("id")
-                        # 1. Quitar de session_state (historial se conserva, solo cambia status)
+                        hid = st.session_state.pop("_del_pending_id", None)
+                        st.session_state.pop("_del_pending_name", None)
+                        # Quitar de session_state — historial queda con status completado
                         st.session_state.user_publications = [
                             p for p in st.session_state.user_publications
-                            if p.get("id") != hid]
+                            if str(p.get("id","")) != str(hid)]
                         for _hi in st.session_state.history_items:
-                            if _hi.get("id") == hid:
+                            if str(_hi.get("id","")) == str(hid):
                                 _hi["status"] = "completado"
                                 _hi["notes"]  = "Eliminado por el usuario"
-                        # 2. Borrar fila en Sheets (Vehículos + Publicaciones)
+                        # Borrar filas en Sheets
                         with st.spinner("🗑️ Eliminando de Google Sheets…"):
-                            _ok, _msg = _delete_pub_from_sheets(hid)
-                        # 3. Guardar historial actualizado
+                            _ok, _msg = _delete_pub_from_sheets(str(hid))
+                        # Guardar historial actualizado
                         save_section_silent(["historial"])
                         if _ok:
-                            st.success(f"✅ Eliminado de Sheets · {_msg}")
+                            st.success(f"✅ {_msg}")
                         else:
-                            st.warning(f"⚠️ Eliminado de sesión, pero error en Sheets: {_msg}")
+                            st.warning(f"⚠️ Eliminado de sesión. Error en Sheets: {_msg}")
                         st.rerun()
                 with _cd2:
                     if st.button("❌ Cancelar", key=f"hist_del_no_{hkey}_{idx}",
                                  use_container_width=True):
+                        st.session_state.pop("_del_pending_id", None)
+                        st.session_state.pop("_del_pending_name", None)
                         st.rerun()
             else:
                 bc1, bc2 = st.columns(2)
