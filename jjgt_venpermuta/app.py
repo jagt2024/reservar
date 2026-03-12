@@ -336,6 +336,25 @@ def go(page: str):
     st.rerun()
 
 
+def _cambiar_cuenta():
+    """Limpia todos los datos del usuario actual y redirige al login."""
+    _USER_KEYS = [
+        "logged_in", "user_name", "user_email", "user_phone", "user_city",
+        "user_password_hash", "active_cities", "loyalty_points", "loyalty_level",
+        "history_items", "notifications", "user_publications", "permutas",
+        "chat_messages", "resenas", "_del_pending_id", "_del_pending_name",
+        "_pw_change_data", "_pw_change_result", "_login_attempt",
+        "_hist_email_no_existe", "_hist_login_attempt", "_hist_reg_data",
+    ]
+    for k in _USER_KEYS:
+        if k in st.session_state:
+            del st.session_state[k]
+    st.session_state.logged_in = False
+    st.session_state.user_name = ""
+    st.session_state.user_email = ""
+    go("login")
+
+
 def _btn_inicio(key_suffix=""):
     """Botón de regreso al inicio dentro del contenido principal."""
     st.markdown(
@@ -499,6 +518,8 @@ def sidebar():
             if st.session_state.get("user_email","").lower() == ADMIN_EMAIL.lower():
                 if st.button("⚙️ Administrador", key="sb_admin", use_container_width=True, type="primary"):
                     go("admin")
+            if st.button("🔄 Cambiar cuenta", key="sb_switch", use_container_width=True):
+                _cambiar_cuenta()
             if st.button("🚪 Cerrar sesión", key="sb_logout", use_container_width=True):
                 st.session_state.logged_in = False
                 st.session_state.user_name = ""
@@ -3057,6 +3078,8 @@ def page_profile():
     dark = st.toggle("🌙 Modo oscuro", value=st.session_state.dark_mode, key="prof_dark")
     st.session_state.dark_mode = dark
     st.divider()
+    if st.button("🔄 Cambiar cuenta", key="prof_switch", use_container_width=True):
+        _cambiar_cuenta()
     if st.button("🚪 Cerrar sesión", key="prof_logout", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user_name = ""
