@@ -3607,7 +3607,7 @@ def page_admin():
             for idx, u in enumerate(usuarios):
                 ukey = str(u.get("id","")).replace("-","_")
                 with st.container(border=True):
-                    c1, c2, c3 = st.columns([3, 2, 1])
+                    c1, c2, c3, c4 = st.columns([3, 2, 1, 1])
                     with c1:
                         st.markdown(f"**{u.get('nombre','')}**  ·  {u.get('correo','')}")
                         st.caption(f"📱 {u.get('celular','')}  ·  📍 {u.get('ciudad','')}  ·  Rol: {u.get('rol','')}")
@@ -3624,6 +3624,12 @@ def page_admin():
                                 st.success(f"Rol actualizado → {nuevo_rol}")
                                 st.rerun()
                     with c3:
+                        if st.button("🔑", key=f"adm_pw_{ukey}_{idx}",
+                                     help="Cambiar contraseña", use_container_width=True):
+                            cur = st.session_state.get("_adm_pw_uid")
+                            st.session_state["_adm_pw_uid"] = None if cur == u.get("id") else u.get("id")
+                            st.rerun()
+                    with c4:
                         if u.get("correo","") != ADMIN_EMAIL:
                             if st.button("🗑️", key=f"adm_del_{ukey}_{idx}", help="Eliminar usuario"):
                                 st.session_state["_confirm_del_usr"] = u.get("id")
@@ -3641,6 +3647,54 @@ def page_admin():
                             if st.button("❌ Cancelar", key=f"adm_delno_{ukey}_{idx}", use_container_width=True):
                                 st.session_state["_confirm_del_usr"] = None
                                 st.rerun()
+
+                # ── Formulario cambio de contraseña inline ───────────────────
+                if st.session_state.get("_adm_pw_uid") == u.get("id"):
+                    with st.container(border=True):
+                        st.markdown(f"#### 🔑 Nueva contraseña para **{u.get('nombre','')}**")
+                        st.caption(f"✉️ {u.get('correo','')}")
+                        with st.form(key=f"adm_pw_form_{ukey}_{idx}"):
+                            pw1 = st.text_input("Nueva contraseña *",        type="password", key=f"adm_pw1_{ukey}_{idx}")
+                            pw2 = st.text_input("Confirmar contraseña *",    type="password", key=f"adm_pw2_{ukey}_{idx}")
+                            _s1, _s2 = st.columns(2)
+                            with _s1:
+                                guardar  = st.form_submit_button("💾 Guardar", type="primary", use_container_width=True)
+                            with _s2:
+                                cancelar = st.form_submit_button("❌ Cancelar", use_container_width=True)
+                            if guardar:
+                                if not pw1:
+                                    st.error("❌ Escribe la nueva contraseña.")
+                                elif len(pw1) < 6:
+                                    st.error("❌ Mínimo 6 caracteres.")
+                                elif pw1 != pw2:
+                                    st.error("❌ Las contraseñas no coinciden.")
+                                else:
+                                    st.session_state["_adm_pw_save"] = {
+                                        "uid": u.get("id"), "correo": u.get("correo",""), "pw": pw1
+                                    }
+                            if cancelar:
+                                st.session_state["_adm_pw_uid"] = None
+                                st.rerun()
+
+                # ── Procesar guardado FUERA del form ─────────────────────────
+                _psave = st.session_state.get("_adm_pw_save")
+                if _psave and str(_psave.get("uid")) == str(u.get("id")):
+                    st.session_state.pop("_adm_pw_save")
+                    import hashlib as _hl
+                    _new_hash = _hl.sha256(_psave["pw"].encode()).hexdigest()
+                    # Actualizar en session_state
+                    for _u2 in st.session_state.get("_usuarios", []):
+                        if str(_u2.get("id")) == str(_psave["uid"]):
+                            _u2["password_hash"] = _new_hash
+                            break
+                    # Guardar directo en Sheets
+                    _ok, _msg = _save_pw_hash(_psave["correo"], _new_hash)
+                    if _ok:
+                        st.success(f"✅ Contraseña actualizada para **{u.get('nombre','')}**")
+                        st.session_state["_adm_pw_uid"] = None
+                    else:
+                        st.warning(f"⚠️ Actualizado en sesión. Error en Sheets: {_msg}")
+                    st.rerun()
 
     # ══ Tab Acceso / Cuenta Admin ══════════════════════════════════════════
     with tabs[1]:
