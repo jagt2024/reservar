@@ -494,14 +494,11 @@ def calculate_interes_mora(saldo_pendiente, dias_mora, tasa_mensual):
         return 0.0
 
 def calcular_main():
-    #st.set_page_config(
-    #    page_title="Calculadora de Mora",
-    #    page_icon="💰",
-    #    layout="wide"
-    #)
-    
     st.title("💰 Calcula Dias de Mora e Intereses")
     st.markdown("---")
+    
+    # Activar modo debug
+    #st.info("🔍 Modo DEBUG activado - Se mostrarán todos los pasos del proceso")
     
     # Cargar credenciales
     creds, config = load_credentials_from_toml()
@@ -517,22 +514,22 @@ def calcular_main():
     
     # Sidebar para configuración
     st.sidebar.header("⚙️ Configuración")
-    #sheet_name = st.sidebar.text_input("Nombre del archivo", value="gestion-conjuntos")
-    #worksheet_name = st.sidebar.text_input("Nombre de la hoja", value="gestion_morosos")
-    #st.date_input("Desde:", date(2025, 7, 1)
-    periodo_desde = st.sidebar.date_input('Aplicar tasa de Fecha Desde', value= date.today())
-    periodo_hasta = st.sidebar.date_input('Aplicar tasa de Fecha Hasta', value= date.today())
+    periodo_desde = st.sidebar.date_input('Aplicar tasa de Fecha Desde', value=date.today())
+    periodo_hasta = st.sidebar.date_input('Aplicar tasa de Fecha Hasta', value=date.today())
     tasa_mensual = st.sidebar.number_input("Tasa de Interés Moratorio (% anual)", value=12.0, min_value=0.0, max_value=100.0, format="%.2f")
     
     # Botón para cargar datos
     if st.button("📊 Cargar Datos", type="primary"):
         with st.spinner("Cargando datos..."):
-            df, worksheet = load_data_from_sheet(client, sheet_name ="gestion-conjuntos", worksheet_name ="gestion_morosos")
+            df, worksheet = load_data_from_sheet(client, sheet_name="gestion-conjuntos", worksheet_name="gestion_morosos")
             
             if df is not None:
                 st.session_state.df = df
                 st.session_state.worksheet = worksheet
                 st.success("✅ Datos cargados exitosamente")
+                
+                # 🔍 DEBUG: Mostrar columnas disponibles
+                #st.info(f"🔍 Columnas encontradas: {list(df.columns)}")
     
     # Mostrar datos si están cargados
     if 'df' in st.session_state:
@@ -544,7 +541,7 @@ def calcular_main():
         st.dataframe(df_display, use_container_width=True)
         
         # Verificar columnas requeridas
-        required_columns = ['Fecha_Vencimiento', 'Valor_Deuda', 'Valor_Pagado','Saldo_Pendiente']
+        required_columns = ['Fecha_Vencimiento', 'Valor_Deuda', 'Valor_Pagado', 'Saldo_Pendiente']
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
@@ -554,52 +551,209 @@ def calcular_main():
         # Botón para calcular mora
         if st.button("🧮 Calcular Mora e Intereses", type="secondary"):
             with st.spinner("Calculando..."):
-                fecha_actual = date.today()
-        
-                # Calcular días de mora
-                df['Dias_Mora'] = df['Fecha_Vencimiento'].apply(
-                   lambda x: calculate_mora_days(x, fecha_actual)
-                )
-
-                # ✅ IMPORTANTE: Limpiar TODAS las columnas monetarias de una vez
-                # Y asegurarse que sean float64
-                df['Valor_Deuda'] = df['Valor_Deuda'].apply(clean_currency_value).astype('float64')
-                df['Valor_Pagado'] = df['Valor_Pagado'].apply(clean_currency_value).astype('float64')
-        
-                # Calcular saldo pendiente (ahora ambos son float64)
-                df['Saldo_Pendiente'] = (df['Valor_Deuda'] - df['Valor_Pagado']).astype('float64')
-
-                # Convertir fecha
-                df['Fecha_Vencimiento'] = pd.to_datetime(df['Fecha_Vencimiento'])
-
-                # Crear máscara para filtrar filas
-                fecha_mask = (df['Fecha_Vencimiento'].dt.date >= periodo_desde) & (df['Fecha_Vencimiento'].dt.date <= periodo_hasta)
-        
-                # Calcular interés de mora
-                tasa_decimal = (tasa_mensual / 100)
-        
-                # Inicializar columnas como float64
-                df['Interes_Mora'] = df['Interes_Mora'].apply(clean_currency_value).astype('float64') 
-                df['tasa_aplicada'] = df['tasa_aplicada'].apply(clean_currency_value).astype('float64')
-        
-                # Aplicar interés solo a las filas dentro del período
-                df.loc[fecha_mask, 'Interes_Mora'] = df.loc[fecha_mask].apply(
-                    lambda row: calculate_interes_mora(
-                        row['Saldo_Pendiente'],  # Ya es float64
-                        row['Dias_Mora'],
-                        tasa_decimal
-                    ), axis=1
-                )
-        
-                # Aplicar tasa
-                df.loc[fecha_mask, 'tasa_aplicada'] = tasa_mensual
-        
-                # ✅ Calcular saldo total (ahora ambos son float64 garantizado)
-                df['Saldo_Total'] = (df['Saldo_Pendiente'] + df['Interes_Mora']).astype('float64')
-        
-                st.session_state.df_calculated = df
-                st.success("✅ Cálculos completados")
-
+                try:
+                    fecha_actual = date.today()
+                    
+                    #st.write("🔍 **PASO 1:** Calculando días de mora...")
+                    # Calcular días de mora
+                    df['Dias_Mora'] = df['Fecha_Vencimiento'].apply(
+                        lambda x: calculate_mora_days(x, fecha_actual)
+                    )
+                    st.success(f"✅ Días de mora calculados. Rango: {df['Dias_Mora'].min()} - {df['Dias_Mora'].max()}")
+                    
+                    #st.write("🔍 **PASO 2:** Limpiando columnas monetarias...")
+                    # Limpiar columnas monetarias
+                    df['Valor_Deuda'] = df['Valor_Deuda'].apply(clean_currency_value).astype('float64')
+                    df['Valor_Pagado'] = df['Valor_Pagado'].apply(clean_currency_value).astype('float64')
+                    st.success("✅ Columnas monetarias limpias")
+                    
+                    #st.write("🔍 **PASO 3:** Calculando saldo pendiente...")
+                    # Calcular saldo pendiente
+                    df['Saldo_Pendiente'] = (df['Valor_Deuda'] - df['Valor_Pagado']).astype('float64')
+                    st.success(f"✅ Saldo pendiente calculado. Total: {format_currency_cop(df['Saldo_Pendiente'].sum())}")
+                    
+                    #st.write("🔍 **PASO 4:** Convirtiendo fechas...")
+                    # Convertir fecha
+                    df['Fecha_Vencimiento'] = pd.to_datetime(df['Fecha_Vencimiento'])
+                    st.success("✅ Fechas convertidas")
+                    
+                    #st.write("🔍 **PASO 5:** Creando máscara de fechas...")
+                    # Crear máscara para filtrar filas
+                    fecha_mask = (df['Fecha_Vencimiento'].dt.date >= periodo_desde) & (df['Fecha_Vencimiento'].dt.date <= periodo_hasta)
+                    registros_en_periodo = fecha_mask.sum()
+                    st.success(f"✅ Máscara creada. Registros en periodo: {registros_en_periodo} de {len(df)}")
+                    
+                    #st.write("🔍 **PASO 6:** Verificando existencia de columna Interes_Mora...")
+                    # Verificar si existe la columna Interes_Mora
+                    if 'Interes_Mora' not in df.columns:
+                        st.warning("⚠️ Columna 'Interes_Mora' NO existe. Creándola...")
+                        df['Interes_Mora'] = 0.0
+                    #    st.info(f"📊 DEBUG - Interes_Mora creada. Tipo: {df['Interes_Mora'].dtype}")
+                    else:
+                    #    st.info(f"✅ Columna 'Interes_Mora' ya existe. Tipo actual: {df['Interes_Mora'].dtype}")
+                        # Mostrar muestra de valores existentes
+                        st.write(f"📊 Primeros 5 valores de Interes_Mora: {df['Interes_Mora'].head().tolist()}")
+                    
+                    #st.write("🔍 **PASO 7:** Verificando existencia de columna tasa_aplicada...")
+                    # Verificar si existe la columna tasa_aplicada
+                    if 'tasa_aplicada' not in df.columns:
+                        st.warning("⚠️ Columna 'tasa_aplicada' NO existe. Creándola...")
+                        df['tasa_aplicada'] = 0.0
+                    #    st.info(f"📊 DEBUG - tasa_aplicada creada. Tipo: {df['tasa_aplicada'].dtype}")
+                    else:
+                        st.info(f"✅ Columna 'tasa_aplicada' ya existe. Tipo: {df['tasa_aplicada'].dtype}")
+                    
+                    #st.write("🔍 **PASO 8:** Limpiando columnas de interés...")
+                    #st.write(f"📊 DEBUG - Tipo de Interes_Mora ANTES de limpiar: {df['Interes_Mora'].dtype}")
+                    #st.write(f"📊 DEBUG - Cantidad de registros: {len(df)}")
+                    #st.write(f"📊 DEBUG - Valores nulos en Interes_Mora: {df['Interes_Mora'].isnull().sum()}")
+                    
+                    # Mostrar muestra de valores
+                    #st.write("📊 DEBUG - Muestra de valores en Interes_Mora:")
+                    with st.expander("Ver muestra de Interes_Mora"):
+                        st.dataframe(df[['Interes_Mora']].head(10))
+                    
+                    valores_unicos = df['Interes_Mora'].unique()[:10]
+                    #st.write(f"📊 DEBUG - Primeros 10 valores únicos: {valores_unicos}")
+                    
+                    try:
+                    #    st.write("🔄 Aplicando clean_currency_value a Interes_Mora...")
+                        # Limpiar columnas de interés
+                        df['Interes_Mora'] = df['Interes_Mora'].apply(clean_currency_value)
+                    #    st.write(f"✅ clean_currency_value aplicado. Tipo ahora: {df['Interes_Mora'].dtype}")
+                        
+                    #    st.write("🔄 Convirtiendo a float64...")
+                        df['Interes_Mora'] = df['Interes_Mora'].astype('float64')
+                    #    st.success(f"✅ Interes_Mora limpiada. Tipo DESPUÉS: {df['Interes_Mora'].dtype}")
+                    #    st.write(f"📊 Estadísticas: Min={df['Interes_Mora'].min()}, Max={df['Interes_Mora'].max()}, Promedio={df['Interes_Mora'].mean():.2f}")
+                        
+                    except ValueError as ve:
+                        st.error(f"❌ ERROR ValueError en Interes_Mora: {str(ve)}")
+                        #st.write("🔍 Buscando valores problemáticos...")
+                        
+                        # Intentar identificar valores que no se pueden convertir
+                        problemas = []
+                        for idx, val in enumerate(df['Interes_Mora']):
+                            try:
+                                float(val)
+                            except:
+                                problemas.append((idx, val))
+                        
+                        if problemas:
+                            st.error(f"❌ Se encontraron {len(problemas)} valores problemáticos:")
+                            for idx, val in problemas[:10]:
+                                st.write(f"  - Fila {idx}: '{val}' (tipo: {type(val)})")
+                        raise
+                        
+                    except Exception as e:
+                        st.error(f"❌ ERROR INESPERADO limpiando Interes_Mora: {str(e)}")
+                        st.write("📊 Información detallada de la columna:")
+                        st.write(f"- Tipo: {df['Interes_Mora'].dtype}")
+                        st.write(f"- Valores nulos: {df['Interes_Mora'].isnull().sum()}")
+                        st.write(f"- Forma del DataFrame: {df.shape}")
+                        st.write("- Muestra de valores problemáticos:")
+                        st.dataframe(df[['Interes_Mora']].head(20))
+                        st.code(f"Traceback:\n{traceback.format_exc()}")
+                        raise
+                    
+                    try:
+                        df['tasa_aplicada'] = df['tasa_aplicada'].apply(clean_currency_value).astype('float64')
+                        st.success("✅ tasa_aplicada limpiada")
+                    except Exception as e:
+                        st.error(f"❌ ERROR limpiando tasa_aplicada: {str(e)}")
+                        raise
+                    
+                    #st.write("🔍 **PASO 9:** Calculando tasa decimal...")
+                    # Calcular interés de mora
+                    tasa_decimal = (tasa_mensual / 100)
+                    st.info(f"Tasa anual: {tasa_mensual}% | Tasa decimal: {tasa_decimal}")
+                    
+                    #st.write("🔍 **PASO 10:** Aplicando cálculo de interés de mora...")
+                    # Aplicar interés solo a las filas dentro del período
+                    if registros_en_periodo > 0:
+                        #st.write(f"📊 DEBUG - Aplicando cálculo a {registros_en_periodo} registros...")
+                        
+                        # Mostrar datos de muestra antes del cálculo
+                        muestra = df.loc[fecha_mask, ['Saldo_Pendiente', 'Dias_Mora']].head(3)
+                        #st.write("📊 Muestra de datos para calcular:")
+                        st.dataframe(muestra)
+                        
+                        try:
+                            df.loc[fecha_mask, 'Interes_Mora'] = df.loc[fecha_mask].apply(
+                                lambda row: calculate_interes_mora(
+                                    row['Saldo_Pendiente'],
+                                    row['Dias_Mora'],
+                                    tasa_decimal
+                                ), axis=1
+                            )
+                            
+                            # Verificar resultados
+                            interes_calculados = df.loc[fecha_mask, 'Interes_Mora']
+                            st.success(f"✅ Interés calculado para {registros_en_periodo} registros")
+                            st.write(f"📊 Intereses calculados: Min={interes_calculados.min():.2f}, Max={interes_calculados.max():.2f}, Total={interes_calculados.sum():.2f}")
+                            
+                            # Mostrar muestra de resultados
+                            muestra_result = df.loc[fecha_mask, ['Saldo_Pendiente', 'Dias_Mora', 'Interes_Mora']].head(5)
+                            st.write("📊 Muestra de resultados:")
+                            st.dataframe(muestra_result)
+                            
+                        except Exception as e:
+                            st.error(f"❌ ERROR en calculate_interes_mora: {str(e)}")
+                            st.write("📊 Datos de la fila problemática:")
+                            st.write(f"Error completo: {traceback.format_exc()}")
+                            raise
+                            
+                    else:
+                        st.warning("⚠️ No hay registros en el periodo seleccionado")
+                    
+                    #st.write("🔍 **PASO 11:** Aplicando tasa...")
+                    # Aplicar tasa
+                    df.loc[fecha_mask, 'tasa_aplicada'] = tasa_mensual
+                    st.success("✅ Tasa aplicada")
+                    
+                    #st.write("🔍 **PASO 12:** Calculando saldo total...")
+                    #st.write(f"📊 DEBUG - Verificando tipos antes de sumar:")
+                    st.write(f"- Saldo_Pendiente tipo: {df['Saldo_Pendiente'].dtype}")
+                    #st.write(f"- Interes_Mora tipo: {df['Interes_Mora'].dtype}")
+                    
+                    try:
+                        # Calcular saldo total
+                        df['Saldo_Total'] = (df['Saldo_Pendiente'] + df['Interes_Mora']).astype('float64')
+                        st.success(f"✅ Saldo total calculado: {format_currency_cop(df['Saldo_Total'].sum())}")
+                        
+                        # Verificar resultados
+                        st.write(f"📊 Saldos totales: Min={df['Saldo_Total'].min():.2f}, Max={df['Saldo_Total'].max():.2f}")
+                        
+                    except Exception as e:
+                        st.error(f"❌ ERROR calculando Saldo_Total: {str(e)}")
+                        st.write("📊 Información de las columnas:")
+                        st.write(f"- Saldo_Pendiente nulos: {df['Saldo_Pendiente'].isnull().sum()}")
+                        st.write(f"- Interes_Mora nulos: {df['Interes_Mora'].isnull().sum()}")
+                        st.dataframe(df[['Saldo_Pendiente', 'Interes_Mora']].head(10))
+                        raise
+                    
+                    # Guardar en session_state
+                    st.session_state.df_calculated = df
+                    
+                    st.success("✅ ¡Todos los cálculos completados exitosamente!")
+                    st.balloons()
+                    
+                except KeyError as e:
+                    st.error(f"❌ ERROR KeyError - Columna no encontrada: {str(e)}")
+                    st.error(f"📊 Columnas disponibles en DataFrame: {list(df.columns)}")
+                    st.code(f"Error completo:\n{traceback.format_exc()}")
+                    st.stop()
+                    
+                except ValueError as e:
+                    st.error(f"❌ ERROR ValueError - Problema con conversión de valores: {str(e)}")
+                    st.code(f"Error completo:\n{traceback.format_exc()}")
+                    st.stop()
+                    
+                except Exception as e:
+                    st.error(f"❌ ERROR INESPERADO: {str(e)}")
+                    st.error(f"Tipo de error: {type(e).__name__}")
+                    st.code(f"Error completo:\n{traceback.format_exc()}")
+                    st.stop()
         
         # Mostrar resultados calculados
         if 'df_calculated' in st.session_state:
@@ -651,29 +805,16 @@ def calcular_main():
             
             if st.button("🔄 Actualizar Hoja de Cálculo", type="primary"):
                 with st.spinner("Actualizando Google Sheets..."):
-                    # Ya NO necesitas convertir fechas aquí, la función lo hace internamente
                     success = update_sheet_data(
                         st.session_state.worksheet, 
-                        df_calc,  # Pasar el DataFrame original
+                        df_calc,
                         periodo_desde=periodo_desde,
                         periodo_hasta=periodo_hasta
                     )
         
                     if success:
                         st.success("✅ Hoja actualizada exitosamente en Google Sheets")
-                        st.balloons()
-                    else:
-                        st.error("❌ Error al actualizar la hoja")
-            
-            # Opción para descargar CSV con formato colombiano
-            df_csv = format_dataframe_for_display(df_calc)
-            csv = df_csv.to_csv(index=False, encoding='utf-8')
-            st.download_button(
-                label="📥 Descargar CSV",
-                data=csv,
-                file_name=f"gestion_morosos_{date.today().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
-            )
+      
     
     # Información adicional
     st.sidebar.markdown("---")
