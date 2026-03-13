@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────
+# JJGT Vehículos Colombia — requirements.txt
+# Python >= 3.10
+# ─────────────────────────────────────────────
+
+# Framework principal
+streamlit>=1.35.0
+
+# Google Sheets
+gspread>=6.0.0
+google-auth>=2.29.0
+google-auth-oauthlib>=1.2.0
+
+# Google Drive API
+google-api-python-client>=2.126.0
+
+# Datos y exportación
+pandas>=2.2.0
+openpyxl>=3.1.2
+
+# Imágenes (redimensionado de portadas antes de subir a Drive / base64)
+Pillow>=10.3.0
