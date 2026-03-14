@@ -128,57 +128,95 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
 
 
 def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
-    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos."""
+    """
+    Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos.
+    Delega en save_section_silent para un solo ítem, evitando duplicar la lógica
+    de upsert seguro por columna que ya existe en excel_sync._upsert_ws.
+    """
     try:
-        import time as _time
+        # Asegurar que la publicación esté en user_publications para que _collect la tome
+        pub_id  = str(pub.get("id","")).strip()
+        existente = next(
+            (p for p in st.session_state.get("user_publications", [])
+             if str(p.get("id","")).strip() == pub_id), None)
+        if existente is None:
+            st.session_state.setdefault("user_publications", []).insert(0, pub)
+
+        from excel_sync import save_to_sheets, SHEET_FILE, WS, _row_veh, _safe, _api_call
         from data import load_credentials_from_toml, get_google_sheets_connection
-        from excel_sync import SHEET_FILE, WS, _row_veh, _safe
+        import string as _s, time as _time
+
         creds, _ = load_credentials_from_toml()
         if not creds:
             return False, "Sin credenciales Google"
-        client  = get_google_sheets_connection(creds)
-        sh      = client.open(SHEET_FILE)
-        ws      = sh.worksheet(WS["vehiculos"])   # 🚗 VEHÍCULOS
-        all_v   = ws.get_all_values()
+        client = get_google_sheets_connection(creds)
+        sh     = client.open(SHEET_FILE)
+        ws     = sh.worksheet(WS["vehiculos"])
+
+        all_v   = _api_call(ws.get_all_values)
         row_d   = _row_veh(pub)
-        headers = list(row_d.keys())
-        values  = [_safe(v) for v in row_d.values()]
-        pid_str = str(pub.get("id","")).strip()
+        pid_str = pub_id
 
+        def _col_letter(n):
+            s, n = "", n + 1
+            while n:
+                n, r = divmod(n - 1, 26)
+                s = _s.ascii_uppercase[r] + s
+            return s
+
+        # ── Hoja vacía ───────────────────────────────────────────────────────
         if not all_v:
-            ws.append_row(headers)
+            _api_call(ws.append_row, list(row_d.keys()))
             _time.sleep(0.3)
-            ws.append_row(values)
-            return True, "Fila creada en Vehículos"
+            _api_call(ws.append_row, [_safe(v) for v in row_d.values()])
+            return True, "Fila creada en Vehículos (hoja nueva)"
 
-        # Verificar/actualizar encabezados
-        if all_v[0] != headers:
-            ws.update("A1", [headers])
+        # ── Encabezados actuales en la hoja (nunca se reemplazan) ────────────
+        sheet_headers = list(all_v[0])
+
+        # Agregar columnas nuevas al final si no existen
+        added = []
+        for col_name in row_d:
+            if col_name not in sheet_headers:
+                sheet_headers.append(col_name)
+                added.append(col_name)
+        if added:
+            _api_call(ws.update, "A1", [sheet_headers])
             _time.sleep(0.3)
-            all_v = ws.get_all_values()
 
-        # Buscar fila por ID
-        pk_idx  = headers.index("ID")
-        target  = None
+        col_idx = {h: i for i, h in enumerate(sheet_headers)}
+
+        # ── Buscar fila del vehículo por ID ───────────────────────────────────
+        pk_pos  = col_idx.get("ID")
+        if pk_pos is None:
+            return False, "Columna 'ID' no encontrada en VEHÍCULOS"
+
+        target = None
         for i, row in enumerate(all_v[1:], start=2):
-            if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str:
+            if pk_pos < len(row) and str(row[pk_pos]).strip() == pid_str:
                 target = i
                 break
 
-        import string as _s
-        def _col(n):
-            r, n = "", n+1
-            while n:
-                n, rem = divmod(n-1, 26)
-                r = _s.ascii_uppercase[rem] + r
-            return r
-
         if target:
-            ws.update(f"A{target}:{_col(len(values)-1)}{target}", [values])
+            # Leer fila existente, sobreescribir solo las columnas del convertidor
+            existing_row = list(all_v[target - 1])
+            while len(existing_row) < len(sheet_headers):
+                existing_row.append("")
+            for col_name, new_val in row_d.items():
+                if col_name in col_idx:
+                    existing_row[col_idx[col_name]] = _safe(new_val)
+            rng = f"A{target}:{_col_letter(len(existing_row)-1)}{target}"
+            _api_call(ws.update, rng, [existing_row])
             return True, f"Vehículo actualizado en fila {target}"
         else:
-            ws.append_row(values)
+            # INSERT alineado con sheet_headers
+            new_row = [""] * len(sheet_headers)
+            for col_name, new_val in row_d.items():
+                if col_name in col_idx:
+                    new_row[col_idx[col_name]] = _safe(new_val)
+            _api_call(ws.append_row, new_row)
             return True, "Vehículo agregado a Vehículos"
+
     except Exception as e:
         return False, str(e)
 
@@ -831,42 +869,56 @@ def page_vehicle_detail():
 
     with col_m:
         # ══════════════════════════════════════════════════════════════════════
-        # FIX 1: GALERÍA DE IMÁGENES
-        # Prioridad: preview_url de Drive → bytes en memoria → fotos_urls CSV
+        # GALERÍA DE IMÁGENES
+        # Siempre construye img_items desde fotos_urls (fuente de verdad del orden)
+        # y complementa con bytes RAM solo si la referencia no es Drive/b64.
         # ══════════════════════════════════════════════════════════════════════
-        img_items = []  # cada item es data_uri str o PIL Image
+        from media_sync import (
+            _is_drive_ref as _idr, _file_id_from_ref as _fid,
+            _thumbnail_url_drive as _turl,
+            _is_b64_ref as _ib64, _bytes_from_b64_ref as _b64bytes,
+            _a_data_uri as _adu, _leer_local as _llocal,
+        )
 
-        # Prioridad 1: bytes / data_uri en memoria (recién publicado)
-        for fi in (fotos or []):
-            if isinstance(fi, dict):
-                uri = fi.get("data_uri")
-                if not uri and fi.get("bytes"):
-                    try:
-                        from PIL import Image as _PIL
-                        uri = None  # usamos PIL directamente
-                        img_items.append(_PIL.open(io.BytesIO(fi["bytes"])))
-                        continue
-                    except Exception:
-                        pass
-                if uri:
-                    img_items.append(uri)
+        img_items = []  # lista de str (URL o data URI)
 
-        # Prioridad 2: leer desde carpeta local JJGT_Media (al recargar)
-        if not img_items:
-            fotos_csv = (v.get("fotos_urls") or "").strip()
-            if fotos_csv:
-                from media_sync import load_media_from_urls as _lmu
-                fotos_local, _ = _lmu(fotos_csv, "")
-                for fi in fotos_local:
-                    uri = fi.get("data_uri")
+        fotos_csv = (v.get("fotos_urls") or "").strip()
+        if fotos_csv:
+            # Construir img_items DIRECTO desde fotos_urls — respeta el orden actual
+            for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
+                if _idr(ref):
+                    img_items.append(_turl(_fid(ref), size=800))
+                elif _ib64(ref):
+                    raw = _b64bytes(ref)
+                    uri = _adu(raw, 800) if raw else ""
                     if uri:
                         img_items.append(uri)
+                else:
+                    raw = _llocal(ref)
+                    if raw:
+                        img_items.append(_adu(raw, 800))
+        else:
+            # Fallback: fotos en RAM (publicación recién creada sin fotos_urls aún)
+            for fi in (fotos or []):
+                if not isinstance(fi, dict):
+                    continue
+                uri = fi.get("data_uri") or fi.get("preview_url") or ""
+                if uri:
+                    img_items.append(uri)
+                elif fi.get("bytes"):
+                    try:
+                        from PIL import Image as _PIL
+                        import io as _io
+                        buf = _io.BytesIO()
+                        _PIL.open(_io.BytesIO(fi["bytes"])).save(buf, format="JPEG", quality=80)
+                        img_items.append(
+                            "data:image/jpeg;base64,"
+                            + __import__("base64").b64encode(buf.getvalue()).decode())
+                    except Exception:
+                        pass
 
         def _render_img(src, style="width:100%;border-radius:10px;"):
-            if isinstance(src, str):  # data URI
-                st.markdown(f'<img src="{src}" style="{style}">', unsafe_allow_html=True)
-            else:  # PIL Image
-                st.image(src)
+            st.markdown(f'<img src="{src}" style="{style}">', unsafe_allow_html=True)
 
         if img_items:
             _render_img(img_items[0],
@@ -889,24 +941,21 @@ def page_vehicle_detail():
                 f'</div></div>', unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════════════════════════════
-        # FIX 2: VIDEO — bytes via API Drive, fallback iframe embed
+        # VIDEO — bytes RAM → embed iframe Drive → local
         # ══════════════════════════════════════════════════════════════════════
-        # VIDEO: bytes en memoria → leer desde JJGT_Media local
         video_mostrado = False
+        video_bytes    = video.get("bytes") if isinstance(video, dict) else None
+        embed_url      = video.get("embed_url") if isinstance(video, dict) else None
 
-        # Bytes en memoria (recién publicado en esta sesión)
-        video_bytes = video.get("bytes") if isinstance(video, dict) else None
-
-        # Si no hay bytes, leer desde carpeta local
-        if not video_bytes:
-            vpath = ""
-            if isinstance(video, dict):
-                vpath = video.get("path", "")
-            if not vpath:
-                vpath = (v.get("video_url") or "").strip()
-            if vpath:
-                from media_sync import _read_local
-                video_bytes = _read_local(vpath)
+        if not video_bytes and not embed_url:
+            vref = (v.get("video_url") or "").strip()
+            if not vref and isinstance(video, dict):
+                vref = video.get("path", "")
+            if vref:
+                if _idr(vref):
+                    embed_url = f"https://drive.google.com/file/d/{_fid(vref)}/preview"
+                else:
+                    video_bytes = _llocal(vref)
 
         if video_bytes:
             try:
@@ -914,7 +963,14 @@ def page_vehicle_detail():
                 video_mostrado = True
             except Exception:
                 st.caption("⚠️ No se pudo reproducir el video.")
-                video_mostrado = True  # evitar mostrar msg vacío
+                video_mostrado = True
+
+        if not video_mostrado and embed_url:
+            st.markdown(
+                f'<iframe src="{embed_url}" width="100%" height="320" '
+                f'allow="autoplay" style="border:none;border-radius:10px;"></iframe>',
+                unsafe_allow_html=True)
+            video_mostrado = True
 
     with col_i:
         TIPO_L = {"venta": "🏷️ Venta", "permuta": "🔄 Permuta", "ambos": "🔄 Venta + Permuta"}

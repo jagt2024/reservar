@@ -138,6 +138,8 @@ def _row_veh(v: dict) -> dict:
         "Calificacion":  _safe(v.get("rating",0)),
         "Resenas":       _safe(v.get("reviews",0)),
         "Estado":        _safe(v.get("estado","Activo")),
+        "Fotos URLs":    _safe(v.get("fotos_urls","")),
+        "Video URL":     _safe(v.get("video_url","")),
     }
 
 def _row_usr(u: dict) -> dict:
@@ -191,7 +193,6 @@ def _row_pub(p: dict) -> dict:
         "Fecha Pub":       _safe(p.get("fecha", datetime.now().strftime("%d/%m/%Y"))),
         "Visitas":         _safe(p.get("visitas",0)),
         "Favoritos":       _safe(p.get("favoritos",0)),
-        "Descripcion":     _safe(p.get("desc","")),          # Descripción del vehículo
         "Fotos URLs":      _safe(p.get("fotos_urls","")),   # URLs Drive separadas por coma
         "Video URL":       _safe(p.get("video_url","")),    # URL Drive del video
     }
@@ -416,40 +417,50 @@ def _get_client():
 # ═══════════════════════════════════════════════════════════════════════════
 def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     """
-    Escribe items en la worksheet usando UPSERT.
+    Escribe items en la worksheet usando UPSERT seguro por columna.
 
-    DIFERENCIA CLAVE vs versiones anteriores:
-    - Los encabezados y el orden de columnas los define el convertidor _row_*
-      del código, NO los que están en la fila 1 de Sheets.
-    - Esto evita el bug de "solo queda el ID" causado por diferencias de
-      codificación entre los encabezados de Sheets y los del código.
-    - Para detectar UPDATE vs INSERT, lee SOLO la columna del PK (no toda la hoja).
+    ESTRATEGIA v7.0 — COLUMNAS POR NOMBRE, NO POR POSICIÓN
+    ────────────────────────────────────────────────────────
+    Bug anterior: se reemplazaban los encabezados de Sheets con los del código
+    y luego se actualizaba cada fila usando rango posicional (A:N). Si el catálogo
+    en Sheets tenía columnas en distinto orden o extra, los valores quedaban
+    en las columnas equivocadas → Color y Trans de otros vehículos se borraban.
+
+    Solución: leer los encabezados que YA ESTÁN en Sheets y usarlos como referencia.
+    Para cada columna que define el convertidor (_row_*), buscar su posición real
+    en la hoja y actualizar solo esa celda. Columnas desconocidas se agregan al
+    final si no existen. Columnas de la hoja no cubiertas por el convertidor
+    se dejan intactas.
     """
-    import gspread
+    import gspread, string as _string
 
-    ws_name   = WS[key]
-    pk_col    = PK[key]
-    row_fn    = _ROW[key]
+    ws_name  = WS[key]
+    pk_col   = PK[key]
+    row_fn   = _ROW[key]
 
-    # Las columnas y su orden son siempre los del convertidor
-    # (independiente de lo que haya en Sheets)
-    sample_row = row_fn(items[0]) if items else {}
-    our_headers = list(sample_row.keys())          # ej: ["ID","Nombre","Modelo",...]
-    pk_col_idx  = our_headers.index(pk_col)        # posición del PK en nuestra lista (0-based)
-    n_cols      = len(our_headers)
+    def _col_letter(n: int) -> str:
+        """0-based index → letra de columna (A, B, ..., Z, AA, ...)"""
+        s = ""
+        n += 1
+        while n:
+            n, r = divmod(n - 1, 26)
+            s = chr(65 + r) + s
+        return s
 
     # ── 1. Abrir o crear la worksheet ────────────────────────────────────────
     try:
         ws = spreadsheet.worksheet(ws_name)
     except gspread.exceptions.WorksheetNotFound:
+        sample_row  = row_fn(items[0]) if items else {}
+        our_headers = list(sample_row.keys())
+        n_cols      = len(our_headers)
         ws = spreadsheet.add_worksheet(
             title = ws_name,
             rows  = str(max(len(items) + 20, 100)),
             cols  = str(max(n_cols + 2, 20)),
         )
-        ws.append_row(our_headers)
+        _api_call(ws.append_row, our_headers)
         time.sleep(0.8)
-        # Hoja recién creada → todo es INSERT
         rows_to_insert = [list(row_fn(item).values()) for item in items]
         if rows_to_insert:
             _append_chunks(ws, rows_to_insert)
@@ -464,59 +475,90 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
                            f"Espera ~1 min y vuelve a guardar.")
         return False, f"Error leyendo '{ws_name}': {e}"
 
-    # ── 3. Si la hoja está vacía, escribir encabezados y todos los datos ─────
+    # ── 3. Hoja vacía: escribir encabezados del convertidor + datos ──────────
     if not all_vals:
+        sample_row  = row_fn(items[0]) if items else {}
+        our_headers = list(sample_row.keys())
         _api_call(ws.append_row, our_headers)
         time.sleep(0.4)
         rows_to_insert = [list(row_fn(item).values()) for item in items]
         _append_chunks(ws, rows_to_insert)
         return True, f"'{ws_name}': {len(rows_to_insert)} filas escritas (hoja vacía)"
 
-    # ── 4. Verificar/actualizar fila 1 (encabezados) ─────────────────────────
-    existing_headers = all_vals[0]
-    if existing_headers != our_headers:
-        # Reemplazar solo la fila de encabezados, sin tocar los datos
-        _api_call(ws.update, "A1", [our_headers])
+    # ── 4. Encabezados existentes en la hoja (NUNCA se reemplazan) ───────────
+    sheet_headers = list(all_vals[0])   # lo que YA está en fila 1
+
+    # Agregar al final columnas nuevas que no existan en la hoja
+    sample_row  = row_fn(items[0]) if items else {}
+    our_headers = list(sample_row.keys())
+    added_cols  = []
+    for col_name in our_headers:
+        if col_name not in sheet_headers:
+            sheet_headers.append(col_name)
+            added_cols.append(col_name)
+
+    if added_cols:
+        # Escribir encabezados actualizados (solo se agregan al final, no se cambia el orden)
+        _api_call(ws.update, "A1", [sheet_headers])
         time.sleep(0.3)
 
-    data_rows = all_vals[1:]   # filas 2..N (datos existentes)
+    # Mapa nombre_columna → índice 0-based en sheet_headers
+    col_idx: dict[str, int] = {h: i for i, h in enumerate(sheet_headers)}
 
-    # ── 5. Construir mapa  PK_valor → número_de_fila (1-based en Sheets) ────
-    # Leemos la columna PK de data_rows (posición pk_col_idx, 0-based)
+    # Índice 0-based del PK en sheet_headers
+    pk_col_idx = col_idx[pk_col]
+
+    # ── 5. Construir mapa PK_valor → número_de_fila 1-based ─────────────────
+    data_rows = all_vals[1:]
     existing: dict[str, int] = {}
     for i, row in enumerate(data_rows):
         val = str(row[pk_col_idx]).strip() if pk_col_idx < len(row) else ""
         if val:
             existing[val] = i + DATA_START   # DATA_START=2
 
-    # ── 6. Clasificar cada item: UPDATE o INSERT ─────────────────────────────
-    to_update: list[tuple[int, list]] = []   # (sheet_row_number, values_list)
+    # ── 6. Clasificar UPDATE vs INSERT ───────────────────────────────────────
+    to_update: list[tuple[int, dict]] = []  # (sheet_row, {col_name: value})
     to_insert: list[list]             = []
 
     for item in items:
-        # Generar la fila COMPLETA usando el convertidor — valores en orden correcto
-        converted  = row_fn(item)
-        values     = [_safe(v) for v in converted.values()]   # misma lista, siempre completa
-        pk_val     = str(values[pk_col_idx]).strip()
+        converted = row_fn(item)               # {col_name: value} del convertidor
+        pk_val    = str(_safe(converted.get(pk_col, ""))).strip()
 
         if pk_val and pk_val in existing:
-            to_update.append((existing[pk_val], values))
+            to_update.append((existing[pk_val], converted))
         else:
-            to_insert.append(values)
+            to_insert.append(converted)
 
-    # ── 7. Ejecutar UPDATEs ──────────────────────────────────────────────────
+    # ── 7. UPDATEs: solo las columnas que define el convertidor ──────────────
     updated = 0
-    for sheet_row, values in to_update:
-        rng = _row_range(sheet_row, n_cols)   # ej: "A5:N5"
+    for sheet_row, converted in to_update:
+        # Leer la fila existente para no pisar columnas no cubiertas
+        existing_row = list(all_vals[sheet_row - 1])   # 0-based en all_vals
+        # Extender si la fila tiene menos columnas que los encabezados
+        while len(existing_row) < len(sheet_headers):
+            existing_row.append("")
+        # Sobreescribir solo las columnas del convertidor
+        for col_name, new_val in converted.items():
+            if col_name in col_idx:
+                existing_row[col_idx[col_name]] = _safe(new_val)
+        # Escribir la fila completa de una vez (evita múltiples llamadas a la API)
+        rng = f"A{sheet_row}:{_col_letter(len(existing_row)-1)}{sheet_row}"
         try:
-            _api_call(ws.update, rng, [values])
+            _api_call(ws.update, rng, [existing_row])
             updated += 1
             time.sleep(0.12)
         except Exception as e:
             return False, f"Error actualizando fila {sheet_row} en '{ws_name}': {e}"
 
-    # ── 8. Ejecutar INSERTs ──────────────────────────────────────────────────
-    inserted = _append_chunks(ws, to_insert)
+    # ── 8. INSERTs: alinear con sheet_headers ────────────────────────────────
+    rows_to_insert = []
+    for converted in to_insert:
+        new_row = [""] * len(sheet_headers)
+        for col_name, new_val in converted.items():
+            if col_name in col_idx:
+                new_row[col_idx[col_name]] = _safe(new_val)
+        rows_to_insert.append(new_row)
+    inserted = _append_chunks(ws, rows_to_insert)
 
     msg = f"'{ws_name}': {updated} actualizadas · {inserted} nuevas"
     return True, msg
