@@ -1732,7 +1732,7 @@ def page_publish():
             st.caption(f"🎥 Video listo: {video_file.name}")
 
         st.divider()
-        st.markdown("#### 📋 Información del vehículo")"2016"
+        st.markdown("#### 📋 Información del vehículo")
         vc1, vc2 = st.columns(2)
         with vc1:
             pub_tipo  = st.selectbox("Tipo", ["Venta","Permuta","Venta y Permuta"], key="pf_tipo")
