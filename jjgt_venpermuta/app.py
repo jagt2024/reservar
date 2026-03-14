@@ -1713,7 +1713,7 @@ def page_publish():
             ✓ Verificado</div>
     </div>""", unsafe_allow_html=True)
 
-    with st.form("publish_form", clear_on_submit=True):
+    with st.form("publish_form", clear_on_submit=False):
         st.markdown("#### 📸 Fotos y video")
         mc1, mc2 = st.columns(2)
         with mc1:
