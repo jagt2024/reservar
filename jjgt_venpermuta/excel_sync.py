@@ -191,6 +191,7 @@ def _row_pub(p: dict) -> dict:
         "Fecha Pub":       _safe(p.get("fecha", datetime.now().strftime("%d/%m/%Y"))),
         "Visitas":         _safe(p.get("visitas",0)),
         "Favoritos":       _safe(p.get("favoritos",0)),
+        "Descripcion":     _safe(p.get("desc","")),          # Descripción del vehículo
         "Fotos URLs":      _safe(p.get("fotos_urls","")),   # URLs Drive separadas por coma
         "Video URL":       _safe(p.get("video_url","")),    # URL Drive del video
     }

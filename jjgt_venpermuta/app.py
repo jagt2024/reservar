@@ -128,7 +128,12 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
 
 
 def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
-    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos."""
+    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos.
+    
+    FIX: Usa los encabezados YA existentes en Sheets como referencia para hacer el
+    update celda por celda. Así nunca se reemplazan los encabezados (lo que desalineaba
+    el Color y otras columnas del catálogo base) y nunca se pierden columnas extras.
+    """
     try:
         import time as _time
         from data import load_credentials_from_toml, get_google_sheets_connection
@@ -140,44 +145,68 @@ def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
         sh      = client.open(SHEET_FILE)
         ws      = sh.worksheet(WS["vehiculos"])   # 🚗 VEHÍCULOS
         all_v   = ws.get_all_values()
-        row_d   = _row_veh(pub)
-        headers = list(row_d.keys())
-        values  = [_safe(v) for v in row_d.values()]
+        row_d   = _row_veh(pub)           # {col_name: value} definido por el código
         pid_str = str(pub.get("id","")).strip()
 
+        # ── Hoja vacía: escribir encabezados y fila ───────────────────────────
         if not all_v:
-            ws.append_row(headers)
+            ws.append_row(list(row_d.keys()))
             _time.sleep(0.3)
-            ws.append_row(values)
-            return True, "Fila creada en Vehículos"
+            ws.append_row([_safe(v) for v in row_d.values()])
+            return True, "Fila creada en Vehículos (hoja nueva)"
 
-        # Verificar/actualizar encabezados
-        if all_v[0] != headers:
-            ws.update("A1", [headers])
+        # ── Usar los encabezados QUE YA ESTÁN en Sheets (no reemplazarlos) ───
+        sheet_headers = all_v[0]
+
+        # Buscar columna ID en los encabezados existentes
+        try:
+            pk_idx = sheet_headers.index("ID")
+        except ValueError:
+            # Si no existe la columna ID en Sheets, es una hoja sin inicializar:
+            # escribir encabezados del código y la fila nueva
+            ws.update("A1", [list(row_d.keys())])
             _time.sleep(0.3)
-            all_v = ws.get_all_values()
+            ws.append_row([_safe(v) for v in row_d.values()])
+            return True, "Fila creada en Vehículos (encabezados nuevos)"
 
-        # Buscar fila por ID
-        pk_idx  = headers.index("ID")
-        target  = None
+        # Buscar fila del vehículo por ID
+        target = None
         for i, row in enumerate(all_v[1:], start=2):
             if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str:
                 target = i
                 break
 
-        import string as _s
-        def _col(n):
-            r, n = "", n+1
-            while n:
-                n, rem = divmod(n-1, 26)
-                r = _s.ascii_uppercase[rem] + r
-            return r
-
+        # Construir la lista de valores alineada con sheet_headers:
+        # solo actualiza las columnas que define _row_veh; las demás las deja intactas
+        # tomando el valor que ya tenían en Sheets.
         if target:
-            ws.update(f"A{target}:{_col(len(values)-1)}{target}", [values])
+            existing_row = list(all_v[target - 1])  # 0-based en all_v
+            # Extender si la fila existente tiene menos columnas que los encabezados
+            while len(existing_row) < len(sheet_headers):
+                existing_row.append("")
+            # Sobrescribir solo las columnas que conoce _row_veh
+            merged = list(existing_row)
+            for col_name, new_val in row_d.items():
+                if col_name in sheet_headers:
+                    merged[sheet_headers.index(col_name)] = _safe(new_val)
+            import string as _s
+            def _col(n):
+                r, n = "", n + 1
+                while n:
+                    n, rem = divmod(n - 1, 26)
+                    r = _s.ascii_uppercase[rem] + r
+                return r
+            ws.update(f"A{target}:{_col(len(merged)-1)}{target}", [merged])
             return True, f"Vehículo actualizado en fila {target}"
         else:
-            ws.append_row(values)
+            # INSERT: alinear con sheet_headers existentes
+            new_row = [""] * len(sheet_headers)
+            for col_name, new_val in row_d.items():
+                if col_name in sheet_headers:
+                    new_row[sheet_headers.index(col_name)] = _safe(new_val)
+                # Si la columna no existe aún en Sheets, se ignora
+                # (aparecerá en el próximo save_section_silent completo)
+            ws.append_row(new_row)
             return True, "Vehículo agregado a Vehículos"
     except Exception as e:
         return False, str(e)
@@ -1424,7 +1453,15 @@ def page_vehicle_detail():
         if st.session_state.det_edit_mode:
             st.markdown("---")
             st.markdown("#### ✏️ Editar publicación")
-            ANIOS = [str(a) for a in range(2025, 2014, -1)]
+            # Lista de años idéntica a la del formulario de publicación
+            ANIOS = ["2025","2024","2023","2022","2021","2020","2019","2018","2017",
+                     "2015","2014","2013","2012","2011","2010","2009","2008","2007",
+                     "2006","2005","2004","2003","2002","2001","2000","1999","1998",
+                     "1997","1996","1995","1994","1993","1992","1991","1990","1989",
+                     "1988","1987","1986","1985","1984","1983","1982","1981","1980"]
+            MARCAS = ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford",
+                      "Hummer","Audi","Volkswagen","BMW","Mercedes-Benz","Nissan",
+                      "Honda","Suzuki","Jeep"]
             FUELS = ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"]
             CIUDADES = ["Bogotá","Medellín","Cali","Barranquilla",
                         "Bucaramanga","Pereira","Cartagena"]
@@ -1435,6 +1472,8 @@ def page_vehicle_detail():
             with st.form("form_edit_pub"):
                 ee1, ee2 = st.columns(2)
                 with ee1:
+                    e_marca  = st.selectbox("Marca", MARCAS,
+                                            index=_idx(MARCAS, name), key="de_marca")
                     e_modelo = st.text_input("Modelo", value=model, key="de_modelo")
                     e_anio   = st.selectbox("Año", ANIOS,
                                             index=_idx(ANIOS, year), key="de_anio")
@@ -1464,6 +1503,7 @@ def page_vehicle_detail():
                                          use_container_width=True, type="primary"):
                     TIPO2 = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
                     cambios = {
+                        "name":         e_marca,
                         "model":        e_modelo.strip(),
                         "year":         int(e_anio),
                         "km":           int(e_km),
@@ -1713,7 +1753,7 @@ def page_publish():
             ✓ Verificado</div>
     </div>""", unsafe_allow_html=True)
 
-    with st.form("publish_form", clear_on_submit=False):
+    with st.form("publish_form", clear_on_submit=True):
         st.markdown("#### 📸 Fotos y video")
         mc1, mc2 = st.columns(2)
         with mc1:
