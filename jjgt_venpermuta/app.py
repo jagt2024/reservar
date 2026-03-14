@@ -128,12 +128,7 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
 
 
 def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
-    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos.
-    
-    FIX: Usa los encabezados YA existentes en Sheets como referencia para hacer el
-    update celda por celda. Así nunca se reemplazan los encabezados (lo que desalineaba
-    el Color y otras columnas del catálogo base) y nunca se pierden columnas extras.
-    """
+    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos."""
     try:
         import time as _time
         from data import load_credentials_from_toml, get_google_sheets_connection
@@ -145,68 +140,44 @@ def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
         sh      = client.open(SHEET_FILE)
         ws      = sh.worksheet(WS["vehiculos"])   # 🚗 VEHÍCULOS
         all_v   = ws.get_all_values()
-        row_d   = _row_veh(pub)           # {col_name: value} definido por el código
+        row_d   = _row_veh(pub)
+        headers = list(row_d.keys())
+        values  = [_safe(v) for v in row_d.values()]
         pid_str = str(pub.get("id","")).strip()
 
-        # ── Hoja vacía: escribir encabezados y fila ───────────────────────────
         if not all_v:
-            ws.append_row(list(row_d.keys()))
+            ws.append_row(headers)
             _time.sleep(0.3)
-            ws.append_row([_safe(v) for v in row_d.values()])
-            return True, "Fila creada en Vehículos (hoja nueva)"
+            ws.append_row(values)
+            return True, "Fila creada en Vehículos"
 
-        # ── Usar los encabezados QUE YA ESTÁN en Sheets (no reemplazarlos) ───
-        sheet_headers = all_v[0]
-
-        # Buscar columna ID en los encabezados existentes
-        try:
-            pk_idx = sheet_headers.index("ID")
-        except ValueError:
-            # Si no existe la columna ID en Sheets, es una hoja sin inicializar:
-            # escribir encabezados del código y la fila nueva
-            ws.update("A1", [list(row_d.keys())])
+        # Verificar/actualizar encabezados
+        if all_v[0] != headers:
+            ws.update("A1", [headers])
             _time.sleep(0.3)
-            ws.append_row([_safe(v) for v in row_d.values()])
-            return True, "Fila creada en Vehículos (encabezados nuevos)"
+            all_v = ws.get_all_values()
 
-        # Buscar fila del vehículo por ID
-        target = None
+        # Buscar fila por ID
+        pk_idx  = headers.index("ID")
+        target  = None
         for i, row in enumerate(all_v[1:], start=2):
             if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str:
                 target = i
                 break
 
-        # Construir la lista de valores alineada con sheet_headers:
-        # solo actualiza las columnas que define _row_veh; las demás las deja intactas
-        # tomando el valor que ya tenían en Sheets.
+        import string as _s
+        def _col(n):
+            r, n = "", n+1
+            while n:
+                n, rem = divmod(n-1, 26)
+                r = _s.ascii_uppercase[rem] + r
+            return r
+
         if target:
-            existing_row = list(all_v[target - 1])  # 0-based en all_v
-            # Extender si la fila existente tiene menos columnas que los encabezados
-            while len(existing_row) < len(sheet_headers):
-                existing_row.append("")
-            # Sobrescribir solo las columnas que conoce _row_veh
-            merged = list(existing_row)
-            for col_name, new_val in row_d.items():
-                if col_name in sheet_headers:
-                    merged[sheet_headers.index(col_name)] = _safe(new_val)
-            import string as _s
-            def _col(n):
-                r, n = "", n + 1
-                while n:
-                    n, rem = divmod(n - 1, 26)
-                    r = _s.ascii_uppercase[rem] + r
-                return r
-            ws.update(f"A{target}:{_col(len(merged)-1)}{target}", [merged])
+            ws.update(f"A{target}:{_col(len(values)-1)}{target}", [values])
             return True, f"Vehículo actualizado en fila {target}"
         else:
-            # INSERT: alinear con sheet_headers existentes
-            new_row = [""] * len(sheet_headers)
-            for col_name, new_val in row_d.items():
-                if col_name in sheet_headers:
-                    new_row[sheet_headers.index(col_name)] = _safe(new_val)
-                # Si la columna no existe aún en Sheets, se ignora
-                # (aparecerá en el próximo save_section_silent completo)
-            ws.append_row(new_row)
+            ws.append_row(values)
             return True, "Vehículo agregado a Vehículos"
     except Exception as e:
         return False, str(e)
@@ -1453,22 +1424,190 @@ def page_vehicle_detail():
         if st.session_state.det_edit_mode:
             st.markdown("---")
             st.markdown("#### ✏️ Editar publicación")
-            # Lista de años idéntica a la del formulario de publicación
+
+            # ── Constantes ────────────────────────────────────────────────────
             ANIOS = ["2025","2024","2023","2022","2021","2020","2019","2018","2017",
                      "2015","2014","2013","2012","2011","2010","2009","2008","2007",
                      "2006","2005","2004","2003","2002","2001","2000","1999","1998",
                      "1997","1996","1995","1994","1993","1992","1991","1990","1989",
                      "1988","1987","1986","1985","1984","1983","1982","1981","1980"]
-            MARCAS = ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford",
-                      "Hummer","Audi","Volkswagen","BMW","Mercedes-Benz","Nissan",
-                      "Honda","Suzuki","Jeep"]
-            FUELS = ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"]
+            MARCAS   = ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford",
+                        "Hummer","Audi","Volkswagen","BMW","Mercedes-Benz","Nissan",
+                        "Honda","Suzuki","Jeep"]
+            FUELS    = ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"]
             CIUDADES = ["Bogotá","Medellín","Cali","Barranquilla",
                         "Bucaramanga","Pereira","Cartagena"]
 
             def _idx(lst, val, default=0):
                 return lst.index(str(val)) if str(val) in lst else default
 
+            from media_sync import (
+                _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
+                _is_b64_ref, _bytes_from_b64_ref, _a_data_uri,
+            )
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 1 — FOTOS ACTUALES + ELIMINAR (fuera del form)
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 📸 Fotos actuales")
+            fotos_refs = [r.strip() for r in
+                          (v.get("fotos_urls") or "").split(",") if r.strip()]
+
+            if fotos_refs:
+                cols_f = st.columns(min(len(fotos_refs), 5))
+                for fi, ref in enumerate(fotos_refs):
+                    with cols_f[fi % 5]:
+                        thumb = ""
+                        if _is_drive_ref(ref):
+                            thumb = _thumbnail_url_drive(_file_id_from_ref(ref), size=200)
+                        elif _is_b64_ref(ref):
+                            raw   = _bytes_from_b64_ref(ref)
+                            thumb = _a_data_uri(raw, 200) if raw else ""
+                        if thumb:
+                            st.markdown(
+                                f'<img src="{thumb}" style="width:100%;height:80px;'
+                                f'object-fit:cover;border-radius:8px;margin-bottom:4px;">',
+                                unsafe_allow_html=True)
+                        else:
+                            st.markdown("🖼️")
+                        st.caption("📌 Portada" if fi == 0 else f"Foto {fi+1}")
+                        if st.button("❌ Eliminar", key=f"del_foto_{pub_id}_{fi}",
+                                     use_container_width=True):
+                            nuevas_refs = [r for j, r in enumerate(fotos_refs) if j != fi]
+                            nuevo_csv   = ",".join(nuevas_refs)
+                            v["fotos_urls"] = nuevo_csv
+                            v["fotos"]      = [f for j, f in
+                                               enumerate(v.get("fotos") or []) if j != fi]
+                            for p in st.session_state.user_publications:
+                                if p.get("id") == pub_id:
+                                    p["fotos_urls"] = nuevo_csv
+                                    p["fotos"]      = v["fotos"]
+                            for h in st.session_state.history_items:
+                                if h.get("id") == pub_id and h.get("pubRef"):
+                                    h["pubRef"]["fotos_urls"] = nuevo_csv
+                                    h["pubRef"]["fotos"]      = v["fotos"]
+                            st.session_state.selected_vehicle = v
+                            save_section_silent(["publicaciones","vehiculos"])
+                            st.rerun()
+            else:
+                st.caption("Sin fotos cargadas.")
+
+            # ── Agregar fotos ─────────────────────────────────────────────────
+            st.markdown("##### ➕ Agregar fotos")
+            nuevas_fotos_files = st.file_uploader(
+                "Selecciona fotos (máx. 10 en total)",
+                type=["jpg","jpeg","png","webp"],
+                accept_multiple_files=True,
+                key=f"edit_fotos_{pub_id}",
+            )
+            if nuevas_fotos_files:
+                if st.button("📤 Subir fotos seleccionadas",
+                             key=f"btn_subir_fotos_{pub_id}", type="primary"):
+                    with st.spinner("📤 Subiendo fotos a Google Drive…"):
+                        try:
+                            from media_sync import upload_media
+                            fotos_data = []
+                            for ff in nuevas_fotos_files[:10]:
+                                ff.seek(0)
+                                fotos_data.append({"name": ff.name, "bytes": ff.read()})
+                            nuevas_csv, _ = upload_media(pub_id, fotos_data, None)
+                            if nuevas_csv:
+                                base       = (v.get("fotos_urls") or "").strip()
+                                merged_csv = ",".join(filter(None, [base, nuevas_csv]))
+                                v["fotos_urls"] = merged_csv
+                                for p in st.session_state.user_publications:
+                                    if p.get("id") == pub_id:
+                                        p["fotos_urls"] = merged_csv
+                                for h in st.session_state.history_items:
+                                    if h.get("id") == pub_id and h.get("pubRef"):
+                                        h["pubRef"]["fotos_urls"] = merged_csv
+                                st.session_state.selected_vehicle = v
+                                save_section_silent(["publicaciones","vehiculos"])
+                                st.success(f"✅ {len(fotos_data)} foto(s) agregada(s)")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ No se pudieron subir las fotos")
+                        except Exception as _em:
+                            st.error(f"Error subiendo fotos: {_em}")
+
+            st.divider()
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 2 — VIDEO ACTUAL + ELIMINAR / REEMPLAZAR (fuera del form)
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 🎥 Video actual")
+            video_url_actual = (v.get("video_url") or "").strip()
+
+            if video_url_actual:
+                if _is_drive_ref(video_url_actual):
+                    fid_v   = _file_id_from_ref(video_url_actual)
+                    embed_v = f"https://drive.google.com/file/d/{fid_v}/preview"
+                    st.markdown(
+                        f'<iframe src="{embed_v}" width="100%" height="200" '
+                        f'allow="autoplay" style="border:none;border-radius:8px;"></iframe>',
+                        unsafe_allow_html=True)
+                else:
+                    st.caption(f"📁 {video_url_actual[:60]}")
+
+                if st.button("❌ Eliminar video", key=f"del_video_{pub_id}"):
+                    v["video_url"] = ""
+                    v["video"]     = None
+                    for p in st.session_state.user_publications:
+                        if p.get("id") == pub_id:
+                            p["video_url"] = ""
+                            p["video"]     = None
+                    for h in st.session_state.history_items:
+                        if h.get("id") == pub_id and h.get("pubRef"):
+                            h["pubRef"]["video_url"] = ""
+                            h["pubRef"]["video"]     = None
+                    st.session_state.selected_vehicle = v
+                    save_section_silent(["publicaciones","vehiculos"])
+                    st.success("✅ Video eliminado")
+                    st.rerun()
+            else:
+                st.caption("Sin video cargado.")
+
+            nuevo_video_file = st.file_uploader(
+                "Subir video (reemplaza el actual)",
+                type=["mp4","mov","avi","webm"],
+                key=f"edit_video_{pub_id}",
+            )
+            if nuevo_video_file:
+                if st.button("📤 Subir video seleccionado",
+                             key=f"btn_subir_video_{pub_id}", type="primary"):
+                    with st.spinner("📤 Subiendo video a Google Drive…"):
+                        try:
+                            from media_sync import upload_media
+                            nuevo_video_file.seek(0)
+                            vdata = {"name": nuevo_video_file.name,
+                                     "bytes": nuevo_video_file.read()}
+                            _, nueva_video_url = upload_media(pub_id, [], vdata)
+                            if nueva_video_url:
+                                v["video_url"] = nueva_video_url
+                                v["video"]     = None
+                                for p in st.session_state.user_publications:
+                                    if p.get("id") == pub_id:
+                                        p["video_url"] = nueva_video_url
+                                        p["video"]     = None
+                                for h in st.session_state.history_items:
+                                    if h.get("id") == pub_id and h.get("pubRef"):
+                                        h["pubRef"]["video_url"] = nueva_video_url
+                                        h["pubRef"]["video"]     = None
+                                st.session_state.selected_vehicle = v
+                                save_section_silent(["publicaciones","vehiculos"])
+                                st.success("✅ Video actualizado")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ No se pudo subir el video")
+                        except Exception as _ev:
+                            st.error(f"Error subiendo video: {_ev}")
+
+            st.divider()
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 3 — DATOS DEL VEHÍCULO (st.form)
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 📋 Datos del vehículo")
             with st.form("form_edit_pub"):
                 ee1, ee2 = st.columns(2)
                 with ee1:
