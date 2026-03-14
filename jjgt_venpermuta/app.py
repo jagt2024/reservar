@@ -130,32 +130,16 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
 def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
     """
     Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos.
-    Delega en save_section_silent para un solo ítem, evitando duplicar la lógica
-    de upsert seguro por columna que ya existe en excel_sync._upsert_ws.
+    Usa col_idx normalizado (sin tildes) para tolerar diferencias entre
+    "Transmisión" / "Transmision", "Año" / "Ano", etc.
     """
     try:
-        # Asegurar que la publicación esté en user_publications para que _collect la tome
-        pub_id  = str(pub.get("id","")).strip()
-        existente = next(
-            (p for p in st.session_state.get("user_publications", [])
-             if str(p.get("id","")).strip() == pub_id), None)
-        if existente is None:
-            st.session_state.setdefault("user_publications", []).insert(0, pub)
-
-        from excel_sync import save_to_sheets, SHEET_FILE, WS, _row_veh, _safe, _api_call
+        import unicodedata as _ud, string as _s, time as _time
+        from excel_sync import SHEET_FILE, WS, _row_veh, _safe, _api_call
         from data import load_credentials_from_toml, get_google_sheets_connection
-        import string as _s, time as _time
 
-        creds, _ = load_credentials_from_toml()
-        if not creds:
-            return False, "Sin credenciales Google"
-        client = get_google_sheets_connection(creds)
-        sh     = client.open(SHEET_FILE)
-        ws     = sh.worksheet(WS["vehiculos"])
-
-        all_v   = _api_call(ws.get_all_values)
-        row_d   = _row_veh(pub)
-        pid_str = pub_id
+        def _norm(s):
+            return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
 
         def _col_letter(n):
             s, n = "", n + 1
@@ -164,6 +148,16 @@ def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
                 s = _s.ascii_uppercase[r] + s
             return s
 
+        creds, _ = load_credentials_from_toml()
+        if not creds:
+            return False, "Sin credenciales Google"
+        client  = get_google_sheets_connection(creds)
+        sh      = client.open(SHEET_FILE)
+        ws      = sh.worksheet(WS["vehiculos"])
+        all_v   = _api_call(ws.get_all_values)
+        row_d   = _row_veh(pub)
+        pid_str = str(pub.get("id","")).strip()
+
         # ── Hoja vacía ───────────────────────────────────────────────────────
         if not all_v:
             _api_call(ws.append_row, list(row_d.keys()))
@@ -171,23 +165,29 @@ def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
             _api_call(ws.append_row, [_safe(v) for v in row_d.values()])
             return True, "Fila creada en Vehículos (hoja nueva)"
 
-        # ── Encabezados actuales en la hoja (nunca se reemplazan) ────────────
+        # ── Encabezados actuales — NUNCA se reemplazan ────────────────────────
         sheet_headers = list(all_v[0])
 
-        # Agregar columnas nuevas al final si no existen
+        # Agregar columnas nuevas al final (comparación sin tildes)
+        sheet_norm = {_norm(h): i for i, h in enumerate(sheet_headers)}
         added = []
         for col_name in row_d:
-            if col_name not in sheet_headers:
+            if _norm(col_name) not in sheet_norm:
                 sheet_headers.append(col_name)
+                sheet_norm[_norm(col_name)] = len(sheet_headers) - 1
                 added.append(col_name)
         if added:
             _api_call(ws.update, "A1", [sheet_headers])
             _time.sleep(0.3)
 
-        col_idx = {h: i for i, h in enumerate(sheet_headers)}
+        # col_idx indexado por nombre NORMALIZADO (tolera tildes)
+        col_idx = {_norm(h): i for i, h in enumerate(sheet_headers)}
 
-        # ── Buscar fila del vehículo por ID ───────────────────────────────────
-        pk_pos  = col_idx.get("ID")
+        def _col_pos(name):
+            return col_idx.get(_norm(name))
+
+        # ── Buscar fila por ID ────────────────────────────────────────────────
+        pk_pos = _col_pos("ID")
         if pk_pos is None:
             return False, "Columna 'ID' no encontrada en VEHÍCULOS"
 
@@ -198,22 +198,23 @@ def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
                 break
 
         if target:
-            # Leer fila existente, sobreescribir solo las columnas del convertidor
+            # all_v es 0-based; fila sheet=2 → all_v[1], fila sheet=3 → all_v[2]
             existing_row = list(all_v[target - 1])
             while len(existing_row) < len(sheet_headers):
                 existing_row.append("")
             for col_name, new_val in row_d.items():
-                if col_name in col_idx:
-                    existing_row[col_idx[col_name]] = _safe(new_val)
+                pos = _col_pos(col_name)
+                if pos is not None:
+                    existing_row[pos] = _safe(new_val)
             rng = f"A{target}:{_col_letter(len(existing_row)-1)}{target}"
             _api_call(ws.update, rng, [existing_row])
             return True, f"Vehículo actualizado en fila {target}"
         else:
-            # INSERT alineado con sheet_headers
             new_row = [""] * len(sheet_headers)
             for col_name, new_val in row_d.items():
-                if col_name in col_idx:
-                    new_row[col_idx[col_name]] = _safe(new_val)
+                pos = _col_pos(col_name)
+                if pos is not None:
+                    new_row[pos] = _safe(new_val)
             _api_call(ws.append_row, new_row)
             return True, "Vehículo agregado a Vehículos"
 

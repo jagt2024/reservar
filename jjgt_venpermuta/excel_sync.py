@@ -488,13 +488,22 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     # ── 4. Encabezados existentes en la hoja (NUNCA se reemplazan) ───────────
     sheet_headers = list(all_vals[0])   # lo que YA está en fila 1
 
+    # Helper: normalizar tildes/acentos para comparación robusta
+    # "Transmisión" == "Transmision", "Año" == "Ano", etc.
+    import unicodedata as _ud
+    def _norm(s: str) -> str:
+        return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
+
     # Agregar al final columnas nuevas que no existan en la hoja
+    # Comparación normalizada para no duplicar "Transmision" / "Transmisión"
+    sheet_norm = {_norm(h): i for i, h in enumerate(sheet_headers)}
     sample_row  = row_fn(items[0]) if items else {}
     our_headers = list(sample_row.keys())
     added_cols  = []
     for col_name in our_headers:
-        if col_name not in sheet_headers:
+        if _norm(col_name) not in sheet_norm:
             sheet_headers.append(col_name)
+            sheet_norm[_norm(col_name)] = len(sheet_headers) - 1
             added_cols.append(col_name)
 
     if added_cols:
@@ -503,10 +512,17 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         time.sleep(0.3)
 
     # Mapa nombre_columna → índice 0-based en sheet_headers
-    col_idx: dict[str, int] = {h: i for i, h in enumerate(sheet_headers)}
+    # Indexado por nombre NORMALIZADO para tolerar diferencias de tildes
+    col_idx: dict[str, int] = {_norm(h): i for i, h in enumerate(sheet_headers)}
+
+    def _col_pos(name: str) -> int | None:
+        """Devuelve el índice de la columna por nombre, tolerando tildes."""
+        return col_idx.get(_norm(name))
 
     # Índice 0-based del PK en sheet_headers
-    pk_col_idx = col_idx[pk_col]
+    pk_col_idx = _col_pos(pk_col)
+    if pk_col_idx is None:
+        return False, f"Columna PK '{pk_col}' no encontrada en '{ws_name}'"
 
     # ── 5. Construir mapa PK_valor → número_de_fila 1-based ─────────────────
     data_rows = all_vals[1:]
@@ -537,10 +553,11 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         # Extender si la fila tiene menos columnas que los encabezados
         while len(existing_row) < len(sheet_headers):
             existing_row.append("")
-        # Sobreescribir solo las columnas del convertidor
+        # Sobreescribir solo las columnas del convertidor (tolerante a tildes)
         for col_name, new_val in converted.items():
-            if col_name in col_idx:
-                existing_row[col_idx[col_name]] = _safe(new_val)
+            pos = _col_pos(col_name)
+            if pos is not None:
+                existing_row[pos] = _safe(new_val)
         # Escribir la fila completa de una vez (evita múltiples llamadas a la API)
         rng = f"A{sheet_row}:{_col_letter(len(existing_row)-1)}{sheet_row}"
         try:
@@ -555,8 +572,9 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     for converted in to_insert:
         new_row = [""] * len(sheet_headers)
         for col_name, new_val in converted.items():
-            if col_name in col_idx:
-                new_row[col_idx[col_name]] = _safe(new_val)
+            pos = _col_pos(col_name)
+            if pos is not None:
+                new_row[pos] = _safe(new_val)
         rows_to_insert.append(new_row)
     inserted = _append_chunks(ws, rows_to_insert)
 
