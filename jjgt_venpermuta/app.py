@@ -1732,16 +1732,16 @@ def page_publish():
             st.caption(f"🎥 Video listo: {video_file.name}")
 
         st.divider()
-        st.markdown("#### 📋 Información del vehículo")
+        st.markdown("#### 📋 Información del vehículo")"2016"
         vc1, vc2 = st.columns(2)
         with vc1:
             pub_tipo  = st.selectbox("Tipo", ["Venta","Permuta","Venta y Permuta"], key="pf_tipo")
             pub_marca = st.selectbox("Marca",
-                ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford",
+                ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford", "Hamer", "Audi",
                  "Volkswagen","BMW","Mercedes-Benz","Nissan","Honda","Suzuki","Jeep"], key="pf_marca")
             pub_modelo = st.text_input("Modelo *", placeholder="Ej: Corolla XEI", key="pf_modelo")
             pub_anio   = st.selectbox("Año",
-                ["2025","2024","2023","2022","2021","2020","2019","2018","2017","2016"], key="pf_anio")
+                ["2025","2024","2023","2022","2021","2020","2019","2018","2017","2015","2014","2013","2012","2011","2010","2009","2008","2007","2006","2005","2004","2003","2002","2001","2000"], key="pf_anio")
             pub_km     = st.number_input("Km *", 0, 500_000, step=1_000, key="pf_km")
         with vc2:
             pub_comb  = st.selectbox("Combustible", ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"], key="pf_comb")
