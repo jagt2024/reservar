@@ -1447,16 +1447,41 @@ def page_vehicle_detail():
             )
 
             # ════════════════════════════════════════════════════════════════
-            # SECCIÓN 1 — FOTOS ACTUALES + ELIMINAR (fuera del form)
+            # SECCIÓN 1 — FOTOS ACTUALES + REORDENAR + ELIMINAR
             # ════════════════════════════════════════════════════════════════
             st.markdown("##### 📸 Fotos actuales")
             fotos_refs = [r.strip() for r in
                           (v.get("fotos_urls") or "").split(",") if r.strip()]
 
+            def _aplicar_nuevo_orden(nuevo_orden: list):
+                """Persiste el nuevo orden de referencias en todos los dicts y Sheets."""
+                nuevo_csv = ",".join(nuevo_orden)
+                fotos_mem = v.get("fotos") or []
+                # Reordenar fotos en memoria si coinciden en cantidad
+                if len(fotos_mem) == len(fotos_refs):
+                    nuevo_fotos = [fotos_mem[fotos_refs.index(r)]
+                                   if r in fotos_refs else {} for r in nuevo_orden]
+                else:
+                    nuevo_fotos = fotos_mem  # no tocar si no coincide
+                v["fotos_urls"] = nuevo_csv
+                v["fotos"]      = nuevo_fotos
+                for p in st.session_state.user_publications:
+                    if p.get("id") == pub_id:
+                        p["fotos_urls"] = nuevo_csv
+                        p["fotos"]      = nuevo_fotos
+                for h in st.session_state.history_items:
+                    if h.get("id") == pub_id and h.get("pubRef"):
+                        h["pubRef"]["fotos_urls"] = nuevo_csv
+                        h["pubRef"]["fotos"]      = nuevo_fotos
+                st.session_state.selected_vehicle = v
+                save_section_silent(["publicaciones","vehiculos"])
+
             if fotos_refs:
-                cols_f = st.columns(min(len(fotos_refs), 5))
+                n_fotos = len(fotos_refs)
+                cols_f  = st.columns(min(n_fotos, 5))
                 for fi, ref in enumerate(fotos_refs):
                     with cols_f[fi % 5]:
+                        # ── Miniatura ─────────────────────────────────────
                         thumb = ""
                         if _is_drive_ref(ref):
                             thumb = _thumbnail_url_drive(_file_id_from_ref(ref), size=200)
@@ -1464,30 +1489,66 @@ def page_vehicle_detail():
                             raw   = _bytes_from_b64_ref(ref)
                             thumb = _a_data_uri(raw, 200) if raw else ""
                         if thumb:
+                            # Portada: borde dorado destacado
+                            border = ("3px solid #F5A623" if fi == 0
+                                      else "2px solid transparent")
                             st.markdown(
                                 f'<img src="{thumb}" style="width:100%;height:80px;'
-                                f'object-fit:cover;border-radius:8px;margin-bottom:4px;">',
+                                f'object-fit:cover;border-radius:8px;'
+                                f'border:{border};margin-bottom:4px;">',
                                 unsafe_allow_html=True)
                         else:
                             st.markdown("🖼️")
+
+                        # ── Etiqueta ──────────────────────────────────────
                         st.caption("📌 Portada" if fi == 0 else f"Foto {fi+1}")
-                        if st.button("❌ Eliminar", key=f"del_foto_{pub_id}_{fi}",
-                                     use_container_width=True):
-                            nuevas_refs = [r for j, r in enumerate(fotos_refs) if j != fi]
-                            nuevo_csv   = ",".join(nuevas_refs)
-                            v["fotos_urls"] = nuevo_csv
-                            v["fotos"]      = [f for j, f in
-                                               enumerate(v.get("fotos") or []) if j != fi]
-                            for p in st.session_state.user_publications:
-                                if p.get("id") == pub_id:
-                                    p["fotos_urls"] = nuevo_csv
-                                    p["fotos"]      = v["fotos"]
-                            for h in st.session_state.history_items:
-                                if h.get("id") == pub_id and h.get("pubRef"):
-                                    h["pubRef"]["fotos_urls"] = nuevo_csv
-                                    h["pubRef"]["fotos"]      = v["fotos"]
-                            st.session_state.selected_vehicle = v
-                            save_section_silent(["publicaciones","vehiculos"])
+
+                        # ── Botón Hacer portada (solo fotos secundarias) ──
+                        if fi > 0:
+                            if st.button("⭐ Portada",
+                                         key=f"portada_{pub_id}_{fi}",
+                                         use_container_width=True):
+                                nuevo_orden = ([fotos_refs[fi]]
+                                               + fotos_refs[:fi]
+                                               + fotos_refs[fi+1:])
+                                _aplicar_nuevo_orden(nuevo_orden)
+                                st.rerun()
+
+                        # ── Botones mover ◀ ▶ ────────────────────────────
+                        mc1, mc2 = st.columns(2)
+                        with mc1:
+                            # Mover a la izquierda (no disponible para la primera)
+                            if fi > 0:
+                                if st.button("◀", key=f"izq_{pub_id}_{fi}",
+                                             use_container_width=True,
+                                             help="Mover a la izquierda"):
+                                    nuevo_orden = list(fotos_refs)
+                                    nuevo_orden[fi-1], nuevo_orden[fi] = (
+                                        nuevo_orden[fi], nuevo_orden[fi-1])
+                                    _aplicar_nuevo_orden(nuevo_orden)
+                                    st.rerun()
+                            else:
+                                st.markdown(" ")   # espaciador
+                        with mc2:
+                            # Mover a la derecha (no disponible para la última)
+                            if fi < n_fotos - 1:
+                                if st.button("▶", key=f"der_{pub_id}_{fi}",
+                                             use_container_width=True,
+                                             help="Mover a la derecha"):
+                                    nuevo_orden = list(fotos_refs)
+                                    nuevo_orden[fi], nuevo_orden[fi+1] = (
+                                        nuevo_orden[fi+1], nuevo_orden[fi])
+                                    _aplicar_nuevo_orden(nuevo_orden)
+                                    st.rerun()
+                            else:
+                                st.markdown(" ")   # espaciador
+
+                        # ── Botón Eliminar ────────────────────────────────
+                        if st.button("❌", key=f"del_foto_{pub_id}_{fi}",
+                                     use_container_width=True,
+                                     help="Eliminar esta foto"):
+                            nuevo_orden = [r for j, r in enumerate(fotos_refs) if j != fi]
+                            _aplicar_nuevo_orden(nuevo_orden)
                             st.rerun()
             else:
                 st.caption("Sin fotos cargadas.")
