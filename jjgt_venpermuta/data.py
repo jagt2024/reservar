@@ -534,12 +534,15 @@ def _reconstruir_media_local(vehicles: list) -> list:
     """
     Reconstruye fotos y video en memoria para cada vehículo.
 
-    FOTOS: lee la lista fotos_b64 (base64 puro por foto) → data_uri.
+    FOTOS: lee la lista fotos_b64 (puede contener "gdrive:<id>" o b64 puro).
+      - "gdrive:<id>" → data_uri = URL pública de miniatura de Drive.
+      - b64 puro      → data_uri = "data:image/jpeg;base64,<b64>".
     VIDEO: lee desde SQLite si la referencia es "sqlite:<pub_id>".
     """
     from media_sync import (
         _b64_to_data_uri, _is_sqlite_ref, _pub_id_from_sqlite_ref,
         _leer_video_sqlite, _leer_local, _a_data_uri,
+        _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
     )
     import os
 
@@ -550,17 +553,30 @@ def _reconstruir_media_local(vehicles: list) -> list:
         # ── Fotos ──────────────────────────────────────────────────────────
         if fotos_b64:
             fotos = []
-            for idx, b64 in enumerate(fotos_b64):
-                if not b64:
+            for idx, ref in enumerate(fotos_b64):
+                if not ref:
                     continue
-                uri = _b64_to_data_uri(b64)
-                if uri:
+                if _is_drive_ref(ref):
+                    # URL pública de Drive — no requiere bytes ni b64 en RAM
+                    fid      = _file_id_from_ref(ref)
+                    thumb    = _thumbnail_url_drive(fid, size=800)
                     fotos.append({
-                        "name":     f"foto_{idx+1}.jpg",
-                        "bytes":    None,
-                        "path":     f"b64_col_{idx+1}",
-                        "data_uri": uri,
+                        "name":      f"foto_{idx+1}.jpg",
+                        "bytes":     None,
+                        "path":      ref,
+                        "data_uri":  thumb,   # URL directa, funciona en <img>
+                        "drive_url": thumb,
                     })
+                else:
+                    # Base64 puro (fallback sin Drive)
+                    uri = _b64_to_data_uri(ref)
+                    if uri:
+                        fotos.append({
+                            "name":     f"foto_{idx+1}.jpg",
+                            "bytes":    None,
+                            "path":     f"b64_col_{idx+1}",
+                            "data_uri": uri,
+                        })
             if fotos:
                 v["fotos"] = fotos
 

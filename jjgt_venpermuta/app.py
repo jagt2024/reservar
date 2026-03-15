@@ -835,39 +835,49 @@ def page_vehicle_detail():
         # Fuente de verdad: fotos[] en RAM (cargados por _reconstruir_media_local)
         # Fallback: fotos_b64 list y session_state cache
         # ══════════════════════════════════════════════════════════════════════
-        from media_sync import _b64_to_data_uri
+        from media_sync import _b64_to_data_uri, _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive
 
         img_items = []
 
-        # 1. data_uri ya en memoria (fotos[] cargados por _reconstruir)
+        def _ref_to_src(ref: str) -> str:
+            if not ref:
+                return ""
+            if _is_drive_ref(ref):
+                return _thumbnail_url_drive(_file_id_from_ref(ref), size=800)
+            return _b64_to_data_uri(ref)
+
+        # 1. data_uri / drive_url ya en memoria (fotos[] cargados por _reconstruir)
         for fi in (fotos or []):
             if not isinstance(fi, dict):
                 continue
-            uri = fi.get("data_uri") or ""
-            if not uri and fi.get("bytes"):
+            src = fi.get("drive_url") or fi.get("data_uri") or ""
+            if not src and fi.get("bytes"):
                 try:
                     from PIL import Image as _PIL
                     buf = io.BytesIO()
                     _PIL.open(io.BytesIO(fi["bytes"])).save(
                         buf, format="JPEG", quality=82)
                     import base64 as _b64m
-                    uri = ("data:image/jpeg;base64,"
+                    src = ("data:image/jpeg;base64,"
                            + _b64m.b64encode(buf.getvalue()).decode())
                 except Exception:
                     pass
-            if uri:
-                img_items.append(uri)
+            if src:
+                img_items.append(src)
 
-        # 2. fotos_b64 del dict (cargado desde Sheets si fotos[] está vacío)
+        # 2. fotos_b64 del dict (puede contener gdrive: refs o b64 puro)
         if not img_items:
             fotos_b64 = v.get("fotos_b64") or []
-            img_items = [_b64_to_data_uri(b) for b in fotos_b64 if b]
+            img_items = [s for s in (_ref_to_src(r) for r in fotos_b64 if r) if s]
 
-        # 3. session_state cache (subida reciente en esta sesión)
+        # 3. session_state cache (subida reciente en esta sesion)
         if not img_items:
-            cache = st.session_state.get("_fotos_b64", {})
-            img_items = [_b64_to_data_uri(b)
-                         for b in cache.get(str(pub_id), []) if b]
+            for ck in ("_fotos_refs", "_fotos_b64"):
+                cache = st.session_state.get(ck, {})
+                refs  = cache.get(str(pub_id), [])
+                if refs:
+                    img_items = [s for s in (_ref_to_src(r) for r in refs if r) if s]
+                    break
 
         if img_items:
             n_fotos = len(img_items)

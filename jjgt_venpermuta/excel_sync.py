@@ -177,7 +177,10 @@ def _row_perm(p: dict) -> dict:
 
 def _row_pub(p: dict) -> dict:
     nombre    = f"{p.get('name','')} {p.get('model','')}".strip()
-    fotos_b64 = p.get("fotos_b64") or []   # lista de b64 strings puros
+    # fotos_b64 ahora contiene "gdrive:<file_id>" o base64 puro (fallback sin Drive).
+    # En ambos casos se guarda el valor directamente; los refs gdrive: son ~40 chars
+    # y nunca superan el límite de celda de Sheets.
+    fotos_b64 = p.get("fotos_b64") or []
     row = {
         "ID Pub":           _safe(p.get("id","")),
         "ID Veh":           _safe(p.get("id_veh", p.get("id",""))),
@@ -199,9 +202,10 @@ def _row_pub(p: dict) -> dict:
         "Visitas":          _safe(p.get("visitas",0)),
         "Favoritos":        _safe(p.get("favoritos",0)),
         "Descripcion":      _safe(p.get("desc","")),
-        "Video Ref":        _safe(p.get("video_url","")),   # "sqlite:<pub_id>"
+        "Video Ref":        _safe(p.get("video_url","")),
     }
     # Una columna por foto: "Foto 1 b64" … "Foto 10 b64"
+    # El nombre de columna se mantiene por compatibilidad con la hoja existente.
     for i in range(1, 11):
         row[f"Foto {i} b64"] = _safe(fotos_b64[i-1] if i-1 < len(fotos_b64) else "")
     return row

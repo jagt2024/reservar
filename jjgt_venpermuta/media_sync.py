@@ -154,28 +154,26 @@ def _pub_id_from_sqlite_ref(s: str) -> str:
 
 # ── Fotos — base64 puro (sin prefijo) guardado en columnas de Sheets ─────────
 
-def _foto_a_b64(data: bytes, max_w: int = 500) -> str:
+def _foto_a_b64(data: bytes, max_w: int = 400) -> str:
     """
     Comprime imagen y retorna base64 puro (sin prefijo 'b64:').
-    Límite estricto: < 40 000 chars para caber con margen en una celda de Sheets
-    (el límite real de Sheets es ~50 000 chars; 40 000 da margen de seguridad).
-    FIX v6.1: se redujo max_w de 700→500 y el límite de 44 000→40 000 para evitar
-    que imágenes grandes superen el límite de celda y queden truncadas/rotas.
+    Usado SOLO como fallback cuando Drive no está disponible.
+    Límite: < 32 000 chars (margen seguro bajo el límite de Sheets de ~50 000).
     """
-    _LIMIT = 40_000
+    _LIMIT = 32_000
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(data))
         img.thumbnail((max_w, max_w))
-        for quality in [70, 55, 40, 28]:
+        for quality in [65, 50, 35, 22]:
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=quality, optimize=True)
             b64 = base64.b64encode(buf.getvalue()).decode()
             if len(b64) < _LIMIT:
                 return b64
-        img.thumbnail((300, 300))
+        img.thumbnail((250, 250))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=28)
+        img.save(buf, format="JPEG", quality=22)
         return base64.b64encode(buf.getvalue()).decode()
     except Exception:
         b64 = base64.b64encode(data).decode()
@@ -231,24 +229,30 @@ _read_local = _leer_local
 
 def upload_media(pub_id: str, fotos: list, video: dict | None):
     """
-    Guarda fotos y video.
+    Guarda fotos y video.  FIX v7.0
 
-    FOTOS:  Comprime cada foto como base64 puro y la guarda en
-            session_state["_fotos_b64"][pub_id] = [b64_1, b64_2, ...].
-            Retorna lista de hasta MAX_FOTOS strings b64.
-            excel_sync las escribe en columnas "Foto 1 b64".."Foto 10 b64".
+    FOTOS — estrategia en dos capas:
+      1. Intenta subir cada foto a Google Drive → guarda "gdrive:<file_id>".
+         La referencia ocupa ~40 chars en Sheets (nunca se trunca).
+         Al mostrar, usa la URL pública de miniatura de Drive directamente.
+      2. Si Drive no está disponible (sin credenciales / error), cae a base64
+         muy comprimido (≤ 32 000 chars) como respaldo.
 
-    VIDEO:  Guarda como BLOB en SQLite /tmp/jjgt_media.db.
-            Retorna referencia "sqlite:<pub_id>".
-            El video sobrevive reruns de Streamlit.
-            Si el servidor se reinicia completamente, debe re-subirse.
+    Retorna (foto_refs_list, video_ref) donde cada elemento de foto_refs_list
+    es "gdrive:<file_id>" o un b64 puro comprimido.
 
-    Retorna (foto_b64_list, video_ref).
+    Los refs se guardan en session_state["_fotos_refs"][pub_id] y también
+    en session_state["_fotos_b64"][pub_id] para compatibilidad con código
+    existente (get_portada_data_uri, galería, etc.).
     """
     st.session_state.pop("_media_errors", None)
-    cache = st.session_state.setdefault("_fotos_b64", {})
-    cache[pub_id] = []
-    foto_b64_list = []
+    cache_refs = st.session_state.setdefault("_fotos_refs", {})
+    cache_b64  = st.session_state.setdefault("_fotos_b64",  {})
+    cache_refs[pub_id] = []
+    cache_b64[pub_id]  = []
+    foto_refs_list = []
+
+    drive_ok = _get_drive_service() is not None
 
     for i, f in enumerate(fotos or []):
         if i >= MAX_FOTOS:
@@ -256,10 +260,26 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         data = f.get("bytes", b"")
         if not data:
             continue
-        b64 = _foto_a_b64(data, max_w=700)
+
+        if drive_ok:
+            # ── Intento 1: subir a Drive ──────────────────────────────────
+            nombre_archivo = f.get("name") or f"foto_{i+1}_{pub_id}.jpg"
+            file_id = _subir_a_drive(nombre_archivo, data)
+            if file_id:
+                ref = f"{_DRIVE_PREFIX}{file_id}"
+                foto_refs_list.append(ref)
+                cache_refs[pub_id].append(ref)
+                # Para la galería en RAM también guardamos data_uri
+                thumb_url = _thumbnail_url_drive(file_id, size=800)
+                cache_b64[pub_id].append(ref)   # guardamos el ref, no el b64
+                continue
+
+        # ── Fallback: base64 comprimido (máx 32 000 chars) ──────────────
+        b64 = _foto_a_b64(data, max_w=400)
         if b64:
-            foto_b64_list.append(b64)
-            cache[pub_id].append(b64)
+            foto_refs_list.append(b64)
+            cache_refs[pub_id].append(b64)
+            cache_b64[pub_id].append(b64)
 
     video_ref = ""
     if video:
@@ -268,7 +288,7 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         if data:
             video_ref = _guardar_video_sqlite(pub_id, nombre, data)
 
-    return foto_b64_list, video_ref
+    return foto_refs_list, video_ref
 
 def _subir_a_drive(nombre: str, data: bytes) -> str | None:
     """
@@ -400,12 +420,14 @@ def load_media_from_urls(fotos_csv: str, video_url: str):
 
 def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
     """
-    Retorna data URI de la portada del vehículo.
+    Retorna data URI o URL pública de la portada del vehículo.
     Prioridad:
-      1. data_uri cacheado en fotos[]
+      1. data_uri cacheado en fotos[] RAM
       2. bytes en fotos[] RAM
-      3. _fotos_b64 en session_state (cargadas en esta sesión)
-      4. fotos_b64[0] del dict del vehículo (cargado desde Sheets)
+      3. fotos_b64[0] del dict — puede ser "gdrive:<id>" o base64 puro
+         - Si es gdrive: devuelve URL de miniatura pública (no data URI)
+         - Si es b64 puro: construye data URI
+      4. _fotos_b64 / _fotos_refs en session_state
     """
     def _bytes_a_uri(raw: bytes) -> str:
         if not raw:
@@ -421,7 +443,7 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
             data = raw
         return "data:image/jpeg;base64," + base64.b64encode(data).decode()
 
-    # 1 & 2 — fotos en memoria
+    # 1 & 2 — fotos en memoria RAM
     for f in (v.get("fotos") or []):
         if not isinstance(f, dict):
             continue
@@ -436,15 +458,23 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
 
     pub_id = str(v.get("id", ""))
 
-    # 3 — session_state cache
-    cache = st.session_state.get("_fotos_b64", {})
-    if pub_id in cache and cache[pub_id]:
-        return _b64_to_data_uri(cache[pub_id][0])
-
-    # 4 — fotos_b64 list del dict (cargado desde Sheets)
+    # 3 — fotos_b64 list del dict (cargado desde Sheets)
     fotos_b64 = v.get("fotos_b64") or []
     if fotos_b64 and fotos_b64[0]:
-        return _b64_to_data_uri(fotos_b64[0])
+        ref = fotos_b64[0]
+        if _is_drive_ref(ref):
+            return _thumbnail_url_drive(_file_id_from_ref(ref), size=max_w)
+        return _b64_to_data_uri(ref)
+
+    # 4 — session_state cache (subida reciente)
+    for cache_key in ("_fotos_refs", "_fotos_b64"):
+        cache = st.session_state.get(cache_key, {})
+        refs  = cache.get(pub_id) or []
+        if refs:
+            ref = refs[0]
+            if _is_drive_ref(ref):
+                return _thumbnail_url_drive(_file_id_from_ref(ref), size=max_w)
+            return _b64_to_data_uri(ref)
 
     return ""
 
@@ -456,28 +486,36 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
 def show_fotos(fotos: list, cols: int = 3, v: dict = None):
     """
     Muestra las fotos de un vehículo en columnas.
-    FIX v6.1: si fotos[] está vacío (p.ej. tras recargar la app) pero el
-    vehículo tiene fotos_b64 guardadas en Sheets, las reconstruye en el momento
-    para no mostrar recuadros vacíos.
+    Soporta data_uri, bytes, y URLs públicas de Drive.
+    FIX v7.0: si fotos[] está vacío, reconstruye desde fotos_b64 del vehículo
+    (que puede contener refs "gdrive:<id>" o b64 puro).
     """
     # Fallback: reconstruir desde fotos_b64 si fotos está vacío
     if not fotos and v:
         fotos_b64 = v.get("fotos_b64") or []
-        fotos = [
-            {"data_uri": _b64_to_data_uri(b64), "name": f"foto_{i+1}.jpg"}
-            for i, b64 in enumerate(fotos_b64) if b64
-        ]
+        fotos = []
+        for i, ref in enumerate(fotos_b64):
+            if not ref:
+                continue
+            if _is_drive_ref(ref):
+                fotos.append({
+                    "drive_url": _thumbnail_url_drive(_file_id_from_ref(ref), size=800),
+                    "name": f"foto_{i+1}.jpg",
+                })
+            else:
+                fotos.append({"data_uri": _b64_to_data_uri(ref), "name": f"foto_{i+1}.jpg"})
     if not fotos:
         return
     columnas = st.columns(min(len(fotos), cols))
     for i, foto in enumerate(fotos):
         with columnas[i % cols]:
-            uri = foto.get("data_uri") or ""
-            if not uri and foto.get("bytes"):
-                uri = _a_data_uri(foto["bytes"])
-            if uri:
+            # Prioridad: drive_url > data_uri > bytes
+            src = foto.get("drive_url") or foto.get("data_uri") or ""
+            if not src and foto.get("bytes"):
+                src = _a_data_uri(foto["bytes"])
+            if src:
                 st.markdown(
-                    f'<img src="{uri}" style="width:100%;border-radius:8px;">',
+                    f'<img src="{src}" style="width:100%;border-radius:8px;">',
                     unsafe_allow_html=True)
 
 
