@@ -154,25 +154,28 @@ def _pub_id_from_sqlite_ref(s: str) -> str:
 
 # ── Fotos — base64 puro (sin prefijo) guardado en columnas de Sheets ─────────
 
-def _foto_a_b64(data: bytes, max_w: int = 700) -> str:
+def _foto_a_b64(data: bytes, max_w: int = 500) -> str:
     """
     Comprime imagen y retorna base64 puro (sin prefijo 'b64:').
-    Límite estricto: < 44 000 chars para caber en una celda de Sheets.
+    Límite estricto: < 40 000 chars para caber con margen en una celda de Sheets
+    (el límite real de Sheets es ~50 000 chars; 40 000 da margen de seguridad).
+    FIX v6.1: se redujo max_w de 700→500 y el límite de 44 000→40 000 para evitar
+    que imágenes grandes superen el límite de celda y queden truncadas/rotas.
     """
-    _LIMIT = 44_000
+    _LIMIT = 40_000
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(data))
         img.thumbnail((max_w, max_w))
-        for quality in [78, 65, 50, 35]:
+        for quality in [70, 55, 40, 28]:
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=quality, optimize=True)
             b64 = base64.b64encode(buf.getvalue()).decode()
             if len(b64) < _LIMIT:
                 return b64
-        img.thumbnail((350, 350))
+        img.thumbnail((300, 300))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=35)
+        img.save(buf, format="JPEG", quality=28)
         return base64.b64encode(buf.getvalue()).decode()
     except Exception:
         b64 = base64.b64encode(data).decode()
@@ -450,7 +453,20 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
 # HELPERS DE VISUALIZACIÓN
 # ════════════════════════════════════════════════════════════════════════════
 
-def show_fotos(fotos: list, cols: int = 3):
+def show_fotos(fotos: list, cols: int = 3, v: dict = None):
+    """
+    Muestra las fotos de un vehículo en columnas.
+    FIX v6.1: si fotos[] está vacío (p.ej. tras recargar la app) pero el
+    vehículo tiene fotos_b64 guardadas en Sheets, las reconstruye en el momento
+    para no mostrar recuadros vacíos.
+    """
+    # Fallback: reconstruir desde fotos_b64 si fotos está vacío
+    if not fotos and v:
+        fotos_b64 = v.get("fotos_b64") or []
+        fotos = [
+            {"data_uri": _b64_to_data_uri(b64), "name": f"foto_{i+1}.jpg"}
+            for i, b64 in enumerate(fotos_b64) if b64
+        ]
     if not fotos:
         return
     columnas = st.columns(min(len(fotos), cols))
