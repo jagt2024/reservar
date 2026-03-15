@@ -527,17 +527,11 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
 
 def _reconstruir_media_local(vehicles: list) -> list:
     """
-    Para cada vehículo con fotos_urls o video_url, reconstruye las
-    referencias de media en memoria.
-
-    FIX: Antes solo llamaba a _leer() (archivos locales), ignorando
-    referencias gdrive:<id> y b64:<base64> que son las que se usan
-    en producción (Streamlit Cloud). Ahora usa load_media_from_urls()
-    que maneja los tres tipos: Drive, b64 embebido y rutas locales.
-
-    Para referencias de Drive se genera una preview_url con thumbnail
-    público en lugar de descargar los bytes completos — más rápido y
-    sin consumir cuota de lectura de Drive innecesariamente.
+    Para cada vehículo con fotos_urls o video_url, reconstruye las referencias
+    de media en memoria soportando:
+      - gdrive:<id>  → preview_url con thumbnail público de Drive (sin bytes)
+      - b64:<base64> → decodifica y construye data_uri
+      - ruta local   → lee bytes del disco (solo desarrollo local)
     """
     from media_sync import (
         _is_drive_ref, _is_b64_ref, _file_id_from_ref,
@@ -545,29 +539,26 @@ def _reconstruir_media_local(vehicles: list) -> list:
         _leer_local, _a_data_uri,
     )
     import os
-
     for v in vehicles:
         fotos_csv = (v.get("fotos_urls") or "").strip()
         video_url = (v.get("video_url")  or "").strip()
         if not fotos_csv and not video_url:
             continue
 
-        # ── Fotos ────────────────────────────────────────────────────────────
+        # ── Fotos ──────────────────────────────────────────────────────────
         fotos = []
         for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
             if _is_drive_ref(ref):
-                # Drive: usar thumbnail URL pública — sin descargar bytes
-                fid = _file_id_from_ref(ref)
+                fid         = _file_id_from_ref(ref)
                 preview_url = _thumbnail_url_drive(fid, size=800)
                 fotos.append({
                     "name":        fid,
                     "bytes":       None,
                     "path":        ref,
-                    "preview_url": preview_url,   # URL directa para <img src="">
+                    "preview_url": preview_url,
                     "data_uri":    preview_url,   # alias para compatibilidad
                 })
             elif _is_b64_ref(ref):
-                # Base64 embebido: decodificar y construir data URI
                 raw = _bytes_from_b64_ref(ref)
                 uri = _a_data_uri(raw, 800) if raw else ""
                 if uri:
@@ -578,7 +569,6 @@ def _reconstruir_media_local(vehicles: list) -> list:
                         "data_uri": uri,
                     })
             else:
-                # Ruta local (fallback sin Drive)
                 raw = _leer_local(ref)
                 if raw:
                     fotos.append({
@@ -587,15 +577,13 @@ def _reconstruir_media_local(vehicles: list) -> list:
                         "path":     ref,
                         "data_uri": _a_data_uri(raw, 800),
                     })
-
         if fotos:
             v["fotos"] = fotos
 
-        # ── Video ─────────────────────────────────────────────────────────────
+        # ── Video ───────────────────────────────────────────────────────────
         if video_url:
             if _is_drive_ref(video_url):
-                fid = _file_id_from_ref(video_url)
-                # Generar URL embed de Drive para reproducir sin descargar bytes
+                fid       = _file_id_from_ref(video_url)
                 embed_url = f"https://drive.google.com/file/d/{fid}/preview"
                 v["video"] = {
                     "name":      fid,
@@ -603,6 +591,10 @@ def _reconstruir_media_local(vehicles: list) -> list:
                     "path":      video_url,
                     "embed_url": embed_url,
                 }
+            elif _is_b64_ref(video_url):
+                raw = _bytes_from_b64_ref(video_url)
+                if raw:
+                    v["video"] = {"name": "video.mp4", "bytes": raw, "path": video_url}
             else:
                 raw = _leer_local(video_url)
                 if raw:

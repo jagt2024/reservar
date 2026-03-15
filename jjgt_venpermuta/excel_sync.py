@@ -178,23 +178,28 @@ def _row_perm(p: dict) -> dict:
 def _row_pub(p: dict) -> dict:
     nombre = f"{p.get('name','')} {p.get('model','')}".strip()
     return {
-        "ID Pub":          _safe(p.get("id","")),
-        "ID Veh":          _safe(p.get("id_veh", p.get("id",""))),
-        "Vehiculo":        nombre,
-        "Año":             _safe(p.get("year","")),
-        "Precio":          _safe(p.get("price",0)),
-        "Tipo Aviso":      _TIPO.get(p.get("type","venta"),"Venta"),
-        "Estado Pub":      _safe(p.get("estado_pub", p.get("estado","Activa"))),
-        "Vendedor":        _safe(p.get("seller","")),
-        "Correo Vendedor": _safe(p.get("seller_email","")),
-        "Celular Vendedor":_safe(p.get("seller_phone", p.get("phone",""))),
-        "Ciudad":          _safe(p.get("city","")),
-        "Verificado":      "Si" if p.get("verificado") else "No",
-        "Fecha Pub":       _safe(p.get("fecha", datetime.now().strftime("%d/%m/%Y"))),
-        "Visitas":         _safe(p.get("visitas",0)),
-        "Favoritos":       _safe(p.get("favoritos",0)),
-        "Fotos URLs":      _safe(p.get("fotos_urls","")),   # URLs Drive separadas por coma
-        "Video URL":       _safe(p.get("video_url","")),    # URL Drive del video
+        "ID Pub":           _safe(p.get("id","")),
+        "ID Veh":           _safe(p.get("id_veh", p.get("id",""))),
+        "Vehiculo":         nombre,
+        "Año":              _safe(p.get("year","")),
+        "Precio":           _safe(p.get("price",0)),
+        "Km":               _safe(p.get("km",0)),
+        "Combustible":      _safe(p.get("fuel","")),
+        "Transmision":      _safe(p.get("trans","")),
+        "Color":            _safe(p.get("color","")),
+        "Tipo Aviso":       _TIPO.get(p.get("type","venta"),"Venta"),
+        "Estado Pub":       _safe(p.get("estado_pub", p.get("estado","Activa"))),
+        "Vendedor":         _safe(p.get("seller","")),
+        "Correo Vendedor":  _safe(p.get("seller_email","")),
+        "Celular Vendedor": _safe(p.get("seller_phone", p.get("phone",""))),
+        "Ciudad":           _safe(p.get("city","")),
+        "Verificado":       "Si" if p.get("verificado") else "No",
+        "Fecha Pub":        _safe(p.get("fecha", datetime.now().strftime("%d/%m/%Y"))),
+        "Visitas":          _safe(p.get("visitas",0)),
+        "Favoritos":        _safe(p.get("favoritos",0)),
+        "Descripcion":      _safe(p.get("desc","")),
+        "Fotos URLs":       _safe(p.get("fotos_urls","")),
+        "Video URL":        _safe(p.get("video_url","")),
     }
 
 def _row_hist(h: dict) -> dict:
@@ -413,35 +418,33 @@ def _get_client():
         return None
 
 # ═══════════════════════════════════════════════════════════════════════════
-# UPSERT — v6: columnas del CÓDIGO, no de Sheets
+# UPSERT — v7: columnas por NOMBRE normalizado, nunca reemplaza encabezados
 # ═══════════════════════════════════════════════════════════════════════════
 def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     """
     Escribe items en la worksheet usando UPSERT seguro por columna.
 
-    ESTRATEGIA v7.0 — COLUMNAS POR NOMBRE, NO POR POSICIÓN
-    ────────────────────────────────────────────────────────
-    Bug anterior: se reemplazaban los encabezados de Sheets con los del código
-    y luego se actualizaba cada fila usando rango posicional (A:N). Si el catálogo
-    en Sheets tenía columnas en distinto orden o extra, los valores quedaban
-    en las columnas equivocadas → Color y Trans de otros vehículos se borraban.
-
-    Solución: leer los encabezados que YA ESTÁN en Sheets y usarlos como referencia.
-    Para cada columna que define el convertidor (_row_*), buscar su posición real
-    en la hoja y actualizar solo esa celda. Columnas desconocidas se agregan al
-    final si no existen. Columnas de la hoja no cubiertas por el convertidor
-    se dejan intactas.
+    ESTRATEGIA v7:
+    - Los encabezados de la hoja NUNCA se reemplazan (eso desalineaba datos).
+    - Columnas nuevas del convertidor se agregan al FINAL de la hoja.
+    - El mapeado col→índice usa nombres NORMALIZADOS sin tildes:
+      "Transmisión" == "Transmision", "Año" == "Ano", etc.
+    - UPDATE: lee la fila existente, sobreescribe solo las columnas del
+      convertidor, deja intactas las demás.
+    - INSERT: crea fila vacía alineada con los encabezados actuales.
     """
-    import gspread, string as _string
+    import gspread, unicodedata as _ud
 
-    ws_name  = WS[key]
-    pk_col   = PK[key]
-    row_fn   = _ROW[key]
+    ws_name = WS[key]
+    pk_col  = PK[key]
+    row_fn  = _ROW[key]
+
+    def _norm(s: str) -> str:
+        """Elimina tildes y convierte a minúsculas para comparación robusta."""
+        return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
 
     def _col_letter(n: int) -> str:
-        """0-based index → letra de columna (A, B, ..., Z, AA, ...)"""
-        s = ""
-        n += 1
+        s, n = "", n + 1
         while n:
             n, r = divmod(n - 1, 26)
             s = chr(65 + r) + s
@@ -453,11 +456,10 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     except gspread.exceptions.WorksheetNotFound:
         sample_row  = row_fn(items[0]) if items else {}
         our_headers = list(sample_row.keys())
-        n_cols      = len(our_headers)
         ws = spreadsheet.add_worksheet(
             title = ws_name,
             rows  = str(max(len(items) + 20, 100)),
-            cols  = str(max(n_cols + 2, 20)),
+            cols  = str(max(len(our_headers) + 2, 20)),
         )
         _api_call(ws.append_row, our_headers)
         time.sleep(0.8)
@@ -475,7 +477,7 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
                            f"Espera ~1 min y vuelve a guardar.")
         return False, f"Error leyendo '{ws_name}': {e}"
 
-    # ── 3. Hoja vacía: escribir encabezados del convertidor + datos ──────────
+    # ── 3. Hoja vacía ────────────────────────────────────────────────────────
     if not all_vals:
         sample_row  = row_fn(items[0]) if items else {}
         our_headers = list(sample_row.keys())
@@ -485,80 +487,63 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         _append_chunks(ws, rows_to_insert)
         return True, f"'{ws_name}': {len(rows_to_insert)} filas escritas (hoja vacía)"
 
-    # ── 4. Encabezados existentes en la hoja (NUNCA se reemplazan) ───────────
-    sheet_headers = list(all_vals[0])   # lo que YA está en fila 1
+    # ── 4. Encabezados existentes — NUNCA se reemplazan ──────────────────────
+    sheet_headers = list(all_vals[0])
 
-    # Helper: normalizar tildes/acentos para comparación robusta
-    # "Transmisión" == "Transmision", "Año" == "Ano", etc.
-    import unicodedata as _ud
-    def _norm(s: str) -> str:
-        return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
-
-    # Agregar al final columnas nuevas que no existan en la hoja
-    # Comparación normalizada para no duplicar "Transmision" / "Transmisión"
-    sheet_norm = {_norm(h): i for i, h in enumerate(sheet_headers)}
+    # Agregar columnas nuevas al final (sin duplicar, comparación sin tildes)
     sample_row  = row_fn(items[0]) if items else {}
     our_headers = list(sample_row.keys())
-    added_cols  = []
+    sheet_norm  = {_norm(h): i for i, h in enumerate(sheet_headers)}
+    added = []
     for col_name in our_headers:
         if _norm(col_name) not in sheet_norm:
             sheet_headers.append(col_name)
             sheet_norm[_norm(col_name)] = len(sheet_headers) - 1
-            added_cols.append(col_name)
-
-    if added_cols:
-        # Escribir encabezados actualizados (solo se agregan al final, no se cambia el orden)
+            added.append(col_name)
+    if added:
         _api_call(ws.update, "A1", [sheet_headers])
         time.sleep(0.3)
 
-    # Mapa nombre_columna → índice 0-based en sheet_headers
-    # Indexado por nombre NORMALIZADO para tolerar diferencias de tildes
-    col_idx: dict[str, int] = {_norm(h): i for i, h in enumerate(sheet_headers)}
+    # Índice por nombre normalizado
+    col_idx = {_norm(h): i for i, h in enumerate(sheet_headers)}
 
-    def _col_pos(name: str) -> int | None:
-        """Devuelve el índice de la columna por nombre, tolerando tildes."""
+    def _col_pos(name: str):
         return col_idx.get(_norm(name))
 
-    # Índice 0-based del PK en sheet_headers
+    # PK posición
     pk_col_idx = _col_pos(pk_col)
     if pk_col_idx is None:
         return False, f"Columna PK '{pk_col}' no encontrada en '{ws_name}'"
 
-    # ── 5. Construir mapa PK_valor → número_de_fila 1-based ─────────────────
+    # ── 5. Mapa PK → fila 1-based ────────────────────────────────────────────
     data_rows = all_vals[1:]
     existing: dict[str, int] = {}
     for i, row in enumerate(data_rows):
         val = str(row[pk_col_idx]).strip() if pk_col_idx < len(row) else ""
         if val:
-            existing[val] = i + DATA_START   # DATA_START=2
+            existing[val] = i + DATA_START
 
     # ── 6. Clasificar UPDATE vs INSERT ───────────────────────────────────────
-    to_update: list[tuple[int, dict]] = []  # (sheet_row, {col_name: value})
-    to_insert: list[list]             = []
-
+    to_update: list[tuple[int, dict]] = []
+    to_insert: list[dict]             = []
     for item in items:
-        converted = row_fn(item)               # {col_name: value} del convertidor
+        converted = row_fn(item)
         pk_val    = str(_safe(converted.get(pk_col, ""))).strip()
-
         if pk_val and pk_val in existing:
             to_update.append((existing[pk_val], converted))
         else:
             to_insert.append(converted)
 
-    # ── 7. UPDATEs: solo las columnas que define el convertidor ──────────────
+    # ── 7. UPDATEs: preserva columnas no cubiertas por el convertidor ────────
     updated = 0
     for sheet_row, converted in to_update:
-        # Leer la fila existente para no pisar columnas no cubiertas
-        existing_row = list(all_vals[sheet_row - 1])   # 0-based en all_vals
-        # Extender si la fila tiene menos columnas que los encabezados
+        existing_row = list(all_vals[sheet_row - 1])
         while len(existing_row) < len(sheet_headers):
             existing_row.append("")
-        # Sobreescribir solo las columnas del convertidor (tolerante a tildes)
         for col_name, new_val in converted.items():
             pos = _col_pos(col_name)
             if pos is not None:
                 existing_row[pos] = _safe(new_val)
-        # Escribir la fila completa de una vez (evita múltiples llamadas a la API)
         rng = f"A{sheet_row}:{_col_letter(len(existing_row)-1)}{sheet_row}"
         try:
             _api_call(ws.update, rng, [existing_row])
@@ -567,7 +552,7 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         except Exception as e:
             return False, f"Error actualizando fila {sheet_row} en '{ws_name}': {e}"
 
-    # ── 8. INSERTs: alinear con sheet_headers ────────────────────────────────
+    # ── 8. INSERTs alineados con sheet_headers ───────────────────────────────
     rows_to_insert = []
     for converted in to_insert:
         new_row = [""] * len(sheet_headers)
