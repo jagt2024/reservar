@@ -261,12 +261,15 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
     """
     Guarda fotos/video.
 
-    Estrategia dual para Streamlit Cloud:
-      • Disco (/tmp/JJGT_Media/): disponible en la sesión actual para reproducir
-        el video con st.video() y mostrar imágenes sin conversión.
-      • b64:<base64> en fotos_urls: persiste en Google Sheets entre reinicios.
-        La portada (primera foto) y todas las fotos adicionales se almacenan como b64.
-        El video se guarda solo en /tmp (los videos son muy grandes para Sheets).
+    Estrategia para Streamlit Cloud:
+      • TODAS las fotos → disco /tmp/JJGT_Media/<pub_id>/ (sesión actual)
+      • PORTADA (foto 0) → también como b64:<base64> en fotos_urls (persiste en Sheets)
+      • Fotos 1..N → ruta absoluta /tmp/... en fotos_urls (solo esta sesión)
+      • Video → /tmp/... (solo esta sesión)
+
+    Al recargar: la portada siempre aparece (b64 en Sheets).
+    Las demás fotos y el video aparecen si el servidor no se reinició
+    (están en /tmp). Si se reinicia, solo la portada es visible.
 
     Retorna (fotos_csv, video_path).
     """
@@ -279,14 +282,22 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         if not data:
             continue
 
-        # Siempre guardar en /tmp para la sesión actual
+        # Guardar en /tmp para esta sesión
+        abs_path = ""
         try:
-            _guardar_local(pub_id, nombre, data)
+            abs_path = _guardar_local(pub_id, nombre, data)
         except Exception:
             pass
 
-        # Para Sheets: guardar como b64 (persiste entre reinicios)
-        ref = _foto_a_b64_ref(data, max_w=800)
+        if i == 0:
+            # Portada: guardar también como b64 para persistir entre reinicios
+            ref = _foto_a_b64_ref(data, max_w=600)
+            if not ref and abs_path:
+                ref = abs_path
+        else:
+            # Fotos adicionales: solo /tmp (disponibles en esta sesión)
+            ref = abs_path
+
         if ref:
             foto_paths.append(ref)
 
@@ -295,43 +306,40 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         nombre = f"video_{video.get('name', 'video.mp4')}"
         data   = video.get("bytes", b"")
         if data:
-            # Video: solo en /tmp (demasiado grande para b64 en Sheets)
             try:
-                abs_path   = _guardar_local(pub_id, nombre, data)
-                video_path = abs_path or ""
+                video_path = _guardar_local(pub_id, nombre, data) or ""
             except Exception as e:
                 st.session_state.setdefault("_drive_upload_errors", []).append(str(e))
 
     return ",".join(foto_paths), video_path
 
 
-def _foto_a_b64_ref(data: bytes, max_w: int = 800) -> str:
+def _foto_a_b64_ref(data: bytes, max_w: int = 600) -> str:
     """
     Comprime la imagen y retorna referencia 'b64:<base64>'.
-    Límite: ~45 000 chars para caber en una celda de Sheets (máx ~50 000).
+    Target: < 40 000 chars para caber holgadamente en una celda de Sheets.
+    Solo se usa para la PORTADA — una sola foto por celda.
     """
-    _LIMIT = 45_000
+    _LIMIT = 40_000
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(data))
         img.thumbnail((max_w, max_w))
-        for quality in [82, 70, 55, 40, 25]:
+        for quality in [75, 60, 45, 30]:
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=quality, optimize=True)
             b64 = base64.b64encode(buf.getvalue()).decode()
             if len(b64) < _LIMIT:
                 return f"b64:{b64}"
-        # Último recurso: reducir resolución
-        img.thumbnail((400, 400))
+        # Último recurso: reducir a 300px
+        img.thumbnail((300, 300))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=30)
         b64 = base64.b64encode(buf.getvalue()).decode()
         return f"b64:{b64}"
     except Exception:
         b64 = base64.b64encode(data).decode()
-        if len(b64) < _LIMIT:
-            return f"b64:{b64}"
-        return ""
+        return f"b64:{b64}" if len(b64) < _LIMIT else ""
 
 
 _B64_PREFIX = "b64:"
