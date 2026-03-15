@@ -553,22 +553,26 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     def _write_fotos(sheet_row: int, converted: dict):
         """Escribe las foto-cols de una fila, celda por celda."""
         log = _st.session_state.setdefault("_sheets_foto_errors", [])
+        log.append(f"_write_fotos fila={sheet_row} cols_disponibles={[c for c in _FOTO_COLS if converted.get(c)]}")
         for col_name in _FOTO_COLS:
             val = converted.get(col_name, "")
             if not isinstance(val, str):
                 val = str(val) if val else ""
             val = val.strip()
             if len(val) <= 2:
+                log.append(f"  {col_name}: SKIP len={len(val)}")
                 continue
             pos = _col_pos(col_name)
             if pos is None:
+                log.append(f"  {col_name}: pos=None (columna no encontrada en hoja)")
                 continue
             cell = f"{_col_letter(pos)}{sheet_row}"
             try:
                 _api_call(ws.update, cell, [[val]])
+                log.append(f"  {col_name}: OK cell={cell} len={len(val)}")
                 time.sleep(0.08)
             except Exception as e:
-                log.append(f"{cell}: {str(e)[:120]}")
+                log.append(f"  {col_name}: ERROR cell={cell} {str(e)[:120]}")
 
     # ── UPDATEs ──────────────────────────────────────────────────────────────
     updated = 0

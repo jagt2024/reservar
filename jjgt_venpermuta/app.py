@@ -658,11 +658,13 @@ def sidebar():
                     st.warning("Errores subida Drive:")
                     for e in drive_errs[-3:]:
                         st.caption(e)
-                sheets_errs = st.session_state.get("_sheets_foto_errors", [])
-                if sheets_errs:
-                    st.warning("Errores escritura fotos en Sheets:")
-                    for e in sheets_errs[-3:]:
+                sheets_log = st.session_state.get("_sheets_foto_errors", [])
+                if sheets_log:
+                    st.markdown("**Log escritura fotos en Sheets:**")
+                    for e in sheets_log[-30:]:
                         st.caption(e)
+                else:
+                    st.caption("(sin log de escritura — publica una foto para ver)")
                 upload_log = st.session_state.get("_upload_media_log", [])
                 if upload_log:
                     st.markdown("**Log última subida:**")
