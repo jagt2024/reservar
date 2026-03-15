@@ -896,10 +896,17 @@ def page_vehicle_detail():
         if not img_items:
             fotos_csv = (v.get("fotos_urls") or "").strip()
             if fotos_csv:
+                from media_sync import _is_b64_ref, _bytes_from_b64_ref
                 for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-                    raw = _leer_local(ref)
-                    if raw:
-                        img_items.append(_a_data_uri(raw, 900))
+                    if _is_b64_ref(ref):
+                        raw = _bytes_from_b64_ref(ref)
+                        uri = _a_data_uri(raw, 900) if raw else ""
+                        if uri:
+                            img_items.append(uri)
+                    else:
+                        raw = _leer_local(ref)
+                        if raw:
+                            img_items.append(_a_data_uri(raw, 900))
 
         if img_items:
             n_fotos = len(img_items)
@@ -1572,11 +1579,16 @@ def page_vehicle_detail():
                 cols_f = st.columns(min(len(fotos_refs), 5))
                 for fi, ref in enumerate(fotos_refs):
                     with cols_f[fi % 5]:
-                        # Generar miniatura leyendo el archivo local
+                        # Generar miniatura
                         thumb  = ""
-                        raw_th = _leer_local(ref)
-                        if raw_th:
-                            thumb = _a_data_uri(raw_th, 200)
+                        from media_sync import _is_b64_ref, _bytes_from_b64_ref
+                        if _is_b64_ref(ref):
+                            raw_th = _bytes_from_b64_ref(ref)
+                            thumb  = _a_data_uri(raw_th, 200) if raw_th else ""
+                        else:
+                            raw_th = _leer_local(ref)
+                            if raw_th:
+                                thumb = _a_data_uri(raw_th, 200)
                         border = ("3px solid #F5A623" if fi == 0
                                   else "2px solid #333")
                         if thumb:

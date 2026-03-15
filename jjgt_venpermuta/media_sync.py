@@ -93,33 +93,48 @@ def _a_data_uri(raw: bytes, max_w: int = 600) -> str:
 
 
 # ─── Rutas locales ────────────────────────────────────────────────────────────
-# Base fija: carpeta donde vive media_sync.py → jjgt_venpermuta/JJGT_Media/
+# En Streamlit Cloud el repo es de solo lectura.
+# Usamos /tmp/JJGT_Media/ para escritura en disco (sesión actual)
+# y b64 embebido en fotos_urls para persistencia entre reinicios.
 _SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_TMP_MEDIA  = os.path.join("/tmp", "JJGT_Media")   # siempre escribible
+
 
 def _pub_dir(pub_id: str) -> str:
+    """Devuelve la carpeta de media para una publicación, creándola si no existe."""
+    # Intentar primero en /tmp (siempre funciona en Streamlit Cloud)
+    path = os.path.join(_TMP_MEDIA, str(pub_id))
+    try:
+        os.makedirs(path, exist_ok=True)
+        return path
+    except Exception:
+        pass
+    # Fallback: carpeta del script (funciona en desarrollo local)
     path = os.path.join(_SCRIPT_DIR, MEDIA_DIR, str(pub_id))
     os.makedirs(path, exist_ok=True)
     return path
 
 
 def _guardar_local(pub_id: str, nombre: str, data: bytes) -> str:
-    """Guarda bytes en JJGT_Media/<pub_id>/<nombre> y retorna ruta relativa."""
+    """
+    Guarda bytes en disco (/tmp/JJGT_Media/<pub_id>/<nombre>).
+    Retorna ruta absoluta para que _leer_local la encuentre en esta sesión.
+    """
     carpeta  = _pub_dir(pub_id)
     filepath = os.path.join(carpeta, nombre)
     with open(filepath, "wb") as f:
         f.write(data)
-    # Ruta relativa usando "/" para portabilidad
-    return f"JJGT_Media/{pub_id}/{nombre}"
+    return filepath   # ruta absoluta — siempre resoluble en la misma sesión
 
 
 def _leer_local(ruta: str) -> bytes | None:
     """
     Lee bytes de una ruta local.
     Orden de resolución:
-      1. Ruta absoluta tal cual
-      2. Relativa al directorio del script (jjgt_venpermuta/)
-      3. Relativa al cwd actual
-      4. Segmento JJGT_Media/... buscado en script dir y cwd
+      1. Ruta absoluta tal cual (cubre /tmp/JJGT_Media/... y rutas del repo)
+      2. Relativa a /tmp/JJGT_Media/ (sesión actual Streamlit Cloud)
+      3. Relativa al directorio del script
+      4. Segmento JJGT_Media/... buscado en /tmp, script dir y cwd
     """
     if not ruta:
         return None
@@ -139,23 +154,22 @@ def _leer_local(ruta: str) -> bytes | None:
     if r:
         return r
 
-    # 2. Relativa al directorio del script (más confiable en producción)
+    # 2. Relativa a /tmp
+    r = _abrir(os.path.join("/tmp", ruta))
+    if r:
+        return r
+
+    # 3. Relativa al script
     r = _abrir(os.path.join(_SCRIPT_DIR, ruta))
     if r:
         return r
 
-    # 3. Normalizar separadores y probar relativa al script
-    ruta_norm = os.path.normpath(ruta.replace("/", os.sep))
-    r = _abrir(os.path.join(_SCRIPT_DIR, ruta_norm))
-    if r:
-        return r
-
-    # 4. Buscar segmento JJGT_Media/... desde script dir y cwd
+    # 4. Normalizar y buscar segmento JJGT_Media/...
     ruta_unix = ruta.replace("\\", "/")
     if "JJGT_Media" in ruta_unix:
         idx      = ruta_unix.find("JJGT_Media")
         segmento = ruta_unix[idx:].replace("/", os.sep)
-        for base in [_SCRIPT_DIR, os.getcwd()]:
+        for base in ["/tmp", _SCRIPT_DIR, os.getcwd()]:
             r = _abrir(os.path.join(base, segmento))
             if r:
                 return r
@@ -245,13 +259,17 @@ def _file_id_from_ref(s: str) -> str:
 
 def upload_media(pub_id: str, fotos: list, video: dict | None):
     """
-    Guarda fotos/video en JJGT_Media/<pub_id>/ dentro de la carpeta de la app.
-    Retorna (fotos_csv, video_path) con rutas relativas "JJGT_Media/...".
+    Guarda fotos/video.
 
-    Ya no se usa Google Drive — los archivos viven en el repositorio junto a la app
-    en jjgt_venpermuta/JJGT_Media/ y persisten entre reinicios de Streamlit Cloud.
+    Estrategia dual para Streamlit Cloud:
+      • Disco (/tmp/JJGT_Media/): disponible en la sesión actual para reproducir
+        el video con st.video() y mostrar imágenes sin conversión.
+      • b64:<base64> en fotos_urls: persiste en Google Sheets entre reinicios.
+        La portada (primera foto) y todas las fotos adicionales se almacenan como b64.
+        El video se guarda solo en /tmp (los videos son muy grandes para Sheets).
+
+    Retorna (fotos_csv, video_path).
     """
-    # Limpiar errores anteriores
     st.session_state.pop("_drive_upload_errors", None)
 
     foto_paths = []
@@ -260,7 +278,15 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         data   = f.get("bytes", b"")
         if not data:
             continue
-        ref = _guardar_local(pub_id, nombre, data)
+
+        # Siempre guardar en /tmp para la sesión actual
+        try:
+            _guardar_local(pub_id, nombre, data)
+        except Exception:
+            pass
+
+        # Para Sheets: guardar como b64 (persiste entre reinicios)
+        ref = _foto_a_b64_ref(data, max_w=800)
         if ref:
             foto_paths.append(ref)
 
@@ -269,39 +295,41 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         nombre = f"video_{video.get('name', 'video.mp4')}"
         data   = video.get("bytes", b"")
         if data:
-            video_path = _guardar_local(pub_id, nombre, data) or ""
+            # Video: solo en /tmp (demasiado grande para b64 en Sheets)
+            try:
+                abs_path   = _guardar_local(pub_id, nombre, data)
+                video_path = abs_path or ""
+            except Exception as e:
+                st.session_state.setdefault("_drive_upload_errors", []).append(str(e))
 
     return ",".join(foto_paths), video_path
 
 
-def _foto_a_b64_ref(data: bytes, max_w: int = 400) -> str:
+def _foto_a_b64_ref(data: bytes, max_w: int = 800) -> str:
     """
     Comprime la imagen y retorna referencia 'b64:<base64>'.
-    Objetivo: < 40KB base64 para caber en una celda de Google Sheets (límite ~50K chars).
+    Límite: ~45 000 chars para caber en una celda de Sheets (máx ~50 000).
     """
+    _LIMIT = 45_000
     try:
         from PIL import Image
         img = Image.open(io.BytesIO(data))
-        # Reducir a tamaño pequeño
         img.thumbnail((max_w, max_w))
-        # Intentar con calidad decreciente hasta que quepa
-        for quality in [60, 45, 30, 20]:
+        for quality in [82, 70, 55, 40, 25]:
             buf = io.BytesIO()
             img.save(buf, format="JPEG", quality=quality, optimize=True)
-            raw = buf.getvalue()
-            b64 = base64.b64encode(raw).decode()
-            if len(b64) < 40_000:   # margen seguro bajo el límite de Sheets
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            if len(b64) < _LIMIT:
                 return f"b64:{b64}"
-        # Último recurso: escalar más pequeño
-        img.thumbnail((200, 200))
+        # Último recurso: reducir resolución
+        img.thumbnail((400, 400))
         buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=20)
+        img.save(buf, format="JPEG", quality=30)
         b64 = base64.b64encode(buf.getvalue()).decode()
         return f"b64:{b64}"
     except Exception:
-        # Sin PIL: comprimir bruto si es pequeño, o vacío si es muy grande
         b64 = base64.b64encode(data).decode()
-        if len(b64) < 40_000:
+        if len(b64) < _LIMIT:
             return f"b64:{b64}"
         return ""
 

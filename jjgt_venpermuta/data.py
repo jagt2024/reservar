@@ -527,11 +527,16 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
 
 def _reconstruir_media_local(vehicles: list) -> list:
     """
-    Para cada vehículo con fotos_urls o video_url, lee los archivos
-    desde JJGT_Media/ (relativo al directorio del script) y carga
-    los bytes en memoria como data_uri para mostrar en la galería.
+    Para cada vehículo con fotos_urls o video_url, reconstruye las referencias
+    de media en memoria:
+      - b64:<base64>  → decodifica y construye data_uri  (fotos en Sheets)
+      - ruta absoluta → lee bytes del disco (/tmp o local)
+      - ruta relativa → intenta resolverla desde /tmp y script dir
     """
-    from media_sync import _leer_local, _a_data_uri
+    from media_sync import (
+        _is_b64_ref, _bytes_from_b64_ref,
+        _leer_local, _a_data_uri,
+    )
     import os
     for v in vehicles:
         fotos_csv = (v.get("fotos_urls") or "").strip()
@@ -542,14 +547,27 @@ def _reconstruir_media_local(vehicles: list) -> list:
         # ── Fotos ──────────────────────────────────────────────────────────
         fotos = []
         for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-            raw = _leer_local(ref)
-            if raw:
-                fotos.append({
-                    "name":     os.path.basename(ref),
-                    "bytes":    raw,
-                    "path":     ref,
-                    "data_uri": _a_data_uri(raw, 800),
-                })
+            if _is_b64_ref(ref):
+                # Foto almacenada como base64 en Sheets — siempre disponible
+                raw = _bytes_from_b64_ref(ref)
+                uri = _a_data_uri(raw, 800) if raw else ""
+                if uri:
+                    fotos.append({
+                        "name":     "foto.jpg",
+                        "bytes":    raw,
+                        "path":     ref,
+                        "data_uri": uri,
+                    })
+            else:
+                # Ruta absoluta (/tmp/...) o relativa
+                raw = _leer_local(ref)
+                if raw:
+                    fotos.append({
+                        "name":     os.path.basename(ref),
+                        "bytes":    raw,
+                        "path":     ref,
+                        "data_uri": _a_data_uri(raw, 800),
+                    })
         if fotos:
             v["fotos"] = fotos
 
@@ -562,6 +580,8 @@ def _reconstruir_media_local(vehicles: list) -> list:
                     "bytes": raw,
                     "path":  video_url,
                 }
+            # Si no se encuentra en disco (reboot), video queda None
+            # y no se mostrará hasta que se vuelva a subir en esta sesión
 
     return vehicles
 
