@@ -831,6 +831,12 @@ def page_vehicle_detail():
         go("explore")
         return
 
+    # Importar helpers de media una sola vez — disponibles en toda la función
+    from media_sync import (
+        _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
+        _is_b64_ref, _bytes_from_b64_ref, _a_data_uri, _leer_local,
+    )
+
     v = reconstruct_media(v)
 
     pub_id  = v.get("id", "")
@@ -868,29 +874,22 @@ def page_vehicle_detail():
         # GALERÍA CON SLIDER AUTOMÁTICO (3 seg entre fotos)
         # Fuente: fotos_urls (respeta orden actual, soporta gdrive: y b64:)
         # ══════════════════════════════════════════════════════════════════════
-        from media_sync import (
-            _is_drive_ref as _idr, _file_id_from_ref as _fid,
-            _thumbnail_url_drive as _turl,
-            _is_b64_ref as _ib64, _bytes_from_b64_ref as _b64bytes,
-            _a_data_uri as _adu, _leer_local as _llocal,
-        )
-
         img_items = []
         fotos_csv = (v.get("fotos_urls") or "").strip()
 
         if fotos_csv:
             for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-                if _idr(ref):
-                    img_items.append(_turl(_fid(ref), size=900))
-                elif _ib64(ref):
-                    raw = _b64bytes(ref)
-                    uri = _adu(raw, 900) if raw else ""
+                if _is_drive_ref(ref):
+                    img_items.append(_thumbnail_url_drive(_file_id_from_ref(ref), size=900))
+                elif _is_b64_ref(ref):
+                    raw = _bytes_from_b64_ref(ref)
+                    uri = _a_data_uri(raw, 900) if raw else ""
                     if uri:
                         img_items.append(uri)
                 else:
-                    raw = _llocal(ref)
+                    raw = _leer_local(ref)
                     if raw:
-                        img_items.append(_adu(raw, 900))
+                        img_items.append(_a_data_uri(raw, 900))
         else:
             # Fallback RAM (publicación recién creada sin fotos_urls aún)
             for fi in (fotos or []):
@@ -1000,11 +999,11 @@ def page_vehicle_detail():
             if not vref and isinstance(video, dict):
                 vref = video.get("path", "")
             if vref:
-                if _idr(vref):
+                if _is_drive_ref(vref):
                     embed_url = (f"https://drive.google.com/file/d/"
-                                 f"{_fid(vref)}/preview")
+                                 f"{_file_id_from_ref(vref)}/preview")
                 else:
-                    video_bytes = _llocal(vref)
+                    video_bytes = _leer_local(vref)
 
         if video_bytes:
             try:
