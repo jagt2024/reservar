@@ -679,8 +679,9 @@ def sidebar():
                         if fo:
                             for i, f_ in enumerate(fo[:2]):
                                 uri = f_.get("data_uri","")
-                                preview = uri[:50].replace("\n","") if uri else ""
-                        st.caption(f"  fotos_mem[{i}]: data_uri={'SI' if uri else 'NO'} ({len(uri)} chars) inicio={preview!r}")
+                                _uri2 = f_.get("data_uri","")
+                        _prev = _uri2[:60].replace("\n","") if _uri2 else ""
+                        st.caption(f"  fotos_mem[{i}]: uri={'SI' if _uri2 else 'NO'} ({len(_uri2)}c) inicio={_prev!r}")
                 else:
                     st.caption("Sin publicaciones cargadas")
 
