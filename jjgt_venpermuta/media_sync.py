@@ -319,10 +319,18 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
 
     video_ref = ""
     if video:
-        nombre = f"video_{video.get('name', 'video.mp4')}"
+        nombre = f"video_{pub_id}_{video.get('name', 'video.mp4')}"
         data   = video.get("bytes", b"")
         if data:
-            video_ref = _guardar_video_sqlite(pub_id, nombre, data)
+            if drive_ok:
+                file_id = _subir_a_drive_resumable(nombre, data)
+                if file_id:
+                    video_ref = f"{_DRIVE_PREFIX}{file_id}"
+                else:
+                    # Fallback a SQLite si Drive falla
+                    video_ref = _guardar_video_sqlite(pub_id, nombre, data)
+            else:
+                video_ref = _guardar_video_sqlite(pub_id, nombre, data)
 
     return foto_refs_list, video_ref
 
@@ -357,6 +365,44 @@ def _subir_a_drive(nombre: str, data: bytes) -> str | None:
         # Guardar el error para diagnóstico en sidebar
         errs = st.session_state.setdefault("_drive_upload_errors", [])
         errs.append(str(e)[:200])
+        return None
+
+
+def _subir_a_drive_resumable(nombre: str, data: bytes) -> str | None:
+    """
+    Sube un archivo grande a Drive usando upload resumable.
+    Ideal para videos. Retorna el file_id o None si falla.
+    """
+    try:
+        from googleapiclient.http import MediaIoBaseUpload
+        svc = _get_drive_service()
+        if not svc:
+            return None
+        if not DRIVE_FOLDER_ID.strip():
+            return None
+        mime  = mimetypes.guess_type(nombre)[0] or "video/mp4"
+        media = MediaIoBaseUpload(
+            io.BytesIO(data), mimetype=mime,
+            chunksize=5 * 1024 * 1024,  # chunks de 5MB
+            resumable=True
+        )
+        meta   = {"name": nombre, "parents": [DRIVE_FOLDER_ID.strip()]}
+        req    = svc.files().create(body=meta, media_body=media, fields="id")
+        file_  = None
+        while file_ is None:
+            _, file_ = req.next_chunk()
+        file_id = file_.get("id")
+        if not file_id:
+            return None
+        _retry(
+            svc.permissions().create(
+                fileId=file_id,
+                body={"role": "reader", "type": "anyone"},
+            ).execute)
+        return file_id
+    except Exception as e:
+        errs = st.session_state.setdefault("_drive_upload_errors", [])
+        errs.append(f"video: {str(e)[:200]}")
         return None
 
 

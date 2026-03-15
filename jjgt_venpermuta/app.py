@@ -639,68 +639,7 @@ def sidebar():
             '<div style="text-align:center;font-size:10px;color:#9999BB;padding-top:8px;">'
             'JJGT v4.0 · Colombia 🇨🇴</div>', unsafe_allow_html=True)
 
-        # ── Panel de diagnóstico de media (admin) ──────────────────────────
-        if _es_admin:
-            with st.expander("🔍 Diagnóstico de fotos", expanded=False):
-                try:
-                    from media_sync import _get_drive_service
-                    svc = _get_drive_service()
-                    if svc:
-                        st.success("✅ Google Drive: conectado")
-                    else:
-                        err = st.session_state.get("_drive_init_error") or "Sin detalle"
-                        st.error(f"❌ Google Drive: sin conexion")
-                        st.caption(f"Error: {err}")
-                except Exception as _de:
-                    st.error(f"❌ Drive excepcion: {_de}")
-                drive_errs = st.session_state.get("_drive_upload_errors", [])
-                if drive_errs:
-                    st.warning("Errores subida Drive:")
-                    for e in drive_errs[-3:]:
-                        st.caption(e)
-                sheets_log = st.session_state.get("_sheets_foto_errors", [])
-                if sheets_log:
-                    st.markdown("**Log escritura fotos en Sheets:**")
-                    for e in sheets_log[-30:]:
-                        st.caption(e)
-                else:
-                    st.caption("(sin log de escritura — publica una foto para ver)")
-                upload_log = st.session_state.get("_upload_media_log", [])
-                if upload_log:
-                    st.markdown("**Log última subida:**")
-                    for line in upload_log:
-                        st.caption(line)
-                pubs = st.session_state.get("user_publications", [])
-                if pubs:
-                    st.markdown("**Detalle por publicacion:**")
-                    for p in pubs[:5]:
-                        fb  = p.get("fotos_b64") or []
-                        fo  = p.get("fotos") or []
-                        pid = p.get("id","?")
-                        st.markdown(f"**ID:** `{pid}` | refs:{len(fb)} | fotos_mem:{len(fo)}")
-                        for i, r in enumerate(fb[:3]):
-                            if not r:
-                                st.caption(f"  foto_{i+1}: VACÍA")
-                            elif r.startswith("gdrive:"):
-                                fid = r[7:]
-                                # Intentar descargar y ver si funciona
-                                try:
-                                    from media_sync import _leer_de_drive, _get_drive_service
-                                    raw = _leer_de_drive(fid)
-                                    if raw:
-                                        st.caption(f"  foto_{i+1}: ✅ gdrive:{fid[:20]}... ({len(raw)} bytes)")
-                                    else:
-                                        st.caption(f"  foto_{i+1}: ❌ gdrive:{fid[:20]}... (sin bytes)")
-                                except Exception as _fe:
-                                    st.caption(f"  foto_{i+1}: ❌ gdrive error: {_fe}")
-                            else:
-                                st.caption(f"  foto_{i+1}: b64 puro ({len(r)} chars)")
-                        for fi2, f_ in enumerate(fo[:2]):
-                            _u = str(f_.get("data_uri",""))
-                            _p = _u[:60] if _u else ""
-                            st.caption(f"  mem[{fi2}]: {len(_u)}c inicio={_p!r}")
-                else:
-                    st.caption("Sin publicaciones cargadas")
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1720,21 +1659,25 @@ def page_vehicle_detail():
 
             # ── VIDEO ─────────────────────────────────────────────────────────
             st.markdown("##### 🎥 Video actual")
+            from media_sync import _is_drive_ref as _vdr, _file_id_from_ref as _vfid, _leer_de_drive as _vld
             video_ref_cur = (v.get("video_url") or "").strip()
 
             if video_ref_cur:
-                # Intentar mostrar el video
                 vbytes = None
-                if _is_sqlite_ref(video_ref_cur):
+                if _vdr(video_ref_cur):
+                    # Video en Drive — descargar para reproducir
+                    with st.spinner("Cargando video desde Drive…"):
+                        vbytes = _vld(_vfid(video_ref_cur))
+                elif _is_sqlite_ref(video_ref_cur):
                     vbytes, _ = _leer_video_sqlite(
                         _pub_id_from_sqlite_ref(video_ref_cur))
                 if vbytes:
                     try:
                         st.video(io.BytesIO(vbytes))
                     except Exception:
-                        st.caption(f"📁 Video guardado ({video_ref_cur})")
+                        st.caption(f"📁 Video guardado ({video_ref_cur[:40]})")
                 else:
-                    st.caption(f"📁 {video_ref_cur} (sesión anterior — re-subir para ver)")
+                    st.caption("⚠️ Video no disponible (re-subir para restaurar)")
 
                 if st.button("❌ Eliminar video", key=f"del_video_{pub_id}",
                              type="secondary"):
@@ -1752,15 +1695,24 @@ def page_vehicle_detail():
             if nuevo_video:
                 if st.button("📤 Guardar video", key=f"btn_video_{pub_id}",
                              type="primary"):
-                    with st.spinner("Guardando video en SQLite…"):
+                    with st.spinner("Subiendo video a Google Drive…"):
                         try:
+                            from media_sync import _subir_a_drive_resumable, _get_drive_service
                             nuevo_video.seek(0)
                             vdata   = nuevo_video.read()
-                            vnombre = f"video_{nuevo_video.name}"
-                            nueva_ref = _guardar_video_sqlite(str(pub_id), vnombre, vdata)
+                            vnombre = f"video_{pub_id}_{nuevo_video.name}"
+                            nueva_ref = ""
+                            if _get_drive_service():
+                                file_id = _subir_a_drive_resumable(vnombre, vdata)
+                                if file_id:
+                                    nueva_ref = f"gdrive:{file_id}"
+                            if not nueva_ref:
+                                # Fallback a SQLite
+                                nueva_ref = _guardar_video_sqlite(str(pub_id), vnombre, vdata)
                             if nueva_ref:
                                 _sync_video(nueva_ref, vdata)
-                                st.success("✅ Video guardado")
+                                destino = "Drive ☁️" if nueva_ref.startswith("gdrive:") else "local (temporal)"
+                                st.success(f"✅ Video guardado en {destino}")
                                 st.rerun()
                             else:
                                 st.warning("⚠️ No se pudo guardar el video")

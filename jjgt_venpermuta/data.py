@@ -584,7 +584,17 @@ def _reconstruir_media_local(vehicles: list) -> list:
 
         # ── Video ───────────────────────────────────────────────────────────
         if video_url:
-            if _is_sqlite_ref(video_url):
+            if _is_drive_ref(video_url):
+                # Video en Google Drive — descargar bytes
+                fid   = _file_id_from_ref(video_url)
+                raw_v = _leer_de_drive(fid)
+                if raw_v:
+                    v["video"] = {
+                        "name":  "video.mp4",
+                        "bytes": raw_v,
+                        "path":  video_url,
+                    }
+            elif _is_sqlite_ref(video_url):
                 pid   = _pub_id_from_sqlite_ref(video_url)
                 raw_v, nombre_v = _leer_video_sqlite(pid)
                 if raw_v:
@@ -802,11 +812,19 @@ def reconstruct_media(v: dict) -> dict:
         except Exception:
             pass
 
-    # ── Video desde SQLite ────────────────────────────────────────────────────
+    # ── Video desde Drive o SQLite ───────────────────────────────────────────
     if video_url and not (isinstance(video_dict, dict) and video_dict.get("bytes")):
         try:
-            from media_sync import _is_sqlite_ref, _pub_id_from_sqlite_ref, _leer_video_sqlite
-            if _is_sqlite_ref(video_url):
+            from media_sync import (
+                _is_sqlite_ref, _pub_id_from_sqlite_ref, _leer_video_sqlite,
+                _is_drive_ref, _file_id_from_ref, _leer_de_drive,
+            )
+            if _is_drive_ref(video_url):
+                fid   = _file_id_from_ref(video_url)
+                raw_v = _leer_de_drive(fid)
+                if raw_v:
+                    v["video"] = {"name": "video.mp4", "bytes": raw_v, "path": video_url}
+            elif _is_sqlite_ref(video_url):
                 pid = _pub_id_from_sqlite_ref(video_url)
                 raw_v, nombre_v = _leer_video_sqlite(pid)
                 if raw_v:
