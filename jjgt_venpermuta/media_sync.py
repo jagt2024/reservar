@@ -278,33 +278,44 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
     foto_refs_list = []
 
     drive_ok = _get_drive_service() is not None
+    upload_log = st.session_state.setdefault("_upload_media_log", [])
+    upload_log.clear()
+    upload_log.append(f"drive_ok={drive_ok} | n_fotos={len(fotos or [])}")
 
     for i, f in enumerate(fotos or []):
         if i >= MAX_FOTOS:
             break
         data = f.get("bytes", b"")
         if not data:
+            upload_log.append(f"foto_{i+1}: sin bytes")
             continue
 
         if drive_ok:
-            # ── Intento 1: subir a Drive ──────────────────────────────────
             nombre_archivo = f.get("name") or f"foto_{i+1}_{pub_id}.jpg"
-            file_id = _subir_a_drive(nombre_archivo, data)
+            try:
+                file_id = _subir_a_drive(nombre_archivo, data)
+            except Exception as _de:
+                file_id = None
+                upload_log.append(f"foto_{i+1}: _subir_a_drive excepcion: {_de}")
             if file_id:
                 ref = f"{_DRIVE_PREFIX}{file_id}"
                 foto_refs_list.append(ref)
                 cache_refs[pub_id].append(ref)
-                # Para la galería en RAM también guardamos data_uri
-                thumb_url = _thumbnail_url_drive(file_id, size=800)
-                cache_b64[pub_id].append(ref)   # guardamos el ref, no el b64
+                cache_b64[pub_id].append(ref)
+                upload_log.append(f"foto_{i+1}: gdrive OK file_id={file_id[:20]}")
                 continue
+            else:
+                upload_log.append(f"foto_{i+1}: _subir_a_drive devolvio None, usando fallback b64")
 
-        # ── Fallback: base64 comprimido (máx 32 000 chars) ──────────────
+        # ── Fallback: base64 comprimido ──────────────────────────────────
         b64 = _foto_a_b64(data, max_w=400)
         if b64:
             foto_refs_list.append(b64)
             cache_refs[pub_id].append(b64)
             cache_b64[pub_id].append(b64)
+            upload_log.append(f"foto_{i+1}: b64 fallback OK len={len(b64)}")
+        else:
+            upload_log.append(f"foto_{i+1}: b64 fallback VACIO (foto posiblemente corrupta)")
 
     video_ref = ""
     if video:

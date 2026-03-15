@@ -614,6 +614,16 @@ def sidebar():
                     st.warning("Errores subida Drive:")
                     for e in drive_errs[-3:]:
                         st.caption(e)
+                sheets_errs = st.session_state.get("_sheets_foto_errors", [])
+                if sheets_errs:
+                    st.warning("Errores escritura fotos en Sheets:")
+                    for e in sheets_errs[-3:]:
+                        st.caption(e)
+                upload_log = st.session_state.get("_upload_media_log", [])
+                if upload_log:
+                    st.markdown("**Log última subida:**")
+                    for line in upload_log:
+                        st.caption(line)
                 pubs = st.session_state.get("user_publications", [])
                 if pubs:
                     st.markdown("**Detalle por publicacion:**")
