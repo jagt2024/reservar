@@ -92,50 +92,100 @@ def _a_data_uri(raw: bytes, max_w: int = 600) -> str:
     return f"data:image/jpeg;base64,{b64}"
 
 
-# ─── Rutas locales ────────────────────────────────────────────────────────────
-# En Streamlit Cloud el repo es de solo lectura.
-# Usamos /tmp/JJGT_Media/ para escritura en disco (sesión actual)
-# y b64 embebido en fotos_urls para persistencia entre reinicios.
-_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-_TMP_MEDIA  = os.path.join("/tmp", "JJGT_Media")   # siempre escribible
+# ════════════════════════════════════════════════════════════════════════════
+# ALMACENAMIENTO  — fotos en columnas Sheets + video en SQLite
+# ════════════════════════════════════════════════════════════════════════════
+_SCRIPT_DIR  = os.path.dirname(os.path.abspath(__file__))
+_SQLITE_PATH = os.path.join("/tmp", "jjgt_media.db")
+MAX_FOTOS    = 10   # columnas "Foto 1 b64" … "Foto 10 b64" en Sheets
 
 
-def _pub_dir(pub_id: str) -> str:
-    """Devuelve la carpeta de media para una publicación, creándola si no existe."""
-    # Intentar primero en /tmp (siempre funciona en Streamlit Cloud)
-    path = os.path.join(_TMP_MEDIA, str(pub_id))
+# ── SQLite — videos ───────────────────────────────────────────────────────────
+
+def _get_db():
+    import sqlite3
+    con = sqlite3.connect(_SQLITE_PATH)
+    con.execute("""CREATE TABLE IF NOT EXISTS videos (
+        pub_id TEXT PRIMARY KEY,
+        nombre TEXT,
+        data   BLOB,
+        ts     INTEGER DEFAULT (strftime('%s','now'))
+    )""")
+    con.commit()
+    return con
+
+
+def _guardar_video_sqlite(pub_id: str, nombre: str, data: bytes) -> str:
+    """Guarda video como BLOB en SQLite. Retorna 'sqlite:<pub_id>'."""
     try:
-        os.makedirs(path, exist_ok=True)
-        return path
+        con = _get_db()
+        con.execute(
+            "INSERT OR REPLACE INTO videos (pub_id, nombre, data) VALUES (?,?,?)",
+            (pub_id, nombre, data))
+        con.commit()
+        con.close()
+        return f"sqlite:{pub_id}"
+    except Exception as e:
+        st.session_state.setdefault("_media_errors", []).append(f"SQLite: {e}")
+        return ""
+
+
+def _leer_video_sqlite(pub_id: str) -> tuple:
+    """Retorna (bytes, nombre) del video o (None, '')."""
+    try:
+        con = _get_db()
+        row = con.execute(
+            "SELECT data, nombre FROM videos WHERE pub_id=?", (pub_id,)
+        ).fetchone()
+        con.close()
+        if row:
+            return bytes(row[0]), row[1]
     except Exception:
         pass
-    # Fallback: carpeta del script (funciona en desarrollo local)
-    path = os.path.join(_SCRIPT_DIR, MEDIA_DIR, str(pub_id))
-    os.makedirs(path, exist_ok=True)
-    return path
+    return None, ""
 
 
-def _guardar_local(pub_id: str, nombre: str, data: bytes) -> str:
+def _is_sqlite_ref(s: str) -> bool:
+    return isinstance(s, str) and s.startswith("sqlite:")
+
+def _pub_id_from_sqlite_ref(s: str) -> str:
+    return s[len("sqlite:"):]
+
+
+# ── Fotos — base64 puro (sin prefijo) guardado en columnas de Sheets ─────────
+
+def _foto_a_b64(data: bytes, max_w: int = 700) -> str:
     """
-    Guarda bytes en disco (/tmp/JJGT_Media/<pub_id>/<nombre>).
-    Retorna ruta absoluta para que _leer_local la encuentre en esta sesión.
+    Comprime imagen y retorna base64 puro (sin prefijo 'b64:').
+    Límite estricto: < 44 000 chars para caber en una celda de Sheets.
     """
-    carpeta  = _pub_dir(pub_id)
-    filepath = os.path.join(carpeta, nombre)
-    with open(filepath, "wb") as f:
-        f.write(data)
-    return filepath   # ruta absoluta — siempre resoluble en la misma sesión
+    _LIMIT = 44_000
+    try:
+        from PIL import Image
+        img = Image.open(io.BytesIO(data))
+        img.thumbnail((max_w, max_w))
+        for quality in [78, 65, 50, 35]:
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=quality, optimize=True)
+            b64 = base64.b64encode(buf.getvalue()).decode()
+            if len(b64) < _LIMIT:
+                return b64
+        img.thumbnail((350, 350))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=35)
+        return base64.b64encode(buf.getvalue()).decode()
+    except Exception:
+        b64 = base64.b64encode(data).decode()
+        return b64 if len(b64) < _LIMIT else ""
 
+
+def _b64_to_data_uri(b64: str) -> str:
+    return f"data:image/jpeg;base64,{b64}" if b64 else ""
+
+
+# ── Lectura local fallback (desarrollo) ───────────────────────────────────────
 
 def _leer_local(ruta: str) -> bytes | None:
-    """
-    Lee bytes de una ruta local.
-    Orden de resolución:
-      1. Ruta absoluta tal cual (cubre /tmp/JJGT_Media/... y rutas del repo)
-      2. Relativa a /tmp/JJGT_Media/ (sesión actual Streamlit Cloud)
-      3. Relativa al directorio del script
-      4. Segmento JJGT_Media/... buscado en /tmp, script dir y cwd
-    """
     if not ruta:
         return None
     ruta = ruta.strip()
@@ -149,42 +199,73 @@ def _leer_local(ruta: str) -> bytes | None:
             pass
         return None
 
-    # 1. Absoluta
     r = _abrir(ruta)
     if r:
         return r
-
-    # 2. Relativa a /tmp
     r = _abrir(os.path.join("/tmp", ruta))
     if r:
         return r
-
-    # 3. Relativa al script
     r = _abrir(os.path.join(_SCRIPT_DIR, ruta))
     if r:
         return r
-
-    # 4. Normalizar y buscar segmento JJGT_Media/...
     ruta_unix = ruta.replace("\\", "/")
     if "JJGT_Media" in ruta_unix:
-        idx      = ruta_unix.find("JJGT_Media")
-        segmento = ruta_unix[idx:].replace("/", os.sep)
+        seg = ruta_unix[ruta_unix.find("JJGT_Media"):].replace("/", os.sep)
         for base in ["/tmp", _SCRIPT_DIR, os.getcwd()]:
-            r = _abrir(os.path.join(base, segmento))
+            r = _abrir(os.path.join(base, seg))
             if r:
                 return r
-
     return None
 
 
-# alias de compatibilidad con código anterior
-_leer      = _leer_local
+_leer       = _leer_local
 _read_local = _leer_local
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# GOOGLE DRIVE — subida y descarga
+# API PÚBLICA
 # ════════════════════════════════════════════════════════════════════════════
+
+def upload_media(pub_id: str, fotos: list, video: dict | None):
+    """
+    Guarda fotos y video.
+
+    FOTOS:  Comprime cada foto como base64 puro y la guarda en
+            session_state["_fotos_b64"][pub_id] = [b64_1, b64_2, ...].
+            Retorna lista de hasta MAX_FOTOS strings b64.
+            excel_sync las escribe en columnas "Foto 1 b64".."Foto 10 b64".
+
+    VIDEO:  Guarda como BLOB en SQLite /tmp/jjgt_media.db.
+            Retorna referencia "sqlite:<pub_id>".
+            El video sobrevive reruns de Streamlit.
+            Si el servidor se reinicia completamente, debe re-subirse.
+
+    Retorna (foto_b64_list, video_ref).
+    """
+    st.session_state.pop("_media_errors", None)
+    cache = st.session_state.setdefault("_fotos_b64", {})
+    cache[pub_id] = []
+    foto_b64_list = []
+
+    for i, f in enumerate(fotos or []):
+        if i >= MAX_FOTOS:
+            break
+        data = f.get("bytes", b"")
+        if not data:
+            continue
+        b64 = _foto_a_b64(data, max_w=700)
+        if b64:
+            foto_b64_list.append(b64)
+            cache[pub_id].append(b64)
+
+    video_ref = ""
+    if video:
+        nombre = f"video_{video.get('name', 'video.mp4')}"
+        data   = video.get("bytes", b"")
+        if data:
+            video_ref = _guardar_video_sqlite(pub_id, nombre, data)
+
+    return foto_b64_list, video_ref
 
 def _subir_a_drive(nombre: str, data: bytes) -> str | None:
     """
@@ -254,93 +335,6 @@ def _file_id_from_ref(s: str) -> str:
 
 
 # ════════════════════════════════════════════════════════════════════════════
-# API PÚBLICA
-# ════════════════════════════════════════════════════════════════════════════
-
-def upload_media(pub_id: str, fotos: list, video: dict | None):
-    """
-    Guarda fotos/video.
-
-    Estrategia para Streamlit Cloud:
-      • TODAS las fotos → disco /tmp/JJGT_Media/<pub_id>/ (sesión actual)
-      • PORTADA (foto 0) → también como b64:<base64> en fotos_urls (persiste en Sheets)
-      • Fotos 1..N → ruta absoluta /tmp/... en fotos_urls (solo esta sesión)
-      • Video → /tmp/... (solo esta sesión)
-
-    Al recargar: la portada siempre aparece (b64 en Sheets).
-    Las demás fotos y el video aparecen si el servidor no se reinició
-    (están en /tmp). Si se reinicia, solo la portada es visible.
-
-    Retorna (fotos_csv, video_path).
-    """
-    st.session_state.pop("_drive_upload_errors", None)
-
-    foto_paths = []
-    for i, f in enumerate(fotos or []):
-        nombre = f"foto_{i:02d}_{f.get('name', 'foto.jpg')}"
-        data   = f.get("bytes", b"")
-        if not data:
-            continue
-
-        # Guardar en /tmp para esta sesión
-        abs_path = ""
-        try:
-            abs_path = _guardar_local(pub_id, nombre, data)
-        except Exception:
-            pass
-
-        if i == 0:
-            # Portada: guardar también como b64 para persistir entre reinicios
-            ref = _foto_a_b64_ref(data, max_w=600)
-            if not ref and abs_path:
-                ref = abs_path
-        else:
-            # Fotos adicionales: solo /tmp (disponibles en esta sesión)
-            ref = abs_path
-
-        if ref:
-            foto_paths.append(ref)
-
-    video_path = ""
-    if video:
-        nombre = f"video_{video.get('name', 'video.mp4')}"
-        data   = video.get("bytes", b"")
-        if data:
-            try:
-                video_path = _guardar_local(pub_id, nombre, data) or ""
-            except Exception as e:
-                st.session_state.setdefault("_drive_upload_errors", []).append(str(e))
-
-    return ",".join(foto_paths), video_path
-
-
-def _foto_a_b64_ref(data: bytes, max_w: int = 600) -> str:
-    """
-    Comprime la imagen y retorna referencia 'b64:<base64>'.
-    Target: < 40 000 chars para caber holgadamente en una celda de Sheets.
-    Solo se usa para la PORTADA — una sola foto por celda.
-    """
-    _LIMIT = 40_000
-    try:
-        from PIL import Image
-        img = Image.open(io.BytesIO(data))
-        img.thumbnail((max_w, max_w))
-        for quality in [75, 60, 45, 30]:
-            buf = io.BytesIO()
-            img.save(buf, format="JPEG", quality=quality, optimize=True)
-            b64 = base64.b64encode(buf.getvalue()).decode()
-            if len(b64) < _LIMIT:
-                return f"b64:{b64}"
-        # Último recurso: reducir a 300px
-        img.thumbnail((300, 300))
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=30)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        return f"b64:{b64}"
-    except Exception:
-        b64 = base64.b64encode(data).decode()
-        return f"b64:{b64}" if len(b64) < _LIMIT else ""
-
 
 _B64_PREFIX = "b64:"
 
@@ -404,12 +398,11 @@ def load_media_from_urls(fotos_csv: str, video_url: str):
 def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
     """
     Retorna data URI de la portada del vehículo.
-    Orden de prioridad:
-      1. data_uri ya cacheado en fotos[]
-      2. bytes en fotos[] RAM (publicación reciente)
-      3. thumbnail de Drive (rápido, sin descargar el archivo)
-      4. Descarga completa desde Drive
-      5. Leer desde archivo local JJGT_Media/
+    Prioridad:
+      1. data_uri cacheado en fotos[]
+      2. bytes en fotos[] RAM
+      3. _fotos_b64 en session_state (cargadas en esta sesión)
+      4. fotos_b64[0] del dict del vehículo (cargado desde Sheets)
     """
     def _bytes_a_uri(raw: bytes) -> str:
         if not raw:
@@ -425,7 +418,7 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
             data = raw
         return "data:image/jpeg;base64," + base64.b64encode(data).decode()
 
-    # 1 & 2 — fotos en memoria (RAM)
+    # 1 & 2 — fotos en memoria
     for f in (v.get("fotos") or []):
         if not isinstance(f, dict):
             continue
@@ -438,46 +431,17 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
                 f["data_uri"] = uri
                 return uri
 
-    fotos_csv = (v.get("fotos_urls") or "").strip()
-    if not fotos_csv:
-        return ""
+    pub_id = str(v.get("id", ""))
 
-    primera = fotos_csv.split(",")[0].strip()
-    if not primera:
-        return ""
+    # 3 — session_state cache
+    cache = st.session_state.get("_fotos_b64", {})
+    if pub_id in cache and cache[pub_id]:
+        return _b64_to_data_uri(cache[pub_id][0])
 
-    # 3 — según tipo de referencia
-    if _is_drive_ref(primera):
-        # Miniatura Drive (URL directa, sin descargar)
-        fid = _file_id_from_ref(primera)
-        return _thumbnail_url_drive(fid, max_w)
-
-    if _is_b64_ref(primera):
-        # Base64 embebido → data URI directa
-        raw = _bytes_from_b64_ref(primera)
-        uri = _bytes_a_uri(raw)
-        if uri:
-            if not isinstance(v.get("fotos"), list):
-                v["fotos"] = []
-            if not v["fotos"]:
-                v["fotos"].insert(0, {"name": "portada.jpg", "bytes": raw,
-                                      "path": primera, "data_uri": uri})
-            return uri
-
-    # 4 — local (fallback sin Drive)
-    raw = _leer_local(primera)
-    if raw:
-        uri = _bytes_a_uri(raw)
-        if uri:
-            if not isinstance(v.get("fotos"), list):
-                v["fotos"] = []
-            v["fotos"].insert(0, {
-                "name":     os.path.basename(primera),
-                "bytes":    raw,
-                "path":     primera,
-                "data_uri": uri,
-            })
-            return uri
+    # 4 — fotos_b64 list del dict (cargado desde Sheets)
+    fotos_b64 = v.get("fotos_b64") or []
+    if fotos_b64 and fotos_b64[0]:
+        return _b64_to_data_uri(fotos_b64[0])
 
     return ""
 

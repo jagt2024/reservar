@@ -128,91 +128,57 @@ def _save_pw_hash(correo: str, pw_hash: str) -> tuple:
 
 
 def _upsert_vehiculo_in_sheets(pub: dict) -> tuple:
-    """
-    Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos.
-    Usa _norm() para tolerar diferencias de tildes en nombres de columna.
-    No reemplaza encabezados existentes — solo agrega columnas nuevas al final.
-    """
+    """Inserta o actualiza SOLO la fila de una publicación en la hoja de Vehículos."""
     try:
-        import unicodedata as _ud, string as _s, time as _time
-        from excel_sync import SHEET_FILE, WS, _row_veh, _safe, _api_call
+        import time as _time
         from data import load_credentials_from_toml, get_google_sheets_connection
-
-        def _norm(s):
-            return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
-
-        def _col_letter(n):
-            s, n = "", n + 1
-            while n:
-                n, r = divmod(n - 1, 26)
-                s = _s.ascii_uppercase[r] + s
-            return s
-
+        from excel_sync import SHEET_FILE, WS, _row_veh, _safe
         creds, _ = load_credentials_from_toml()
         if not creds:
             return False, "Sin credenciales Google"
         client  = get_google_sheets_connection(creds)
         sh      = client.open(SHEET_FILE)
-        ws      = sh.worksheet(WS["vehiculos"])
-        all_v   = _api_call(ws.get_all_values)
+        ws      = sh.worksheet(WS["vehiculos"])   # 🚗 VEHÍCULOS
+        all_v   = ws.get_all_values()
         row_d   = _row_veh(pub)
+        headers = list(row_d.keys())
+        values  = [_safe(v) for v in row_d.values()]
         pid_str = str(pub.get("id","")).strip()
 
         if not all_v:
-            _api_call(ws.append_row, list(row_d.keys()))
+            ws.append_row(headers)
             _time.sleep(0.3)
-            _api_call(ws.append_row, [_safe(v) for v in row_d.values()])
-            return True, "Fila creada en Vehículos (hoja nueva)"
+            ws.append_row(values)
+            return True, "Fila creada en Vehículos"
 
-        # Encabezados actuales — NUNCA se reemplazan
-        sheet_headers = list(all_v[0])
-        sheet_norm    = {_norm(h): i for i, h in enumerate(sheet_headers)}
-
-        added = []
-        for col_name in row_d:
-            if _norm(col_name) not in sheet_norm:
-                sheet_headers.append(col_name)
-                sheet_norm[_norm(col_name)] = len(sheet_headers) - 1
-                added.append(col_name)
-        if added:
-            _api_call(ws.update, "A1", [sheet_headers])
+        # Verificar/actualizar encabezados
+        if all_v[0] != headers:
+            ws.update("A1", [headers])
             _time.sleep(0.3)
+            all_v = ws.get_all_values()
 
-        col_idx = {_norm(h): i for i, h in enumerate(sheet_headers)}
-
-        def _col_pos(name):
-            return col_idx.get(_norm(name))
-
-        pk_pos = _col_pos("ID")
-        if pk_pos is None:
-            return False, "Columna 'ID' no encontrada en VEHÍCULOS"
-
-        target = None
+        # Buscar fila por ID
+        pk_idx  = headers.index("ID")
+        target  = None
         for i, row in enumerate(all_v[1:], start=2):
-            if pk_pos < len(row) and str(row[pk_pos]).strip() == pid_str:
+            if pk_idx < len(row) and str(row[pk_idx]).strip() == pid_str:
                 target = i
                 break
 
+        import string as _s
+        def _col(n):
+            r, n = "", n+1
+            while n:
+                n, rem = divmod(n-1, 26)
+                r = _s.ascii_uppercase[rem] + r
+            return r
+
         if target:
-            existing_row = list(all_v[target - 1])
-            while len(existing_row) < len(sheet_headers):
-                existing_row.append("")
-            for col_name, new_val in row_d.items():
-                pos = _col_pos(col_name)
-                if pos is not None:
-                    existing_row[pos] = _safe(new_val)
-            rng = f"A{target}:{_col_letter(len(existing_row)-1)}{target}"
-            _api_call(ws.update, rng, [existing_row])
+            ws.update(f"A{target}:{_col(len(values)-1)}{target}", [values])
             return True, f"Vehículo actualizado en fila {target}"
         else:
-            new_row = [""] * len(sheet_headers)
-            for col_name, new_val in row_d.items():
-                pos = _col_pos(col_name)
-                if pos is not None:
-                    new_row[pos] = _safe(new_val)
-            _api_call(ws.append_row, new_row)
+            ws.append_row(values)
             return True, "Vehículo agregado a Vehículos"
-
     except Exception as e:
         return False, str(e)
 
@@ -831,9 +797,6 @@ def page_vehicle_detail():
         go("explore")
         return
 
-    # Importar helpers de media — disponibles en toda la función
-    from media_sync import _leer_local, _a_data_uri
-
     v = reconstruct_media(v)
 
     pub_id  = v.get("id", "")
@@ -868,13 +831,15 @@ def page_vehicle_detail():
 
     with col_m:
         # ══════════════════════════════════════════════════════════════════════
-        # GALERÍA CON SLIDER AUTOMÁTICO (3 seg entre fotos)
-        # Lee data_uri desde fotos[] (cargados por _reconstruir_media_local)
-        # o construye URIs leyendo los archivos de JJGT_Media/ directamente.
+        # GALERÍA CON SLIDER (3 s auto-avance)
+        # Fuente de verdad: fotos[] en RAM (cargados por _reconstruir_media_local)
+        # Fallback: fotos_b64 list y session_state cache
         # ══════════════════════════════════════════════════════════════════════
+        from media_sync import _b64_to_data_uri
+
         img_items = []
 
-        # Prioridad 1: data_uri ya en memoria (cargados al inicio por _reconstruir)
+        # 1. data_uri ya en memoria (fotos[] cargados por _reconstruir)
         for fi in (fotos or []):
             if not isinstance(fi, dict):
                 continue
@@ -883,7 +848,8 @@ def page_vehicle_detail():
                 try:
                     from PIL import Image as _PIL
                     buf = io.BytesIO()
-                    _PIL.open(io.BytesIO(fi["bytes"])).save(buf, format="JPEG", quality=82)
+                    _PIL.open(io.BytesIO(fi["bytes"])).save(
+                        buf, format="JPEG", quality=82)
                     import base64 as _b64m
                     uri = ("data:image/jpeg;base64,"
                            + _b64m.b64encode(buf.getvalue()).decode())
@@ -892,31 +858,24 @@ def page_vehicle_detail():
             if uri:
                 img_items.append(uri)
 
-        # Prioridad 2: leer directamente desde fotos_urls si fotos[] está vacío
+        # 2. fotos_b64 del dict (cargado desde Sheets si fotos[] está vacío)
         if not img_items:
-            fotos_csv = (v.get("fotos_urls") or "").strip()
-            if fotos_csv:
-                from media_sync import _is_b64_ref, _bytes_from_b64_ref
-                for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-                    if _is_b64_ref(ref):
-                        raw = _bytes_from_b64_ref(ref)
-                        uri = _a_data_uri(raw, 900) if raw else ""
-                        if uri:
-                            img_items.append(uri)
-                    else:
-                        raw = _leer_local(ref)
-                        if raw:
-                            img_items.append(_a_data_uri(raw, 900))
+            fotos_b64 = v.get("fotos_b64") or []
+            img_items = [_b64_to_data_uri(b) for b in fotos_b64 if b]
+
+        # 3. session_state cache (subida reciente en esta sesión)
+        if not img_items:
+            cache = st.session_state.get("_fotos_b64", {})
+            img_items = [_b64_to_data_uri(b)
+                         for b in cache.get(str(pub_id), []) if b]
 
         if img_items:
             n_fotos = len(img_items)
-            # Índice actual del slider (persiste en session_state por pub_id)
             _sk = f"_slider_{pub_id}"
             if _sk not in st.session_state:
                 st.session_state[_sk] = 0
             idx = st.session_state[_sk] % n_fotos
 
-            # Imagen principal
             st.markdown(
                 f'<img src="{img_items[idx]}" '
                 f'style="width:100%;max-height:400px;object-fit:cover;'
@@ -924,10 +883,10 @@ def page_vehicle_detail():
                 unsafe_allow_html=True)
 
             if n_fotos > 1:
-                # Controles manuales ◀ · contador · ▶
                 sc1, sc2, sc3 = st.columns([1, 2, 1])
                 with sc1:
-                    if st.button("◀", key=f"sl_prev_{pub_id}", use_container_width=True):
+                    if st.button("◀", key=f"sl_prev_{pub_id}",
+                                 use_container_width=True):
                         st.session_state[_sk] = (idx - 1) % n_fotos
                         st.rerun()
                 with sc2:
@@ -937,45 +896,26 @@ def page_vehicle_detail():
                         f'📸 {idx+1} / {n_fotos}</div>',
                         unsafe_allow_html=True)
                 with sc3:
-                    if st.button("▶", key=f"sl_next_{pub_id}", use_container_width=True):
+                    if st.button("▶", key=f"sl_next_{pub_id}",
+                                 use_container_width=True):
                         st.session_state[_sk] = (idx + 1) % n_fotos
                         st.rerun()
 
-                # Miniaturas clicables (máx 5)
                 th_cols = st.columns(min(n_fotos, 5))
                 for ti, src in enumerate(img_items[:5]):
                     with th_cols[ti]:
                         border = ("3px solid #C41E3A" if ti == idx
                                   else "2px solid transparent")
                         st.markdown(
-                            f'<img src="{src}" '
-                            f'style="width:100%;height:60px;object-fit:cover;'
-                            f'border-radius:6px;border:{border};cursor:pointer;">',
+                            f'<img src="{src}" style="width:100%;height:60px;'
+                            f'object-fit:cover;border-radius:6px;'
+                            f'border:{border};">',
                             unsafe_allow_html=True)
                         if st.button("", key=f"sl_th_{pub_id}_{ti}",
                                      use_container_width=True,
                                      help=f"Foto {ti+1}"):
                             st.session_state[_sk] = ti
                             st.rerun()
-
-                # Auto-avance cada 3 segundos via meta-refresh invisible
-                st.markdown(
-                    f'<script>'
-                    f'(function(){{'
-                    f'  var key = "slider_auto_{pub_id}";'
-                    f'  if(!window[key]){{'
-                    f'    window[key] = true;'
-                    f'    setTimeout(function(){{'
-                    f'      var btns = parent.document.querySelectorAll'
-                    f'        ("[data-testid=\\"baseButton-secondary\\"]");'
-                    f'      btns.forEach(function(b){{'
-                    f'        if(b.innerText.trim()==="▶") b.click();'
-                    f'      }});'
-                    f'    }}, 3000);'
-                    f'  }}'
-                    f'}})()'
-                    f'</script>',
-                    unsafe_allow_html=True)
         else:
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,{c1g},{c2g});'
@@ -987,17 +927,23 @@ def page_vehicle_detail():
                 f'</div></div>', unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════════════════════════════
-        # VIDEO — bytes RAM → leer desde JJGT_Media/
+        # VIDEO — bytes RAM → SQLite
         # ══════════════════════════════════════════════════════════════════════
         video_mostrado = False
         video_bytes    = video.get("bytes") if isinstance(video, dict) else None
 
         if not video_bytes:
+            from media_sync import _is_sqlite_ref, _pub_id_from_sqlite_ref, \
+                                   _leer_video_sqlite, _leer_local
             vref = (v.get("video_url") or "").strip()
             if not vref and isinstance(video, dict):
                 vref = video.get("path", "")
             if vref:
-                video_bytes = _leer_local(vref)
+                if _is_sqlite_ref(vref):
+                    video_bytes, _ = _leer_video_sqlite(
+                        _pub_id_from_sqlite_ref(vref))
+                else:
+                    video_bytes = _leer_local(vref)
 
         if video_bytes:
             try:
@@ -1516,6 +1462,12 @@ def page_vehicle_detail():
             st.markdown("---")
             st.markdown("#### ✏️ Editar publicación")
 
+            from media_sync import (
+                _b64_to_data_uri, _foto_a_b64,
+                _is_sqlite_ref, _pub_id_from_sqlite_ref,
+                _leer_video_sqlite, _guardar_video_sqlite,
+            )
+
             ANIOS = ["2025","2024","2023","2022","2021","2020","2019","2018","2017",
                      "2015","2014","2013","2012","2011","2010","2009","2008","2007",
                      "2006","2005","2004","2003","2002","2001","2000","1999","1998",
@@ -1531,69 +1483,57 @@ def page_vehicle_detail():
             def _idx(lst, val, default=0):
                 return lst.index(str(val)) if str(val) in lst else default
 
-            def _aplicar_media(nuevo_csv_fotos=None, nuevo_video_url=None,
-                               nuevo_video_none=False):
-                """Persiste cambios de fotos/video en todos los dicts y en Sheets."""
-                if nuevo_csv_fotos is not None:
-                    v["fotos_urls"] = nuevo_csv_fotos
-                    v["fotos"]      = []
-                    for p in st.session_state.user_publications:
-                        if str(p.get("id","")) == str(pub_id):
-                            p["fotos_urls"] = nuevo_csv_fotos
-                            p["fotos"]      = []
-                    for h in st.session_state.history_items:
-                        if str(h.get("id","")) == str(pub_id) and h.get("pubRef"):
-                            h["pubRef"]["fotos_urls"] = nuevo_csv_fotos
-                            h["pubRef"]["fotos"]      = []
-                if nuevo_video_url is not None:
-                    v["video_url"] = nuevo_video_url
-                    v["video"]     = None
-                    for p in st.session_state.user_publications:
-                        if str(p.get("id","")) == str(pub_id):
-                            p["video_url"] = nuevo_video_url
-                            p["video"]     = None
-                    for h in st.session_state.history_items:
-                        if str(h.get("id","")) == str(pub_id) and h.get("pubRef"):
-                            h["pubRef"]["video_url"] = nuevo_video_url
-                            h["pubRef"]["video"]     = None
-                if nuevo_video_none:
-                    v["video_url"] = ""
-                    v["video"]     = None
-                    for p in st.session_state.user_publications:
-                        if str(p.get("id","")) == str(pub_id):
-                            p["video_url"] = ""
-                            p["video"]     = None
-                    for h in st.session_state.history_items:
-                        if str(h.get("id","")) == str(pub_id) and h.get("pubRef"):
-                            h["pubRef"]["video_url"] = ""
-                            h["pubRef"]["video"]     = None
+            def _sync_fotos_b64(nueva_lista: list):
+                """Actualiza fotos_b64 en todos los dicts y Sheets."""
+                uris = [_b64_to_data_uri(b) for b in nueva_lista if b]
+                fotos_mem = [{"name": f"foto_{i+1}.jpg", "bytes": None,
+                              "path": f"b64_col_{i+1}", "data_uri": uri}
+                             for i, uri in enumerate(uris)]
+                v["fotos_b64"] = nueva_lista
+                v["fotos"]     = fotos_mem
+                for p in st.session_state.user_publications:
+                    if str(p.get("id","")) == str(pub_id):
+                        p["fotos_b64"] = nueva_lista
+                        p["fotos"]     = fotos_mem
+                for h in st.session_state.history_items:
+                    if str(h.get("id","")) == str(pub_id) and h.get("pubRef"):
+                        h["pubRef"]["fotos_b64"] = nueva_lista
+                        h["pubRef"]["fotos"]     = fotos_mem
+                # Actualizar cache de sesión
+                st.session_state.setdefault("_fotos_b64", {})[str(pub_id)] = nueva_lista
+                st.session_state.selected_vehicle = v
+                save_section_silent(["publicaciones", "vehiculos"])
+
+            def _sync_video(nuevo_ref: str, nuevo_bytes=None):
+                """Actualiza video_url en todos los dicts y Sheets."""
+                video_dict = ({"name": "video.mp4", "bytes": nuevo_bytes,
+                               "path": nuevo_ref} if nuevo_bytes else None)
+                v["video_url"] = nuevo_ref
+                v["video"]     = video_dict
+                for p in st.session_state.user_publications:
+                    if str(p.get("id","")) == str(pub_id):
+                        p["video_url"] = nuevo_ref
+                        p["video"]     = video_dict
+                for h in st.session_state.history_items:
+                    if str(h.get("id","")) == str(pub_id) and h.get("pubRef"):
+                        h["pubRef"]["video_url"] = nuevo_ref
+                        h["pubRef"]["video"]     = video_dict
                 st.session_state.selected_vehicle = v
                 save_section_silent(["publicaciones", "vehiculos"])
 
             # ── FOTOS ACTUALES ────────────────────────────────────────────────
             st.markdown("##### 📸 Fotos actuales")
-            fotos_refs = [r.strip() for r in
-                          (v.get("fotos_urls") or "").split(",") if r.strip()]
+            fotos_b64_cur = list(v.get("fotos_b64") or [])
 
-            if fotos_refs:
-                cols_f = st.columns(min(len(fotos_refs), 5))
-                for fi, ref in enumerate(fotos_refs):
+            if fotos_b64_cur:
+                cols_f = st.columns(min(len(fotos_b64_cur), 5))
+                for fi, b64 in enumerate(fotos_b64_cur):
                     with cols_f[fi % 5]:
-                        # Generar miniatura
-                        thumb  = ""
-                        from media_sync import _is_b64_ref, _bytes_from_b64_ref
-                        if _is_b64_ref(ref):
-                            raw_th = _bytes_from_b64_ref(ref)
-                            thumb  = _a_data_uri(raw_th, 200) if raw_th else ""
-                        else:
-                            raw_th = _leer_local(ref)
-                            if raw_th:
-                                thumb = _a_data_uri(raw_th, 200)
-                        border = ("3px solid #F5A623" if fi == 0
-                                  else "2px solid #333")
-                        if thumb:
+                        uri = _b64_to_data_uri(b64)
+                        border = "3px solid #F5A623" if fi == 0 else "2px solid #333"
+                        if uri:
                             st.markdown(
-                                f'<img src="{thumb}" style="width:100%;height:75px;'
+                                f'<img src="{uri}" style="width:100%;height:75px;'
                                 f'object-fit:cover;border-radius:8px;'
                                 f'border:{border};margin-bottom:3px;">',
                                 unsafe_allow_html=True)
@@ -1604,36 +1544,36 @@ def page_vehicle_detail():
                             if st.button("⭐", key=f"portada_{pub_id}_{fi}",
                                          use_container_width=True,
                                          help="Hacer portada"):
-                                nuevo = ([fotos_refs[fi]]
-                                         + fotos_refs[:fi]
-                                         + fotos_refs[fi+1:])
-                                _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                nuevo = ([fotos_b64_cur[fi]]
+                                         + fotos_b64_cur[:fi]
+                                         + fotos_b64_cur[fi+1:])
+                                _sync_fotos_b64(nuevo)
                                 st.rerun()
                         mc1, mc2 = st.columns(2)
                         with mc1:
                             if fi > 0:
                                 if st.button("◀", key=f"izq_{pub_id}_{fi}",
                                              use_container_width=True):
-                                    nuevo = list(fotos_refs)
+                                    nuevo = list(fotos_b64_cur)
                                     nuevo[fi-1], nuevo[fi] = nuevo[fi], nuevo[fi-1]
-                                    _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                    _sync_fotos_b64(nuevo)
                                     st.rerun()
                             else:
                                 st.write("")
                         with mc2:
-                            if fi < len(fotos_refs) - 1:
+                            if fi < len(fotos_b64_cur) - 1:
                                 if st.button("▶", key=f"der_{pub_id}_{fi}",
                                              use_container_width=True):
-                                    nuevo = list(fotos_refs)
+                                    nuevo = list(fotos_b64_cur)
                                     nuevo[fi], nuevo[fi+1] = nuevo[fi+1], nuevo[fi]
-                                    _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                    _sync_fotos_b64(nuevo)
                                     st.rerun()
                             else:
                                 st.write("")
                         if st.button("❌", key=f"del_foto_{pub_id}_{fi}",
                                      use_container_width=True, help="Eliminar"):
-                            nuevo = [r for j, r in enumerate(fotos_refs) if j != fi]
-                            _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                            nuevo = [b for j, b in enumerate(fotos_b64_cur) if j != fi]
+                            _sync_fotos_b64(nuevo)
                             st.rerun()
             else:
                 st.caption("Sin fotos cargadas.")
@@ -1645,44 +1585,46 @@ def page_vehicle_detail():
                 key=f"edit_fotos_{pub_id}",
             )
             if nuevas_fotos:
-                if st.button("📤 Subir fotos", key=f"btn_fotos_{pub_id}",
+                if st.button("📤 Guardar fotos", key=f"btn_fotos_{pub_id}",
                              type="primary"):
-                    with st.spinner("Guardando fotos…"):
-                        try:
-                            from media_sync import upload_media
-                            data = []
-                            for ff in nuevas_fotos[:10]:
-                                ff.seek(0)
-                                data.append({"name": ff.name, "bytes": ff.read()})
-                            nuevas_csv, _ = upload_media(pub_id, data, None)
-                            if nuevas_csv:
-                                base   = (v.get("fotos_urls") or "").strip()
-                                merged = ",".join(filter(None, [base, nuevas_csv]))
-                                _aplicar_media(nuevo_csv_fotos=merged)
-                                st.success(f"✅ {len(data)} foto(s) agregada(s)")
-                                st.rerun()
-                            else:
-                                st.warning("⚠️ No se pudieron subir las fotos")
-                        except Exception as _em:
-                            st.error(f"Error: {_em}")
+                    with st.spinner("Procesando fotos…"):
+                        nuevas_b64 = []
+                        for ff in nuevas_fotos[:10]:
+                            ff.seek(0)
+                            b64 = _foto_a_b64(ff.read(), max_w=700)
+                            if b64:
+                                nuevas_b64.append(b64)
+                        if nuevas_b64:
+                            merged = fotos_b64_cur + nuevas_b64
+                            _sync_fotos_b64(merged[:10])
+                            st.success(f"✅ {len(nuevas_b64)} foto(s) agregada(s)")
+                            st.rerun()
+                        else:
+                            st.warning("⚠️ No se pudieron procesar las fotos")
 
             st.divider()
 
             # ── VIDEO ─────────────────────────────────────────────────────────
             st.markdown("##### 🎥 Video actual")
-            video_url_actual = (v.get("video_url") or "").strip()
-            if video_url_actual:
-                raw_v = _leer_local(video_url_actual)
-                if raw_v:
+            video_ref_cur = (v.get("video_url") or "").strip()
+
+            if video_ref_cur:
+                # Intentar mostrar el video
+                vbytes = None
+                if _is_sqlite_ref(video_ref_cur):
+                    vbytes, _ = _leer_video_sqlite(
+                        _pub_id_from_sqlite_ref(video_ref_cur))
+                if vbytes:
                     try:
-                        st.video(io.BytesIO(raw_v))
+                        st.video(io.BytesIO(vbytes))
                     except Exception:
-                        st.caption(f"📁 {video_url_actual}")
+                        st.caption(f"📁 Video guardado ({video_ref_cur})")
                 else:
-                    st.caption(f"📁 {video_url_actual}")
+                    st.caption(f"📁 {video_ref_cur} (sesión anterior — re-subir para ver)")
+
                 if st.button("❌ Eliminar video", key=f"del_video_{pub_id}",
                              type="secondary"):
-                    _aplicar_media(nuevo_video_none=True)
+                    _sync_video("")
                     st.success("✅ Video eliminado")
                     st.rerun()
             else:
@@ -1694,22 +1636,20 @@ def page_vehicle_detail():
                 key=f"edit_video_{pub_id}",
             )
             if nuevo_video:
-                if st.button("📤 Subir video", key=f"btn_video_{pub_id}",
+                if st.button("📤 Guardar video", key=f"btn_video_{pub_id}",
                              type="primary"):
-                    with st.spinner("Guardando video…"):
+                    with st.spinner("Guardando video en SQLite…"):
                         try:
-                            from media_sync import upload_media
                             nuevo_video.seek(0)
-                            _, nueva_url = upload_media(
-                                pub_id, [],
-                                {"name": nuevo_video.name,
-                                 "bytes": nuevo_video.read()})
-                            if nueva_url:
-                                _aplicar_media(nuevo_video_url=nueva_url)
-                                st.success("✅ Video actualizado")
+                            vdata   = nuevo_video.read()
+                            vnombre = f"video_{nuevo_video.name}"
+                            nueva_ref = _guardar_video_sqlite(str(pub_id), vnombre, vdata)
+                            if nueva_ref:
+                                _sync_video(nueva_ref, vdata)
+                                st.success("✅ Video guardado")
                                 st.rerun()
                             else:
-                                st.warning("⚠️ No se pudo subir el video")
+                                st.warning("⚠️ No se pudo guardar el video")
                         except Exception as _ev:
                             st.error(f"Error: {_ev}")
 
@@ -1888,17 +1828,14 @@ def page_publish():
         video_data = st.session_state.pop("_pub_video_data", None)
         TIPO_MAP   = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
 
-        fotos_urls_csv = ""
-        video_url_str  = ""
+        fotos_b64_list = []
+        video_ref      = ""
         with st.spinner("💾 Guardando fotos y video…"):
             try:
                 from media_sync import upload_media
-                fotos_urls_csv, video_url_str = upload_media(
-                    new_id, fotos_data, video_data)
+                fotos_b64_list, video_ref = upload_media(new_id, fotos_data, video_data)
             except Exception as e_media:
                 st.warning(f"⚠️ No se pudieron guardar las fotos: {e_media}")
-
-        fotos_con_preview = fotos_data  # bytes en RAM para mostrar de inmediato
 
         new_pub = {
             "id":           new_id,
@@ -1920,10 +1857,11 @@ def page_publish():
             "phone":        _pending["pub_sphone"],
             "seller_phone": _pending["pub_sphone"],
             "seller_email": _pending["pub_semail"],
-            "fotos":        fotos_con_preview,
+            "fotos":        fotos_data,      # bytes RAM para mostrar de inmediato
             "video":        video_data,
-            "fotos_urls":   fotos_urls_csv,
-            "video_url":    video_url_str,
+            "fotos_b64":    fotos_b64_list,  # b64 para Sheets y portada
+            "fotos_urls":   "",              # legacy vacío
+            "video_url":    video_ref,       # "sqlite:<pub_id>"
             "grad":         0,
             "estado":       "Activo",
             "isUserPub":    True,
@@ -1952,18 +1890,16 @@ def page_publish():
 
         st.session_state.selected_vehicle = new_pub
         ok = save_section_silent(["publicaciones", "historial"])
-        media_msg = " · 📸 Fotos guardadas" if fotos_urls_csv else ""
+        media_msg = f" · 📸 {len(fotos_b64_list)} foto(s) guardada(s)" if fotos_b64_list else ""
 
-        # Guardar en hoja Vehículos (solo la fila nueva, sin tocar el catálogo)
         _veh_ok, _veh_msg = _upsert_vehiculo_in_sheets(new_pub)
         if not _veh_ok:
             st.warning(f"⚠️ No se guardó en hoja Vehículos: {_veh_msg}")
 
-        # ── Enviar correo al administrador ───────────────────────────────────
         _email_msg = ""
         try:
             from media_sync import send_nueva_publicacion_email, get_portada_data_uri
-            _portada_uri = get_portada_data_uri(new_pub, max_w=400) if new_pub.get("fotos") or new_pub.get("fotos_urls") else ""
+            _portada_uri = get_portada_data_uri(new_pub, max_w=400) if fotos_b64_list else ""
             _email_ok = send_nueva_publicacion_email(ADMIN_EMAIL, new_pub, _portada_uri)
             _email_msg = " · ✉️ Correo enviado" if _email_ok else " · ⚠️ Correo no enviado"
         except Exception as _em:

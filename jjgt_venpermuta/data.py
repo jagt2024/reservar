@@ -462,9 +462,7 @@ def _df_to_resenas(df: pd.DataFrame) -> list:
 def _df_to_publicaciones(df: pd.DataFrame) -> list:
     """
     Convierte la hoja PUBLICACIONES en lista de vehículos con isUserPub=True.
-    Columnas: ID Pub, Vehiculo, Año, Precio, Tipo Aviso, Estado Pub,
-              Vendedor, Correo Vendedor, Celular Vendedor, Ciudad,
-              Fotos URLs, Video URL
+    Lee columnas individuales "Foto 1 b64".."Foto 10 b64" y "Video Ref".
     """
     if df is None or df.empty:
         return []
@@ -485,13 +483,19 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
         if not vehiculo:
             continue
 
-        # Separar marca y modelo del campo Vehiculo (ej: "ford explorer")
         partes = vehiculo.split(" ", 1)
         marca  = partes[0].capitalize() if partes else vehiculo
         modelo = partes[1] if len(partes) > 1 else ""
 
-        fotos_urls = str(g(row, "Fotos URLs", "fotos_urls", default="")).strip()
-        video_url  = str(g(row, "Video URL",  "video_url",  default="")).strip()
+        # Leer columnas individuales de fotos (base64 puro)
+        fotos_b64 = []
+        for n in range(1, 11):
+            val = str(g(row, f"Foto {n} b64", f"Foto {n}", default="")).strip()
+            if val:
+                fotos_b64.append(val)
+
+        # Video Ref: "sqlite:<pub_id>" o ruta legacy
+        video_ref = str(g(row, "Video Ref", "Video URL", "video_url", default="")).strip()
 
         out.append({
             "id":           pid,
@@ -513,10 +517,11 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
             "seller":       str(g(row, "Vendedor", default="—")),
             "phone":        str(g(row, "Celular Vendedor", "Celular", default="")),
             "seller_phone": str(g(row, "Celular Vendedor", "Celular", default="")),
-            "seller_email": str(g(row, "Correo Vendedor",  "Correo",  default="")),
+            "seller_email": str(g(row, "Correo Vendedor", "Correo", default="")),
             "grad":         i % GRAD_N,
-            "fotos_urls":   fotos_urls,
-            "video_url":    video_url,
+            "fotos_b64":    fotos_b64,   # lista de b64 strings puros
+            "fotos_urls":   "",          # legacy — ya no se usa
+            "video_url":    video_ref,
             "fotos":        [],
             "video":        None,
             "isUserPub":    True,
@@ -527,61 +532,58 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
 
 def _reconstruir_media_local(vehicles: list) -> list:
     """
-    Para cada vehículo con fotos_urls o video_url, reconstruye las referencias
-    de media en memoria:
-      - b64:<base64>  → decodifica y construye data_uri  (fotos en Sheets)
-      - ruta absoluta → lee bytes del disco (/tmp o local)
-      - ruta relativa → intenta resolverla desde /tmp y script dir
+    Reconstruye fotos y video en memoria para cada vehículo.
+
+    FOTOS: lee la lista fotos_b64 (base64 puro por foto) → data_uri.
+    VIDEO: lee desde SQLite si la referencia es "sqlite:<pub_id>".
     """
     from media_sync import (
-        _is_b64_ref, _bytes_from_b64_ref,
-        _leer_local, _a_data_uri,
+        _b64_to_data_uri, _is_sqlite_ref, _pub_id_from_sqlite_ref,
+        _leer_video_sqlite, _leer_local, _a_data_uri,
     )
     import os
+
     for v in vehicles:
-        fotos_csv = (v.get("fotos_urls") or "").strip()
-        video_url = (v.get("video_url")  or "").strip()
-        if not fotos_csv and not video_url:
-            continue
+        fotos_b64 = v.get("fotos_b64") or []
+        video_url = (v.get("video_url") or "").strip()
 
         # ── Fotos ──────────────────────────────────────────────────────────
-        fotos = []
-        for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-            if _is_b64_ref(ref):
-                # Foto almacenada como base64 en Sheets — siempre disponible
-                raw = _bytes_from_b64_ref(ref)
-                uri = _a_data_uri(raw, 800) if raw else ""
+        if fotos_b64:
+            fotos = []
+            for idx, b64 in enumerate(fotos_b64):
+                if not b64:
+                    continue
+                uri = _b64_to_data_uri(b64)
                 if uri:
                     fotos.append({
-                        "name":     "foto.jpg",
-                        "bytes":    raw,
-                        "path":     ref,
+                        "name":     f"foto_{idx+1}.jpg",
+                        "bytes":    None,
+                        "path":     f"b64_col_{idx+1}",
                         "data_uri": uri,
                     })
-            else:
-                # Ruta absoluta (/tmp/...) o relativa
-                raw = _leer_local(ref)
-                if raw:
-                    fotos.append({
-                        "name":     os.path.basename(ref),
-                        "bytes":    raw,
-                        "path":     ref,
-                        "data_uri": _a_data_uri(raw, 800),
-                    })
-        if fotos:
-            v["fotos"] = fotos
+            if fotos:
+                v["fotos"] = fotos
 
         # ── Video ───────────────────────────────────────────────────────────
         if video_url:
-            raw = _leer_local(video_url)
-            if raw:
-                v["video"] = {
-                    "name":  os.path.basename(video_url),
-                    "bytes": raw,
-                    "path":  video_url,
-                }
-            # Si no se encuentra en disco (reboot), video queda None
-            # y no se mostrará hasta que se vuelva a subir en esta sesión
+            if _is_sqlite_ref(video_url):
+                pid   = _pub_id_from_sqlite_ref(video_url)
+                raw_v, nombre_v = _leer_video_sqlite(pid)
+                if raw_v:
+                    v["video"] = {
+                        "name":  nombre_v or "video.mp4",
+                        "bytes": raw_v,
+                        "path":  video_url,
+                    }
+            else:
+                # Compatibilidad con referencias legacy (rutas locales)
+                raw_v = _leer_local(video_url)
+                if raw_v:
+                    v["video"] = {
+                        "name":  os.path.basename(video_url),
+                        "bytes": raw_v,
+                        "path":  video_url,
+                    }
 
     return vehicles
 
