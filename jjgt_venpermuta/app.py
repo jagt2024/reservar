@@ -616,19 +616,33 @@ def sidebar():
                         st.caption(e)
                 pubs = st.session_state.get("user_publications", [])
                 if pubs:
-                    st.markdown("**Fotos en publicaciones:**")
+                    st.markdown("**Detalle por publicacion:**")
                     for p in pubs[:5]:
-                        fb = p.get("fotos_b64") or []
-                        fo = p.get("fotos") or []
+                        fb  = p.get("fotos_b64") or []
+                        fo  = p.get("fotos") or []
                         pid = p.get("id","?")
-                        tipos = []
-                        for r in fb:
-                            if isinstance(r, str):
-                                if r.startswith("gdrive:"):
-                                    tipos.append("drive")
-                                else:
-                                    tipos.append(f"b64({len(r)}c)")
-                        st.caption(f"ID:{pid} refs:{len(fb)} [{', '.join(tipos[:3])}] mem:{len(fo)}")
+                        st.markdown(f"**ID:** `{pid}` | refs:{len(fb)} | fotos_mem:{len(fo)}")
+                        for i, r in enumerate(fb[:3]):
+                            if not r:
+                                st.caption(f"  foto_{i+1}: VACÍA")
+                            elif r.startswith("gdrive:"):
+                                fid = r[7:]
+                                # Intentar descargar y ver si funciona
+                                try:
+                                    from media_sync import _leer_de_drive, _get_drive_service
+                                    raw = _leer_de_drive(fid)
+                                    if raw:
+                                        st.caption(f"  foto_{i+1}: ✅ gdrive:{fid[:20]}... ({len(raw)} bytes)")
+                                    else:
+                                        st.caption(f"  foto_{i+1}: ❌ gdrive:{fid[:20]}... (sin bytes)")
+                                except Exception as _fe:
+                                    st.caption(f"  foto_{i+1}: ❌ gdrive error: {_fe}")
+                            else:
+                                st.caption(f"  foto_{i+1}: b64 puro ({len(r)} chars)")
+                        if fo:
+                            for i, f_ in enumerate(fo[:2]):
+                                uri = f_.get("data_uri","")
+                                st.caption(f"  fotos_mem[{i}]: data_uri={'SI' if uri else 'NO'} ({len(uri)} chars)")
                 else:
                     st.caption("Sin publicaciones cargadas")
 
