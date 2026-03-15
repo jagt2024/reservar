@@ -676,12 +676,10 @@ def sidebar():
                                     st.caption(f"  foto_{i+1}: ❌ gdrive error: {_fe}")
                             else:
                                 st.caption(f"  foto_{i+1}: b64 puro ({len(r)} chars)")
-                        if fo:
-                            for i, f_ in enumerate(fo[:2]):
-                                uri = f_.get("data_uri","")
-                                _uri2 = f_.get("data_uri","")
-                        _prev = _uri2[:60].replace("\n","") if _uri2 else ""
-                        st.caption(f"  fotos_mem[{i}]: uri={'SI' if _uri2 else 'NO'} ({len(_uri2)}c) inicio={_prev!r}")
+                        for fi2, f_ in enumerate(fo[:2]):
+                            _u = str(f_.get("data_uri",""))
+                            _p = _u[:60] if _u else ""
+                            st.caption(f"  mem[{fi2}]: {len(_u)}c inicio={_p!r}")
                 else:
                     st.caption("Sin publicaciones cargadas")
 
