@@ -463,7 +463,9 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
     if fotos_b64 and fotos_b64[0]:
         ref = fotos_b64[0]
         if _is_drive_ref(ref):
-            return _thumbnail_url_drive(_file_id_from_ref(ref), size=max_w)
+            raw = _leer_de_drive(_file_id_from_ref(ref))
+            if raw:
+                return _bytes_a_uri(raw)
         return _b64_to_data_uri(ref)
 
     # 4 — session_state cache (subida reciente)
@@ -473,7 +475,9 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
         if refs:
             ref = refs[0]
             if _is_drive_ref(ref):
-                return _thumbnail_url_drive(_file_id_from_ref(ref), size=max_w)
+                raw = _leer_de_drive(_file_id_from_ref(ref))
+                if raw:
+                    return _bytes_a_uri(raw)
             return _b64_to_data_uri(ref)
 
     return ""
@@ -486,11 +490,9 @@ def get_portada_data_uri(v: dict, max_w: int = 400) -> str:
 def show_fotos(fotos: list, cols: int = 3, v: dict = None):
     """
     Muestra las fotos de un vehículo en columnas.
-    Soporta data_uri, bytes, y URLs públicas de Drive.
-    FIX v7.0: si fotos[] está vacío, reconstruye desde fotos_b64 del vehículo
-    (que puede contener refs "gdrive:<id>" o b64 puro).
+    FIX v7.1: si fotos[] está vacío, reconstruye desde fotos_b64 del vehículo.
+    Para refs gdrive: descarga bytes y convierte a data URI para evitar CORS.
     """
-    # Fallback: reconstruir desde fotos_b64 si fotos está vacío
     if not fotos and v:
         fotos_b64 = v.get("fotos_b64") or []
         fotos = []
@@ -498,19 +500,18 @@ def show_fotos(fotos: list, cols: int = 3, v: dict = None):
             if not ref:
                 continue
             if _is_drive_ref(ref):
-                fotos.append({
-                    "drive_url": _thumbnail_url_drive(_file_id_from_ref(ref), size=800),
-                    "name": f"foto_{i+1}.jpg",
-                })
+                raw = _leer_de_drive(_file_id_from_ref(ref))
+                uri = _a_data_uri(raw, 800) if raw else ""
             else:
-                fotos.append({"data_uri": _b64_to_data_uri(ref), "name": f"foto_{i+1}.jpg"})
+                uri = _b64_to_data_uri(ref)
+            if uri:
+                fotos.append({"data_uri": uri, "name": f"foto_{i+1}.jpg"})
     if not fotos:
         return
     columnas = st.columns(min(len(fotos), cols))
     for i, foto in enumerate(fotos):
         with columnas[i % cols]:
-            # Prioridad: drive_url > data_uri > bytes
-            src = foto.get("drive_url") or foto.get("data_uri") or ""
+            src = foto.get("data_uri") or ""
             if not src and foto.get("bytes"):
                 src = _a_data_uri(foto["bytes"])
             if src:

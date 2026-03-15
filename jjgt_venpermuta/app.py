@@ -595,20 +595,40 @@ def sidebar():
             '<div style="text-align:center;font-size:10px;color:#9999BB;padding-top:8px;">'
             'JJGT v4.0 · Colombia 🇨🇴</div>', unsafe_allow_html=True)
 
-        # Panel de diagnóstico de media (solo cuando hay errores)
-        debug_info = st.session_state.get("_media_debug", [])
-        if debug_info:
-            with st.expander(f"🔍 Debug media ({len(debug_info)} errores)", expanded=True):
-                import os as _os
-                st.caption(f"cwd: {_os.getcwd()}")
-                for d in debug_info[:5]:
-                    st.caption(
-                        f"ID: {d.get('pub_id','?')}\n"
-                        f"Ruta: {d.get('ruta','?')}\n"
-                        f"Existe: {d.get('existe', False)}\n"
-                        f"Abs: {d.get('abs','?')}\n"
-                        f"CWD: {d.get('cwd','?')}",
-                    )
+        # ── Panel de diagnóstico de media (admin) ──────────────────────────
+        if _es_admin:
+            with st.expander("🔍 Diagnóstico de fotos", expanded=False):
+                try:
+                    from media_sync import _get_drive_service
+                    svc = _get_drive_service()
+                    if svc:
+                        st.success("✅ Google Drive: conectado")
+                    else:
+                        st.error("❌ Google Drive: sin conexión")
+                except Exception as _de:
+                    st.error(f"❌ Drive error: {_de}")
+                drive_errs = st.session_state.get("_drive_upload_errors", [])
+                if drive_errs:
+                    st.warning("⚠️ Errores subida Drive:")
+                    for e in drive_errs[-3:]:
+                        st.caption(e)
+                pubs = st.session_state.get("user_publications", [])
+                if pubs:
+                    st.markdown("**Fotos en publicaciones:**")
+                    for p in pubs[:5]:
+                        fb = p.get("fotos_b64") or []
+                        fo = p.get("fotos") or []
+                        pid = p.get("id","?")
+                        tipos = []
+                        for r in fb:
+                            if isinstance(r, str):
+                                if r.startswith("gdrive:"):
+                                    tipos.append("drive")
+                                else:
+                                    tipos.append(f"b64({len(r)}c)")
+                        st.caption(f"ID:{pid} refs:{len(fb)} [{', '.join(tipos[:3])}] mem:{len(fo)}")
+                else:
+                    st.caption("Sin publicaciones cargadas")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -835,22 +855,24 @@ def page_vehicle_detail():
         # Fuente de verdad: fotos[] en RAM (cargados por _reconstruir_media_local)
         # Fallback: fotos_b64 list y session_state cache
         # ══════════════════════════════════════════════════════════════════════
-        from media_sync import _b64_to_data_uri, _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive
+        from media_sync import _b64_to_data_uri, _is_drive_ref, _file_id_from_ref, _leer_de_drive, _a_data_uri
 
         img_items = []
 
         def _ref_to_src(ref: str) -> str:
+            """Convierte un ref (gdrive: o b64 puro) en data URI."""
             if not ref:
                 return ""
             if _is_drive_ref(ref):
-                return _thumbnail_url_drive(_file_id_from_ref(ref), size=800)
+                raw = _leer_de_drive(_file_id_from_ref(ref))
+                return _a_data_uri(raw, 800) if raw else ""
             return _b64_to_data_uri(ref)
 
-        # 1. data_uri / drive_url ya en memoria (fotos[] cargados por _reconstruir)
+        # 1. data_uri ya en memoria (fotos[] cargados por _reconstruir)
         for fi in (fotos or []):
             if not isinstance(fi, dict):
                 continue
-            src = fi.get("drive_url") or fi.get("data_uri") or ""
+            src = fi.get("data_uri") or ""
             if not src and fi.get("bytes"):
                 try:
                     from PIL import Image as _PIL

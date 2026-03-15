@@ -535,14 +535,15 @@ def _reconstruir_media_local(vehicles: list) -> list:
     Reconstruye fotos y video en memoria para cada vehículo.
 
     FOTOS: lee la lista fotos_b64 (puede contener "gdrive:<id>" o b64 puro).
-      - "gdrive:<id>" → data_uri = URL pública de miniatura de Drive.
-      - b64 puro      → data_uri = "data:image/jpeg;base64,<b64>".
+      - "gdrive:<id>" → descarga bytes desde Drive → convierte a data URI base64.
+                        Esto evita problemas de CORS al mostrar URLs de Drive en <img>.
+      - b64 puro      → convierte directamente a "data:image/jpeg;base64,<b64>".
     VIDEO: lee desde SQLite si la referencia es "sqlite:<pub_id>".
     """
     from media_sync import (
         _b64_to_data_uri, _is_sqlite_ref, _pub_id_from_sqlite_ref,
         _leer_video_sqlite, _leer_local, _a_data_uri,
-        _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
+        _is_drive_ref, _file_id_from_ref, _leer_de_drive,
     )
     import os
 
@@ -557,16 +558,17 @@ def _reconstruir_media_local(vehicles: list) -> list:
                 if not ref:
                     continue
                 if _is_drive_ref(ref):
-                    # URL pública de Drive — no requiere bytes ni b64 en RAM
-                    fid      = _file_id_from_ref(ref)
-                    thumb    = _thumbnail_url_drive(fid, size=800)
-                    fotos.append({
-                        "name":      f"foto_{idx+1}.jpg",
-                        "bytes":     None,
-                        "path":      ref,
-                        "data_uri":  thumb,   # URL directa, funciona en <img>
-                        "drive_url": thumb,
-                    })
+                    # Descarga bytes desde Drive y convierte a data URI
+                    fid  = _file_id_from_ref(ref)
+                    raw  = _leer_de_drive(fid)
+                    uri  = _a_data_uri(raw, 800) if raw else ""
+                    if uri:
+                        fotos.append({
+                            "name":     f"foto_{idx+1}.jpg",
+                            "bytes":    raw,
+                            "path":     ref,
+                            "data_uri": uri,
+                        })
                 else:
                     # Base64 puro (fallback sin Drive)
                     uri = _b64_to_data_uri(ref)
