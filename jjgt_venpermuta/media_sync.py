@@ -56,7 +56,11 @@ def _retry(fn, *args, **kwargs):
 
 
 def _get_drive_service():
-    """Devuelve cliente Drive autenticado (cachea en session_state)."""
+    """
+    Devuelve cliente Drive autenticado (cachea en session_state).
+    Usa los mismos scopes amplios que gspread para no tener conflictos.
+    Registra el error en session_state["_drive_init_error"] para diagnostico.
+    """
     svc = st.session_state.get("_drive_service")
     if svc:
         return svc
@@ -66,13 +70,20 @@ def _get_drive_service():
         from data import load_credentials_from_toml
         creds_dict, _ = load_credentials_from_toml()
         if not creds_dict:
+            st.session_state["_drive_init_error"] = "load_credentials_from_toml devolvio None"
             return None
-        creds = Credentials.from_service_account_info(
-            creds_dict, scopes=["https://www.googleapis.com/auth/drive"])
-        svc = build("drive", "v3", credentials=creds, cache_discovery=False)
-        st.session_state._drive_service = svc
+        _SCOPES_DRIVE = [
+            "https://www.googleapis.com/auth/drive",
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/spreadsheets",
+        ]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=_SCOPES_DRIVE)
+        svc   = build("drive", "v3", credentials=creds, cache_discovery=False)
+        st.session_state._drive_service      = svc
+        st.session_state["_drive_init_error"] = None
         return svc
-    except Exception:
+    except Exception as e:
+        st.session_state["_drive_init_error"] = str(e)
         return None
 
 

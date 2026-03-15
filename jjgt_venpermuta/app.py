@@ -604,12 +604,14 @@ def sidebar():
                     if svc:
                         st.success("✅ Google Drive: conectado")
                     else:
-                        st.error("❌ Google Drive: sin conexión")
+                        err = st.session_state.get("_drive_init_error") or "Sin detalle"
+                        st.error(f"❌ Google Drive: sin conexion")
+                        st.caption(f"Error: {err}")
                 except Exception as _de:
-                    st.error(f"❌ Drive error: {_de}")
+                    st.error(f"❌ Drive excepcion: {_de}")
                 drive_errs = st.session_state.get("_drive_upload_errors", [])
                 if drive_errs:
-                    st.warning("⚠️ Errores subida Drive:")
+                    st.warning("Errores subida Drive:")
                     for e in drive_errs[-3:]:
                         st.caption(e)
                 pubs = st.session_state.get("user_publications", [])
