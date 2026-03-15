@@ -392,40 +392,57 @@ def _get_portada_url(v: dict):
 def _get_portada_bytes(v: dict):
     """
     Retorna io.BytesIO de la portada para usar con st.image().
-    Prioridad: bytes RAM → data_uri RAM → fotos_b64[0] (gdrive: o b64).
+    Prioridad: bytes RAM → data_uri RAM → fotos_b64[0] (gdrive: o b64 puro).
     """
     import base64 as _b64lib
     from media_sync import _is_drive_ref, _file_id_from_ref, _leer_de_drive
 
-    # 1. bytes directos en fotos[]
+    def _uri_to_bytes(uri: str):
+        """data:image/jpeg;base64,<B64> → bytes o None."""
+        if not uri or "base64," not in uri:
+            return None
+        try:
+            b64_part = uri.split("base64,", 1)[1].strip()
+            if len(b64_part) < 10:
+                return None
+            return _b64lib.b64decode(b64_part)
+        except Exception:
+            return None
+
+    def _b64str_to_bytes(s: str):
+        """b64 puro (sin prefijo) → bytes o None."""
+        if not s or len(s) < 10:
+            return None
+        try:
+            return _b64lib.b64decode(s)
+        except Exception:
+            return None
+
+    # 1. bytes o data_uri en fotos[] RAM
     for f in (v.get("fotos") or []):
-        if isinstance(f, dict):
-            raw = f.get("bytes")
+        if not isinstance(f, dict):
+            continue
+        raw = f.get("bytes")
+        if raw and len(raw) > 100:
+            return io.BytesIO(raw)
+        raw = _uri_to_bytes(f.get("data_uri") or "")
+        if raw:
+            return io.BytesIO(raw)
+
+    # 2. fotos_b64[0] — puede ser gdrive: ref o b64 puro
+    for ref in (v.get("fotos_b64") or []):
+        if not ref or len(ref) <= 1:
+            continue
+        if _is_drive_ref(ref):
+            raw = _leer_de_drive(_file_id_from_ref(ref))
             if raw:
                 return io.BytesIO(raw)
-            uri = f.get("data_uri") or ""
-            if uri and len(uri) > 30 and "base64," in uri:
-                try:
-                    raw = _b64lib.b64decode(uri.split("base64,", 1)[1])
-                    return io.BytesIO(raw)
-                except Exception:
-                    pass
+        else:
+            raw = _b64str_to_bytes(ref)
+            if raw:
+                return io.BytesIO(raw)
+        break  # solo intentar la primera foto
 
-    # 2. fotos_b64[0] del dict
-    refs = v.get("fotos_b64") or []
-    if refs:
-        ref = refs[0]
-        if ref and len(ref) > 1:
-            if _is_drive_ref(ref):
-                raw = _leer_de_drive(_file_id_from_ref(ref))
-                if raw:
-                    return io.BytesIO(raw)
-            else:
-                try:
-                    raw = _b64lib.b64decode(ref)
-                    return io.BytesIO(raw)
-                except Exception:
-                    pass
     return None
 
 
@@ -913,6 +930,8 @@ def page_vehicle_detail():
         # ── Construir lista de imágenes como bytes (para st.image) ──────────
         img_bytes_list = []  # lista de io.BytesIO listos para st.image()
 
+        import base64 as _b64lib
+
         def _ref_to_bytes(ref: str):
             """Ref (gdrive: o b64 puro) → io.BytesIO o None."""
             if not ref or len(ref) <= 1:
@@ -921,29 +940,33 @@ def page_vehicle_detail():
                 raw = _leer_de_drive(_file_id_from_ref(ref))
                 return io.BytesIO(raw) if raw else None
             try:
-                import base64 as _b64lib
                 raw = _b64lib.b64decode(ref)
-                return io.BytesIO(raw)
+                return io.BytesIO(raw) if len(raw) > 100 else None
             except Exception:
                 return None
 
-        # 1. bytes en RAM (fotos[] cargados al publicar o por _reconstruir)
+        def _uri_to_bytes(uri: str):
+            """data:image/...;base64,<B64> → io.BytesIO o None."""
+            if not uri or "base64," not in uri:
+                return None
+            try:
+                b64_part = uri.split("base64,", 1)[1].strip()
+                raw = _b64lib.b64decode(b64_part)
+                return io.BytesIO(raw) if len(raw) > 100 else None
+            except Exception:
+                return None
+
+        # 1. bytes o data_uri en RAM (fotos[] cargados al publicar o _reconstruir)
         for fi in (fotos or []):
             if not isinstance(fi, dict):
                 continue
             raw = fi.get("bytes")
-            if raw:
+            if raw and len(raw) > 100:
                 img_bytes_list.append(io.BytesIO(raw))
                 continue
-            # data_uri en RAM → decodificar a bytes
-            uri = fi.get("data_uri") or ""
-            if uri and len(uri) > 30 and "base64," in uri:
-                try:
-                    import base64 as _b64lib
-                    raw = _b64lib.b64decode(uri.split("base64,", 1)[1])
-                    img_bytes_list.append(io.BytesIO(raw))
-                except Exception:
-                    pass
+            buf = _uri_to_bytes(fi.get("data_uri") or "")
+            if buf:
+                img_bytes_list.append(buf)
 
         # 2. fotos_b64 del dict (gdrive: refs o b64 puro de Sheets)
         if not img_bytes_list:

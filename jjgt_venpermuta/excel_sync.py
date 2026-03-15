@@ -177,10 +177,7 @@ def _row_perm(p: dict) -> dict:
 
 def _row_pub(p: dict) -> dict:
     nombre    = f"{p.get('name','')} {p.get('model','')}".strip()
-    # fotos_b64 ahora contiene "gdrive:<file_id>" o base64 puro (fallback sin Drive).
-    # En ambos casos se guarda el valor directamente; los refs gdrive: son ~40 chars
-    # y nunca superan el límite de celda de Sheets.
-    fotos_b64 = p.get("fotos_b64") or []
+    fotos_b64 = p.get("fotos_b64") or []   # lista de b64 strings puros
     row = {
         "ID Pub":           _safe(p.get("id","")),
         "ID Veh":           _safe(p.get("id_veh", p.get("id",""))),
@@ -202,12 +199,19 @@ def _row_pub(p: dict) -> dict:
         "Visitas":          _safe(p.get("visitas",0)),
         "Favoritos":        _safe(p.get("favoritos",0)),
         "Descripcion":      _safe(p.get("desc","")),
-        "Video Ref":        _safe(p.get("video_url","")),
+        "Video Ref":        _safe(p.get("video_url","")),   # "sqlite:<pub_id>"
     }
     # Una columna por foto: "Foto 1 b64" … "Foto 10 b64"
-    # El nombre de columna se mantiene por compatibilidad con la hoja existente.
     for i in range(1, 11):
-        row[f"Foto {i} b64"] = _safe(fotos_b64[i-1] if i-1 < len(fotos_b64) else "")
+        val = fotos_b64[i-1] if i-1 < len(fotos_b64) else ""
+        # Protección: si val es lista/tupla anidada, sacar el primer elemento
+        if isinstance(val, (list, tuple)):
+            val = val[0] if val else ""
+        val = str(val).strip() if val else ""
+        # Descartar valores corruptos (1-2 chars, corchetes, comillas sueltas)
+        if len(val) <= 2 or val in ("[", "]", "[]", "'", '"'):
+            val = ""
+        row[f"Foto {i} b64"] = val
     return row
 
 def _row_hist(h: dict) -> dict:
@@ -539,15 +543,30 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
             to_insert.append(converted)
 
     # ── 7. UPDATEs: preserva columnas no cubiertas por el convertidor ────────
+    # Las columnas de fotos (b64 o gdrive refs) se escriben celda por celda
+    # para evitar que el payload total de la fila supere el limite de la API.
+    _FOTO_COLS = {f"Foto {i} b64" for i in range(1, 11)}
+
     updated = 0
     for sheet_row, converted in to_update:
         existing_row = list(all_vals[sheet_row - 1])
         while len(existing_row) < len(sheet_headers):
             existing_row.append("")
+
+        # Separar valores normales de columnas de foto
+        foto_updates  = {}   # col_name -> valor
+        otras_updates = {}   # col_name -> valor
         for col_name, new_val in converted.items():
+            if col_name in _FOTO_COLS:
+                foto_updates[col_name] = _safe(new_val)
+            else:
+                otras_updates[col_name] = _safe(new_val)
+
+        # Escribir columnas normales en una sola llamada
+        for col_name, new_val in otras_updates.items():
             pos = _col_pos(col_name)
             if pos is not None:
-                existing_row[pos] = _safe(new_val)
+                existing_row[pos] = new_val
         rng = f"A{sheet_row}:{_col_letter(len(existing_row)-1)}{sheet_row}"
         try:
             _api_call(ws.update, rng, [existing_row])
@@ -556,16 +575,73 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         except Exception as e:
             return False, f"Error actualizando fila {sheet_row} en '{ws_name}': {e}"
 
+        # Escribir cada columna de foto individualmente
+        for col_name, val in foto_updates.items():
+            if not val:
+                continue
+            pos = _col_pos(col_name)
+            if pos is None:
+                continue
+            cell = f"{_col_letter(pos)}{sheet_row}"
+            try:
+                _api_call(ws.update, cell, [[val]])
+                time.sleep(0.10)
+            except Exception as e:
+                # Loguear pero no abortar — la publicacion se guarda sin esa foto
+                errs = __import__("streamlit").session_state.setdefault("_sheets_foto_errors", [])
+                errs.append(f"{cell}: {str(e)[:120]}")
+
     # ── 8. INSERTs alineados con sheet_headers ───────────────────────────────
     rows_to_insert = []
     for converted in to_insert:
+        # Primero construir fila sin fotos
         new_row = [""] * len(sheet_headers)
+        foto_vals = {}
         for col_name, new_val in converted.items():
             pos = _col_pos(col_name)
             if pos is not None:
-                new_row[pos] = _safe(new_val)
-        rows_to_insert.append(new_row)
-    inserted = _append_chunks(ws, rows_to_insert)
+                if col_name in _FOTO_COLS:
+                    foto_vals[col_name] = _safe(new_val)
+                else:
+                    new_row[pos] = _safe(new_val)
+        rows_to_insert.append((new_row, foto_vals))
+
+    # Insertar filas (sin fotos)
+    inserted = _append_chunks(ws, [r for r, _ in rows_to_insert])
+
+    # Escribir fotos en las filas recién insertadas, celda por celda
+    if rows_to_insert:
+        try:
+            all_vals_new = _api_call(ws.get_all_values)
+            data_new     = all_vals_new[1:]
+            pk_map_new   = {}
+            for i, row in enumerate(data_new):
+                val = str(row[pk_col_idx]).strip() if pk_col_idx < len(row) else ""
+                if val:
+                    pk_map_new[val] = i + DATA_START
+        except Exception:
+            all_vals_new, pk_map_new = [], {}
+
+        for converted_full in to_insert:
+            pk_val = str(_safe(converted_full.get(pk_col, ""))).strip()
+            sheet_row_new = pk_map_new.get(pk_val)
+            if not sheet_row_new:
+                continue
+            for i in range(1, 11):
+                col_name = f"Foto {i} b64"
+                val = _safe(converted_full.get(col_name, ""))
+                if not val:
+                    continue
+                pos = _col_pos(col_name)
+                if pos is None:
+                    continue
+                cell = f"{_col_letter(pos)}{sheet_row_new}"
+                try:
+                    _api_call(ws.update, cell, [[val]])
+                    time.sleep(0.10)
+                except Exception as e:
+                    errs = __import__("streamlit").session_state.setdefault("_sheets_foto_errors", [])
+                    errs.append(f"INSERT {cell}: {str(e)[:120]}")
 
     msg = f"'{ws_name}': {updated} actualizadas · {inserted} nuevas"
     return True, msg
