@@ -527,17 +527,11 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
 
 def _reconstruir_media_local(vehicles: list) -> list:
     """
-    Para cada vehículo con fotos_urls o video_url, reconstruye las referencias
-    de media soportando gdrive:<id>, b64:<base64> y rutas locales.
-    - gdrive:<id>  → preview_url con thumbnail público (sin descargar bytes)
-    - b64:<base64> → decodifica y construye data_uri en memoria
-    - ruta local   → lee bytes del disco (solo entornos de desarrollo)
+    Para cada vehículo con fotos_urls o video_url, lee los archivos
+    desde JJGT_Media/ (relativo al directorio del script) y carga
+    los bytes en memoria como data_uri para mostrar en la galería.
     """
-    from media_sync import (
-        _is_drive_ref, _is_b64_ref, _file_id_from_ref,
-        _bytes_from_b64_ref, _thumbnail_url_drive,
-        _leer_local, _a_data_uri,
-    )
+    from media_sync import _leer_local, _a_data_uri
     import os
     for v in vehicles:
         fotos_csv = (v.get("fotos_urls") or "").strip()
@@ -548,61 +542,26 @@ def _reconstruir_media_local(vehicles: list) -> list:
         # ── Fotos ──────────────────────────────────────────────────────────
         fotos = []
         for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-            if _is_drive_ref(ref):
-                fid         = _file_id_from_ref(ref)
-                preview_url = _thumbnail_url_drive(fid, size=800)
+            raw = _leer_local(ref)
+            if raw:
                 fotos.append({
-                    "name":        fid,
-                    "bytes":       None,
-                    "path":        ref,
-                    "preview_url": preview_url,
-                    "data_uri":    preview_url,
+                    "name":     os.path.basename(ref),
+                    "bytes":    raw,
+                    "path":     ref,
+                    "data_uri": _a_data_uri(raw, 800),
                 })
-            elif _is_b64_ref(ref):
-                raw = _bytes_from_b64_ref(ref)
-                uri = _a_data_uri(raw, 800) if raw else ""
-                if uri:
-                    fotos.append({
-                        "name":     "portada.jpg",
-                        "bytes":    raw,
-                        "path":     ref,
-                        "data_uri": uri,
-                    })
-            else:
-                raw = _leer_local(ref)
-                if raw:
-                    fotos.append({
-                        "name":     os.path.basename(ref),
-                        "bytes":    raw,
-                        "path":     ref,
-                        "data_uri": _a_data_uri(raw, 800),
-                    })
         if fotos:
             v["fotos"] = fotos
 
         # ── Video ───────────────────────────────────────────────────────────
         if video_url:
-            if _is_drive_ref(video_url):
-                fid       = _file_id_from_ref(video_url)
-                embed_url = f"https://drive.google.com/file/d/{fid}/preview"
+            raw = _leer_local(video_url)
+            if raw:
                 v["video"] = {
-                    "name":      fid,
-                    "bytes":     None,
-                    "path":      video_url,
-                    "embed_url": embed_url,
+                    "name":  os.path.basename(video_url),
+                    "bytes": raw,
+                    "path":  video_url,
                 }
-            elif _is_b64_ref(video_url):
-                raw = _bytes_from_b64_ref(video_url)
-                if raw:
-                    v["video"] = {"name": "video.mp4", "bytes": raw, "path": video_url}
-            else:
-                raw = _leer_local(video_url)
-                if raw:
-                    v["video"] = {
-                        "name":  os.path.basename(video_url),
-                        "bytes": raw,
-                        "path":  video_url,
-                    }
 
     return vehicles
 

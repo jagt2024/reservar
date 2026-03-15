@@ -831,11 +831,8 @@ def page_vehicle_detail():
         go("explore")
         return
 
-    # Importar helpers de media una sola vez — disponibles en toda la función
-    from media_sync import (
-        _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
-        _is_b64_ref, _bytes_from_b64_ref, _a_data_uri, _leer_local,
-    )
+    # Importar helpers de media — disponibles en toda la función
+    from media_sync import _leer_local, _a_data_uri
 
     v = reconstruct_media(v)
 
@@ -872,42 +869,37 @@ def page_vehicle_detail():
     with col_m:
         # ══════════════════════════════════════════════════════════════════════
         # GALERÍA CON SLIDER AUTOMÁTICO (3 seg entre fotos)
-        # Fuente: fotos_urls (respeta orden actual, soporta gdrive: y b64:)
+        # Lee data_uri desde fotos[] (cargados por _reconstruir_media_local)
+        # o construye URIs leyendo los archivos de JJGT_Media/ directamente.
         # ══════════════════════════════════════════════════════════════════════
         img_items = []
-        fotos_csv = (v.get("fotos_urls") or "").strip()
 
-        if fotos_csv:
-            for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
-                if _is_drive_ref(ref):
-                    img_items.append(_thumbnail_url_drive(_file_id_from_ref(ref), size=900))
-                elif _is_b64_ref(ref):
-                    raw = _bytes_from_b64_ref(ref)
-                    uri = _a_data_uri(raw, 900) if raw else ""
-                    if uri:
-                        img_items.append(uri)
-                else:
+        # Prioridad 1: data_uri ya en memoria (cargados al inicio por _reconstruir)
+        for fi in (fotos or []):
+            if not isinstance(fi, dict):
+                continue
+            uri = fi.get("data_uri") or ""
+            if not uri and fi.get("bytes"):
+                try:
+                    from PIL import Image as _PIL
+                    buf = io.BytesIO()
+                    _PIL.open(io.BytesIO(fi["bytes"])).save(buf, format="JPEG", quality=82)
+                    import base64 as _b64m
+                    uri = ("data:image/jpeg;base64,"
+                           + _b64m.b64encode(buf.getvalue()).decode())
+                except Exception:
+                    pass
+            if uri:
+                img_items.append(uri)
+
+        # Prioridad 2: leer directamente desde fotos_urls si fotos[] está vacío
+        if not img_items:
+            fotos_csv = (v.get("fotos_urls") or "").strip()
+            if fotos_csv:
+                for ref in [r.strip() for r in fotos_csv.split(",") if r.strip()]:
                     raw = _leer_local(ref)
                     if raw:
                         img_items.append(_a_data_uri(raw, 900))
-        else:
-            # Fallback RAM (publicación recién creada sin fotos_urls aún)
-            for fi in (fotos or []):
-                if not isinstance(fi, dict):
-                    continue
-                uri = fi.get("data_uri") or fi.get("preview_url") or ""
-                if uri:
-                    img_items.append(uri)
-                elif fi.get("bytes"):
-                    try:
-                        from PIL import Image as _PIL
-                        buf = io.BytesIO()
-                        _PIL.open(io.BytesIO(fi["bytes"])).save(buf, format="JPEG", quality=82)
-                        import base64 as _b64m
-                        img_items.append("data:image/jpeg;base64,"
-                                         + _b64m.b64encode(buf.getvalue()).decode())
-                    except Exception:
-                        pass
 
         if img_items:
             n_fotos = len(img_items)
@@ -988,22 +980,17 @@ def page_vehicle_detail():
                 f'</div></div>', unsafe_allow_html=True)
 
         # ══════════════════════════════════════════════════════════════════════
-        # VIDEO — bytes RAM → embed_url Drive → local
+        # VIDEO — bytes RAM → leer desde JJGT_Media/
         # ══════════════════════════════════════════════════════════════════════
         video_mostrado = False
-        video_bytes    = video.get("bytes")     if isinstance(video, dict) else None
-        embed_url      = video.get("embed_url") if isinstance(video, dict) else None
+        video_bytes    = video.get("bytes") if isinstance(video, dict) else None
 
-        if not video_bytes and not embed_url:
+        if not video_bytes:
             vref = (v.get("video_url") or "").strip()
             if not vref and isinstance(video, dict):
                 vref = video.get("path", "")
             if vref:
-                if _is_drive_ref(vref):
-                    embed_url = (f"https://drive.google.com/file/d/"
-                                 f"{_file_id_from_ref(vref)}/preview")
-                else:
-                    video_bytes = _leer_local(vref)
+                video_bytes = _leer_local(vref)
 
         if video_bytes:
             try:
@@ -1012,14 +999,6 @@ def page_vehicle_detail():
             except Exception:
                 st.caption("⚠️ No se pudo reproducir el video.")
                 video_mostrado = True
-
-        if not video_mostrado and embed_url:
-            st.markdown(
-                f'<iframe src="{embed_url}" width="100%" height="300" '
-                f'allow="autoplay" '
-                f'style="border:none;border-radius:10px;margin-top:8px;">'
-                f'</iframe>',
-                unsafe_allow_html=True)
 
     with col_i:
         TIPO_L = {"venta": "🏷️ Venta", "permuta": "🔄 Permuta", "ambos": "🔄 Venta + Permuta"}
@@ -1593,13 +1572,11 @@ def page_vehicle_detail():
                 cols_f = st.columns(min(len(fotos_refs), 5))
                 for fi, ref in enumerate(fotos_refs):
                     with cols_f[fi % 5]:
-                        thumb = ""
-                        if _is_drive_ref(ref):
-                            thumb = _thumbnail_url_drive(
-                                _file_id_from_ref(ref), size=200)
-                        elif _is_b64_ref(ref):
-                            raw = _bytes_from_b64_ref(ref)
-                            thumb = _a_data_uri(raw, 200) if raw else ""
+                        # Generar miniatura leyendo el archivo local
+                        thumb  = ""
+                        raw_th = _leer_local(ref)
+                        if raw_th:
+                            thumb = _a_data_uri(raw_th, 200)
                         border = ("3px solid #F5A623" if fi == 0
                                   else "2px solid #333")
                         if thumb:
@@ -1658,7 +1635,7 @@ def page_vehicle_detail():
             if nuevas_fotos:
                 if st.button("📤 Subir fotos", key=f"btn_fotos_{pub_id}",
                              type="primary"):
-                    with st.spinner("Subiendo a Drive…"):
+                    with st.spinner("Guardando fotos…"):
                         try:
                             from media_sync import upload_media
                             data = []
@@ -1683,15 +1660,14 @@ def page_vehicle_detail():
             st.markdown("##### 🎥 Video actual")
             video_url_actual = (v.get("video_url") or "").strip()
             if video_url_actual:
-                if _is_drive_ref(video_url_actual):
-                    fid_v = _file_id_from_ref(video_url_actual)
-                    st.markdown(
-                        f'<iframe src="https://drive.google.com/file/d/{fid_v}/preview"'
-                        f' width="100%" height="160" allow="autoplay"'
-                        f' style="border:none;border-radius:8px;"></iframe>',
-                        unsafe_allow_html=True)
+                raw_v = _leer_local(video_url_actual)
+                if raw_v:
+                    try:
+                        st.video(io.BytesIO(raw_v))
+                    except Exception:
+                        st.caption(f"📁 {video_url_actual}")
                 else:
-                    st.caption(f"📁 {video_url_actual[:60]}")
+                    st.caption(f"📁 {video_url_actual}")
                 if st.button("❌ Eliminar video", key=f"del_video_{pub_id}",
                              type="secondary"):
                     _aplicar_media(nuevo_video_none=True)
@@ -1708,7 +1684,7 @@ def page_vehicle_detail():
             if nuevo_video:
                 if st.button("📤 Subir video", key=f"btn_video_{pub_id}",
                              type="primary"):
-                    with st.spinner("Subiendo video a Drive…"):
+                    with st.spinner("Guardando video…"):
                         try:
                             from media_sync import upload_media
                             nuevo_video.seek(0)
@@ -1902,20 +1878,15 @@ def page_publish():
 
         fotos_urls_csv = ""
         video_url_str  = ""
-        drive_ok = False
-        if st.session_state.get("_gs_client"):
-            with st.spinner("📤 Subiendo imágenes a Google Drive…"):
-                try:
-                    from media_sync import upload_media
-                    fotos_urls_csv, video_url_str = upload_media(
-                        new_id, fotos_data, video_data)
-                    drive_ok = True
-                except Exception as e_media:
-                    st.warning(f"⚠️ No se pudieron subir a Drive: {e_media}")
+        with st.spinner("💾 Guardando fotos y video…"):
+            try:
+                from media_sync import upload_media
+                fotos_urls_csv, video_url_str = upload_media(
+                    new_id, fotos_data, video_data)
+            except Exception as e_media:
+                st.warning(f"⚠️ No se pudieron guardar las fotos: {e_media}")
 
-        # Usar bytes originales — son los más confiables para mostrar de inmediato
-        # fotos_urls_csv queda guardado para reconstruir en recargas futuras
-        fotos_con_preview = fotos_data  # bytes ya leídos del archivo subido
+        fotos_con_preview = fotos_data  # bytes en RAM para mostrar de inmediato
 
         new_pub = {
             "id":           new_id,
@@ -1969,7 +1940,7 @@ def page_publish():
 
         st.session_state.selected_vehicle = new_pub
         ok = save_section_silent(["publicaciones", "historial"])
-        media_msg = " · 📸 Imágenes en Drive" if drive_ok else ""
+        media_msg = " · 📸 Fotos guardadas" if fotos_urls_csv else ""
 
         # Guardar en hoja Vehículos (solo la fila nueva, sin tocar el catálogo)
         _veh_ok, _veh_msg = _upsert_vehiculo_in_sheets(new_pub)

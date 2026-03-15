@@ -92,25 +92,35 @@ def _a_data_uri(raw: bytes, max_w: int = 600) -> str:
     return f"data:image/jpeg;base64,{b64}"
 
 
-# ─── Rutas locales (caché / fallback sin Drive) ───────────────────────────────
+# ─── Rutas locales ────────────────────────────────────────────────────────────
+# Base fija: carpeta donde vive media_sync.py → jjgt_venpermuta/JJGT_Media/
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 def _pub_dir(pub_id: str) -> str:
-    path = os.path.join(os.getcwd(), MEDIA_DIR, str(pub_id))
+    path = os.path.join(_SCRIPT_DIR, MEDIA_DIR, str(pub_id))
     os.makedirs(path, exist_ok=True)
     return path
 
 
 def _guardar_local(pub_id: str, nombre: str, data: bytes) -> str:
-    """Guarda bytes localmente y retorna ruta relativa JJGT_Media/pub_id/nombre."""
+    """Guarda bytes en JJGT_Media/<pub_id>/<nombre> y retorna ruta relativa."""
     carpeta  = _pub_dir(pub_id)
     filepath = os.path.join(carpeta, nombre)
     with open(filepath, "wb") as f:
         f.write(data)
+    # Ruta relativa usando "/" para portabilidad
     return f"JJGT_Media/{pub_id}/{nombre}"
 
 
 def _leer_local(ruta: str) -> bytes | None:
-    """Lee bytes de una ruta local. Soporta rutas absolutas y relativas."""
+    """
+    Lee bytes de una ruta local.
+    Orden de resolución:
+      1. Ruta absoluta tal cual
+      2. Relativa al directorio del script (jjgt_venpermuta/)
+      3. Relativa al cwd actual
+      4. Segmento JJGT_Media/... buscado en script dir y cwd
+    """
     if not ruta:
         return None
     ruta = ruta.strip()
@@ -124,23 +134,32 @@ def _leer_local(ruta: str) -> bytes | None:
             pass
         return None
 
+    # 1. Absoluta
     r = _abrir(ruta)
     if r:
         return r
 
-    ruta_norm = os.path.normpath(ruta.replace("/", os.sep))
-    r = _abrir(ruta_norm)
+    # 2. Relativa al directorio del script (más confiable en producción)
+    r = _abrir(os.path.join(_SCRIPT_DIR, ruta))
     if r:
         return r
 
+    # 3. Normalizar separadores y probar relativa al script
+    ruta_norm = os.path.normpath(ruta.replace("/", os.sep))
+    r = _abrir(os.path.join(_SCRIPT_DIR, ruta_norm))
+    if r:
+        return r
+
+    # 4. Buscar segmento JJGT_Media/... desde script dir y cwd
     ruta_unix = ruta.replace("\\", "/")
     if "JJGT_Media" in ruta_unix:
         idx      = ruta_unix.find("JJGT_Media")
         segmento = ruta_unix[idx:].replace("/", os.sep)
-        for base in [os.getcwd(), os.path.dirname(os.path.abspath(__file__))]:
+        for base in [_SCRIPT_DIR, os.getcwd()]:
             r = _abrir(os.path.join(base, segmento))
             if r:
                 return r
+
     return None
 
 
@@ -226,45 +245,22 @@ def _file_id_from_ref(s: str) -> str:
 
 def upload_media(pub_id: str, fotos: list, video: dict | None):
     """
-    Guarda fotos/video. Flujo por prioridad:
-      1. Drive → "gdrive:<file_id>"  (persiste entre reinicios del servidor)
-      2. base64 embebido en la referencia → "b64:<base64_jpeg>"  (garantizado)
-         Solo para la portada (primera foto) para no exceder el límite de Sheets.
-      3. Local JJGT_Media/ → ruta relativa (solo útil en desarrollo local)
+    Guarda fotos/video en JJGT_Media/<pub_id>/ dentro de la carpeta de la app.
+    Retorna (fotos_csv, video_path) con rutas relativas "JJGT_Media/...".
 
-    Retorna (fotos_csv, video_path).
+    Ya no se usa Google Drive — los archivos viven en el repositorio junto a la app
+    en jjgt_venpermuta/JJGT_Media/ y persisten entre reinicios de Streamlit Cloud.
     """
-    os.makedirs(MEDIA_DIR, exist_ok=True)
     # Limpiar errores anteriores
     st.session_state.pop("_drive_upload_errors", None)
 
-    svc_ok = _get_drive_service() is not None
     foto_paths = []
-
     for i, f in enumerate(fotos or []):
         nombre = f"foto_{i:02d}_{f.get('name', 'foto.jpg')}"
         data   = f.get("bytes", b"")
         if not data:
             continue
-
-        ref = None
-
-        # 1. Intentar Drive
-        if svc_ok:
-            fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
-            if fid:
-                ref = f"{_DRIVE_PREFIX}{fid}"
-                time.sleep(0.1)
-
-        # 2. Fallback: base64 para la portada (primera foto), local para las demás
-        if ref is None:
-            if i == 0:
-                # Portada: comprimir y guardar como base64 inline
-                ref = _foto_a_b64_ref(data, max_w=600)
-            else:
-                # Fotos adicionales: intentar local (solo persiste en dev)
-                ref = _guardar_local(pub_id, nombre, data)
-
+        ref = _guardar_local(pub_id, nombre, data)
         if ref:
             foto_paths.append(ref)
 
@@ -273,14 +269,7 @@ def upload_media(pub_id: str, fotos: list, video: dict | None):
         nombre = f"video_{video.get('name', 'video.mp4')}"
         data   = video.get("bytes", b"")
         if data:
-            ref = None
-            if svc_ok:
-                fid = _subir_a_drive(f"{pub_id}_{nombre}", data)
-                if fid:
-                    ref = f"{_DRIVE_PREFIX}{fid}"
-            if not ref:
-                ref = _guardar_local(pub_id, nombre, data)
-            video_path = ref or ""
+            video_path = _guardar_local(pub_id, nombre, data) or ""
 
     return ",".join(foto_paths), video_path
 
