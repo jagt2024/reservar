@@ -751,62 +751,73 @@ def init_data():
 # ════════════════════════════════════════════════════════════════════════════
 def reconstruct_media(v: dict) -> dict:
     """
-    Reconstruye fotos/video desde URLs de Drive.
+    FIX v7.2 — Reconstruye fotos/video para mostrar en el detalle del vehículo.
 
-    FIX v2.3: La lógica anterior bloqueaba la reconstrucción si fotos[]
-    estaba vacío (vehículos de Sheets siempre llegan con fotos:[]).
-    Ahora la condición correcta es:
-      - ¿Ya tiene preview_url? → ya fue reconstruido, no tocar.
-      - ¿Tiene fotos_urls en Drive? → reconstruir siempre.
+    El sistema actual guarda fotos en v["fotos_b64"] como lista de refs
+    ("gdrive:<file_id>" o b64 puro). _reconstruir_media_local ya convierte
+    esos refs a data_uri al cargar desde Sheets, llenando v["fotos"].
+
+    Esta función solo interviene si v["fotos"] está vacío pero hay refs
+    en fotos_b64 — situación que ocurre cuando el vehículo viene del
+    session_state sin haber pasado por _reconstruir_media_local.
     """
     fotos_list = v.get("fotos") or []
     video_dict = v.get("video")
-    fotos_urls = (v.get("fotos_urls") or "").strip()
-    video_url  = (v.get("video_url")  or "").strip()
+    video_url  = (v.get("video_url") or "").strip()
 
-    # ¿Ya tiene preview_url? → ya fue reconstruido con el nuevo sistema
-    fotos_ya_reconstruidas = any(
-        isinstance(f, dict) and f.get("preview_url")
+    # ── ¿fotos ya listas? (data_uri o bytes en RAM) ──────────────────────────
+    fotos_listas = any(
+        isinstance(f, dict) and (f.get("data_uri") or f.get("bytes"))
         for f in fotos_list
     )
-    # ¿Ya hay bytes en memoria (publicación recién subida)?
-    fotos_tienen_bytes = any(
-        isinstance(f, dict) and f.get("bytes")
-        for f in fotos_list
-    )
-    # ¿Video ya tiene embed_url?
-    video_ok = isinstance(video_dict, dict) and (
-        video_dict.get("embed_url") or video_dict.get("bytes"))
+    if fotos_listas:
+        return v   # nada que hacer, las fotos ya están en memoria
 
-    # Si ya está todo listo, no hacer nada
-    if fotos_ya_reconstruidas and (video_ok or not video_url):
-        return v
-    # Si tiene bytes propios (publicación nueva), no pisar
-    if fotos_tienen_bytes and (video_ok or not video_url):
-        return v
-    # Sin URLs de Drive → nada que hacer
-    if not fotos_urls and not video_url:
-        return v
+    # ── Intentar reconstruir desde fotos_b64 ─────────────────────────────────
+    fotos_b64 = v.get("fotos_b64") or []
+    if fotos_b64:
+        try:
+            from media_sync import (
+                _b64_to_data_uri, _is_drive_ref,
+                _file_id_from_ref, _leer_de_drive, _a_data_uri,
+            )
+            fotos_nuevas = []
+            for idx, ref in enumerate(fotos_b64):
+                if not ref or len(ref) <= 1:
+                    continue
+                if _is_drive_ref(ref):
+                    raw = _leer_de_drive(_file_id_from_ref(ref))
+                    uri = _a_data_uri(raw, 800) if raw else ""
+                else:
+                    uri = _b64_to_data_uri(ref)
+                if uri and len(uri) > 30:
+                    fotos_nuevas.append({
+                        "name":     f"foto_{idx+1}.jpg",
+                        "bytes":    None,
+                        "path":     ref,
+                        "data_uri": uri,
+                    })
+            if fotos_nuevas:
+                v["fotos"] = fotos_nuevas
+        except Exception:
+            pass
 
-    try:
-        from media_sync import load_media_from_urls
-        fotos_nuevas, video_nuevo = load_media_from_urls(fotos_urls, video_url)
+    # ── Video desde SQLite ────────────────────────────────────────────────────
+    if video_url and not (isinstance(video_dict, dict) and video_dict.get("bytes")):
+        try:
+            from media_sync import _is_sqlite_ref, _pub_id_from_sqlite_ref, _leer_video_sqlite
+            if _is_sqlite_ref(video_url):
+                pid = _pub_id_from_sqlite_ref(video_url)
+                raw_v, nombre_v = _leer_video_sqlite(pid)
+                if raw_v:
+                    v["video"] = {"name": nombre_v or "video.mp4", "bytes": raw_v, "path": video_url}
+        except Exception:
+            pass
 
-        # Fotos: reconstruir si llegaron datos Y no había bytes propios
-        if fotos_nuevas and not fotos_tienen_bytes:
-            v["fotos"] = fotos_nuevas
-
-        # Video: reconstruir si llegó embed_url Y no había bytes propios
-        if video_nuevo and not video_ok:
-            v["video"] = video_nuevo
-
-        # Sincronizar referencia en session_state
-        sv = st.session_state.get("selected_vehicle")
-        if sv is not None and sv.get("id") == v.get("id"):
-            st.session_state.selected_vehicle = v
-
-    except Exception:
-        pass   # silencioso — galería mostrará placeholder
+    # Sincronizar con selected_vehicle en session_state
+    sv = st.session_state.get("selected_vehicle")
+    if sv is not None and sv.get("id") == v.get("id"):
+        st.session_state.selected_vehicle = v
 
     return v
 
