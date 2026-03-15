@@ -58,20 +58,27 @@ def _retry(fn, *args, **kwargs):
 def _get_drive_service():
     """
     Devuelve cliente Drive autenticado (cachea en session_state).
-    Usa los mismos scopes amplios que gspread para no tener conflictos.
-    Registra el error en session_state["_drive_init_error"] para diagnostico.
+    Requiere: google-api-python-client, google-auth (ver requirements.txt).
+    Si la libreria no esta instalada, registra el error y retorna None
+    para que upload_media caiga al fallback b64.
     """
+    # Retornar None cacheado si ya se intento y fallo
+    if st.session_state.get("_drive_service_failed"):
+        return None
     svc = st.session_state.get("_drive_service")
     if svc:
         return svc
     try:
-        from googleapiclient.discovery import build
-        from google.oauth2.service_account import Credentials
+        from googleapiclient.discovery import build          # google-api-python-client
+        from google.oauth2.service_account import Credentials  # google-auth
         from data import load_credentials_from_toml
+
         creds_dict, _ = load_credentials_from_toml()
         if not creds_dict:
-            st.session_state["_drive_init_error"] = "load_credentials_from_toml devolvio None"
+            st.session_state["_drive_init_error"]   = "Credenciales no encontradas en secrets.toml"
+            st.session_state["_drive_service_failed"] = True
             return None
+
         _SCOPES_DRIVE = [
             "https://www.googleapis.com/auth/drive",
             "https://spreadsheets.google.com/feeds",
@@ -79,11 +86,18 @@ def _get_drive_service():
         ]
         creds = Credentials.from_service_account_info(creds_dict, scopes=_SCOPES_DRIVE)
         svc   = build("drive", "v3", credentials=creds, cache_discovery=False)
-        st.session_state._drive_service      = svc
-        st.session_state["_drive_init_error"] = None
+        st.session_state._drive_service           = svc
+        st.session_state["_drive_init_error"]     = None
+        st.session_state["_drive_service_failed"] = False
         return svc
+    except ModuleNotFoundError as e:
+        msg = f"Libreria faltante: {e}. Agrega google-api-python-client a requirements.txt"
+        st.session_state["_drive_init_error"]     = msg
+        st.session_state["_drive_service_failed"] = True
+        return None
     except Exception as e:
-        st.session_state["_drive_init_error"] = str(e)
+        st.session_state["_drive_init_error"]     = str(e)
+        st.session_state["_drive_service_failed"] = True
         return None
 
 
