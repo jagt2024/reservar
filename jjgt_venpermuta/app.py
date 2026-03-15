@@ -384,9 +384,49 @@ def _grad(index: int):
 # FIX 3: solo muestra la foto de portada (primera foto), no todas.
 # ══════════════════════════════════════════════════════════════════════════════
 def _get_portada_url(v: dict):
-    """Obtiene data URI de portada usando almacenamiento local JJGT_Media."""
+    """Obtiene data URI de portada (legacy, para email)."""
     from media_sync import get_portada_data_uri
     return get_portada_data_uri(v, max_w=400)
+
+
+def _get_portada_bytes(v: dict):
+    """
+    Retorna io.BytesIO de la portada para usar con st.image().
+    Prioridad: bytes RAM → data_uri RAM → fotos_b64[0] (gdrive: o b64).
+    """
+    import base64 as _b64lib
+    from media_sync import _is_drive_ref, _file_id_from_ref, _leer_de_drive
+
+    # 1. bytes directos en fotos[]
+    for f in (v.get("fotos") or []):
+        if isinstance(f, dict):
+            raw = f.get("bytes")
+            if raw:
+                return io.BytesIO(raw)
+            uri = f.get("data_uri") or ""
+            if uri and len(uri) > 30 and "base64," in uri:
+                try:
+                    raw = _b64lib.b64decode(uri.split("base64,", 1)[1])
+                    return io.BytesIO(raw)
+                except Exception:
+                    pass
+
+    # 2. fotos_b64[0] del dict
+    refs = v.get("fotos_b64") or []
+    if refs:
+        ref = refs[0]
+        if ref and len(ref) > 1:
+            if _is_drive_ref(ref):
+                raw = _leer_de_drive(_file_id_from_ref(ref))
+                if raw:
+                    return io.BytesIO(raw)
+            else:
+                try:
+                    raw = _b64lib.b64decode(ref)
+                    return io.BytesIO(raw)
+                except Exception:
+                    pass
+    return None
 
 
 def vehicle_card(v: dict, btn_key: str):
@@ -406,26 +446,13 @@ def vehicle_card(v: dict, btn_key: str):
     TIPO_COLOR = {"venta": "#C41E3A",   "permuta": "#00C9A7",    "ambos": "#F5A623"}
     tc = TIPO_COLOR.get(tipo, "#C41E3A")
 
-    portada_url = _get_portada_url(v)
+    portada_bytes = _get_portada_bytes(v)
 
     with st.container(border=True):
-        if portada_url:
-            st.markdown(
-                f'<img src="{portada_url}" style="width:100%;height:160px;'
-                f'object-fit:cover;border-radius:10px;margin-bottom:4px;">',
-                unsafe_allow_html=True)
+        if portada_bytes:
+            portada_bytes.seek(0)
+            st.image(portada_bytes, use_container_width=True)
         else:
-            # Debug: mostrar qué tiene el vehículo para diagnosticar
-            fotos_csv = (v.get("fotos_urls") or "").strip()
-            fotos_mem = v.get("fotos", [])
-            if fotos_csv or fotos_mem:
-                import os as _os
-                primera = fotos_csv.split(",")[0].strip() if fotos_csv else ""
-                existe  = _os.path.isfile(primera) if primera else False
-                st.caption(
-                    f"📂 {primera[:60] if primera else 'sin ruta'} "
-                    f"{'✅ existe' if existe else '❌ no encontrado'} "
-                    f"| fotos mem: {len(fotos_mem)}")
             st.markdown(
                 f'<div style="background:linear-gradient(135deg,{c1},{c2});height:130px;'
                 f'border-radius:12px;display:flex;align-items:center;'
@@ -883,49 +910,60 @@ def page_vehicle_detail():
         # ══════════════════════════════════════════════════════════════════════
         from media_sync import _b64_to_data_uri, _is_drive_ref, _file_id_from_ref, _leer_de_drive, _a_data_uri
 
-        img_items = []
+        # ── Construir lista de imágenes como bytes (para st.image) ──────────
+        img_bytes_list = []  # lista de io.BytesIO listos para st.image()
 
-        def _ref_to_src(ref: str) -> str:
-            """Convierte un ref (gdrive: o b64 puro) en data URI."""
-            if not ref:
-                return ""
+        def _ref_to_bytes(ref: str):
+            """Ref (gdrive: o b64 puro) → io.BytesIO o None."""
+            if not ref or len(ref) <= 1:
+                return None
             if _is_drive_ref(ref):
                 raw = _leer_de_drive(_file_id_from_ref(ref))
-                return _a_data_uri(raw, 800) if raw else ""
-            return _b64_to_data_uri(ref)
+                return io.BytesIO(raw) if raw else None
+            try:
+                import base64 as _b64lib
+                raw = _b64lib.b64decode(ref)
+                return io.BytesIO(raw)
+            except Exception:
+                return None
 
-        # 1. data_uri ya en memoria (fotos[] cargados por _reconstruir)
+        # 1. bytes en RAM (fotos[] cargados al publicar o por _reconstruir)
         for fi in (fotos or []):
             if not isinstance(fi, dict):
                 continue
-            src = fi.get("data_uri") or ""
-            if not src and fi.get("bytes"):
+            raw = fi.get("bytes")
+            if raw:
+                img_bytes_list.append(io.BytesIO(raw))
+                continue
+            # data_uri en RAM → decodificar a bytes
+            uri = fi.get("data_uri") or ""
+            if uri and len(uri) > 30 and "base64," in uri:
                 try:
-                    from PIL import Image as _PIL
-                    buf = io.BytesIO()
-                    _PIL.open(io.BytesIO(fi["bytes"])).save(
-                        buf, format="JPEG", quality=82)
-                    import base64 as _b64m
-                    src = ("data:image/jpeg;base64,"
-                           + _b64m.b64encode(buf.getvalue()).decode())
+                    import base64 as _b64lib
+                    raw = _b64lib.b64decode(uri.split("base64,", 1)[1])
+                    img_bytes_list.append(io.BytesIO(raw))
                 except Exception:
                     pass
-            if src:
-                img_items.append(src)
 
-        # 2. fotos_b64 del dict (puede contener gdrive: refs o b64 puro)
-        if not img_items:
-            fotos_b64 = v.get("fotos_b64") or []
-            img_items = [s for s in (_ref_to_src(r) for r in fotos_b64 if r) if s]
+        # 2. fotos_b64 del dict (gdrive: refs o b64 puro de Sheets)
+        if not img_bytes_list:
+            for ref in (v.get("fotos_b64") or []):
+                buf = _ref_to_bytes(ref)
+                if buf:
+                    img_bytes_list.append(buf)
 
-        # 3. session_state cache (subida reciente en esta sesion)
-        if not img_items:
+        # 3. cache session_state (subida reciente)
+        if not img_bytes_list:
             for ck in ("_fotos_refs", "_fotos_b64"):
-                cache = st.session_state.get(ck, {})
-                refs  = cache.get(str(pub_id), [])
-                if refs:
-                    img_items = [s for s in (_ref_to_src(r) for r in refs if r) if s]
+                refs = (st.session_state.get(ck) or {}).get(str(pub_id), [])
+                for ref in refs:
+                    buf = _ref_to_bytes(ref)
+                    if buf:
+                        img_bytes_list.append(buf)
+                if img_bytes_list:
                     break
+
+        img_items = img_bytes_list  # compatibilidad con código siguiente
 
         if img_items:
             n_fotos = len(img_items)
@@ -934,11 +972,9 @@ def page_vehicle_detail():
                 st.session_state[_sk] = 0
             idx = st.session_state[_sk] % n_fotos
 
-            st.markdown(
-                f'<img src="{img_items[idx]}" '
-                f'style="width:100%;max-height:400px;object-fit:cover;'
-                f'border-radius:12px;display:block;">',
-                unsafe_allow_html=True)
+            # Usar st.image() — no depende de unsafe_allow_html ni base64 en HTML
+            img_items[idx].seek(0)
+            st.image(img_items[idx], use_container_width=True)
 
             if n_fotos > 1:
                 sc1, sc2, sc3 = st.columns([1, 2, 1])
@@ -960,15 +996,10 @@ def page_vehicle_detail():
                         st.rerun()
 
                 th_cols = st.columns(min(n_fotos, 5))
-                for ti, src in enumerate(img_items[:5]):
+                for ti, buf in enumerate(img_items[:5]):
                     with th_cols[ti]:
-                        border = ("3px solid #C41E3A" if ti == idx
-                                  else "2px solid transparent")
-                        st.markdown(
-                            f'<img src="{src}" style="width:100%;height:60px;'
-                            f'object-fit:cover;border-radius:6px;'
-                            f'border:{border};">',
-                            unsafe_allow_html=True)
+                        buf.seek(0)
+                        st.image(buf, use_container_width=True)
                         if st.button("", key=f"sl_th_{pub_id}_{ti}",
                                      use_container_width=True,
                                      help=f"Foto {ti+1}"):
