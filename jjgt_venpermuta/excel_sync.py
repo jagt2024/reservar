@@ -562,7 +562,13 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
             else:
                 otras_updates[col_name] = _safe(new_val)
 
-        # Escribir columnas normales en una sola llamada
+        # Escribir columnas normales en una sola llamada.
+        # IMPORTANTE: vaciar las foto-cols en existing_row para que el
+        # payload no supere el limite de la API (~10MB por request).
+        for col_name in _FOTO_COLS:
+            pos = _col_pos(col_name)
+            if pos is not None and pos < len(existing_row):
+                existing_row[pos] = ""   # no enviar b64 en esta llamada
         for col_name, new_val in otras_updates.items():
             pos = _col_pos(col_name)
             if pos is not None:
