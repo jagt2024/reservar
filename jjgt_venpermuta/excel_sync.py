@@ -389,19 +389,24 @@ def _collect(sections: list) -> dict:
         vid = str(v.get("id",""))
         if vid not in seen_ids:
             seen_ids.add(vid)
-            all_veh.append(_clean(v))
+            cleaned = _clean(v)
+            cleaned["fotos_b64"] = v.get("fotos_b64") or []
+            all_veh.append(cleaned)
     for pub in st.session_state.get("user_publications", []):
         vid = str(pub.get("id",""))
         if vid not in seen_ids:
             seen_ids.add(vid)
-            all_veh.append(_clean(pub))
+            cleaned = _clean(pub)
+            # Restaurar fotos_b64 como lista original (no string)
+            cleaned["fotos_b64"] = pub.get("fotos_b64") or []
+            all_veh.append(cleaned)
 
     raw = {
         "vehiculos":      all_veh,
         "usuarios":       [_clean(u) for u in st.session_state.get("_usuarios", [])],
         "permutas":       [_clean(p) for p in st.session_state.get("permutas",
                            st.session_state.get("_permutas_base", []))],
-        "publicaciones":  [_clean(p) for p in st.session_state.get("user_publications", [])],
+        "publicaciones":  [dict(_clean(p), fotos_b64=(p.get("fotos_b64") or [])) for p in st.session_state.get("user_publications", [])],
         "historial":      [_clean(h) for h in st.session_state.get("history_items",
                            st.session_state.get("_history_base", []))],
         "notificaciones": [_clean(n) for n in st.session_state.get("notifications",
