@@ -1479,17 +1479,232 @@ def page_vehicle_detail():
         if st.session_state.det_edit_mode:
             st.markdown("---")
             st.markdown("#### ✏️ Editar publicación")
-            ANIOS = [str(a) for a in range(2025, 2014, -1)]
-            FUELS = ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"]
+
+            ANIOS = ["2025","2024","2023","2022","2021","2020","2019","2018","2017",
+                     "2015","2014","2013","2012","2011","2010","2009","2008","2007",
+                     "2006","2005","2004","2003","2002","2001","2000","1999","1998",
+                     "1997","1996","1995","1994","1993","1992","1991","1990","1989",
+                     "1988","1987","1986","1985","1984","1983","1982","1981","1980"]
+            MARCAS   = ["Toyota","Chevrolet","Renault","Mazda","Hyundai","Kia","Ford",
+                        "Hummer","Audi","Volkswagen","BMW","Mercedes-Benz","Nissan",
+                        "Honda","Suzuki","Jeep"]
+            FUELS    = ["Gasolina","Diesel","Híbrido","Eléctrico","Gas"]
             CIUDADES = ["Bogotá","Medellín","Cali","Barranquilla",
                         "Bucaramanga","Pereira","Cartagena"]
 
             def _idx(lst, val, default=0):
                 return lst.index(str(val)) if str(val) in lst else default
 
+            from media_sync import (
+                _is_drive_ref, _file_id_from_ref, _thumbnail_url_drive,
+                _is_b64_ref, _bytes_from_b64_ref, _a_data_uri,
+            )
+
+            def _aplicar_media(nuevo_csv_fotos=None, nuevo_video_url=None,
+                               nuevo_video_none=False):
+                """Persiste cambios de fotos/video en todos los dicts y en Sheets."""
+                if nuevo_csv_fotos is not None:
+                    v["fotos_urls"] = nuevo_csv_fotos
+                    v["fotos"]      = []          # se reconstruye al recargar
+                    for p in st.session_state.user_publications:
+                        if p.get("id") == pub_id:
+                            p["fotos_urls"] = nuevo_csv_fotos
+                            p["fotos"]      = []
+                    for h in st.session_state.history_items:
+                        if h.get("id") == pub_id and h.get("pubRef"):
+                            h["pubRef"]["fotos_urls"] = nuevo_csv_fotos
+                            h["pubRef"]["fotos"]      = []
+                if nuevo_video_url is not None:
+                    v["video_url"] = nuevo_video_url
+                    v["video"]     = None
+                    for p in st.session_state.user_publications:
+                        if p.get("id") == pub_id:
+                            p["video_url"] = nuevo_video_url
+                            p["video"]     = None
+                    for h in st.session_state.history_items:
+                        if h.get("id") == pub_id and h.get("pubRef"):
+                            h["pubRef"]["video_url"] = nuevo_video_url
+                            h["pubRef"]["video"]     = None
+                if nuevo_video_none:
+                    v["video_url"] = ""
+                    v["video"]     = None
+                    for p in st.session_state.user_publications:
+                        if p.get("id") == pub_id:
+                            p["video_url"] = ""
+                            p["video"]     = None
+                    for h in st.session_state.history_items:
+                        if h.get("id") == pub_id and h.get("pubRef"):
+                            h["pubRef"]["video_url"] = ""
+                            h["pubRef"]["video"]     = None
+                st.session_state.selected_vehicle = v
+                save_section_silent(["publicaciones", "vehiculos"])
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 1 — FOTOS ACTUALES
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 📸 Fotos actuales")
+            fotos_refs = [r.strip() for r in
+                          (v.get("fotos_urls") or "").split(",") if r.strip()]
+
+            if fotos_refs:
+                cols_f = st.columns(min(len(fotos_refs), 5))
+                for fi, ref in enumerate(fotos_refs):
+                    with cols_f[fi % 5]:
+                        # Miniatura
+                        thumb = ""
+                        if _is_drive_ref(ref):
+                            thumb = _thumbnail_url_drive(_file_id_from_ref(ref), size=200)
+                        elif _is_b64_ref(ref):
+                            raw = _bytes_from_b64_ref(ref)
+                            thumb = _a_data_uri(raw, 200) if raw else ""
+                        border = "3px solid #F5A623" if fi == 0 else "2px solid #333"
+                        if thumb:
+                            st.markdown(
+                                f'<img src="{thumb}" style="width:100%;height:75px;'
+                                f'object-fit:cover;border-radius:8px;border:{border};'
+                                f'margin-bottom:3px;">',
+                                unsafe_allow_html=True)
+                        else:
+                            st.markdown("🖼️")
+                        st.caption("📌 Portada" if fi == 0 else f"Foto {fi+1}")
+
+                        # Hacer portada (solo fotos secundarias)
+                        if fi > 0:
+                            if st.button("⭐", key=f"portada_{pub_id}_{fi}",
+                                         use_container_width=True,
+                                         help="Hacer portada"):
+                                nuevo = ([fotos_refs[fi]]
+                                         + fotos_refs[:fi]
+                                         + fotos_refs[fi+1:])
+                                _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                st.rerun()
+
+                        # Mover izq / der
+                        mc1, mc2 = st.columns(2)
+                        with mc1:
+                            if fi > 0:
+                                if st.button("◀", key=f"izq_{pub_id}_{fi}",
+                                             use_container_width=True):
+                                    nuevo = list(fotos_refs)
+                                    nuevo[fi-1], nuevo[fi] = nuevo[fi], nuevo[fi-1]
+                                    _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                    st.rerun()
+                            else:
+                                st.write("")
+                        with mc2:
+                            if fi < len(fotos_refs) - 1:
+                                if st.button("▶", key=f"der_{pub_id}_{fi}",
+                                             use_container_width=True):
+                                    nuevo = list(fotos_refs)
+                                    nuevo[fi], nuevo[fi+1] = nuevo[fi+1], nuevo[fi]
+                                    _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                                    st.rerun()
+                            else:
+                                st.write("")
+
+                        # Eliminar
+                        if st.button("❌", key=f"del_foto_{pub_id}_{fi}",
+                                     use_container_width=True,
+                                     help="Eliminar"):
+                            nuevo = [r for j, r in enumerate(fotos_refs) if j != fi]
+                            _aplicar_media(nuevo_csv_fotos=",".join(nuevo))
+                            st.rerun()
+            else:
+                st.caption("Sin fotos cargadas.")
+
+            # Agregar fotos
+            st.markdown("##### ➕ Agregar fotos")
+            nuevas_fotos = st.file_uploader(
+                "Selecciona fotos (jpg, png, webp)",
+                type=["jpg","jpeg","png","webp"],
+                accept_multiple_files=True,
+                key=f"edit_fotos_{pub_id}",
+            )
+            if nuevas_fotos:
+                if st.button("📤 Subir fotos", key=f"btn_fotos_{pub_id}",
+                             type="primary"):
+                    with st.spinner("Subiendo a Google Drive…"):
+                        try:
+                            from media_sync import upload_media
+                            data = []
+                            for ff in nuevas_fotos[:10]:
+                                ff.seek(0)
+                                data.append({"name": ff.name, "bytes": ff.read()})
+                            nuevas_csv, _ = upload_media(pub_id, data, None)
+                            if nuevas_csv:
+                                base = (v.get("fotos_urls") or "").strip()
+                                merged = ",".join(filter(None, [base, nuevas_csv]))
+                                _aplicar_media(nuevo_csv_fotos=merged)
+                                st.success(f"✅ {len(data)} foto(s) agregada(s)")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ No se pudieron subir")
+                        except Exception as _em:
+                            st.error(f"Error: {_em}")
+
+            st.divider()
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 2 — VIDEO
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 🎥 Video actual")
+            video_url_actual = (v.get("video_url") or "").strip()
+
+            if video_url_actual:
+                if _is_drive_ref(video_url_actual):
+                    fid_v = _file_id_from_ref(video_url_actual)
+                    st.markdown(
+                        f'<iframe src="https://drive.google.com/file/d/{fid_v}/preview"'
+                        f' width="100%" height="180" allow="autoplay"'
+                        f' style="border:none;border-radius:8px;"></iframe>',
+                        unsafe_allow_html=True)
+                else:
+                    st.caption(f"📁 {video_url_actual[:60]}")
+
+                if st.button("❌ Eliminar video", key=f"del_video_{pub_id}",
+                             type="secondary"):
+                    _aplicar_media(nuevo_video_none=True)
+                    st.success("✅ Video eliminado")
+                    st.rerun()
+            else:
+                st.caption("Sin video cargado.")
+
+            nuevo_video = st.file_uploader(
+                "Subir video (mp4, mov, avi, webm)",
+                type=["mp4","mov","avi","webm"],
+                key=f"edit_video_{pub_id}",
+            )
+            if nuevo_video:
+                if st.button("📤 Subir video", key=f"btn_video_{pub_id}",
+                             type="primary"):
+                    with st.spinner("Subiendo video a Google Drive…"):
+                        try:
+                            from media_sync import upload_media
+                            nuevo_video.seek(0)
+                            _, nueva_url = upload_media(
+                                pub_id, [],
+                                {"name": nuevo_video.name,
+                                 "bytes": nuevo_video.read()})
+                            if nueva_url:
+                                _aplicar_media(nuevo_video_url=nueva_url)
+                                st.success("✅ Video actualizado")
+                                st.rerun()
+                            else:
+                                st.warning("⚠️ No se pudo subir el video")
+                        except Exception as _ev:
+                            st.error(f"Error: {_ev}")
+
+            st.divider()
+
+            # ════════════════════════════════════════════════════════════════
+            # SECCIÓN 3 — DATOS DEL VEHÍCULO
+            # ════════════════════════════════════════════════════════════════
+            st.markdown("##### 📋 Datos del vehículo")
             with st.form("form_edit_pub"):
                 ee1, ee2 = st.columns(2)
                 with ee1:
+                    e_marca  = st.selectbox("Marca", MARCAS,
+                                            index=_idx(MARCAS, name), key="de_marca")
                     e_modelo = st.text_input("Modelo", value=model, key="de_modelo")
                     e_anio   = st.selectbox("Año", ANIOS,
                                             index=_idx(ANIOS, year), key="de_anio")
@@ -1519,6 +1734,7 @@ def page_vehicle_detail():
                                          use_container_width=True, type="primary"):
                     TIPO2 = {"Venta":"venta","Permuta":"permuta","Venta y Permuta":"ambos"}
                     cambios = {
+                        "name":         e_marca,
                         "model":        e_modelo.strip(),
                         "year":         int(e_anio),
                         "km":           int(e_km),
