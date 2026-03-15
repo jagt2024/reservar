@@ -528,10 +528,10 @@ def _df_to_publicaciones(df: pd.DataFrame) -> list:
 def _reconstruir_media_local(vehicles: list) -> list:
     """
     Para cada vehículo con fotos_urls o video_url, reconstruye las referencias
-    de media en memoria soportando:
-      - gdrive:<id>  → preview_url con thumbnail público de Drive (sin bytes)
-      - b64:<base64> → decodifica y construye data_uri
-      - ruta local   → lee bytes del disco (solo desarrollo local)
+    de media soportando gdrive:<id>, b64:<base64> y rutas locales.
+    - gdrive:<id>  → preview_url con thumbnail público (sin descargar bytes)
+    - b64:<base64> → decodifica y construye data_uri en memoria
+    - ruta local   → lee bytes del disco (solo entornos de desarrollo)
     """
     from media_sync import (
         _is_drive_ref, _is_b64_ref, _file_id_from_ref,
@@ -556,7 +556,7 @@ def _reconstruir_media_local(vehicles: list) -> list:
                     "bytes":       None,
                     "path":        ref,
                     "preview_url": preview_url,
-                    "data_uri":    preview_url,   # alias para compatibilidad
+                    "data_uri":    preview_url,
                 })
             elif _is_b64_ref(ref):
                 raw = _bytes_from_b64_ref(ref)

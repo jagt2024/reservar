@@ -418,20 +418,18 @@ def _get_client():
         return None
 
 # ═══════════════════════════════════════════════════════════════════════════
-# UPSERT — v7: columnas por NOMBRE normalizado, nunca reemplaza encabezados
+# UPSERT — v7: columnas por nombre normalizado, nunca reemplaza encabezados
 # ═══════════════════════════════════════════════════════════════════════════
 def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     """
     Escribe items en la worksheet usando UPSERT seguro por columna.
 
-    ESTRATEGIA v7:
-    - Los encabezados de la hoja NUNCA se reemplazan (eso desalineaba datos).
-    - Columnas nuevas del convertidor se agregan al FINAL de la hoja.
-    - El mapeado col→índice usa nombres NORMALIZADOS sin tildes:
-      "Transmisión" == "Transmision", "Año" == "Ano", etc.
-    - UPDATE: lee la fila existente, sobreescribe solo las columnas del
-      convertidor, deja intactas las demás.
-    - INSERT: crea fila vacía alineada con los encabezados actuales.
+    v7 — tres cambios clave respecto a v6:
+    1. Los encabezados de la hoja NUNCA se reemplazan (evita desalinear datos).
+    2. Columnas nuevas del convertidor se agregan al FINAL de la hoja.
+    3. El mapeo col→índice usa _norm() para tolerar tildes:
+       "Transmisión"=="Transmision", "Año"=="Ano", "Calificación"=="Calificacion", etc.
+    UPDATE preserva columnas no cubiertas por el convertidor.
     """
     import gspread, unicodedata as _ud
 
@@ -440,7 +438,6 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
     row_fn  = _ROW[key]
 
     def _norm(s: str) -> str:
-        """Elimina tildes y convierte a minúsculas para comparación robusta."""
         return _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode().lower().strip()
 
     def _col_letter(n: int) -> str:
@@ -489,11 +486,11 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
 
     # ── 4. Encabezados existentes — NUNCA se reemplazan ──────────────────────
     sheet_headers = list(all_vals[0])
-
-    # Agregar columnas nuevas al final (sin duplicar, comparación sin tildes)
     sample_row  = row_fn(items[0]) if items else {}
     our_headers = list(sample_row.keys())
-    sheet_norm  = {_norm(h): i for i, h in enumerate(sheet_headers)}
+
+    # Agregar columnas nuevas al final (comparación sin tildes)
+    sheet_norm = {_norm(h): i for i, h in enumerate(sheet_headers)}
     added = []
     for col_name in our_headers:
         if _norm(col_name) not in sheet_norm:
@@ -504,13 +501,12 @@ def _upsert_ws(spreadsheet, key: str, items: list[dict]) -> tuple[bool, str]:
         _api_call(ws.update, "A1", [sheet_headers])
         time.sleep(0.3)
 
-    # Índice por nombre normalizado
+    # Índice normalizado: "Transmisión" y "Transmision" apuntan al mismo índice
     col_idx = {_norm(h): i for i, h in enumerate(sheet_headers)}
 
     def _col_pos(name: str):
         return col_idx.get(_norm(name))
 
-    # PK posición
     pk_col_idx = _col_pos(pk_col)
     if pk_col_idx is None:
         return False, f"Columna PK '{pk_col}' no encontrada en '{ws_name}'"
