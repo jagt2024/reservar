@@ -562,29 +562,34 @@ footer { display: none !important; }
   font-size: .95rem !important;
 }
 
-/* Campos de texto e inputs */
+/* Campos de texto — fondo claro, texto negro para máxima legibilidad */
 [data-testid="stForm"] input,
 [data-testid="stForm"] textarea,
 [data-testid="stForm"] .stTextInput input,
-[data-testid="stForm"] .stTextArea textarea {
-  background-color: rgba(255,255,255,0.07) !important;
-  color: #FFFFFF !important;
-  border: 1px solid rgba(0,212,255,0.3) !important;
+[data-testid="stForm"] .stTextArea textarea,
+[data-testid="stForm"] input[type="text"],
+[data-testid="stForm"] input[type="email"] {
+  background-color: #FFFFFF !important;
+  color: #111111 !important;
+  border: 1px solid rgba(0,212,255,0.4) !important;
   border-radius: 10px !important;
   font-size: 1rem !important;
+  caret-color: #111111 !important;
 }
 
 /* Placeholder */
 [data-testid="stForm"] input::placeholder,
 [data-testid="stForm"] textarea::placeholder {
-  color: #64748B !important;
+  color: #9CA3AF !important;
+  opacity: 1 !important;
 }
 
 /* Focus */
 [data-testid="stForm"] input:focus,
 [data-testid="stForm"] textarea:focus {
   border-color: #00D4FF !important;
-  box-shadow: 0 0 0 2px rgba(0,212,255,0.15) !important;
+  box-shadow: 0 0 0 2px rgba(0,212,255,0.2) !important;
+  outline: none !important;
 }
 
 /* Botón submit */
@@ -603,7 +608,7 @@ footer { display: none !important; }
   transform: translateY(-1px) !important;
 }
 
-/* Contenedor del form sin fondo extra de Streamlit */
+/* Contenedor del form */
 [data-testid="stForm"] {
   background: rgba(15,22,41,0.85) !important;
   border: 1px solid rgba(0,212,255,0.15) !important;
@@ -955,18 +960,17 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# ── PRECIOS ──
+# ── PLANES (sin precios) ──
 st.markdown("""
 <div style="padding:2rem 2rem 6rem; max-width:1200px; margin:0 auto;" id="planes">
   <div style="text-align:center; margin-bottom:3rem;">
     <p class="section-label">Planes</p>
-    <h2 class="section-title">Inversión transparente, resultados garantizados</h2>
-    <p class="section-subtitle" style="margin:0 auto;">Sin sorpresas. Sin letra pequeña. Cancela cuando quieras.</p>
+    <h2 class="section-title">Una solución para cada etapa de tu negocio</h2>
+    <p class="section-subtitle" style="margin:0 auto;">Cada proyecto es único. Contáctanos y diseñamos juntos la propuesta ideal para ti.</p>
   </div>
   <div class="pricing-grid">
     <div class="pricing-card">
       <p class="plan-name">Básico</p>
-      <div class="plan-price">$299<span>/mes</span></div>
       <p class="plan-desc">Ideal para freelancers y pequeños negocios que quieren dar el primer paso digital.</p>
       <ul class="plan-features">
         <li>Consultoría digital mensual</li>
@@ -975,12 +979,11 @@ st.markdown("""
         <li>Dashboard de seguimiento</li>
         <li>Actualizaciones de seguridad</li>
       </ul>
-      <a href="#contacto" class="btn-secondary" style="display:block; text-align:center; padding:.75rem;">Empezar Ahora</a>
+      <a href="#contacto" class="btn-secondary" style="display:block; text-align:center; padding:.75rem;">Solicitar Información</a>
     </div>
     <div class="pricing-card featured">
       <div class="popular-badge">⭐ Más Popular</div>
       <p class="plan-name">Pro</p>
-      <div class="plan-price">$599<span>/mes</span></div>
       <p class="plan-desc">Para negocios en crecimiento que necesitan tecnología avanzada e IA.</p>
       <ul class="plan-features">
         <li>Apps avanzadas ilimitadas</li>
@@ -990,11 +993,10 @@ st.markdown("""
         <li>Informes mensuales de rendimiento</li>
         <li>Capacitación del equipo</li>
       </ul>
-      <a href="#contacto" class="btn-primary" style="display:block; text-align:center; padding:.75rem;">Empieza a Crecer Hoy</a>
+      <a href="#contacto" class="btn-primary" style="display:block; text-align:center; padding:.75rem;">Solicitar Información</a>
     </div>
     <div class="pricing-card">
       <p class="plan-name">Enterprise</p>
-      <div class="plan-price">$1,199<span>/mes</span></div>
       <p class="plan-desc">Soluciones completas para empresas que requieren escala y dedicación total.</p>
       <ul class="plan-features">
         <li>Equipo dedicado completo</li>
@@ -1008,7 +1010,7 @@ st.markdown("""
     </div>
   </div>
   <p style="text-align:center; color:#94A3B8; margin-top:2rem; font-size:.9rem;">
-    🛡️ 30 días de garantía de satisfacción · Sin tarjeta de crédito para empezar · Cancela cuando quieras
+    🛡️ 30 días de garantía de satisfacción · Sin compromisos iniciales · Propuesta personalizada sin costo
   </p>
 </div>
 """, unsafe_allow_html=True)
