@@ -1050,7 +1050,7 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-_script_dir = _os.path.dirname(os.path.abspath(__file__))
+_script_dir = _os.path.dirname(_os.path.abspath(__file__))
 _video_path = _os.path.join(_script_dir, VIDEO_FILE)
 if _os.path.exists(_video_path):
     st.video(_video_path, autoplay=True, loop=True, muted=True)
