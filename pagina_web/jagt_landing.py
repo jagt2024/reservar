@@ -7,6 +7,7 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+import os as _os
 
 # ── CONFIGURACIÓN GLOBAL ──
 # Archivo de video a mostrar en la sección de proyectos.
@@ -1049,14 +1050,12 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-import os as _os
 _script_dir = os.path.dirname(os.path.abspath(__file__))
-_video_path = os.path.join(_script_dir, "Code-Fixer-Mar-17-10-12-56.mp4")
-
-if _os.path.exists(_video_path):
+_video_path = os.path.join(_script_dir, VIDEO_FILE)
+if os.path.exists(_video_path):
     st.video(_video_path, autoplay=True, loop=True, muted=True)
 else:
-    st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio de Streamlit Cloud.")
+    st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio.")
 
 # ── GRID DE PROYECTOS CON CONTRASEÑA ──
 _projects = [
