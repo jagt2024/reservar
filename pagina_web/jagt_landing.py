@@ -11,9 +11,8 @@ from datetime import datetime
 # ── CONFIGURACIÓN GLOBAL ──
 # Archivo de video a mostrar en la sección de proyectos.
 # El archivo MP4 debe estar en la misma carpeta que este archivo .py en tu repositorio.
-_script_dir = os.path.dirname(os.path.abspath(__file__))
-_video_path = os.path.join(_script_dir, "Code-Fixer-Mar-17-10-12-56.mp4")
-VIDEO_FILE = _video_path
+
+VIDEO_FILE = "Code-Fixer-Mar-17-10-12-56.mp4"
 
 # Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
 PROJECT_PASSWORD = "josegart2025"
@@ -1051,8 +1050,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 import os as _os
-if _os.path.exists(VIDEO_FILE):
-    st.video(VIDEO_FILE, autoplay=True, loop=True, muted=True)
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_video_path = os.path.join(_script_dir, "Code-Fixer-Mar-17-10-12-56.mp4")
+
+if _os.path.exists(_video_path):
+    st.video(_video_path, autoplay=True, loop=True, muted=True)
 else:
     st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio de Streamlit Cloud.")
 
