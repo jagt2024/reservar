@@ -11,7 +11,9 @@ from datetime import datetime
 # ── CONFIGURACIÓN GLOBAL ──
 # Archivo de video a mostrar en la sección de proyectos.
 # El archivo MP4 debe estar en la misma carpeta que este archivo .py en tu repositorio.
-VIDEO_FILE = "Code-Fixer-Mar-17-10-12-56.mp4"
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_video_path = os.path.join(_script_dir, "Code-Fixer-Mar-17-10-12-56.mp4")
+VIDEO_FILE = _video_path
 
 # Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
 PROJECT_PASSWORD = "josegart2025"
