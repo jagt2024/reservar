@@ -11,7 +11,12 @@ from datetime import datetime
 
 # ── CONFIGURACIÓN GLOBAL ──
 # URL del video animado de proyectos (reemplaza con tu dominio cuando despliegues)
-VIDEO_URL = "https://39561638-5f7a-4a60-98a8-ae51503be229-00-n7z16tvqo31f.riker.replit.dev/josegart-proyectos/"
+#VIDEO_URL = "https://39561638-5f7a-4a60-98a8-ae51503be229-00-n7z16tvqo31f.riker.replit.dev/josegart-proyectos/"
+try:
+    VIDEO_URL = st.video("./Code-Fixer-Mar-17-10-12-56.mp4")
+except Exception as e:
+    st.error(f"Error al cargar el video: {str(e)}")
+
 # Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
 PROJECT_PASSWORD = "josegart2025"
 
