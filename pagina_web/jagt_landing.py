@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import toml
 import json
 import smtplib
@@ -7,6 +8,12 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from google.oauth2.service_account import Credentials
 from datetime import datetime
+
+# ── CONFIGURACIÓN GLOBAL ──
+# URL del video animado de proyectos (reemplaza con tu dominio cuando despliegues)
+VIDEO_URL = "https://39561638-5f7a-4a60-98a8-ae51503be229-00-n7z16tvqo31f.riker.replit.dev/josegart-proyectos/"
+# Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
+PROJECT_PASSWORD = "josegart2025"
 
 # ── FUNCIONES DE AUTENTICACIÓN Y CONTACTO ──
 
@@ -195,6 +202,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
+
+# ── SESSION STATE PARA CONTRASEÑAS ──
+if 'proj_unlocked' not in st.session_state:
+    st.session_state.proj_unlocked = {}
+if 'proj_asking' not in st.session_state:
+    st.session_state.proj_asking = {}
 
 st.markdown("""
 <style>
@@ -1007,106 +1020,170 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── PROYECTOS DESARROLLADOS ──
+st.markdown(
+    '<div style="padding:6rem 2rem 3rem; background: rgba(15,22,41,.6); border-top:1px solid rgba(0,212,255,.08); border-bottom:1px solid rgba(0,212,255,.08);" id="proyectos">'
+    '<div style="max-width:1200px; margin:0 auto;">'
+    '<div style="text-align:center; margin-bottom:3rem;">'
+    '<p class="section-label">Portafolio</p>'
+    '<h2 class="section-title">Proyectos Desarrollados</h2>'
+    '<p class="section-subtitle" style="margin:0 auto;">Aplicaciones reales, funcionando hoy, construidas para distintos sectores e industrias.</p>'
+    '</div>',
+    unsafe_allow_html=True
+)
+
+# ── VIDEO ANIMADO DE PROYECTOS ──
+st.markdown(
+    '<div style="border-radius:20px; overflow:hidden; border:1px solid rgba(0,212,255,0.25); '
+    'box-shadow:0 0 60px rgba(0,212,255,0.15), 0 30px 60px rgba(0,0,0,0.5); margin-bottom:3rem;">',
+    unsafe_allow_html=True
+)
+components.iframe(VIDEO_URL, height=520, scrolling=False)
+st.markdown('</div>', unsafe_allow_html=True)
+
+# ── GRID DE PROYECTOS CON CONTRASEÑA ──
+_projects = [
+    {
+        "thumb_bg": "linear-gradient(135deg,#0f4c2a,#1a7a45)",
+        "emoji": "🏢",
+        "tag": "Inmobiliario",
+        "title": "Administración de Conjuntos y Condominios",
+        "desc": "Plataforma integral para la gestión de conjuntos residenciales y condominios: control de residentes, cuotas de administración, reservas de zonas comunes, comunicados y seguimiento de PQR.",
+        "url": "https://condominio-ceiba.streamlit.app/",
+    },
+    {
+        "thumb_bg": "linear-gradient(135deg,#1a1a2e,#e94560)",
+        "emoji": "🚗",
+        "tag": "Automotriz",
+        "title": "Venta y Permuta de Vehículos",
+        "desc": "Sistema para concesionarios y particulares: inventario de vehículos, publicación de fichas técnicas, gestión de permutas, seguimiento de clientes interesados y panel administrativo completo.",
+        "url": "https://jjgt-autos.streamlit.app/",
+    },
+    {
+        "thumb_bg": "linear-gradient(135deg,#003366,#0099cc)",
+        "emoji": "🧴",
+        "tag": "Retail",
+        "title": "Empresa de Venta de Productos de Aseo",
+        "desc": "Tienda y sistema de gestión para empresa de productos de limpieza e higiene: catálogo de productos, control de inventario, pedidos, facturación y seguimiento de clientes.",
+        "url": "https://brillol.streamlit.app/",
+    },
+    {
+        "thumb_bg": "linear-gradient(135deg,#2d1b69,#7c3aed)",
+        "emoji": "🧠",
+        "tag": "Salud",
+        "title": "Clínica de Psicología",
+        "desc": "Plataforma para clínica de salud mental: agendamiento de citas, gestión de pacientes e historias clínicas, recordatorios automáticos, facturación de sesiones y dashboard para psicólogos.",
+        "url": "https://clinicadelamor.streamlit.app/",
+    },
+    {
+        "thumb_bg": "linear-gradient(135deg,#1a3a1a,#f59e0b)",
+        "emoji": "👷",
+        "tag": "RRHH / Empleo",
+        "title": "Empresa de Servicios de Empleo Temporal",
+        "desc": "Sistema para empresa de empleo temporal: registro de candidatos, gestión de vacantes, asignación de personal, contratos, nómina básica y reporte de horas trabajadas.",
+        "url": "https://agendar.streamlit.app/",
+    },
+    {
+        "thumb_bg": "linear-gradient(135deg,#0a1628,#00d4ff)",
+        "emoji": "🚐",
+        "tag": "Transporte",
+        "title": "Servicios de Transporte Particular",
+        "desc": "Aplicación para empresa de transporte privado: reservas de viajes, asignación de conductores y vehículos, seguimiento de servicios, historial de clientes y liquidación de conductores.",
+        "url": "https://reservar-dp.streamlit.app/",
+    },
+]
+
+# Estilos adicionales para el widget de contraseña dentro de las tarjetas
 st.markdown("""
-<div style="padding:6rem 2rem; background: rgba(15,22,41,.6); border-top:1px solid rgba(0,212,255,.08); border-bottom:1px solid rgba(0,212,255,.08);" id="proyectos">
-  <div style="max-width:1200px; margin:0 auto;">
-    <div style="text-align:center; margin-bottom:3rem;">
-      <p class="section-label">Portafolio</p>
-      <h2 class="section-title">Proyectos Desarrollados</h2>
-      <p class="section-subtitle" style="margin:0 auto;">
-        Aplicaciones reales, funcionando hoy, construidas para distintos sectores e industrias.
-      </p>
-    </div>
-    <div class="projects-grid">
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#0f4c2a,#1a7a45);">🏢</div>
-        <div class="project-body">
-          <span class="project-tag">Inmobiliario</span>
-          <p class="project-title">Administración de Conjuntos y Condominios</p>
-          <p class="project-desc">
-            Plataforma integral para la gestión de conjuntos residenciales y condominios:
-            control de residentes, cuotas de administración, reservas de zonas comunes,
-            comunicados y seguimiento de PQR.
-          </p>
-          <a href="https://condominio-ceiba.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#1a1a2e,#e94560);">🚗</div>
-        <div class="project-body">
-          <span class="project-tag">Automotriz</span>
-          <p class="project-title">Venta y Permuta de Vehículos</p>
-          <p class="project-desc">
-            Sistema para concesionarios y particulares: inventario de vehículos,
-            publicación de fichas técnicas, gestión de permutas, seguimiento
-            de clientes interesados y panel administrativo completo.
-          </p>
-          <a href="https://jjgt-autos.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#003366,#0099cc);">🧴</div>
-        <div class="project-body">
-          <span class="project-tag">Retail</span>
-          <p class="project-title">Empresa de Venta de Productos de Aseo</p>
-          <p class="project-desc">
-            Tienda y sistema de gestión para empresa de productos de limpieza e higiene:
-            catálogo de productos, control de inventario, pedidos, facturación
-            y seguimiento de clientes.
-          </p>
-          <a href="https://brillol.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#2d1b69,#7c3aed);">🧠</div>
-        <div class="project-body">
-          <span class="project-tag">Salud</span>
-          <p class="project-title">Clínica de Psicología</p>
-          <p class="project-desc">
-            Plataforma para clínica de salud mental: agendamiento de citas,
-            gestión de pacientes e historias clínicas, recordatorios automáticos,
-            facturación de sesiones y dashboard para psicólogos.
-          </p>
-          <a href="https://clinicadelamor.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#1a3a1a,#f59e0b);">👷</div>
-        <div class="project-body">
-          <span class="project-tag">RRHH / Empleo</span>
-          <p class="project-title">Empresa de Servicios de Empleo Temporal</p>
-          <p class="project-desc">
-            Sistema para empresa de empleo temporal: registro de candidatos,
-            gestión de vacantes, asignación de personal, contratos, nómina
-            básica y reporte de horas trabajadas.
-          </p>
-          <a href="https://agendar.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-      <div class="project-card">
-        <div class="project-thumb" style="background:linear-gradient(135deg,#0a1628,#00d4ff);">🚐</div>
-        <div class="project-body">
-          <span class="project-tag">Transporte</span>
-          <p class="project-title">Servicios de Transporte Particular</p>
-          <p class="project-desc">
-            Aplicación para empresa de transporte privado: reservas de viajes,
-            asignación de conductores y vehículos, seguimiento de servicios,
-            historial de clientes y liquidación de conductores.
-          </p>
-          <a href="https://reservar-dp.streamlit.app/" target="_blank" class="project-link">Ver proyecto</a>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
+<style>
+.pwd-container {
+  padding: .75rem 1.5rem 1.25rem;
+  background: rgba(0,212,255,.04);
+  border-top: 1px solid rgba(0,212,255,.12);
+}
+.pwd-success {
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: rgba(0,212,255,.1); border: 1px solid rgba(0,212,255,.3);
+  border-radius: 50px; padding: .4rem 1.1rem;
+  color: #00D4FF; font-weight: 600; font-size: .88rem;
+  text-decoration: none; margin: .5rem 1.5rem 1.25rem; display: block; width: fit-content;
+}
+/* Botón "Ver proyecto" nativo de Streamlit, estilizado */
+[data-testid="stButton"] > button[kind="secondary"] {
+  background: transparent !important;
+  color: #00D4FF !important;
+  border: 1px solid rgba(0,212,255,.4) !important;
+  border-radius: 50px !important;
+  font-size: .85rem !important;
+  font-weight: 600 !important;
+  padding: .35rem 1.1rem !important;
+  transition: all .2s !important;
+}
+[data-testid="stButton"] > button[kind="secondary"]:hover {
+  background: rgba(0,212,255,.1) !important;
+  border-color: #00D4FF !important;
+}
+/* Input de contraseña dentro de tarjetas */
+.stTextInput input[type="password"] {
+  background: rgba(15,22,41,.95) !important;
+  color: #E2E8F0 !important;
+  border: 1px solid rgba(0,212,255,.35) !important;
+  border-radius: 8px !important;
+  font-size: .9rem !important;
+}
+.stTextInput input[type="password"]::placeholder { color: #64748B !important; }
+</style>
 """, unsafe_allow_html=True)
+
+# Renderizar proyectos en filas de 3
+_proj_rows = [_projects[i:i+3] for i in range(0, len(_projects), 3)]
+for _row in _proj_rows:
+    _cols = st.columns(3)
+    for _col, _p in zip(_cols, _row):
+        _key = ''.join(c for c in _p['title'] if c.isalnum())[:18]
+        with _col:
+            # Tarjeta sin enlace (lo gestiona Streamlit)
+            st.markdown(
+                f'<div class="project-card" style="margin-bottom:.25rem;">'
+                f'<div class="project-thumb" style="background:{_p["thumb_bg"]};">{_p["emoji"]}</div>'
+                f'<div class="project-body" style="padding-bottom:.75rem;">'
+                f'<span class="project-tag">{_p["tag"]}</span>'
+                f'<p class="project-title">{_p["title"]}</p>'
+                f'<p class="project-desc">{_p["desc"]}</p>'
+                f'</div></div>',
+                unsafe_allow_html=True
+            )
+            # Estado: desbloqueado → mostrar enlace
+            if st.session_state.proj_unlocked.get(_key):
+                st.markdown(
+                    f'<a href="{_p["url"]}" target="_blank" class="pwd-success">'
+                    f'✅ Acceso concedido &nbsp;·&nbsp; Abrir proyecto →</a>',
+                    unsafe_allow_html=True
+                )
+                if st.button("🔒 Cerrar acceso", key=f"lock_{_key}"):
+                    st.session_state.proj_unlocked[_key] = False
+                    st.session_state.proj_asking[_key] = False
+                    st.rerun()
+            # Estado: pidiendo contraseña
+            elif st.session_state.proj_asking.get(_key):
+                _pwd = st.text_input(
+                    "Contraseña de acceso:",
+                    type="password",
+                    key=f"pwd_{_key}",
+                    placeholder="Ingresa la contraseña...",
+                )
+                if _pwd == PROJECT_PASSWORD:
+                    st.session_state.proj_unlocked[_key] = True
+                    st.session_state.proj_asking[_key] = False
+                    st.rerun()
+                elif _pwd:
+                    st.error("Contraseña incorrecta. Intenta de nuevo.")
+            # Estado: sin acceso → mostrar botón
+            else:
+                if st.button(f"🔒 Ver proyecto", key=f"btn_{_key}"):
+                    st.session_state.proj_asking[_key] = True
+                    st.rerun()
+
+st.markdown('</div></div>', unsafe_allow_html=True)
 
 # ── PLANES (sin precios) ──
 st.markdown("""
@@ -1329,7 +1406,7 @@ st.markdown("""
   "offers": {
     "@type": "Offer",
     "price": "299",
-    "priceCurrency": "USD"
+    "priceCurrency": "COP"
   }
 }
 </script>
