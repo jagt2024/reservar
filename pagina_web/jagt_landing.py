@@ -1,5 +1,4 @@
 import streamlit as st
-import streamlit.components.v1 as components
 import toml
 import json
 import smtplib
@@ -10,9 +9,9 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ── CONFIGURACIÓN GLOBAL ──
-# URL del video animado de proyectos (reemplaza con tu dominio cuando despliegues)
-VIDEO_URL = "https://39561638-5f7a-4a60-98a8-ae51503be229-00-n7z16tvqo31f.riker.streamlit.app/josegart-proyectos/"
-#VIDEO_URL = "https://Code-Fixer-Mar-17-10-12-56.mp4
+# Archivo de video a mostrar en la sección de proyectos.
+# El archivo MP4 debe estar en la misma carpeta que este archivo .py en tu repositorio.
+VIDEO_FILE = "Code-Fixer-Mar-17-10-12-56.mp4"
 
 # Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
 PROJECT_PASSWORD = "josegart2025"
@@ -1033,14 +1032,27 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── VIDEO ANIMADO DE PROYECTOS ──
-st.markdown(
-    '<div style="border-radius:20px; overflow:hidden; border:1px solid rgba(0,212,255,0.25); '
-    'box-shadow:0 0 60px rgba(0,212,255,0.15), 0 30px 60px rgba(0,0,0,0.5); margin-bottom:3rem;">',
-    unsafe_allow_html=True
-)
-components.iframe(VIDEO_URL, height=520, scrolling=False)
-st.markdown('</div>', unsafe_allow_html=True)
+# ── VIDEO DE PROYECTOS ──
+st.markdown("""
+<style>
+[data-testid="stVideo"] {
+  border-radius: 20px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(0,212,255,0.25) !important;
+  box-shadow: 0 0 60px rgba(0,212,255,0.15), 0 30px 60px rgba(0,0,0,0.5) !important;
+  margin-bottom: 3rem !important;
+}
+[data-testid="stVideo"] video {
+  border-radius: 20px !important;
+  width: 100% !important;
+}
+</style>
+""", unsafe_allow_html=True)
+import os as _os
+if _os.path.exists(VIDEO_FILE):
+    st.video(VIDEO_FILE, autoplay=True, loop=True, muted=True)
+else:
+    st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio de Streamlit Cloud.")
 
 # ── GRID DE PROYECTOS CON CONTRASEÑA ──
 _projects = [
