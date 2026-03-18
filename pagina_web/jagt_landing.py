@@ -648,9 +648,28 @@ footer { display: none !important; }
   box-shadow: 0 24px 48px rgba(0,212,255,.12);
 }
 .project-thumb {
-  width: 100%; height: 160px;
+  width: 100%; height: 200px;
   display: flex; align-items: center; justify-content: center;
   font-size: 3rem; position: relative; overflow: hidden;
+}
+.project-thumb img {
+  width: 100%; height: 100%;
+  object-fit: cover; object-position: top center;
+  transition: transform .4s ease;
+  display: block;
+}
+.project-card:hover .project-thumb img {
+  transform: scale(1.04);
+}
+.project-thumb .thumb-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 50%, rgba(10,14,26,.65) 100%);
+  pointer-events: none;
+}
+.project-thumb .thumb-badge {
+  position: absolute; top: .6rem; right: .6rem;
+  font-size: 1.6rem; line-height: 1;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,.6));
 }
 .project-body { padding: 1.5rem; flex: 1; display: flex; flex-direction: column; }
 .project-tag {
@@ -710,14 +729,52 @@ footer { display: none !important; }
 .social-link:hover { border-color: var(--primary); color: var(--primary); }
 
 /* ── RESPONSIVE ── */
-@media (max-width: 768px) {
+@media (max-width: 900px) {
+  /* Grids HTML → 1 columna */
   .hero-grid, .problem-grid, .features-grid, .steps-grid,
   .metrics-grid, .testimonials-grid, .pricing-grid, .footer-grid {
     grid-template-columns: 1fr !important;
   }
-  .hero-section { padding-top: 7rem !important; }
+  /* Streamlit st.columns → apilar verticalmente */
+  [data-testid="stHorizontalBlock"] {
+    flex-direction: column !important;
+    gap: 1rem !important;
+  }
+  [data-testid="stHorizontalBlock"] > [data-testid="column"] {
+    width: 100% !important;
+    flex: 0 0 100% !important;
+    min-width: 100% !important;
+  }
+  /* Video responsive */
+  [data-testid="stVideo"] video { max-height: 220px !important; }
+  /* Pricing featured sin escala */
   .pricing-card.featured { transform: scale(1) !important; }
+  /* Nav oculta */
   .nav-links { display: none !important; }
+  /* Paddings menores */
+  .hero-section { padding: 6rem 1rem 3rem !important; }
+  .section { padding: 3rem 1rem !important; }
+  .metrics-section { padding: 3rem 1rem !important; }
+  .cta-section { padding: 3rem 1rem !important; }
+  /* Métricas 2 col en tablet */
+  .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  /* Sección de proyectos */
+  .projects-grid { grid-template-columns: 1fr !important; }
+  /* Footer simplificado */
+  .footer-grid { grid-template-columns: 1fr 1fr !important; }
+  .footer-bottom { flex-direction: column; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .hero-title { font-size: 2rem !important; }
+  .section-title { font-size: 1.6rem !important; }
+  .metrics-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .footer-grid { grid-template-columns: 1fr !important; }
+  .stat-num { font-size: 1.4rem !important; }
+  .hero-section { padding: 5.5rem .75rem 2rem !important; }
+  .navbar { padding: .75rem 1rem !important; }
+  [data-testid="stVideo"] video { max-height: 180px !important; }
+  .logo-text { font-size: 1.1rem !important; }
 }
 </style>
 
@@ -1058,6 +1115,7 @@ else:
     st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio.")
 
 # ── GRID DE PROYECTOS CON CONTRASEÑA ──
+_THUMB = "https://image.thum.io/get/width/600/crop/400/"
 _projects = [
     {
         "thumb_bg": "linear-gradient(135deg,#0f4c2a,#1a7a45)",
@@ -1066,6 +1124,7 @@ _projects = [
         "title": "Administración de Conjuntos y Condominios",
         "desc": "Plataforma integral para la gestión de conjuntos residenciales y condominios: control de residentes, cuotas de administración, reservas de zonas comunes, comunicados y seguimiento de PQR.",
         "url": "https://condominio-ceiba.streamlit.app/",
+        "screenshot": _THUMB + "https://condominio-ceiba.streamlit.app/",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#1a1a2e,#e94560)",
@@ -1074,6 +1133,7 @@ _projects = [
         "title": "Venta y Permuta de Vehículos",
         "desc": "Sistema para concesionarios y particulares: inventario de vehículos, publicación de fichas técnicas, gestión de permutas, seguimiento de clientes interesados y panel administrativo completo.",
         "url": "https://jjgt-autos.streamlit.app/",
+        "screenshot": _THUMB + "https://jjgt-autos.streamlit.app/",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#003366,#0099cc)",
@@ -1082,6 +1142,7 @@ _projects = [
         "title": "Empresa de Venta de Productos de Aseo",
         "desc": "Tienda y sistema de gestión para empresa de productos de limpieza e higiene: catálogo de productos, control de inventario, pedidos, facturación y seguimiento de clientes.",
         "url": "https://brillol.streamlit.app/",
+        "screenshot": _THUMB + "https://brillol.streamlit.app/",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#2d1b69,#7c3aed)",
@@ -1090,6 +1151,7 @@ _projects = [
         "title": "Clínica de Psicología",
         "desc": "Plataforma para clínica de salud mental: agendamiento de citas, gestión de pacientes e historias clínicas, recordatorios automáticos, facturación de sesiones y dashboard para psicólogos.",
         "url": "https://clinicadelamor.streamlit.app/",
+        "screenshot": _THUMB + "https://clinicadelamor.streamlit.app/",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#1a3a1a,#f59e0b)",
@@ -1098,6 +1160,7 @@ _projects = [
         "title": "Empresa de Servicios de Empleo Temporal",
         "desc": "Sistema para empresa de empleo temporal: registro de candidatos, gestión de vacantes, asignación de personal, contratos, nómina básica y reporte de horas trabajadas.",
         "url": "https://agendar.streamlit.app/",
+        "screenshot": _THUMB + "https://agendar.streamlit.app/",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#0a1628,#00d4ff)",
@@ -1106,6 +1169,7 @@ _projects = [
         "title": "Servicios de Transporte Particular",
         "desc": "Aplicación para empresa de transporte privado: reservas de viajes, asignación de conductores y vehículos, seguimiento de servicios, historial de clientes y liquidación de conductores.",
         "url": "https://reservar-dp.streamlit.app/",
+        "screenshot": _THUMB + "https://reservar-dp.streamlit.app/",
     },
 ]
 
@@ -1161,7 +1225,12 @@ for _row in _proj_rows:
             # Tarjeta sin enlace (lo gestiona Streamlit)
             st.markdown(
                 f'<div class="project-card" style="margin-bottom:.25rem;">'
-                f'<div class="project-thumb" style="background:{_p["thumb_bg"]};">{_p["emoji"]}</div>'
+                f'<div class="project-thumb" style="background:{_p["thumb_bg"]};">'
+                f'<img src="{_p["screenshot"]}" alt="{_p["title"]}" loading="lazy" '
+                f'onerror="this.style.display=\'none\';" />'
+                f'<div class="thumb-overlay"></div>'
+                f'<span class="thumb-badge">{_p["emoji"]}</span>'
+                f'</div>'
                 f'<div class="project-body" style="padding-bottom:.75rem;">'
                 f'<span class="project-tag">{_p["tag"]}</span>'
                 f'<p class="project-title">{_p["title"]}</p>'
