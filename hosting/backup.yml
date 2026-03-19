@@ -42,7 +42,7 @@ jobs:
 
       - name: 💾 Ejecutar backup
         run: |
-          python hosting_panel/scripts/backup_runner.py
+          python hosting/scripts/backup_runner.py
 
       - name: 📤 Subir Excel a Google Drive
         env:
