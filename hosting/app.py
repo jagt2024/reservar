@@ -809,7 +809,7 @@ def docs_view():
 JAGT Hosting (josegart.io)
 ├── Panel de Control → Este archivo (app.py)
 │   ├── Streamlit Cloud (GRATIS, 24/7)
-│   └── GitHub: jagt2024/Reservar/hosting_panel/app.py
+│   └── GitHub: jagt2024/Reservar/hosting/app.py
 │
 ├── Apps Gestionadas → jagt2024/Reservar/
 │   ├── pagina_web/jagt_landing.py
@@ -827,10 +827,10 @@ JAGT Hosting (josegart.io)
 git clone https://github.com/jagt2024/Reservar.git
 
 # Crea carpeta del panel
-mkdir -p Reservar/hosting_panel
-cp app.py Reservar/hosting_panel/
-cp requirements.txt Reservar/hosting_panel/
-cp backup_runner.py Reservar/hosting_panel/scripts/
+mkdir -p APP - RESERVAS/hosting
+cp app.py APP - RESERVAS/hosting/
+cp requirements.txt APP - RESERVAS/hosting/
+cp backup_runner.py APP - RESERVAS/hosting/scripts/
 
 # Sube los cambios
 git add .
@@ -845,7 +845,7 @@ git push origin main
 3. Conecta tu cuenta GitHub
 4. Selecciona repo: `jagt2024/Reservar`
 5. Branch: `main`
-6. Main file: `hosting_panel/app.py`
+6. Main file: `hosting/app.py`
 7. App URL personalizada: `josegart-hosting`
 8. Haz clic en **Deploy**
 
