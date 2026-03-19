@@ -211,6 +211,285 @@ if 'proj_unlocked' not in st.session_state:
     st.session_state.proj_unlocked = {}
 if 'proj_asking' not in st.session_state:
     st.session_state.proj_asking = {}
+if 'open_page' not in st.session_state:
+    st.session_state.open_page = None
+
+# ════════════════════════════════════════════════════
+# PÁGINAS MODALES – Servicios / Empresa / Recursos / Legal
+# ════════════════════════════════════════════════════
+
+@st.dialog("🛠️ Nuestros Servicios", width="large")
+def modal_servicios():
+    st.markdown("""
+<style>
+.modal-section { margin-bottom: 2rem; }
+.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
+.modal-section p, .modal-section li { color: #94A3B8; line-height: 1.7; font-size: .95rem; }
+.modal-section ul { padding-left: 1.2rem; }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+.modal-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.25rem; }
+.modal-card h4 { color: #FFFFFF; margin: .5rem 0 .4rem; font-size: 1rem; }
+.modal-card p { color: #94A3B8; font-size: .88rem; margin: 0; }
+.modal-icon { font-size: 1.8rem; }
+</style>
+<div class="modal-grid">
+  <div class="modal-card">
+    <div class="modal-icon">📱</div>
+    <h4>Apps a Medida</h4>
+    <p>Desarrollamos aplicaciones web y móviles personalizadas según las necesidades exactas de tu negocio, con tecnologías modernas como Python, Streamlit, React y más.</p>
+  </div>
+  <div class="modal-card">
+    <div class="modal-icon">🔐</div>
+    <h4>Seguridad Digital</h4>
+    <p>Auditorías de seguridad, cifrado AES-256, autenticación de dos factores, protección contra vulnerabilidades OWASP y cumplimiento GDPR/RGPD para tu plataforma.</p>
+  </div>
+  <div class="modal-card">
+    <div class="modal-icon">🤖</div>
+    <h4>IA & Automatización</h4>
+    <p>Integración de modelos de IA (OpenAI, Anthropic, Google AI) para automatizar procesos repetitivos, generar reportes inteligentes y potenciar la toma de decisiones.</p>
+  </div>
+  <div class="modal-card">
+    <div class="modal-icon">🌐</div>
+    <h4>Negocios Digitales</h4>
+    <p>Estrategia y desarrollo de presencia digital completa: landing pages, tiendas online, sistemas de gestión y herramientas para escalar tu negocio en internet.</p>
+  </div>
+  <div class="modal-card">
+    <div class="modal-icon">🧠</div>
+    <h4>Asesoría en IA</h4>
+    <p>Consultoría personalizada para identificar qué procesos de tu empresa pueden automatizarse con IA, con hoja de ruta clara y acompañamiento en la implementación.</p>
+  </div>
+  <div class="modal-card">
+    <div class="modal-icon">☁️</div>
+    <h4>Infraestructura Cloud</h4>
+    <p>Despliegue y gestión de aplicaciones en la nube (AWS, GCP, Azure, Streamlit Cloud). Arquitecturas escalables, backups automáticos y monitoreo continuo.</p>
+  </div>
+</div>
+<br>
+<div class="modal-section">
+  <h3>¿Cómo trabajamos?</h3>
+  <ul>
+    <li><strong style="color:#fff;">Consulta gratuita:</strong> Analizamos tu necesidad sin compromiso.</li>
+    <li><strong style="color:#fff;">Propuesta clara:</strong> Entregamos alcance, tiempo y presupuesto por escrito.</li>
+    <li><strong style="color:#fff;">Desarrollo iterativo:</strong> Entregas semanales con tu retroalimentación.</li>
+    <li><strong style="color:#fff;">Soporte post-entrega:</strong> Acompañamiento y mantenimiento continuo.</li>
+  </ul>
+</div>
+    """, unsafe_allow_html=True)
+    if st.button("📬 Solicitar una consulta gratuita", use_container_width=True):
+        st.session_state.open_page = None
+        st.rerun()
+
+
+@st.dialog("🏢 Sobre JOSEGART", width="large")
+def modal_empresa():
+    st.markdown("""
+<style>
+.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
+.modal-section p, .modal-section li { color: #94A3B8; line-height: 1.7; font-size: .95rem; }
+.modal-section ul { padding-left: 1.2rem; }
+.team-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
+.team-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#00D4FF,#7C3AED); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: #fff; flex-shrink: 0; }
+.team-info h4 { color: #fff; margin: 0 0 .2rem; font-size: 1rem; }
+.team-info p { color: #94A3B8; font-size: .88rem; margin: 0; }
+.value-row { display: flex; gap: .75rem; align-items: flex-start; margin-bottom: .75rem; }
+.value-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
+.value-text h4 { color: #fff; margin: 0 0 .2rem; font-size: .95rem; }
+.value-text p { color: #94A3B8; font-size: .88rem; margin: 0; }
+</style>
+
+<div class="modal-section">
+  <h3>Nuestra Historia</h3>
+  <p>JOSEGART nació de la convicción de que la tecnología debe ser una herramienta accesible para todos los negocios, sin importar su tamaño. Fundada por José Alejandro García, combinamos experiencia en desarrollo de software, inteligencia artificial y estrategia digital para ofrecer soluciones que realmente transforman empresas.</p>
+  <p>Con más de 5 años de experiencia y más de 50 proyectos entregados, hemos ayudado a emprendedores, PyMEs y empresas consolidadas a digitalizar sus operaciones, automatizar procesos y crecer de forma sostenible.</p>
+</div>
+
+<div class="modal-section">
+  <h3>Nuestro Equipo</h3>
+  <div class="team-card">
+    <div class="team-avatar">JA</div>
+    <div class="team-info">
+      <h4>José Alejandro García</h4>
+      <p>Fundador & Lead Developer · Especialista en Python, IA y arquitectura de software seguro. Más de 5 años desarrollando soluciones digitales para empresas en Latinoamérica.</p>
+    </div>
+  </div>
+  <div class="team-card">
+    <div class="team-avatar">🤖</div>
+    <div class="team-info">
+      <h4>Red de Colaboradores</h4>
+      <p>Contamos con una red de diseñadores UX/UI, especialistas en ciberseguridad y expertos en datos que se integran según las necesidades de cada proyecto.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal-section">
+  <h3>Nuestros Valores</h3>
+  <div class="value-row"><span class="value-icon">🎯</span><div class="value-text"><h4>Orientación al resultado</h4><p>Cada decisión técnica se toma pensando en el impacto real para tu negocio.</p></div></div>
+  <div class="value-row"><span class="value-icon">🔒</span><div class="value-text"><h4>Seguridad primero</h4><p>La seguridad no es una opción adicional, está integrada en cada línea de código.</p></div></div>
+  <div class="value-row"><span class="value-icon">🤝</span><div class="value-text"><h4>Transparencia total</h4><p>Comunicación clara, presupuestos honestos y cronogramas cumplidos.</p></div></div>
+  <div class="value-row"><span class="value-icon">🚀</span><div class="value-text"><h4>Innovación continua</h4><p>Estamos siempre al día con las últimas tecnologías para ofrecerte lo mejor.</p></div></div>
+</div>
+    """, unsafe_allow_html=True)
+
+
+@st.dialog("📚 Recursos & Conocimiento", width="large")
+def modal_recursos():
+    st.markdown("""
+<style>
+.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .75rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
+.rec-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: .85rem; display: flex; gap: 1rem; align-items: flex-start; }
+.rec-icon { font-size: 1.6rem; flex-shrink: 0; }
+.rec-body h4 { color: #fff; margin: 0 0 .3rem; font-size: .98rem; }
+.rec-body p { color: #94A3B8; font-size: .87rem; margin: 0 0 .4rem; line-height: 1.5; }
+.rec-tag { display: inline-block; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: #F59E0B; border-radius: 50px; padding: .15rem .6rem; font-size: .75rem; font-weight: 600; }
+</style>
+
+<div class="modal-section">
+  <h3>📖 Guías y Artículos</h3>
+  <div class="rec-card">
+    <span class="rec-icon">🤖</span>
+    <div class="rec-body">
+      <h4>Guía de IA para Negocios 2025</h4>
+      <p>Cómo implementar inteligencia artificial en tu empresa paso a paso, sin necesidad de ser técnico. Casos prácticos y herramientas recomendadas.</p>
+      <span class="rec-tag">Guía gratuita</span>
+    </div>
+  </div>
+  <div class="rec-card">
+    <span class="rec-icon">🔐</span>
+    <div class="rec-body">
+      <h4>Seguridad Digital para PyMEs</h4>
+      <p>Los 10 errores de seguridad más comunes en pequeñas empresas y cómo evitarlos. Checklist descargable incluido.</p>
+      <span class="rec-tag">Artículo</span>
+    </div>
+  </div>
+  <div class="rec-card">
+    <span class="rec-icon">📊</span>
+    <div class="rec-body">
+      <h4>Automatización de Procesos con Python</h4>
+      <p>Tutorial práctico para automatizar reportes, correos y flujos de trabajo usando Python y herramientas gratuitas.</p>
+      <span class="rec-tag">Tutorial</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal-section">
+  <h3>🎓 Casos de Éxito</h3>
+  <div class="rec-card">
+    <span class="rec-icon">🏢</span>
+    <div class="rec-body">
+      <h4>Cómo digitalizamos la gestión de un condominio de 200 unidades</h4>
+      <p>Reducción del 80% en tiempo administrativo y cero pérdida de pagos gracias a un sistema digital a medida.</p>
+      <span class="rec-tag">Caso real</span>
+    </div>
+  </div>
+  <div class="rec-card">
+    <span class="rec-icon">🚗</span>
+    <div class="rec-body">
+      <h4>De Excel a una plataforma de ventas en 3 semanas</h4>
+      <p>Un concesionario pequeño triplicó sus ventas online al migrar su inventario a una app web moderna con búsqueda inteligente.</p>
+      <span class="rec-tag">Caso real</span>
+    </div>
+  </div>
+</div>
+
+<div class="modal-section">
+  <h3>📬 Newsletter & Webinars</h3>
+  <div class="rec-card">
+    <span class="rec-icon">✉️</span>
+    <div class="rec-body">
+      <h4>Newsletter Mensual</h4>
+      <p>Recibe cada mes: tendencias en IA, herramientas útiles para tu negocio y noticias del equipo JOSEGART. Sin spam, solo valor.</p>
+      <span class="rec-tag">Gratis</span>
+    </div>
+  </div>
+  <div class="rec-card">
+    <span class="rec-icon">🎥</span>
+    <div class="rec-body">
+      <h4>Webinars en vivo</h4>
+      <p>Sesiones mensuales gratuitas sobre temas como automatización, seguridad digital e IA aplicada a negocios. Escríbenos para unirte.</p>
+      <span class="rec-tag">Próximamente</span>
+    </div>
+  </div>
+</div>
+    """, unsafe_allow_html=True)
+    if st.button("📬 Quiero recibir el newsletter", use_container_width=True):
+        st.info("Escríbenos a josegarjagt@gmail.com con el asunto 'Newsletter' y te añadimos a la lista.")
+
+
+@st.dialog("⚖️ Información Legal", width="large")
+def modal_legal():
+    st.markdown("""
+<style>
+.legal-section { margin-bottom: 2rem; }
+.legal-section h3 { color: #00D4FF; font-size: 1.05rem; margin-bottom: .6rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
+.legal-section p, .legal-section li { color: #94A3B8; font-size: .9rem; line-height: 1.75; }
+.legal-section ul { padding-left: 1.2rem; }
+.legal-highlight { background: rgba(0,212,255,.06); border: 1px solid rgba(0,212,255,.15); border-radius: 10px; padding: 1rem 1.25rem; margin: .75rem 0; }
+.legal-highlight p { margin: 0; color: #94A3B8; font-size: .88rem; }
+</style>
+
+<div class="legal-section">
+  <h3>🔒 Política de Privacidad</h3>
+  <p>JOSEGART (José Alejandro García) se compromete a proteger tu privacidad. La información personal que recopilamos a través de nuestro formulario de contacto (nombre, correo, teléfono y mensaje) se usa exclusivamente para:</p>
+  <ul>
+    <li>Responder a tu solicitud de consulta o información.</li>
+    <li>Enviarte comunicaciones relacionadas con nuestros servicios, si lo autorizas.</li>
+    <li>Mejorar la calidad de nuestros servicios.</li>
+  </ul>
+  <div class="legal-highlight"><p>📌 No vendemos, alquilamos ni compartimos tu información personal con terceros bajo ninguna circunstancia.</p></div>
+  <p>Los datos se almacenan de forma segura en Google Sheets con acceso restringido y se conservan únicamente el tiempo necesario para atender tu consulta.</p>
+</div>
+
+<div class="legal-section">
+  <h3>📋 Términos de Uso</h3>
+  <p>Al utilizar este sitio y contratar nuestros servicios, aceptas los siguientes términos:</p>
+  <ul>
+    <li>Los proyectos se desarrollan bajo un contrato escrito que detalla alcance, tiempos y costos.</li>
+    <li>El cliente mantiene la propiedad intelectual del producto final una vez completado el pago.</li>
+    <li>JOSEGART retiene el derecho de mencionar el proyecto como referencia en su portafolio, salvo acuerdo NDA.</li>
+    <li>Los plazos acordados pueden verse afectados por retrasos en la entrega de información o aprobaciones por parte del cliente.</li>
+    <li>Ofrecemos garantía de 30 días post-entrega para correcciones de bugs dentro del alcance acordado.</li>
+  </ul>
+</div>
+
+<div class="legal-section">
+  <h3>🍪 Política de Cookies</h3>
+  <p>Este sitio está alojado en Streamlit Cloud y no utiliza cookies de rastreo propias. Streamlit Cloud puede utilizar cookies técnicas necesarias para el funcionamiento de la plataforma. No utilizamos cookies de publicidad ni de análisis de comportamiento.</p>
+</div>
+
+<div class="legal-section">
+  <h3>🌍 GDPR / RGPD</h3>
+  <p>Si te encuentras en la Unión Europea, tienes derecho a:</p>
+  <ul>
+    <li>Acceder a los datos personales que tenemos sobre ti.</li>
+    <li>Solicitar la corrección o eliminación de tus datos.</li>
+    <li>Oponerte al tratamiento de tus datos en cualquier momento.</li>
+    <li>Presentar una reclamación ante la autoridad de protección de datos de tu país.</li>
+  </ul>
+  <div class="legal-highlight"><p>📧 Para ejercer cualquiera de estos derechos, escríbenos a <strong style="color:#00D4FF;">josegarjagt@gmail.com</strong></p></div>
+</div>
+
+<div class="legal-section">
+  <h3>🛡️ Seguridad</h3>
+  <p>Implementamos las siguientes medidas de seguridad en todos nuestros proyectos y en esta plataforma:</p>
+  <ul>
+    <li>Comunicaciones cifradas mediante HTTPS/SSL.</li>
+    <li>Credenciales almacenadas como secretos cifrados, nunca en código fuente.</li>
+    <li>Acceso a datos restringido por roles y autenticación.</li>
+    <li>Revisiones periódicas de seguridad siguiendo estándares OWASP.</li>
+  </ul>
+</div>
+    """, unsafe_allow_html=True)
+
+
+# ── Disparar modal según session_state ──
+if st.session_state.open_page == 'servicios':
+    modal_servicios()
+elif st.session_state.open_page == 'empresa':
+    modal_empresa()
+elif st.session_state.open_page == 'recursos':
+    modal_recursos()
+elif st.session_state.open_page == 'legal':
+    modal_legal()
 
 st.markdown("""
 <style>
@@ -775,6 +1054,28 @@ footer { display: none !important; }
   .navbar { padding: .75rem 1rem !important; }
   [data-testid="stVideo"] video { max-height: 180px !important; }
   .logo-text { font-size: 1.1rem !important; }
+}
+
+/* ── BOTONES DEL FOOTER (apariencia de links de texto) ── */
+div[data-testid="column"]:nth-child(n+2) .stButton > button {
+  background: transparent !important;
+  border: none !important;
+  color: #94A3B8 !important;
+  font-size: .9rem !important;
+  font-weight: 400 !important;
+  padding: .1rem 0 !important;
+  text-align: left !important;
+  box-shadow: none !important;
+  justify-content: flex-start !important;
+  min-height: unset !important;
+  height: auto !important;
+  transition: color .2s !important;
+}
+div[data-testid="column"]:nth-child(n+2) .stButton > button:hover {
+  color: #00D4FF !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 </style>
 
@@ -1439,47 +1740,67 @@ st.markdown("""
         <a href="#" class="social-link" aria-label="WhatsApp">WA</a>
       </div>
     </div>
-    <div>
-      <p class="footer-col-title">Servicios</p>
-      <ul class="footer-links">
-        <li><a href="#servicios">Apps a Medida</a></li>
-        <li><a href="#servicios">Seguridad Digital</a></li>
-        <li><a href="#servicios">IA & Automatización</a></li>
-        <li><a href="#servicios">Negocios Digitales</a></li>
-        <li><a href="#servicios">Asesoría en IA</a></li>
-      </ul>
-    </div>
-    <div>
-      <p class="footer-col-title">Empresa</p>
-      <ul class="footer-links">
-        <li><a href="#">Sobre Nosotros</a></li>
-        <li><a href="#">Nuestro Equipo</a></li>
-        <li><a href="#">Portfolio</a></li>
-        <li><a href="#">Blog</a></li>
-        <li><a href="#contacto">Contacto</a></li>
-      </ul>
-    </div>
-    <div>
-      <p class="footer-col-title">Recursos</p>
-      <ul class="footer-links">
-        <li><a href="#">Guía de IA 2025</a></li>
-        <li><a href="#">Casos de Éxito</a></li>
-        <li><a href="#">Webinars Gratis</a></li>
-        <li><a href="#">Newsletter</a></li>
-        <li><a href="#">Documentación</a></li>
-      </ul>
-    </div>
-    <div>
-      <p class="footer-col-title">Legal</p>
-      <ul class="footer-links">
-        <li><a href="#">Privacidad</a></li>
-        <li><a href="#">Términos de Uso</a></li>
-        <li><a href="#">Cookies</a></li>
-        <li><a href="#">GDPR / RGPD</a></li>
-        <li><a href="#">Seguridad</a></li>
-      </ul>
-    </div>
-  </div>
+""", unsafe_allow_html=True)
+
+# ── Columnas del footer con botones Streamlit estilizados como links ──
+_fc1, _fc2, _fc3, _fc4 = st.columns(4)
+
+_btn_css = """
+<style>
+div[data-testid="stHorizontalBlock"] .footer-col-wrap button {
+  background: none !important; border: none !important;
+  color: #94A3B8 !important; font-size: .9rem !important;
+  padding: .15rem 0 !important; text-align: left !important;
+  cursor: pointer !important; text-decoration: none !important;
+  transition: color .2s !important; width: 100% !important;
+  display: block !important;
+}
+div[data-testid="stHorizontalBlock"] .footer-col-wrap button:hover {
+  color: #00D4FF !important;
+}
+div[data-testid="stHorizontalBlock"] .footer-col-wrap p {
+  color: #fff !important; font-weight: 600 !important;
+  font-size: .95rem !important; margin-bottom: .75rem !important;
+  font-family: 'Space Grotesk', sans-serif !important;
+}
+</style>
+"""
+st.markdown(_btn_css, unsafe_allow_html=True)
+
+with _fc1:
+    st.markdown('<div class="footer-col-wrap"><p>Servicios</p></div>', unsafe_allow_html=True)
+    if st.button("Apps a Medida",        key="fs1"): st.session_state.open_page = 'servicios'; st.rerun()
+    if st.button("Seguridad Digital",    key="fs2"): st.session_state.open_page = 'servicios'; st.rerun()
+    if st.button("IA & Automatización",  key="fs3"): st.session_state.open_page = 'servicios'; st.rerun()
+    if st.button("Negocios Digitales",   key="fs4"): st.session_state.open_page = 'servicios'; st.rerun()
+    if st.button("Asesoría en IA",       key="fs5"): st.session_state.open_page = 'servicios'; st.rerun()
+
+with _fc2:
+    st.markdown('<div class="footer-col-wrap"><p>Empresa</p></div>', unsafe_allow_html=True)
+    if st.button("Sobre Nosotros",  key="fe1"): st.session_state.open_page = 'empresa'; st.rerun()
+    if st.button("Nuestro Equipo", key="fe2"): st.session_state.open_page = 'empresa'; st.rerun()
+    if st.button("Portfolio",       key="fe3"): st.session_state.open_page = 'empresa'; st.rerun()
+    if st.button("Blog",            key="fe4"): st.session_state.open_page = 'empresa'; st.rerun()
+    if st.button("Contacto",        key="fe5"): st.session_state.open_page = 'empresa'; st.rerun()
+
+with _fc3:
+    st.markdown('<div class="footer-col-wrap"><p>Recursos</p></div>', unsafe_allow_html=True)
+    if st.button("Guía de IA 2025",    key="fr1"): st.session_state.open_page = 'recursos'; st.rerun()
+    if st.button("Casos de Éxito",     key="fr2"): st.session_state.open_page = 'recursos'; st.rerun()
+    if st.button("Webinars Gratis",    key="fr3"): st.session_state.open_page = 'recursos'; st.rerun()
+    if st.button("Newsletter",         key="fr4"): st.session_state.open_page = 'recursos'; st.rerun()
+    if st.button("Documentación",      key="fr5"): st.session_state.open_page = 'recursos'; st.rerun()
+
+with _fc4:
+    st.markdown('<div class="footer-col-wrap"><p>Legal</p></div>', unsafe_allow_html=True)
+    if st.button("Privacidad",      key="fl1"): st.session_state.open_page = 'legal'; st.rerun()
+    if st.button("Términos de Uso", key="fl2"): st.session_state.open_page = 'legal'; st.rerun()
+    if st.button("Cookies",         key="fl3"): st.session_state.open_page = 'legal'; st.rerun()
+    if st.button("GDPR / RGPD",     key="fl4"): st.session_state.open_page = 'legal'; st.rerun()
+    if st.button("Seguridad",       key="fl5"): st.session_state.open_page = 'legal'; st.rerun()
+
+st.markdown("""
+  </div><!-- footer-grid -->
   <div class="footer-bottom">
     <span>© 2025 JOSEGART - Un Futuro Mejor. Todos los derechos reservados.</span>
     <span>Hecho con ❤️ para impulsar tu negocio</span>
