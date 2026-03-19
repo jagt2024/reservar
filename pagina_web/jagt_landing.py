@@ -16,7 +16,7 @@ import os as _os
 VIDEO_FILE = "Code-Fixer-Mar-17-10-12-56.mp4"
 
 # Contraseña para acceder a los enlaces de proyectos (cámbiala por la tuya)
-PROJECT_PASSWORD = "josegart2025"
+PROJECT_PASSWORD = "JoSeGaRt2025"
 
 # ── FUNCIONES DE AUTENTICACIÓN Y CONTACTO ──
 
@@ -1115,7 +1115,6 @@ else:
     st.info(f"📽️ Video no encontrado: asegúrate de subir **{VIDEO_FILE}** a la misma carpeta que este archivo en tu repositorio.")
 
 # ── GRID DE PROYECTOS CON CONTRASEÑA ──
-_THUMB = "https://image.thum.io/get/width/600/crop/400/"
 _projects = [
     {
         "thumb_bg": "linear-gradient(135deg,#0f4c2a,#1a7a45)",
@@ -1124,7 +1123,8 @@ _projects = [
         "title": "Administración de Conjuntos y Condominios",
         "desc": "Plataforma integral para la gestión de conjuntos residenciales y condominios: control de residentes, cuotas de administración, reservas de zonas comunes, comunicados y seguimiento de PQR.",
         "url": "https://condominio-ceiba.streamlit.app/",
-        "screenshot": _THUMB + "https://condominio-ceiba.streamlit.app/",
+        # Edificio residencial / condominio
+        "screenshot": "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=600&h=400&fit=crop&auto=format",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#1a1a2e,#e94560)",
@@ -1133,7 +1133,8 @@ _projects = [
         "title": "Venta y Permuta de Vehículos",
         "desc": "Sistema para concesionarios y particulares: inventario de vehículos, publicación de fichas técnicas, gestión de permutas, seguimiento de clientes interesados y panel administrativo completo.",
         "url": "https://jjgt-autos.streamlit.app/",
-        "screenshot": _THUMB + "https://jjgt-autos.streamlit.app/",
+        # Concesionario / autos en sala de ventas
+        "screenshot": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=600&h=400&fit=crop&auto=format",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#003366,#0099cc)",
@@ -1142,7 +1143,8 @@ _projects = [
         "title": "Empresa de Venta de Productos de Aseo",
         "desc": "Tienda y sistema de gestión para empresa de productos de limpieza e higiene: catálogo de productos, control de inventario, pedidos, facturación y seguimiento de clientes.",
         "url": "https://brillol.streamlit.app/",
-        "screenshot": _THUMB + "https://brillol.streamlit.app/",
+        # Productos de limpieza / estantes de supermercado
+        "screenshot": "https://images.unsplash.com/photo-1563453392212-326f5e854473?w=600&h=400&fit=crop&auto=format",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#2d1b69,#7c3aed)",
@@ -1151,7 +1153,8 @@ _projects = [
         "title": "Clínica de Psicología",
         "desc": "Plataforma para clínica de salud mental: agendamiento de citas, gestión de pacientes e historias clínicas, recordatorios automáticos, facturación de sesiones y dashboard para psicólogos.",
         "url": "https://clinicadelamor.streamlit.app/",
-        "screenshot": _THUMB + "https://clinicadelamor.streamlit.app/",
+        # Consulta psicológica / bienestar mental
+        "screenshot": "https://images.unsplash.com/photo-1573497620053-ea5300f94f21?w=600&h=400&fit=crop&auto=format",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#1a3a1a,#f59e0b)",
@@ -1160,7 +1163,8 @@ _projects = [
         "title": "Empresa de Servicios de Empleo Temporal",
         "desc": "Sistema para empresa de empleo temporal: registro de candidatos, gestión de vacantes, asignación de personal, contratos, nómina básica y reporte de horas trabajadas.",
         "url": "https://agendar.streamlit.app/",
-        "screenshot": _THUMB + "https://agendar.streamlit.app/",
+        # Equipo de trabajo / entrevista laboral
+        "screenshot": "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=400&fit=crop&auto=format",
     },
     {
         "thumb_bg": "linear-gradient(135deg,#0a1628,#00d4ff)",
@@ -1169,7 +1173,8 @@ _projects = [
         "title": "Servicios de Transporte Particular",
         "desc": "Aplicación para empresa de transporte privado: reservas de viajes, asignación de conductores y vehículos, seguimiento de servicios, historial de clientes y liquidación de conductores.",
         "url": "https://reservar-dp.streamlit.app/",
-        "screenshot": _THUMB + "https://reservar-dp.streamlit.app/",
+        # Van / transporte de pasajeros
+        "screenshot": "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=600&h=400&fit=crop&auto=format",
     },
 ]
 
