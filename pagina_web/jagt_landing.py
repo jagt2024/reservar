@@ -1056,26 +1056,47 @@ footer { display: none !important; }
   .logo-text { font-size: 1.1rem !important; }
 }
 
-/* ── BOTONES DEL FOOTER (apariencia de links de texto) ── */
-div[data-testid="column"]:nth-child(n+2) .stButton > button {
+/* ── BOTONES DEL FOOTER (apariencia de links visibles) ── */
+
+/* Selector amplio: todos los botones dentro de columnas del footer */
+.stButton > button,
+[data-testid="stButton"] > button {
   background: transparent !important;
-  border: none !important;
-  color: #94A3B8 !important;
-  font-size: .9rem !important;
+  border: 1px solid rgba(148,163,184,0.25) !important;
+  color: #CBD5E1 !important;
+  font-size: .88rem !important;
   font-weight: 400 !important;
-  padding: .1rem 0 !important;
+  padding: .25rem .6rem !important;
   text-align: left !important;
   box-shadow: none !important;
   justify-content: flex-start !important;
-  min-height: unset !important;
-  height: auto !important;
-  transition: color .2s !important;
+  width: 100% !important;
+  transition: color .2s, border-color .2s !important;
 }
-div[data-testid="column"]:nth-child(n+2) .stButton > button:hover {
+.stButton > button:hover,
+[data-testid="stButton"] > button:hover {
   color: #00D4FF !important;
-  background: transparent !important;
-  border: none !important;
+  border-color: rgba(0,212,255,0.4) !important;
+  background: rgba(0,212,255,0.05) !important;
   box-shadow: none !important;
+}
+
+/* Excepción: botón principal del formulario mantiene su estilo */
+[data-testid="stFormSubmitButton"] > button {
+  background: linear-gradient(135deg, #00D4FF, #7C3AED) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 50px !important;
+  font-weight: 600 !important;
+  font-size: 1rem !important;
+  padding: .75rem 2rem !important;
+  justify-content: center !important;
+}
+[data-testid="stFormSubmitButton"] > button:hover {
+  opacity: .9 !important;
+  transform: translateY(-1px) !important;
+  border: none !important;
+  color: #ffffff !important;
 }
 </style>
 
