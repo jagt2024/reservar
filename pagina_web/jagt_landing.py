@@ -223,13 +223,13 @@ def modal_servicios():
     st.markdown("""
 <style>
 .modal-section { margin-bottom: 2rem; }
-.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
-.modal-section p, .modal-section li { color: #94A3B8; line-height: 1.7; font-size: .95rem; }
+.modal-section h3 { color: #0369A1; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #0369A1; padding-left: .75rem; }
+.modal-section p, .modal-section li { color: #1E293B; line-height: 1.7; font-size: .95rem; }
 .modal-section ul { padding-left: 1.2rem; }
 .modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
-.modal-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.25rem; }
-.modal-card h4 { color: #FFFFFF; margin: .5rem 0 .4rem; font-size: 1rem; }
-.modal-card p { color: #94A3B8; font-size: .88rem; margin: 0; }
+.modal-card { background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 14px; padding: 1.25rem; }
+.modal-card h4 { color: #0C4A6E; margin: .5rem 0 .4rem; font-size: 1rem; }
+.modal-card p { color: #334155; font-size: .88rem; margin: 0; }
 .modal-icon { font-size: 1.8rem; }
 </style>
 <div class="modal-grid">
@@ -268,10 +268,10 @@ def modal_servicios():
 <div class="modal-section">
   <h3>¿Cómo trabajamos?</h3>
   <ul>
-    <li><strong style="color:#fff;">Consulta gratuita:</strong> Analizamos tu necesidad sin compromiso.</li>
-    <li><strong style="color:#fff;">Propuesta clara:</strong> Entregamos alcance, tiempo y presupuesto por escrito.</li>
-    <li><strong style="color:#fff;">Desarrollo iterativo:</strong> Entregas semanales con tu retroalimentación.</li>
-    <li><strong style="color:#fff;">Soporte post-entrega:</strong> Acompañamiento y mantenimiento continuo.</li>
+    <li><strong style="color:#0C4A6E;">Consulta gratuita:</strong> Analizamos tu necesidad sin compromiso.</li>
+    <li><strong style="color:#0C4A6E;">Propuesta clara:</strong> Entregamos alcance, tiempo y presupuesto por escrito.</li>
+    <li><strong style="color:#0C4A6E;">Desarrollo iterativo:</strong> Entregas semanales con tu retroalimentación.</li>
+    <li><strong style="color:#0C4A6E;">Soporte post-entrega:</strong> Acompañamiento y mantenimiento continuo.</li>
   </ul>
 </div>
     """, unsafe_allow_html=True)
@@ -284,17 +284,17 @@ def modal_servicios():
 def modal_empresa():
     st.markdown("""
 <style>
-.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
-.modal-section p, .modal-section li { color: #94A3B8; line-height: 1.7; font-size: .95rem; }
+.modal-section h3 { color: #0369A1; font-size: 1.1rem; margin-bottom: .5rem; border-left: 3px solid #0369A1; padding-left: .75rem; }
+.modal-section p, .modal-section li { color: #1E293B; line-height: 1.7; font-size: .95rem; }
 .modal-section ul { padding-left: 1.2rem; }
-.team-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
+.team-card { background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 14px; padding: 1.25rem; display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 1rem; }
 .team-avatar { width: 52px; height: 52px; border-radius: 50%; background: linear-gradient(135deg,#00D4FF,#7C3AED); display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: 700; color: #fff; flex-shrink: 0; }
-.team-info h4 { color: #fff; margin: 0 0 .2rem; font-size: 1rem; }
-.team-info p { color: #94A3B8; font-size: .88rem; margin: 0; }
+.team-info h4 { color: #0C4A6E; margin: 0 0 .2rem; font-size: 1rem; }
+.team-info p { color: #334155; font-size: .88rem; margin: 0; }
 .value-row { display: flex; gap: .75rem; align-items: flex-start; margin-bottom: .75rem; }
 .value-icon { font-size: 1.4rem; flex-shrink: 0; margin-top: 2px; }
-.value-text h4 { color: #fff; margin: 0 0 .2rem; font-size: .95rem; }
-.value-text p { color: #94A3B8; font-size: .88rem; margin: 0; }
+.value-text h4 { color: #0C4A6E; margin: 0 0 .2rem; font-size: .95rem; }
+.value-text p { color: #334155; font-size: .88rem; margin: 0; }
 </style>
 
 <div class="modal-section">
@@ -335,12 +335,12 @@ def modal_empresa():
 def modal_recursos():
     st.markdown("""
 <style>
-.modal-section h3 { color: #00D4FF; font-size: 1.1rem; margin-bottom: .75rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
-.rec-card { background: #0F1629; border: 1px solid rgba(0,212,255,.15); border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: .85rem; display: flex; gap: 1rem; align-items: flex-start; }
+.modal-section h3 { color: #0369A1; font-size: 1.1rem; margin-bottom: .75rem; border-left: 3px solid #0369A1; padding-left: .75rem; }
+.rec-card { background: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: .85rem; display: flex; gap: 1rem; align-items: flex-start; }
 .rec-icon { font-size: 1.6rem; flex-shrink: 0; }
-.rec-body h4 { color: #fff; margin: 0 0 .3rem; font-size: .98rem; }
-.rec-body p { color: #94A3B8; font-size: .87rem; margin: 0 0 .4rem; line-height: 1.5; }
-.rec-tag { display: inline-block; background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.3); color: #F59E0B; border-radius: 50px; padding: .15rem .6rem; font-size: .75rem; font-weight: 600; }
+.rec-body h4 { color: #0C4A6E; margin: 0 0 .3rem; font-size: .98rem; }
+.rec-body p { color: #334155; font-size: .87rem; margin: 0 0 .4rem; line-height: 1.5; }
+.rec-tag { display: inline-block; background: rgba(245,158,11,.15); border: 1px solid rgba(245,158,11,.4); color: #92400E; border-radius: 50px; padding: .15rem .6rem; font-size: .75rem; font-weight: 600; }
 </style>
 
 <div class="modal-section">
@@ -420,11 +420,11 @@ def modal_legal():
     st.markdown("""
 <style>
 .legal-section { margin-bottom: 2rem; }
-.legal-section h3 { color: #00D4FF; font-size: 1.05rem; margin-bottom: .6rem; border-left: 3px solid #00D4FF; padding-left: .75rem; }
-.legal-section p, .legal-section li { color: #94A3B8; font-size: .9rem; line-height: 1.75; }
+.legal-section h3 { color: #0369A1; font-size: 1.05rem; margin-bottom: .6rem; border-left: 3px solid #0369A1; padding-left: .75rem; }
+.legal-section p, .legal-section li { color: #1E293B; font-size: .9rem; line-height: 1.75; }
 .legal-section ul { padding-left: 1.2rem; }
-.legal-highlight { background: rgba(0,212,255,.06); border: 1px solid rgba(0,212,255,.15); border-radius: 10px; padding: 1rem 1.25rem; margin: .75rem 0; }
-.legal-highlight p { margin: 0; color: #94A3B8; font-size: .88rem; }
+.legal-highlight { background: #EFF6FF; border: 1px solid #BAE6FD; border-radius: 10px; padding: 1rem 1.25rem; margin: .75rem 0; }
+.legal-highlight p { margin: 0; color: #1E293B; font-size: .88rem; }
 </style>
 
 <div class="legal-section">
@@ -465,7 +465,7 @@ def modal_legal():
     <li>Oponerte al tratamiento de tus datos en cualquier momento.</li>
     <li>Presentar una reclamación ante la autoridad de protección de datos de tu país.</li>
   </ul>
-  <div class="legal-highlight"><p>📧 Para ejercer cualquiera de estos derechos, escríbenos a <strong style="color:#00D4FF;">josegarjagt@gmail.com</strong></p></div>
+  <div class="legal-highlight"><p>📧 Para ejercer cualquiera de estos derechos, escríbenos a <strong style="color:#0369A1;">josegarjagt@gmail.com</strong></p></div>
 </div>
 
 <div class="legal-section">
