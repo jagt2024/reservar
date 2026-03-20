@@ -1,0 +1,93 @@
+name: JAGT Hosting — Daily Backup
+# ============================================================
+# Ejecuta backup diario a la 1:00 AM (hora Colombia, UTC-5)
+# Sube el Excel a Google Drive y registra en hosting_jagt.db
+# ============================================================
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 6:00 AM UTC = 1:00 AM Colombia
+  workflow_dispatch:       # También se puede ejecutar manualmente
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  daily-backup:
+    name: Backup Diario JAGT
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout repositorio
+        uses: actions/checkout@v4
+
+      - name: 🐍 Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Instalar dependencias
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl pandas google-api-python-client google-auth
+
+      - name: 🔐 Configurar credenciales Google Drive
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: |
+          echo "$GOOGLE_CREDENTIALS_JSON" > google_credentials.json
+          echo "DRIVE_FOLDER_ID=$DRIVE_FOLDER_ID" >> $GITHUB_ENV
+
+      - name: 💾 Ejecutar backup
+        run: |
+          python hosting/scripts/backup_runner.py
+
+      - name: 📤 Subir Excel a Google Drive
+        env:
+          GOOGLE_CREDENTIALS_JSON: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
+        run: |
+          python -c "
+          from googleapiclient.discovery import build
+          from googleapiclient.http import MediaFileUpload
+          from google.oauth2 import service_account
+          import json, os
+
+          creds_data = json.loads(os.environ['GOOGLE_CREDENTIALS_JSON'])
+          creds = service_account.Credentials.from_service_account_info(
+              creds_data,
+              scopes=['https://www.googleapis.com/auth/drive']
+          )
+          service = build('drive', 'v3', credentials=creds)
+          folder_id = os.environ['DRIVE_FOLDER_ID']
+
+          # Buscar si ya existe el archivo
+          results = service.files().list(
+              q=f\"name='hosting-jagt.xlsx' and '{folder_id}' in parents\",
+              fields='files(id, name)'
+          ).execute()
+
+          media = MediaFileUpload('hosting-jagt.xlsx',
+              mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+          if results.get('files'):
+              file_id = results['files'][0]['id']
+              service.files().update(fileId=file_id, media_body=media).execute()
+              print(f'Archivo actualizado: {file_id}')
+          else:
+              file_meta = {'name': 'hosting-jagt.xlsx', 'parents': [folder_id]}
+              f = service.files().create(body=file_meta, media_body=media, fields='id').execute()
+              print(f'Archivo creado: {f[\"id\"]}')
+          "
+
+      - name: 📊 Resumen del backup
+        run: |
+          echo "✅ Backup completado: $(date '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "📁 Archivo: hosting-jagt.xlsx → Google Drive"
+          ls -lh hosting-jagt.xlsx 2>/dev/null || echo "Archivo generado"
+
+      - name: 🧹 Limpiar credenciales
+        if: always()
+        run: rm -f google_credentials.json
