@@ -25,7 +25,9 @@ st.set_page_config(
 DB_PATH = "hosting_jagt.db"
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(os.path.abspath(DB_PATH), timeout=30, check_same_thread=False)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=30000")
     c = conn.cursor()
     c.executescript("""
     CREATE TABLE IF NOT EXISTS apps (
@@ -113,13 +115,25 @@ def init_db():
             apps_seed
         )
         conn.commit()
+    # Migración: agregar sheet_id si no existe aún
+    try:
+        c.execute("ALTER TABLE apps ADD COLUMN sheet_id TEXT DEFAULT ''")
+        conn.commit()
+    except Exception:
+        pass
     conn.close()
 
 def hash_pw(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
 def get_conn():
-    return sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(
+        os.path.abspath(DB_PATH), timeout=30, check_same_thread=False
+    )
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute("PRAGMA busy_timeout=30000")
+    return conn
 
 # ── CSS personalizado ─────────────────────────────────────────────────────────
 st.markdown("""
@@ -256,19 +270,32 @@ def login_view():
             submitted = st.form_submit_button("Ingresar →", use_container_width=True)
             if submitted:
                 conn = get_conn()
-                c = conn.cursor()
-                c.execute("SELECT id, role, email FROM users WHERE username=? AND password_hash=?",
-                          (user, hash_pw(pw)))
-                row = c.fetchone()
-                if row:
-                    st.session_state.logged_in = True
-                    st.session_state.user_id = row[0]
-                    st.session_state.username = user
-                    st.session_state.role = row[1]
-                    c.execute("UPDATE users SET last_login=? WHERE id=?",
-                              (datetime.datetime.now().isoformat(), row[0]))
-                    conn.commit()
+                try:
+                    c2 = conn.cursor()
+                    c2.execute(
+                        "SELECT id, role, email FROM users "
+                        "WHERE username=? AND password_hash=?",
+                        (user, hash_pw(pw))
+                    )
+                    row = c2.fetchone()
+                    if row:
+                        st.session_state.logged_in = True
+                        st.session_state.user_id   = row[0]
+                        st.session_state.username  = user
+                        st.session_state.role      = row[1]
+                        c2.execute(
+                            "UPDATE users SET last_login=? WHERE id=?",
+                            (datetime.datetime.now().isoformat(), row[0])
+                        )
+                        conn.commit()
+                    else:
+                        st.error("⛔ Credenciales incorrectas")
+                except Exception as e:
+                    st.error(f"⛔ Error: {e}")
+                finally:
                     conn.close()
+                if st.session_state.get("logged_in"):
+                    st.rerun()
                     st.rerun()
                 else:
                     conn.close()
@@ -322,13 +349,16 @@ def dashboard_view():
     """, unsafe_allow_html=True)
 
     conn = get_conn()
-    c = conn.cursor()
-    total_apps = c.execute("SELECT COUNT(*) FROM apps").fetchone()[0]
-    active_apps = c.execute("SELECT COUNT(*) FROM apps WHERE status='active'").fetchone()[0]
-    total_backups = c.execute("SELECT COUNT(*) FROM backups").fetchone()[0]
-    blocked_rules = c.execute("SELECT COUNT(*) FROM spam_rules WHERE active=1").fetchone()[0]
-    total_users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-    conn.close()
+    try:
+        c = conn.cursor()
+        total_apps = c.execute("SELECT COUNT(*) FROM apps").fetchone()[0]
+        active_apps = c.execute("SELECT COUNT(*) FROM apps WHERE status='active'").fetchone()[0]
+        total_backups = c.execute("SELECT COUNT(*) FROM backups").fetchone()[0]
+        blocked_rules = c.execute("SELECT COUNT(*) FROM spam_rules WHERE active=1").fetchone()[0]
+        total_users = c.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+
+    finally:
+        conn.close()
 
     cols = st.columns(5)
     stats = [
@@ -353,8 +383,11 @@ def dashboard_view():
     with c1:
         st.markdown('<div class="section-title">📦 Aplicaciones Recientes</div>', unsafe_allow_html=True)
         conn = get_conn()
-        apps = conn.execute("SELECT name, domain, status, tech FROM apps ORDER BY id DESC LIMIT 5").fetchall()
-        conn.close()
+        try:
+            apps = conn.execute("SELECT name, domain, status, tech FROM apps ORDER BY id DESC LIMIT 5").fetchall()
+
+        finally:
+            conn.close()
         for app in apps:
             badge = "status-active" if app[2] == "active" else "status-inactive"
             st.markdown(f"""
@@ -415,67 +448,160 @@ def apps_view():
 
     with tab1:
         conn = get_conn()
-        apps = conn.execute("SELECT id,name,domain,repo_path,status,tech,description,backup_enabled,backup_freq FROM apps").fetchall()
-        conn.close()
+        try:
+            apps = conn.execute(
+                "SELECT id,name,domain,repo_path,status,tech,description,"
+                "backup_enabled,backup_freq,sheet_id FROM apps"
+            ).fetchall()
+        finally:
+            conn.close()
+
+        if not apps:
+            st.info("No hay apps registradas aún. Ve a '➕ Nueva App' para agregar una.")
+
         for app in apps:
-            aid, name, domain, repo, status, tech, desc, bkp, freq = app
+            aid, name, domain, repo, status, tech, desc, bkp, freq, sheet_id = app
+            sheet_id = sheet_id or ""
+
             with st.expander(f"{'✅' if status=='active' else '⛔'} {name} — {domain}"):
+
+                # ── Info de la app ────────────────────────────────────────
                 c1, c2, c3 = st.columns(3)
                 c1.markdown(f"**Repo:** `{repo}`")
                 c2.markdown(f"**Tech:** {tech}")
                 c3.markdown(f"**Backup:** {'✅ ' + freq if bkp else '❌ desactivado'}")
                 st.markdown(f"**Descripción:** {desc or '—'}")
+
+                st.divider()
+
+                # ── Campo Google Sheet ID ─────────────────────────────────
+                st.markdown("**🔗 Google Sheet vinculado**")
+                sc1, sc2 = st.columns([5, 1])
+                new_sheet = sc1.text_input(
+                    "ID o URL completa del Google Sheet",
+                    value=sheet_id,
+                    placeholder="https://docs.google.com/spreadsheets/d/ID.../  o solo el ID",
+                    key=f"sheet_input_{aid}",
+                    label_visibility="collapsed"
+                )
+                save_sheet = sc2.button("💾 Guardar", key=f"save_sheet_{aid}",
+                                        use_container_width=True)
+                if save_sheet:
+                    sid = new_sheet.strip()
+                    if "spreadsheets/d/" in sid:
+                        sid = sid.split("spreadsheets/d/")[1].split("/")[0]
+                    conn = get_conn()
+                    try:
+                        conn.execute("UPDATE apps SET sheet_id=? WHERE id=?", (sid, aid))
+                        conn.commit()
+                    finally:
+                        conn.close()
+                    if sid:
+                        st.success(f"✅ Sheet ID guardado: `{sid}`")
+                    else:
+                        st.info("Sheet ID eliminado")
+                    st.rerun()
+
+                if sheet_id:
+                    st.markdown(
+                        "<div style='font-size:0.8rem;color:#10b981;margin-bottom:4px;'>"
+                        f"✅ Sheet vinculado · ID: <code>{sheet_id}</code> · "
+                        "Se exportará automáticamente en cada backup</div>",
+                        unsafe_allow_html=True
+                    )
+                else:
+                    st.markdown(
+                        "<div style='font-size:0.8rem;color:#f59e0b;margin-bottom:4px;'>"
+                        "⚠️ Sin Sheet vinculado — pega el ID o URL arriba y clic 💾 Guardar</div>",
+                        unsafe_allow_html=True
+                    )
+
+                st.divider()
+
+                # ── Botones de acción ─────────────────────────────────────
                 bc1, bc2, bc3 = st.columns(3)
                 if bc1.button("🔄 Toggle Estado", key=f"tog_{aid}"):
                     new_status = "inactive" if status == "active" else "active"
                     conn = get_conn()
-                    conn.execute("UPDATE apps SET status=? WHERE id=?", (new_status, aid))
-                    conn.commit()
-                    conn.close()
+                    try:
+                        conn.execute("UPDATE apps SET status=? WHERE id=?", (new_status, aid))
+                        conn.commit()
+                    finally:
+                        conn.close()
                     st.rerun()
+
                 if bc2.button("💾 Backup Manual", key=f"bkp_{aid}"):
                     conn = get_conn()
-                    conn.execute(
-                        "INSERT INTO backups(app_id,backup_date,status,size_kb,destination,notes) VALUES(?,?,?,?,?,?)",
-                        (aid, datetime.datetime.now().isoformat(), "success", 128.5,
-                         "Google Drive / hosting-jagt", "Backup manual desde panel")
-                    )
-                    conn.commit()
-                    conn.close()
+                    try:
+                        conn.execute(
+                            "INSERT INTO backups(app_id,backup_date,status,size_kb,destination,notes)"
+                            " VALUES(?,?,?,?,?,?)",
+                            (aid, datetime.datetime.now().isoformat(), "success", 128.5,
+                             "Google Drive / hosting-jagt", "Backup manual desde panel")
+                        )
+                        conn.commit()
+                    finally:
+                        conn.close()
                     st.success(f"✅ Backup de '{name}' registrado")
+
                 if bc3.button("🗑️ Eliminar", key=f"del_{aid}"):
                     conn = get_conn()
-                    conn.execute("DELETE FROM apps WHERE id=?", (aid,))
-                    conn.commit()
-                    conn.close()
+                    try:
+                        conn.execute("DELETE FROM apps WHERE id=?", (aid,))
+                        conn.commit()
+                    finally:
+                        conn.close()
                     st.rerun()
 
     with tab2:
-        with st.form("new_app"):
+        with st.form("new_app", clear_on_submit=True):
             st.markdown("**Registrar nueva aplicación**")
             c1, c2 = st.columns(2)
-            name = c1.text_input("Nombre")
+            name   = c1.text_input("Nombre *")
             domain = c2.text_input("Dominio / URL")
-            repo = st.text_input("Ruta en GitHub (ej: jagt2024/Reservar/mi_app.py)")
-            desc = st.text_area("Descripción")
+            repo   = st.text_input("Ruta en GitHub (ej: jagt2024/Reservar/mi_app.py) *")
+            sheet  = st.text_input(
+                "🔗 Google Sheet ID / URL (opcional)",
+                placeholder="https://docs.google.com/spreadsheets/d/ID...  o solo el ID"
+            )
+            desc   = st.text_area("Descripción")
             c3, c4 = st.columns(2)
-            tech = c3.selectbox("Tecnología", ["streamlit", "flask", "fastapi", "django", "react"])
-            freq = c4.selectbox("Frecuencia Backup", ["daily", "weekly", "monthly", "none"])
+            tech      = c3.selectbox("Tecnología", ["streamlit","flask","fastapi","django","react"])
+            freq      = c4.selectbox("Frecuencia Backup", ["daily","weekly","monthly","none"])
             backup_on = st.checkbox("Habilitar backups automáticos", value=True)
-            if st.form_submit_button("➕ Registrar App"):
-                if name and repo:
-                    conn = get_conn()
-                    conn.execute(
-                        "INSERT INTO apps(name,domain,repo_path,status,tech,description,created_at,backup_enabled,backup_freq) VALUES(?,?,?,?,?,?,?,?,?)",
-                        (name, domain, repo, "active", tech, desc,
-                         datetime.datetime.now().isoformat(), 1 if backup_on else 0, freq)
+            submitted = st.form_submit_button("➕ Registrar App", type="primary")
+
+        if submitted:
+            if not name or not repo:
+                st.error("⛔ Nombre y Ruta GitHub son obligatorios (*)")
+            else:
+                sid = sheet.strip() if sheet else ""
+                if "spreadsheets/d/" in sid:
+                    sid = sid.split("spreadsheets/d/")[1].split("/")[0]
+                conn = get_conn()
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO apps(name,domain,repo_path,status,tech,description,"
+                        "created_at,backup_enabled,backup_freq,sheet_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (name.strip(), domain.strip(), repo.strip(), "active", tech,
+                         desc.strip(), datetime.datetime.now().isoformat(),
+                         1 if backup_on else 0, freq, sid)
                     )
+                    new_id = cursor.lastrowid
                     conn.commit()
+                    verify = conn.execute(
+                        "SELECT id, name FROM apps WHERE id=?", (new_id,)
+                    ).fetchone()
+                finally:
                     conn.close()
-                    st.success(f"✅ App '{name}' registrada")
+                if verify:
+                    st.success(f"✅ App **'{verify[1]}'** registrada (ID={verify[0]})"
+                               + (f" · Sheet: `{sid}`" if sid else ""))
+                    time.sleep(0.4)
                     st.rerun()
                 else:
-                    st.error("Nombre y Repo son obligatorios")
+                    st.error("⚠️ Error al verificar el registro guardado")
 
 # ── Backups ───────────────────────────────────────────────────────────────────
 def backups_view():
@@ -485,12 +611,15 @@ def backups_view():
 
     with tab1:
         conn = get_conn()
-        rows = conn.execute("""
+        try:
+            rows = conn.execute("""
             SELECT b.id, a.name, b.backup_date, b.status, b.size_kb, b.destination, b.notes
             FROM backups b JOIN apps a ON b.app_id=a.id
             ORDER BY b.backup_date DESC LIMIT 50
-        """).fetchall()
-        conn.close()
+            """).fetchall()
+
+        finally:
+            conn.close()
         if not rows:
             st.info("📭 No hay backups registrados aún. Ejecuta un backup manual desde 'Aplicaciones'.")
         else:
@@ -505,20 +634,26 @@ def backups_view():
         </div>
         """, unsafe_allow_html=True)
         conn = get_conn()
-        apps = conn.execute("SELECT id, name FROM apps WHERE backup_enabled=1").fetchall()
-        conn.close()
+        try:
+            apps = conn.execute("SELECT id, name FROM apps WHERE backup_enabled=1").fetchall()
+
+        finally:
+            conn.close()
         app_dict = {a[1]: a[0] for a in apps}
         selected = st.selectbox("Seleccionar App", list(app_dict.keys()))
         dest = st.selectbox("Destino", ["Google Drive / hosting-jagt", "Local DB", "Ambos"])
         if st.button("▶️ Ejecutar Backup Ahora", type="primary"):
             app_id = app_dict[selected]
             conn = get_conn()
-            conn.execute(
+            try:
+                conn.execute(
                 "INSERT INTO backups(app_id,backup_date,status,size_kb,destination,notes) VALUES(?,?,?,?,?,?)",
                 (app_id, datetime.datetime.now().isoformat(), "success", 256.0, dest, "Backup manual desde panel")
-            )
-            conn.commit()
-            conn.close()
+                )
+                conn.commit()
+
+            finally:
+                conn.close()
             with st.spinner("Ejecutando backup..."):
                 time.sleep(1.5)
             st.success(f"✅ Backup de '{selected}' completado → {dest}")
@@ -541,8 +676,11 @@ def security_view():
 
     with tab1:
         conn = get_conn()
-        rules = conn.execute("SELECT id,rule_type,value,action,active,created_at FROM spam_rules ORDER BY id DESC").fetchall()
-        conn.close()
+        try:
+            rules = conn.execute("SELECT id,rule_type,value,action,active,created_at FROM spam_rules ORDER BY id DESC").fetchall()
+
+        finally:
+            conn.close()
         if not rules:
             st.info("No hay reglas configuradas. Agrega una en 'Nueva Regla'.")
         for r in rules:
@@ -556,9 +694,12 @@ def security_view():
                 c4.markdown(f"`{action.upper()}`")
                 if c5.button("🗑️", key=f"del_rule_{rid}"):
                     conn = get_conn()
-                    conn.execute("DELETE FROM spam_rules WHERE id=?", (rid,))
-                    conn.commit()
-                    conn.close()
+                    try:
+                        conn.execute("DELETE FROM spam_rules WHERE id=?", (rid,))
+                        conn.commit()
+
+                    finally:
+                        conn.close()
                     st.rerun()
 
     with tab2:
@@ -570,12 +711,15 @@ def security_view():
             if st.form_submit_button("🛡️ Agregar Regla"):
                 if value:
                     conn = get_conn()
-                    conn.execute(
+                    try:
+                        conn.execute(
                         "INSERT INTO spam_rules(rule_type,value,action,created_at,active) VALUES(?,?,?,?,1)",
                         (rtype, value, action, datetime.datetime.now().isoformat())
-                    )
-                    conn.commit()
-                    conn.close()
+                        )
+                        conn.commit()
+
+                    finally:
+                        conn.close()
                     st.success(f"✅ Regla '{rtype}: {value}' agregada")
                     st.rerun()
 
@@ -587,8 +731,11 @@ def security_view():
         </div>
         """, unsafe_allow_html=True)
         conn = get_conn()
-        ips = conn.execute("SELECT value, created_at FROM spam_rules WHERE rule_type='IP' AND active=1").fetchall()
-        conn.close()
+        try:
+            ips = conn.execute("SELECT value, created_at FROM spam_rules WHERE rule_type='IP' AND active=1").fetchall()
+
+        finally:
+            conn.close()
         if ips:
             for ip_val, created in ips:
                 st.code(f"BLOCKED: {ip_val} — desde {created[:10]}")
@@ -602,8 +749,11 @@ def users_view():
 
     with tab1:
         conn = get_conn()
-        users = conn.execute("SELECT id, username, role, email, created_at, last_login FROM users").fetchall()
-        conn.close()
+        try:
+            users = conn.execute("SELECT id, username, role, email, created_at, last_login FROM users").fetchall()
+
+        finally:
+            conn.close()
         for u in users:
             uid, uname, role, email, created, last = u
             with st.expander(f"👤 {uname} — {role.upper()}"):
@@ -614,9 +764,12 @@ def users_view():
                 if uname != "josegart":
                     if st.button("🗑️ Eliminar usuario", key=f"delusr_{uid}"):
                         conn = get_conn()
-                        conn.execute("DELETE FROM users WHERE id=?", (uid,))
-                        conn.commit()
-                        conn.close()
+                        try:
+                            conn.execute("DELETE FROM users WHERE id=?", (uid,))
+                            conn.commit()
+
+                        finally:
+                            conn.close()
                         st.rerun()
 
     with tab2:
@@ -630,12 +783,15 @@ def users_view():
                 if uname and pw:
                     try:
                         conn = get_conn()
-                        conn.execute(
+                        try:
+                            conn.execute(
                             "INSERT INTO users(username,password_hash,role,email,created_at) VALUES(?,?,?,?,?)",
                             (uname, hash_pw(pw), role, email, datetime.datetime.now().isoformat())
-                        )
-                        conn.commit()
-                        conn.close()
+                            )
+                            conn.commit()
+
+                        finally:
+                            conn.close()
                         st.success(f"✅ Usuario '{uname}' creado")
                         st.rerun()
                     except Exception:
@@ -658,8 +814,11 @@ def secrets_view():
 
     with tab1:
         conn = get_conn()
-        rows = conn.execute("SELECT app_name, key_name, updated_at FROM secrets_config ORDER BY app_name").fetchall()
-        conn.close()
+        try:
+            rows = conn.execute("SELECT app_name, key_name, updated_at FROM secrets_config ORDER BY app_name").fetchall()
+
+        finally:
+            conn.close()
         if not rows:
             st.info("No hay claves registradas. Usa 'Registrar Clave' para documentar tu secrets.toml.")
         else:
@@ -681,12 +840,15 @@ def secrets_view():
             if st.form_submit_button("📝 Registrar Clave"):
                 if app_name and key_name:
                     conn = get_conn()
-                    conn.execute(
+                    try:
+                        conn.execute(
                         "INSERT OR REPLACE INTO secrets_config(app_name,key_name,key_value,updated_at) VALUES(?,?,?,?)",
                         (app_name, key_name, "***", datetime.datetime.now().isoformat())
-                    )
-                    conn.commit()
-                    conn.close()
+                        )
+                        conn.commit()
+
+                    finally:
+                        conn.close()
                     st.success("✅ Clave registrada (solo el nombre, no el valor)")
                     st.rerun()
 
@@ -716,10 +878,13 @@ SQLITE_PATH = "hosting_jagt.db"</div>
 def logs_view():
     st.markdown('<h2>📊 Logs de Acceso</h2>', unsafe_allow_html=True)
     conn = get_conn()
-    logs = conn.execute(
+    try:
+        logs = conn.execute(
         "SELECT ip, path, action, timestamp, blocked FROM access_log ORDER BY timestamp DESC LIMIT 100"
-    ).fetchall()
-    conn.close()
+        ).fetchall()
+
+    finally:
+        conn.close()
 
     if not logs:
         st.info("📭 Sin registros de acceso aún. Los logs se generan automáticamente cuando el sistema recibe tráfico.")
@@ -786,10 +951,13 @@ def config_view():
         if st.form_submit_button("🔑 Cambiar Contraseña"):
             if new_pw and new_pw == confirm_pw:
                 conn = get_conn()
-                conn.execute("UPDATE users SET password_hash=? WHERE username=?",
-                             (hash_pw(new_pw), st.session_state.username))
-                conn.commit()
-                conn.close()
+                try:
+                    conn.execute("UPDATE users SET password_hash=? WHERE username=?",
+                    (hash_pw(new_pw), st.session_state.username))
+                    conn.commit()
+
+                finally:
+                    conn.close()
                 st.success("✅ Contraseña actualizada")
             else:
                 st.error("Las contraseñas no coinciden o están vacías")
