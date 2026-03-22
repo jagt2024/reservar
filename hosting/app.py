@@ -487,9 +487,13 @@ def apps_view():
                 save_sheet = sc2.button("💾 Guardar", key=f"save_sheet_{aid}",
                                         use_container_width=True)
                 if save_sheet:
+                    import re as _re
                     sid = new_sheet.strip()
+                    # Extraer ID puro desde cualquier formato de URL
                     if "spreadsheets/d/" in sid:
-                        sid = sid.split("spreadsheets/d/")[1].split("/")[0]
+                        sid = sid.split("spreadsheets/d/")[1]
+                    m = _re.match(r'([A-Za-z0-9_\-]+)', sid)
+                    sid = m.group(1) if m else sid
                     conn = get_conn()
                     try:
                         conn.execute("UPDATE apps SET sheet_id=? WHERE id=?", (sid, aid))
@@ -575,9 +579,12 @@ def apps_view():
             if not name or not repo:
                 st.error("⛔ Nombre y Ruta GitHub son obligatorios (*)")
             else:
-                sid = sheet.strip() if sheet else ""
+                import re as _re
+                sid = (sheet or "").strip()
                 if "spreadsheets/d/" in sid:
-                    sid = sid.split("spreadsheets/d/")[1].split("/")[0]
+                    sid = sid.split("spreadsheets/d/")[1]
+                m = _re.match(r'([A-Za-z0-9_\-]+)', sid)
+                sid = m.group(1) if m else sid
                 conn = get_conn()
                 try:
                     cursor = conn.cursor()
