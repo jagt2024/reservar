@@ -456,7 +456,7 @@ def create_xlsx_backup() -> Optional[str]:
     info = [
         ("Dominio",         "josegart"),
         ("Email Admin",     "josegarjagt@gmail.com"),
-        ("Repositorio",     "github.com/jagt2024/Reservar/"),
+        ("Repositorio",     "github.com/jagt2024/reservar/"),
         ("Plataforma",      "Streamlit Cloud (24/7)"),
         ("Carpeta Drive",   "JAGT-Hosting"),
         ("Folder ID",       DRIVE_FOLDER),
@@ -617,15 +617,15 @@ def init_db():
         seed = [
             ("JAGT Landing Page",
              "josegart-landing.streamlit.app",
-             "jagt2024/Reservar/pagina_web/jagt_landing.py",
+             "jagt2024/reservar/pagina_web/jagt_landing.py",
              "active","streamlit","Página web personal",now,1,"daily"),
-            ("Reservar App",
+            ("reservar App",
              "josegart-reservar.streamlit.app",
-             "jagt2024/Reservar/",
+             "jagt2024/reservar/",
              "active","streamlit","Sistema de reservas",now,1,"daily"),
             ("Panel Hosting",
              "josegart-hosting.streamlit.app",
-             "jagt2024/Reservar/hosting/app.py",
+             "jagt2024/reservar/hosting/app.py",
              "active","streamlit","Panel de control",now,1,"daily"),
         ]
         conn.executemany(
