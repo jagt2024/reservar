@@ -103,10 +103,10 @@ def init_db():
     c.execute("SELECT COUNT(*) FROM apps")
     if c.fetchone()[0] == 0:
         apps_seed = [
-            ("JAGT Landing Page", "josegart.streamlit.app", "jagt2024/Reservar/pagina_web/jagt_landing.py",
+            ("JAGT Landing Page", "josegart.streamlit.app", "jagt2024/reservar/pagina_web/jagt_landing.py",
              "active", "streamlit", "Página web personal JAGT",
              datetime.datetime.now().isoformat(), 1, "daily"),
-            ("Reservar App", "josegart-reservar.streamlit.app", "jagt2024/Reservar/",
+            ("reservar App", "josegart-reservar.streamlit.app", "jagt2024/reservar/",
              "active", "streamlit", "Sistema de reservas",
              datetime.datetime.now().isoformat(), 1, "daily"),
         ]
@@ -409,7 +409,7 @@ def dashboard_view():
         <div class="app-card">
             <div style="margin-bottom:12px;">
                 <div style="font-size:0.8rem;color:#64748b;">📁 Repositorio Principal</div>
-                <div class="code-block">github.com/jagt2024/Reservar/</div>
+                <div class="code-block">github.com/jagt2024/reservar/</div>
             </div>
             <div style="margin-bottom:12px;">
                 <div style="font-size:0.8rem;color:#64748b;">🌐 Landing Page</div>
@@ -563,7 +563,7 @@ def apps_view():
             c1, c2 = st.columns(2)
             name   = c1.text_input("Nombre *")
             domain = c2.text_input("Dominio / URL")
-            repo   = st.text_input("Ruta en GitHub (ej: jagt2024/Reservar/mi_app.py) *")
+            repo   = st.text_input("Ruta en GitHub (ej: jagt2024/reservar/mi_app.py) *")
             sheet  = st.text_input(
                 "🔗 Google Sheet ID / URL (opcional)",
                 placeholder="https://docs.google.com/spreadsheets/d/ID...  o solo el ID"
@@ -922,7 +922,7 @@ def config_view():
                 <span style="color:#64748b;">Email Admin</span><code>josegarjagt@gmail.com</code>
             </div>
             <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b;">
-                <span style="color:#64748b;">Repositorio Base</span><code>jagt2024/Reservar/</code>
+                <span style="color:#64748b;">Repositorio Base</span><code>jagt2024/reservar/</code>
             </div>
             <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1e293b;">
                 <span style="color:#64748b;">Plataforma</span><code>Streamlit Cloud</code>
@@ -984,9 +984,9 @@ def docs_view():
 JAGT Hosting (josegart.io)
 ├── Panel de Control → Este archivo (app.py)
 │   ├── Streamlit Cloud (GRATIS, 24/7)
-│   └── GitHub: jagt2024/Reservar/hosting/app.py
+│   └── GitHub: jagt2024/reservar/hosting/app.py
 │
-├── Apps Gestionadas → jagt2024/Reservar/
+├── Apps Gestionadas → jagt2024/reservar/
 │   ├── pagina_web/jagt_landing.py
 │   └── [otras apps en subcarpetas]
 │
@@ -999,7 +999,7 @@ JAGT Hosting (josegart.io)
 
 ```bash
 # Clona tu repo
-git clone https://github.com/jagt2024/Reservar.git
+git clone https://github.com/jagt2024/reservar.git
 
 # Crea carpeta del panel
 mkdir -p APP - RESERVAS/hosting
@@ -1018,7 +1018,7 @@ git push origin main
 1. Ve a **share.streamlit.io**
 2. Haz clic en **New app**
 3. Conecta tu cuenta GitHub
-4. Selecciona repo: `jagt2024/Reservar`
+4. Selecciona repo: `jagt2024/reservar`
 5. Branch: `main`
 6. Main file: `hosting/app.py`
 7. App URL personalizada: `josegart-hosting`
