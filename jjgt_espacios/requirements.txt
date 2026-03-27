@@ -1,0 +1,70 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  JJGT · Espacios de Descanso Personal — Terminal de Transportes
+#  Módulo de Pagos · Kiosco Táctil 24/7
+#  requirements.txt
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Core framework ─────────────────────────────────────────────────────────
+streamlit>=1.35.0
+
+# ── Datos y análisis ───────────────────────────────────────────────────────
+pandas>=2.0.0
+numpy>=1.24.0
+
+# ── Generación de QR ───────────────────────────────────────────────────────
+qrcode[pil]>=7.4.2
+Pillow>=10.0.0
+
+# ── Generación de PDF (tickets térmicos) ───────────────────────────────────
+reportlab>=4.0.0
+
+# ── Zona horaria Colombia ──────────────────────────────────────────────────
+pytz>=2024.1
+
+# ── Exportación Excel ──────────────────────────────────────────────────────
+openpyxl>=3.1.0
+xlrd>=2.0.1
+
+# ── Peticiones HTTP (verificación de pagos externos) ──────────────────────
+requests>=2.31.0
+
+# ── Internacionalización / formato de moneda ──────────────────────────────
+Babel>=2.14.0
+
+# ── Gráficas (panel operador — reportes) ──────────────────────────────────
+plotly>=5.18.0
+
+# ── Google Drive — integración jjgt_pagos ──────────────────────────────────
+# OPCIONAL: solo necesario si se habilita la sincronización con Google Drive
+gspread>=6.0.0
+google-auth>=2.28.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
+
+# ── Seguridad / hashing de PINs ────────────────────────────────────────────
+# (incluido en Python estándar — hashlib)
+
+# ── Base de datos ──────────────────────────────────────────────────────────
+# SQLite3 incluido en Python estándar — no requiere instalación adicional
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  INSTALACIÓN
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  Instalación completa (recomendada):
+#    pip install -r requirements.txt
+#
+#  Instalación mínima (sin Google Drive ni gráficas):
+#    pip install streamlit pandas qrcode[pil] Pillow reportlab pytz openpyxl requests
+#
+#  Instalación solo Google Drive:
+#    pip install gspread google-auth google-auth-oauthlib google-auth-httplib2
+#
+#  Instalación con entorno virtual (recomendado para producción):
+#    python -m venv venv
+#    source venv/bin/activate        # Linux/Mac
+#    venv\Scripts\activate           # Windows
+#    pip install -r requirements.txt
+#
+#  Versión de Python recomendada: 3.10 o superior
+# ══════════════════════════════════════════════════════════════════════════════

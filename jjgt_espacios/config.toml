@@ -1,0 +1,70 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  JJGT · Módulo de Pagos — Configuración de Streamlit
+#  Archivo: .streamlit/config.toml
+# ══════════════════════════════════════════════════════════════════════════════
+
+[server]
+# Puerto de escucha (defecto: 8501)
+port = 8501
+
+# Modo sin cabeza para kiosco/servidor (sin abrir navegador automáticamente)
+headless = true
+
+# No recargar al guardar (producción)
+runOnSave = false
+
+# Tamaño máximo de archivos subidos (MB) — para credentials.json
+maxUploadSize = 10
+
+# Habilitar CORS (necesario si se accede desde otro dispositivo en red local)
+enableCORS = false
+
+# Habilitar XSRF protection
+enableXsrfProtection = true
+
+[browser]
+# No recopilar estadísticas de uso
+gatherUsageStats = false
+
+# URL del servidor (ajustar si hay proxy reverso)
+# serverAddress = "localhost"
+
+[theme]
+# Tema base: dark
+base = "dark"
+
+# Color primario (cyan corporativo)
+primaryColor = "#00d4ff"
+
+# Color de fondo principal
+backgroundColor = "#050b1a"
+
+# Color de fondo secundario (sidebar, inputs)
+secondaryBackgroundColor = "#0d1f3c"
+
+# Color de texto principal
+textColor = "#e2e8f0"
+
+# Fuente base
+font = "sans serif"
+
+[logger]
+# Nivel de log (debug, info, warning, error)
+level = "warning"
+
+# Formato de mensajes de log
+messageFormat = "%(asctime)s %(levelname)s %(name)s: %(message)s"
+
+[runner]
+# Nivel de magic commands
+magicEnabled = true
+
+# Ignorar cambios en archivos fuera del directorio del proyecto
+# installTracer = false
+
+[client]
+# Mostrar barra de herramientas (false para kiosco)
+toolbarMode = "minimal"
+
+# Mostrar mensaje de error completo
+showErrorDetails = true

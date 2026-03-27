@@ -1,0 +1,69 @@
+# ══════════════════════════════════════════════════════════════════════════════
+#  JJGT · Módulo de Pagos — .gitignore
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── Archivos SENSIBLES — NUNCA subir a Git ─────────────────────────────────
+credentials.json          # Google Service Account — NUNCA subir
+*.db                      # Base de datos SQLite con datos reales
+terminal_descanso.db      # BD compartida con datos de clientes
+*.sqlite                  # Cualquier SQLite
+
+# ── Entorno Python ─────────────────────────────────────────────────────────
+venv/
+env/
+.env
+.venv
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Streamlit ──────────────────────────────────────────────────────────────
+.streamlit/secrets.toml   # Secretos de Streamlit Cloud
+
+# ── Sistema operativo ──────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ── IDEs y editores ────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# ── Archivos temporales ────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.log
+*.bak
+*.backup
+/tmp/
+/temp/
+
+# ── Archivos de salida generados ───────────────────────────────────────────
+*.pdf                     # Tickets generados
+tickets/
+exports/
+backups/
+
+# ── Jupyter Notebooks (si aplica) ─────────────────────────────────────────
+.ipynb_checkpoints
+*.ipynb
+
+# ── Variables de entorno ───────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.staging

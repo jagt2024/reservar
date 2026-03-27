@@ -1,0 +1,5 @@
+1. Mejorar los tiempos de respuesta ya que estan muy largos.
+
+2. Continua sin guardar la informacion en google sheets en el archivo "jjgt_pagos"
+
+3. Para la opcion de pagos con los operadores no muestra el el codigo QR ni el proceso completo.
