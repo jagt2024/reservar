@@ -2014,11 +2014,424 @@ def init_db():
 
     # ── Datos iniciales ────────────────────────────────────────────────────
     cur.execute("SELECT COUNT(*) FROM cubiculos")
-    if cur.fetchone()[0] == 0:
-        _seed_data(cur)
+    bd_vacia = cur.fetchone()[0] == 0
 
-    con.commit()
-    con.close()
+    if bd_vacia:
+        if _IS_CLOUD:
+            # En Cloud: intentar restaurar desde Google Sheets primero
+            con.commit()
+            con.close()
+            restaurado = _restore_from_sheets()
+            if not restaurado:
+                # Si Sheets no está disponible aún, cargar seed mínimo
+                con2 = get_db()
+                _seed_data(con2.cursor())
+                con2.commit()
+                con2.close()
+        else:
+            _seed_data(cur)
+            con.commit()
+            con.close()
+    else:
+        con.commit()
+        con.close()
+
+
+def _restore_from_sheets() -> bool:
+    """
+    En entorno Cloud (SQLite vacía), restaura TODA la información desde Google Sheets
+    hacia SQLite local para que el resto de la app funcione normalmente.
+    Retorna True si la restauración fue exitosa y cargó al menos cubículos.
+    Orden de carga respeta FK: config → clientes → facturas → factura_items
+                                → cubiculos → tarifas → operadores
+                                → reservas → pagos
+    """
+    if not GSPREAD_AVAILABLE:
+        return False
+    try:
+        _, sh = get_active_client()
+        if not sh:
+            return False
+    except Exception:
+        return False
+
+    con = get_db()
+    cur = con.cursor()
+
+    def _rows(hoja):
+        """Devuelve lista de dicts desde una hoja de Sheets, o [] si falla."""
+        try:
+            ws = _gs_get_or_create_ws(sh, hoja)
+            return ws.get_all_records()
+        except Exception:
+            return []
+
+    def _val(row, key, default=""):
+        v = row.get(key, default)
+        return v if v != "" else default
+
+    def _float(row, key, default=0.0):
+        try:
+            return float(_val(row, key, default))
+        except Exception:
+            return float(default)
+
+    def _int(row, key, default=0):
+        try:
+            return int(float(_val(row, key, default)))
+        except Exception:
+            return int(default)
+
+    try:
+        # ── 1. configuracion_pagos ─────────────────────────────────────────
+        for r in _rows("Configuracion_Pagos"):
+            clave = _val(r, "Clave")
+            valor = _val(r, "Valor")
+            if clave:
+                cur.execute("INSERT OR REPLACE INTO configuracion_pagos VALUES (?,?)",
+                            (clave, valor))
+        # Si no había config en Sheets, insertar valores base
+        cur.execute("SELECT COUNT(*) FROM configuracion_pagos")
+        if cur.fetchone()[0] == 0:
+            configs_base = [
+                ("negocio_nombre",    NEGOCIO),
+                ("negocio_nit",       NIT),
+                ("negocio_direccion", DIRECCION),
+                ("negocio_telefono",  TELEFONO),
+                ("negocio_email",     ""),
+                ("negocio_web",       ""),
+                ("nequi_numero",      NEQUI_NUM),
+                ("daviplata_numero",  DAVIPLATA_NUM),
+                ("cuenta_bancaria",   CUENTA_BANCO),
+                ("mp_link",           MP_LINK),
+                ("whatsapp_op",       WHATSAPP_OP),
+                ("tiempo_minimo_h",   "0.5"),
+                ("factura_prefijo",   "FACT"),
+                ("factura_contador",  "0"),
+                ("drive_spreadsheet_id", ""),
+                ("drive_credentials_path", "credentials.json"),
+            ]
+            for k, v in configs_base:
+                cur.execute("INSERT OR IGNORE INTO configuracion_pagos VALUES (?,?)", (k, v))
+
+        # ── 2. clientes ────────────────────────────────────────────────────
+        # Columnas Sheets: ID_Cliente,Nombre,Tipo_Doc,Num_Doc,Telefono,
+        #                  Email,Ciudad,Regimen,Tipo_Persona,Razon_Social,
+        #                  NIT_Empresa,Activo,…,Creado_En
+        id_map_clientes = {}   # ID_Sheets → id SQLite real
+        for r in _rows("Clientes"):
+            sh_id = _val(r, "ID_Cliente")
+            nombre = _val(r, "Nombre")
+            if not nombre:
+                continue
+            num_doc = _val(r, "Num_Doc")
+            # Evitar duplicados por documento
+            existing = cur.execute(
+                "SELECT id FROM clientes WHERE numero_documento=?", (num_doc,)).fetchone()
+            if existing:
+                id_map_clientes[sh_id] = existing[0]
+                continue
+            cur.execute("""INSERT INTO clientes
+                (nombre,tipo_documento,numero_documento,telefono,email,ciudad,
+                 regimen,tipo_persona,razon_social,nit_empresa,activo,creado_en)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (_val(r, "Nombre"), _val(r, "Tipo_Doc", "CC"),
+                 num_doc, _val(r, "Telefono"), _val(r, "Email"),
+                 _val(r, "Ciudad"), _val(r, "Regimen", "Simplificado"),
+                 _val(r, "Tipo_Persona", "Natural"), _val(r, "Razon_Social"),
+                 _val(r, "NIT_Empresa"), _int(r, "Activo", 1),
+                 _val(r, "Creado_En", ahora_col().isoformat())))
+            id_map_clientes[sh_id] = cur.lastrowid
+
+        # ── 3. facturas ────────────────────────────────────────────────────
+        # Columnas Sheets: ID_Factura,Num_Factura,Tipo,Fecha_Emision,
+        #                  Fecha_Vencimieento,Cliente__id,Subtotal,…,Actualizado_En
+        id_map_facturas = {}
+        for r in _rows("Facturas"):
+            sh_id = _val(r, "ID_Factura")
+            numero = _val(r, "Num_Factura")
+            if not numero:
+                continue
+            existing = cur.execute(
+                "SELECT id FROM facturas WHERE numero=?", (numero,)).fetchone()
+            if existing:
+                id_map_facturas[sh_id] = existing[0]
+                continue
+            # Resolver cliente_id: buscar por nombre+documento en columnas desnormalizadas
+            cli_doc = _val(r, "Cliente__id")   # columna tiene el id original de sheets
+            cliente_id = id_map_clientes.get(str(cli_doc))
+            if not cliente_id:
+                # intentar por nombre
+                cli_row = cur.execute(
+                    "SELECT id FROM clientes WHERE numero_documento=?", (cli_doc,)).fetchone()
+                cliente_id = cli_row[0] if cli_row else None
+            cur.execute("""INSERT INTO facturas
+                (numero,tipo,fecha_emision,fecha_vencimiento,cliente_id,
+                 subtotal,descuento,iva,retenciones,total,estado,moneda,
+                 notas,metodo_pago,creado_en,actualizado_en)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (numero, _val(r, "Tipo", "Factura de Venta"),
+                 _val(r, "Fecha_Emision"), _val(r, "Fecha_Vencimieento"),
+                 cliente_id,
+                 _float(r, "Subtotal"), _float(r, "Descuento"),
+                 _float(r, "IVA"), _float(r, "Retenciones"),
+                 _float(r, "Total_COP"),
+                 _val(r, "Estado", "pagada"), _val(r, "Moneda", "COP"),
+                 _val(r, "notas"), _val(r, "Metodo_Pago"),
+                 _val(r, "Creado_En"), _val(r, "Actualizado_En")))
+            id_map_facturas[sh_id] = cur.lastrowid
+
+        # ── 4. factura_items ───────────────────────────────────────────────
+        for r in _rows("Factura_items"):
+            sh_fact_id = _val(r, "ID_Factura")
+            factura_id = id_map_facturas.get(str(sh_fact_id))
+            if not factura_id:
+                continue
+            cur.execute("""INSERT INTO factura_items
+                (factura_id,codigo,descripcion,cantidad,unidad,
+                 precio_unitario,descuento_pct,iva_pct,subtotal)
+                VALUES (?,?,?,?,?,?,?,?,?)""",
+                (factura_id, _val(r, "codigo"), _val(r, "descripcion"),
+                 _float(r, "cantidad", 1), _val(r, "unidad", "hora"),
+                 _float(r, "precio_unitario"), _float(r, "Descuento_pct"),
+                 _float(r, "Iva_pct", 19), _float(r, "subtotal_COP")))
+
+        # ── 5. cubiculos ───────────────────────────────────────────────────
+        # Columnas Sheets (Cubiculos_Estado): Cubiculo_ID,Numero,Nombre,Estado,
+        #   Cliente_Actual,Hora_Inicio,Hora_Fin_Prog,Tiempo_Rest_Min,
+        #   Codigo_Acceso,WiFi_SSID,WiFi_Pass,Precio_Hora_Base,…
+        id_map_cubiculos = {}
+        for r in _rows("Cubiculos_Estado"):
+            sh_id = _val(r, "Cubiculo_ID")
+            numero = _val(r, "Numero")
+            if not numero:
+                continue
+            existing = cur.execute(
+                "SELECT id FROM cubiculos WHERE numero=?", (numero,)).fetchone()
+            if existing:
+                id_map_cubiculos[sh_id] = existing[0]
+                # Actualizar estado y wifi desde Sheets
+                cur.execute("""UPDATE cubiculos SET estado=?,wifi_ssid=?,
+                    wifi_password=?,precio_hora_base=? WHERE id=?""",
+                    (_val(r, "Estado", "libre"), _val(r, "WiFi_SSID"),
+                     _val(r, "WiFi_Pass"), _float(r, "Precio_Hora_Base", 15000),
+                     existing[0]))
+                continue
+            cur.execute("""INSERT INTO cubiculos
+                (numero,nombre,estado,precio_hora_base,wifi_ssid,wifi_password,
+                 servicios,notas)
+                VALUES (?,?,?,?,?,?,?,?)""",
+                (numero, _val(r, "Nombre", f"Cubículo {numero}"),
+                 _val(r, "Estado", "libre"),
+                 _float(r, "Precio_Hora_Base", 15000),
+                 _val(r, "WiFi_SSID"), _val(r, "WiFi_Pass"),
+                 json.dumps(["Baño", "WiFi", "Carga USB", "Carga 110V"]),
+                 _val(r, "Notas")))
+            id_map_cubiculos[sh_id] = cur.lastrowid
+
+        # Si Sheets no tenía cubículos (primera vez), crear estructura base
+        cur.execute("SELECT COUNT(*) FROM cubiculos")
+        if cur.fetchone()[0] == 0:
+            for i in range(1, 13):
+                num = f"#{i:02d}"
+                cur.execute("""INSERT INTO cubiculos
+                    (numero,nombre,estado,precio_hora_base,wifi_ssid,wifi_password,servicios)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (num, f"Cubículo {num}", "libre", 15000,
+                     f"JJGT-Cubiculo-{i:02d}", f"Desc{i:02d}2025",
+                     json.dumps(["Baño", "WiFi", "Carga USB", "Carga 110V"])))
+
+        # ── 6. tarifas ─────────────────────────────────────────────────────
+        for r in _rows("Tarifas_Config"):
+            nombre_t = _val(r, "Nombre")
+            if not nombre_t:
+                continue
+            existing = cur.execute(
+                "SELECT id FROM tarifas WHERE nombre=?", (nombre_t,)).fetchone()
+            if existing:
+                cur.execute("""UPDATE tarifas SET precio_hora=?,descuento_3h_pct=?,
+                    descuento_6h_pct=?,activo=? WHERE id=?""",
+                    (_float(r, "Precio_Hora_COP", 15000),
+                     _float(r, "Desc_3h_Pct", 10), _float(r, "Desc_6h_Pct", 20),
+                     _int(r, "Activo", 1), existing[0]))
+            else:
+                cur.execute("""INSERT INTO tarifas
+                    (nombre,descripcion,precio_hora,descuento_3h_pct,descuento_6h_pct,
+                     hora_inicio_especial,hora_fin_especial,aplica_festivos,activo)
+                    VALUES (?,?,?,?,?,?,?,?,?)""",
+                    (nombre_t, _val(r, "Descripcion"),
+                     _float(r, "Precio_Hora_COP", 15000),
+                     _float(r, "Desc_3h_Pct", 10), _float(r, "Desc_6h_Pct", 20),
+                     _val(r, "Hora_Ini_Espec"), _val(r, "Hora_Fin_Espec"),
+                     _int(r, "Aplica_Festivos", 0), _int(r, "Activo", 1)))
+        # Seed tarifas base si Sheets no tenía
+        cur.execute("SELECT COUNT(*) FROM tarifas")
+        if cur.fetchone()[0] == 0:
+            for t in [
+                ("Estándar",  "Tarifa normal diurna",           15000, 10, 20, None, None,   0),
+                ("Madrugada", "Tarifa nocturna 00:00–06:00",    10000, 10, 20, "00:00", "06:00", 0),
+                ("Festivo",   "Tarifa días festivos y domingos",18000, 10, 20, None, None,   1),
+            ]:
+                cur.execute("""INSERT INTO tarifas
+                    (nombre,descripcion,precio_hora,descuento_3h_pct,descuento_6h_pct,
+                     hora_inicio_especial,hora_fin_especial,aplica_festivos,activo)
+                    VALUES (?,?,?,?,?,?,?,?,1)""", t)
+
+        # ── 7. operadores ──────────────────────────────────────────────────
+        # Columnas Sheets: ID_Operador,Nombre,Rol,Turno,
+        #                  Hora_Ini_Turno,Hora_Fin_Turno,Permisos,Activo
+        # NOTA: pin_hash NO se exporta a Sheets — se preserva la hash existente
+        #       o se asigna pin por defecto "1234" para admin si no hay ninguno.
+        id_map_operadores = {}
+        for r in _rows("Operadores"):
+            sh_id  = _val(r, "ID_Operador")
+            nombre = _val(r, "Nombre")
+            if not nombre:
+                continue
+            existing = cur.execute(
+                "SELECT id FROM operadores WHERE nombre=?", (nombre,)).fetchone()
+            if existing:
+                id_map_operadores[sh_id] = existing[0]
+                cur.execute("""UPDATE operadores SET rol=?,turno=?,
+                    hora_inicio_turno=?,hora_fin_turno=?,permisos=?,activo=?
+                    WHERE id=?""",
+                    (_val(r, "Rol", "cajero"), _val(r, "Turno", "diurno"),
+                     _val(r, "Hora_Ini_Turno", "06:00"),
+                     _val(r, "Hora_Fin_Turno", "14:00"),
+                     _val(r, "Permisos", "reservas,pagos,voucher"),
+                     _int(r, "Activo", 1), existing[0]))
+            else:
+                cur.execute("""INSERT INTO operadores
+                    (nombre,pin_hash,rol,turno,hora_inicio_turno,
+                     hora_fin_turno,permisos,activo)
+                    VALUES (?,?,?,?,?,?,?,?)""",
+                    (nombre, _hash_pin("1234"),
+                     _val(r, "Rol", "cajero"), _val(r, "Turno", "diurno"),
+                     _val(r, "Hora_Ini_Turno", "06:00"),
+                     _val(r, "Hora_Fin_Turno", "14:00"),
+                     _val(r, "Permisos", "reservas,pagos,voucher"),
+                     _int(r, "Activo", 1)))
+                id_map_operadores[sh_id] = cur.lastrowid
+        # Seed operadores base si Sheets no tenía
+        cur.execute("SELECT COUNT(*) FROM operadores")
+        if cur.fetchone()[0] == 0:
+            for nombre, pin, rol, turno, h_ini, h_fin, permisos in [
+                ("Admin JJGT", "1234", "admin",  "diurno", "06:00","14:00",
+                 "admin,reservas,pagos,voucher,reportes,configuracion"),
+                ("Op. Mañana", "1111", "cajero", "mañana", "06:00","14:00",
+                 "reservas,pagos,voucher"),
+                ("Op. Tarde",  "2222", "cajero", "tarde",  "14:00","22:00",
+                 "reservas,pagos,voucher"),
+                ("Op. Noche",  "3333", "cajero", "noche",  "22:00","06:00",
+                 "reservas,pagos,voucher"),
+            ]:
+                cur.execute("""INSERT INTO operadores
+                    (nombre,pin_hash,rol,turno,hora_inicio_turno,hora_fin_turno,permisos)
+                    VALUES (?,?,?,?,?,?,?)""",
+                    (nombre, _hash_pin(pin), rol, turno, h_ini, h_fin, permisos))
+
+        # ── 8. reservas ────────────────────────────────────────────────────
+        # Columnas Sheets: ID_Reserva,Numero_Reserva,creado_en,Cubiculo_Num,
+        #   Cliente_Nombre,Documento,Telefono,Email,Horas_Contratadas,
+        #   Hora_Inicio,Hora_Fin_Prog,Hora_Fin_Real,Precio_Hora,Subtotal,IVA,
+        #   Total_COP,Metodo_Pago,Estado_Pago,Codigo_Acceso,WiFi_SSID,WiFi_Pass,
+        #   Num_Factura,Referencia_Pago,Operador,Notas
+        id_map_reservas = {}
+        for r in _rows("Reservas"):
+            sh_id   = _val(r, "ID_Reserva")
+            num_res = _val(r, "Numero_Reserva")
+            if not num_res:
+                continue
+            existing = cur.execute(
+                "SELECT id FROM reservas WHERE numero_reserva=?", (num_res,)).fetchone()
+            if existing:
+                id_map_reservas[sh_id] = existing[0]
+                continue
+            # Resolver cubiculo_id
+            cub_num   = _val(r, "Cubiculo_Num") or _val(r, "Cubiculo")
+            cub_row   = cur.execute(
+                "SELECT id FROM cubiculos WHERE numero=?", (cub_num,)).fetchone()
+            cub_id    = cub_row[0] if cub_row else None
+            # Resolver cliente_id por documento
+            cli_doc   = _val(r, "Documento")
+            cli_row   = cur.execute(
+                "SELECT id FROM clientes WHERE numero_documento=?", (cli_doc,)).fetchone()
+            cli_id    = cli_row[0] if cli_row else None
+            # Resolver factura_id por numero
+            num_fact  = _val(r, "Num_Factura")
+            fact_row  = cur.execute(
+                "SELECT id FROM facturas WHERE numero=?", (num_fact,)).fetchone()
+            fact_id   = fact_row[0] if fact_row else None
+
+            cur.execute("""INSERT INTO reservas
+                (numero_reserva,cubiculo_id,cliente_id,factura_id,
+                 hora_inicio,hora_fin_programada,hora_fin_real,
+                 horas_contratadas,precio_hora,subtotal,iva,total,
+                 metodo_pago,estado_pago,codigo_acceso,
+                 referencia_pago,notas,creado_en)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (num_res, cub_id, cli_id, fact_id,
+                 _val(r, "Hora_Inicio"), _val(r, "Hora_Fin_Prog"),
+                 _val(r, "Hora_Fin_Real"),
+                 _float(r, "Horas_Contratadas", 1),
+                 _float(r, "Precio_Hora"), _float(r, "Subtotal"),
+                 _float(r, "IVA"), _float(r, "Total_COP"),
+                 _val(r, "Metodo_Pago"), _val(r, "Estado_Pago", "confirmado"),
+                 _val(r, "Codigo_Acceso"), _val(r, "Referencia_Pago"),
+                 _val(r, "Notas"), _val(r, "creado_en", ahora_col().isoformat())))
+            id_map_reservas[sh_id] = cur.lastrowid
+
+        # Restaurar reserva_activa_id en cubículos con reservas abiertas
+        rows_act = cur.execute("""
+            SELECT r.id, r.cubiculo_id, r.hora_fin_programada
+            FROM reservas r
+            WHERE (r.hora_fin_real IS NULL OR r.hora_fin_real = '')
+              AND r.estado_pago = 'confirmado'
+        """).fetchall()
+        for res_id, cub_id, hora_fin in rows_act:
+            if cub_id:
+                cur.execute("""UPDATE cubiculos SET reserva_activa_id=?,
+                    hora_disponible=? WHERE id=?""",
+                    (res_id, hora_fin, cub_id))
+
+        # ── 9. pagos ───────────────────────────────────────────────────────
+        for r in _rows("Pagos"):
+            sh_id   = _val(r, "ID_Pago")
+            num_res = _val(r, "Num_Reserva") or _val(r, "ID_Reserva")
+            if not num_res:
+                continue
+            # Buscar reserva_id
+            res_row = cur.execute(
+                "SELECT id FROM reservas WHERE numero_reserva=?", (num_res,)).fetchone()
+            if not res_row:
+                continue
+            res_id = res_row[0]
+            # Evitar duplicar pago de la misma reserva
+            dup = cur.execute(
+                "SELECT id FROM pagos WHERE reserva_id=?", (res_id,)).fetchone()
+            if dup:
+                continue
+            cur.execute("""INSERT INTO pagos
+                (reserva_id,monto,metodo,referencia_externa,
+                 estado,fecha_pago,confirmado_por,notas)
+                VALUES (?,?,?,?,?,?,?,?)""",
+                (res_id, _float(r, "Monto_COP"), _val(r, "Metodo"),
+                 _val(r, "Referencia_Externa"),
+                 _val(r, "Estado", "confirmado"), _val(r, "Fecha_Pago"),
+                 _val(r, "Confirmado_Por", "sistema"), _val(r, "Notas")))
+
+        con.commit()
+        con.close()
+        return True
+
+    except Exception as e:
+        try:
+            con.rollback()
+            con.close()
+        except Exception:
+            pass
+        st.warning(f"⚠️ Restauración desde Sheets falló: {e}. Usando datos de seed.")
+        return False
 
 
 def _seed_data(cur):
@@ -2341,6 +2754,43 @@ def liberar_cubiculo(cubiculo_id: int):
                 pass
         gs_sync_cubiculos(sh)
         gs_sync_dashboard(sh)
+        # Refrescar Reservas y Pagos con hora_fin_real y estado actualizados
+        try:
+            con_s = get_db()
+            rows_r = con_s.execute("""
+                SELECT r.id, r.numero_reserva, r.creado_en,
+                       cu.numero,
+                       cl.nombre, cl.numero_documento, cl.telefono, cl.email,
+                       r.horas_contratadas, r.hora_inicio, r.hora_fin_programada, r.hora_fin_real,
+                       r.precio_hora, r.subtotal, r.iva, r.total,
+                       r.metodo_pago, r.estado_pago, r.codigo_acceso,
+                       cu.wifi_ssid, cu.wifi_password,
+                       f.numero, r.referencia_pago, 'sistema', r.notas
+                FROM reservas r
+                LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+                LEFT JOIN clientes cl ON r.cliente_id = cl.id
+                LEFT JOIN facturas f ON r.factura_id = f.id
+                ORDER BY r.id
+            """).fetchall()
+            rows_p = con_s.execute("""
+                SELECT p.id, p.reserva_id, r.numero_reserva, p.fecha_pago,
+                       p.monto, p.metodo, p.referencia_externa,
+                       p.estado, p.confirmado_por, p.notas
+                FROM pagos p
+                LEFT JOIN reservas r ON p.reserva_id = r.id
+                ORDER BY p.id
+            """).fetchall()
+            con_s.close()
+            ws_res = _gs_get_or_create_ws(sh, "Reservas")
+            ws_res.clear()
+            _gs_update_range(ws_res, "A1", [DRIVE_SHEETS["Reservas"]] +
+                             [[str(v) if v is not None else "" for v in r] for r in rows_r])
+            ws_pag = _gs_get_or_create_ws(sh, "Pagos")
+            ws_pag.clear()
+            _gs_update_range(ws_pag, "A1", [DRIVE_SHEETS["Pagos"]] +
+                             [[str(v) if v is not None else "" for v in r] for r in rows_p])
+        except Exception as _e:
+            st.warning(f"⚠️ Error sync Reservas/Pagos al liberar: {_e}")
 
 
 def fmt_cop(valor: float) -> str:
@@ -2544,6 +2994,7 @@ def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
             "creado_en":        now.isoformat(),
             "actualizado_en":   now.isoformat(),
         })
+        gs_sync_factura_items(sh)
     else:
         st.warning("⚠️ Sin conexión a Google Sheets — datos guardados solo en SQLite")
 
@@ -2693,6 +3144,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
                         f"{metodo} | ${calc['total']:,.0f}")
         gs_sync_cubiculos(sh)
         gs_sync_dashboard(sh)
+        gs_sync_factura_items(sh)
 
     activar_cubiculo(cubiculo["id"], reserva_id, hora_fin.isoformat())
 
@@ -4135,6 +4587,21 @@ def show_operador_login():
 | Op. Noche  | `3333` | 22:00–06:00 | Reservas, Pagos, Voucher |
             """)
             st.warning("⚠️ Cambia estos PINs inmediatamente en **Configuración → Operadores**")
+    else:
+        con_cl = get_db()
+        n_op_cloud = con_cl.execute("SELECT COUNT(*) FROM operadores").fetchone()[0]
+        con_cl.close()
+        if n_op_cloud > 0:
+            with st.expander("ℹ️ Acceso en Cloud — lee esto si es tu primer ingreso"):
+                st.info(
+                    "Los operadores restaurados desde Google Sheets tienen PIN **1234** "
+                    "hasta que lo cambies en ⚙️ Configuración → Operadores."
+                )
+        else:
+            st.warning(
+                "⚠️ Base de datos vacía. Ve al panel de operador → "
+                "**☁️ Google Drive → Restaurar datos** para cargar la información."
+            )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -4652,6 +5119,9 @@ def _op_cubiculos():
                                     (cub["id"],))
                         con.commit()
                         con.close()
+                        _, sh_mant = get_active_client()
+                        if sh_mant:
+                            gs_sync_cubiculos(sh_mant)
                         st.rerun()
                 else:
                     if st.button(f"✅ Listo {cub['numero']}", key=f"ok_{cub['id']}"):
@@ -4660,6 +5130,9 @@ def _op_cubiculos():
                                     (cub["id"],))
                         con.commit()
                         con.close()
+                        _, sh_ok = get_active_client()
+                        if sh_ok:
+                            gs_sync_cubiculos(sh_ok)
                         st.rerun()
             with c3:
                 new_wifi_pw = st.text_input("Nueva clave WiFi",
@@ -4672,6 +5145,9 @@ def _op_cubiculos():
                                 (new_wifi_pw, cub["id"]))
                     con.commit()
                     con.close()
+                    _, sh_wifi = get_active_client()
+                    if sh_wifi:
+                        gs_sync_cubiculos(sh_wifi)
                     st.success("WiFi actualizado")
                     st.rerun()
             if cub.get("minutos_restantes") is not None:
@@ -4726,6 +5202,17 @@ def _op_pagos_pendientes():
                         con2.commit()
                         con2.close()
                         st.success(f"✅ Pago {num_res} confirmado")
+                        _, sh_conf = get_active_client()
+                        if sh_conf:
+                            gs_escribir_pago(sh_conf, {
+                                "id": pago_id, "reserva_id": res_id,
+                                "num_reserva": num_res, "fecha_pago": "",
+                                "monto": monto, "metodo": metodo,
+                                "referencia_externa": "", "estado": "confirmado",
+                                "confirmado_por": "operador", "notas": "",
+                            })
+                            gs_sync_cubiculos(sh_conf)
+                            gs_sync_dashboard(sh_conf)
                         st.rerun()
                     else:
                         st.error("PIN incorrecto")
@@ -4739,6 +5226,17 @@ def _op_pagos_pendientes():
                     con2.commit()
                     con2.close()
                     st.warning("Pago rechazado y cubículo liberado")
+                    _, sh_rej = get_active_client()
+                    if sh_rej:
+                        gs_escribir_pago(sh_rej, {
+                            "id": pago_id, "reserva_id": res_id,
+                            "num_reserva": num_res, "fecha_pago": "",
+                            "monto": monto, "metodo": metodo,
+                            "referencia_externa": "", "estado": "rechazado",
+                            "confirmado_por": "operador", "notas": "",
+                        })
+                        gs_sync_cubiculos(sh_rej)
+                        gs_sync_dashboard(sh_rej)
                     st.rerun()
 
 
@@ -4974,6 +5472,42 @@ def _op_gestion_datos():
                     _, sh_del = get_active_client()
                     if sh_del:
                         gs_sync_cubiculos(sh_del)
+                        gs_sync_factura_items(sh_del)
+                        # Sync Reservas y Pagos
+                        try:
+                            con_sd = get_db()
+                            rows_rd = con_sd.execute("""
+                                SELECT r.id, r.numero_reserva, r.creado_en, cu.numero,
+                                       cl.nombre, cl.numero_documento, cl.telefono, cl.email,
+                                       r.horas_contratadas, r.hora_inicio, r.hora_fin_programada,
+                                       r.hora_fin_real, r.precio_hora, r.subtotal, r.iva, r.total,
+                                       r.metodo_pago, r.estado_pago, r.codigo_acceso,
+                                       cu.wifi_ssid, cu.wifi_password,
+                                       f.numero, r.referencia_pago, 'sistema', r.notas
+                                FROM reservas r
+                                LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+                                LEFT JOIN clientes cl ON r.cliente_id = cl.id
+                                LEFT JOIN facturas f ON r.factura_id = f.id
+                                ORDER BY r.id
+                            """).fetchall()
+                            rows_pd = con_sd.execute("""
+                                SELECT p.id, p.reserva_id, r.numero_reserva, p.fecha_pago,
+                                       p.monto, p.metodo, p.referencia_externa,
+                                       p.estado, p.confirmado_por, p.notas
+                                FROM pagos p LEFT JOIN reservas r ON p.reserva_id = r.id
+                                ORDER BY p.id
+                            """).fetchall()
+                            con_sd.close()
+                            ws_rd = _gs_get_or_create_ws(sh_del, "Reservas")
+                            ws_rd.clear()
+                            _gs_update_range(ws_rd, "A1", [DRIVE_SHEETS["Reservas"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_rd])
+                            ws_pd = _gs_get_or_create_ws(sh_del, "Pagos")
+                            ws_pd.clear()
+                            _gs_update_range(ws_pd, "A1", [DRIVE_SHEETS["Pagos"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_pd])
+                        except Exception as _ed:
+                            st.warning(f"⚠️ Error sync Reservas/Pagos tras eliminar: {_ed}")
                     st.rerun()
 
     # ── CLIENTES ──────────────────────────────────────────────────────────────
@@ -5026,6 +5560,54 @@ def _op_gestion_datos():
                     _, sh_del2 = get_active_client()
                     if sh_del2:
                         gs_sync_cubiculos(sh_del2)
+                        # Sync Clientes, Reservas y Pagos
+                        try:
+                            con_sc = get_db()
+                            rows_cc = con_sc.execute("""
+                                SELECT c.id, c.nombre, c.tipo_documento, c.numero_documento,
+                                       c.telefono, c.email, c.ciudad, c.regimen, c.tipo_persona,
+                                       c.razon_social, c.nit_empresa, c.activo,
+                                       COUNT(r.id), COALESCE(SUM(r.total),0), c.creado_en
+                                FROM clientes c
+                                LEFT JOIN reservas r ON r.cliente_id = c.id
+                                GROUP BY c.id ORDER BY c.id
+                            """).fetchall()
+                            rows_rc = con_sc.execute("""
+                                SELECT r.id, r.numero_reserva, r.creado_en, cu.numero,
+                                       cl.nombre, cl.numero_documento, cl.telefono, cl.email,
+                                       r.horas_contratadas, r.hora_inicio, r.hora_fin_programada,
+                                       r.hora_fin_real, r.precio_hora, r.subtotal, r.iva, r.total,
+                                       r.metodo_pago, r.estado_pago, r.codigo_acceso,
+                                       cu.wifi_ssid, cu.wifi_password,
+                                       f.numero, r.referencia_pago, 'sistema', r.notas
+                                FROM reservas r
+                                LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+                                LEFT JOIN clientes cl ON r.cliente_id = cl.id
+                                LEFT JOIN facturas f ON r.factura_id = f.id
+                                ORDER BY r.id
+                            """).fetchall()
+                            rows_pc = con_sc.execute("""
+                                SELECT p.id, p.reserva_id, r.numero_reserva, p.fecha_pago,
+                                       p.monto, p.metodo, p.referencia_externa,
+                                       p.estado, p.confirmado_por, p.notas
+                                FROM pagos p LEFT JOIN reservas r ON p.reserva_id = r.id
+                                ORDER BY p.id
+                            """).fetchall()
+                            con_sc.close()
+                            ws_cc = _gs_get_or_create_ws(sh_del2, "Clientes")
+                            ws_cc.clear()
+                            _gs_update_range(ws_cc, "A1", [DRIVE_SHEETS["Clientes"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_cc])
+                            ws_rc = _gs_get_or_create_ws(sh_del2, "Reservas")
+                            ws_rc.clear()
+                            _gs_update_range(ws_rc, "A1", [DRIVE_SHEETS["Reservas"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_rc])
+                            ws_pc = _gs_get_or_create_ws(sh_del2, "Pagos")
+                            ws_pc.clear()
+                            _gs_update_range(ws_pc, "A1", [DRIVE_SHEETS["Pagos"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_pc])
+                        except Exception as _ec:
+                            st.warning(f"⚠️ Error sync tras eliminar cliente: {_ec}")
                     st.rerun()
 
     # ── PAGOS ──────────────────────────────────────────────────────────────────
@@ -5071,6 +5653,24 @@ def _op_gestion_datos():
                         st.success(f"✅ Pago #{sel_pago_id} eliminado")
                     con2.commit()
                     con2.close()
+                    _, sh_pag = get_active_client()
+                    if sh_pag:
+                        try:
+                            con_sp = get_db()
+                            rows_pp = con_sp.execute("""
+                                SELECT p.id, p.reserva_id, r.numero_reserva, p.fecha_pago,
+                                       p.monto, p.metodo, p.referencia_externa,
+                                       p.estado, p.confirmado_por, p.notas
+                                FROM pagos p LEFT JOIN reservas r ON p.reserva_id = r.id
+                                ORDER BY p.id
+                            """).fetchall()
+                            con_sp.close()
+                            ws_pp = _gs_get_or_create_ws(sh_pag, "Pagos")
+                            ws_pp.clear()
+                            _gs_update_range(ws_pp, "A1", [DRIVE_SHEETS["Pagos"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_pp])
+                        except Exception as _ep:
+                            st.warning(f"⚠️ Error sync Pagos: {_ep}")
                     st.rerun()
 
     # ── FACTURAS ──────────────────────────────────────────────────────────────
@@ -5116,6 +5716,36 @@ def _op_gestion_datos():
                         st.success(f"✅ Factura eliminada definitivamente")
                     con2.commit()
                     con2.close()
+                    _, sh_fact = get_active_client()
+                    if sh_fact:
+                        try:
+                            con_sf = get_db()
+                            rows_ff = con_sf.execute("""
+                                SELECT f.id, f.numero, f.tipo, f.fecha_emision, f.fecha_vencimiento,
+                                       cl.nombre, cl.numero_documento, cl.email,
+                                       cl.razon_social, cl.nit_empresa,
+                                       fi.descripcion,
+                                       f.subtotal, f.descuento,
+                                       (f.subtotal - f.descuento),
+                                       f.iva, f.retenciones, f.total,
+                                       f.metodo_pago, f.estado, f.moneda,
+                                       r.numero_reserva, cu.numero,
+                                       f.creado_en, f.actualizado_en
+                                FROM facturas f
+                                LEFT JOIN clientes cl ON f.cliente_id = cl.id
+                                LEFT JOIN factura_items fi ON fi.factura_id = f.id
+                                LEFT JOIN reservas r ON r.factura_id = f.id
+                                LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+                                GROUP BY f.id ORDER BY f.id
+                            """).fetchall()
+                            con_sf.close()
+                            ws_ff = _gs_get_or_create_ws(sh_fact, "Facturas")
+                            ws_ff.clear()
+                            _gs_update_range(ws_ff, "A1", [DRIVE_SHEETS["Facturas"]] +
+                                [[str(v) if v is not None else "" for v in r] for r in rows_ff])
+                            gs_sync_factura_items(sh_fact)
+                        except Exception as _ef:
+                            st.warning(f"⚠️ Error sync Facturas/Items: {_ef}")
                     st.rerun()
 
 def _op_google_drive():
@@ -5232,6 +5862,74 @@ def _op_google_drive():
                 else:
                     st.error("❌ Sin conexión — revisa las credenciales en Configuración")
 
+    # ── Restaurar SQLite desde Sheets (solo Cloud) ────────────────────────────
+    if _IS_CLOUD:
+        st.divider()
+        st.markdown("#### 🔁 Restaurar base de datos desde Google Sheets")
+        st.info(
+            "En Streamlit Cloud la base de datos SQLite es **volátil** — se pierde al "
+            "reiniciar el servidor. Usa este botón para recargar todos los datos desde "
+            "Google Sheets sin necesidad de reiniciar la app."
+        )
+        col_r1, col_r2 = st.columns([2, 1])
+        with col_r1:
+            if st.button("🔁 Restaurar datos desde Google Sheets ahora",
+                         type="primary", use_container_width=True,
+                         key="btn_restore_sheets"):
+                with st.spinner("Restaurando datos desde Google Sheets..."):
+                    try:
+                        con_wipe = get_db()
+                        for tabla in ["pagos", "reservas", "factura_items",
+                                      "facturas", "clientes", "tarifas",
+                                      "operadores", "cubiculos",
+                                      "configuracion_pagos"]:
+                            con_wipe.execute(f"DELETE FROM {tabla}")
+                        con_wipe.commit()
+                        con_wipe.close()
+                    except Exception as _ew:
+                        st.warning(f"⚠️ Error limpiando tablas: {_ew}")
+                    ok = _restore_from_sheets()
+                    if ok:
+                        with _config_cache_lock:
+                            _config_cache.clear()
+                        st.success(
+                            "✅ Base de datos restaurada correctamente desde Google Sheets."
+                        )
+                        con_chk = get_db()
+                        resumen = {
+                            t: con_chk.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
+                            for t in ["clientes","reservas","pagos",
+                                      "facturas","cubiculos","operadores"]
+                        }
+                        con_chk.close()
+                        st.json(resumen)
+                    else:
+                        st.error(
+                            "❌ No se pudo restaurar. Verifica que Google Sheets esté "
+                            "configurado y contenga datos."
+                        )
+        with col_r2:
+            con_stat = get_db()
+            n_res = con_stat.execute("SELECT COUNT(*) FROM reservas").fetchone()[0]
+            n_cli = con_stat.execute("SELECT COUNT(*) FROM clientes").fetchone()[0]
+            n_cub = con_stat.execute("SELECT COUNT(*) FROM cubiculos").fetchone()[0]
+            n_op  = con_stat.execute("SELECT COUNT(*) FROM operadores").fetchone()[0]
+            con_stat.close()
+            st.markdown("**Estado actual SQLite:**")
+            st.markdown(f"- 🛏️ Cubículos: **{n_cub}**")
+            st.markdown(f"- 👤 Clientes: **{n_cli}**")
+            st.markdown(f"- 📋 Reservas: **{n_res}**")
+            st.markdown(f"- 👥 Operadores: **{n_op}**")
+            if n_op > 0:
+                st.caption(
+                    "⚠️ Operadores restaurados desde Sheets tienen PIN `1234` "
+                    "si no existían antes. Cámbialo en ⚙️ → Operadores."
+                )
+    else:
+        st.divider()
+        st.info("💻 Ejecución **local** — SQLite persiste en disco. "
+                "No es necesario restaurar desde Sheets al reiniciar.")
+
     st.divider()
 
     # ── Cargar datos desde Google Sheets ─────────────────────────────────────
@@ -5312,6 +6010,9 @@ def _op_configuracion():
             ]:
                 set_config(k, v)
             st.success("✅ Datos del negocio actualizados")
+            _, sh_cfg = get_active_client()
+            if sh_cfg:
+                gs_sync_configuracion_pagos(sh_cfg)
 
     with tabs[1]:
         st.markdown("**Datos de plataformas de pago**")
@@ -5325,6 +6026,9 @@ def _op_configuracion():
                           ("cuenta_bancaria",banco_c),("mp_link",mp_c),("whatsapp_op",wa_c)]:
                 set_config(k, v)
             st.success("✅ Datos de pago actualizados")
+            _, sh_cfg2 = get_active_client()
+            if sh_cfg2:
+                gs_sync_configuracion_pagos(sh_cfg2)
 
     with tabs[2]:
         st.markdown("**Tarifas vigentes**")
@@ -5402,6 +6106,9 @@ def _op_configuracion():
                                 st.success("✅ Operador actualizado")
                             con2.commit()
                             con2.close()
+                            _, sh_op = get_active_client()
+                            if sh_op:
+                                gs_sync_operadores(sh_op)
                             st.rerun()
                     with cc2:
                         if op_id > 1:  # No eliminar admin principal
@@ -5412,6 +6119,9 @@ def _op_configuracion():
                                 con2.commit()
                                 con2.close()
                                 st.warning(f"Operador {op_nombre} eliminado")
+                                _, sh_opdel = get_active_client()
+                                if sh_opdel:
+                                    gs_sync_operadores(sh_opdel)
                                 st.rerun()
 
         st.divider()
@@ -5449,6 +6159,9 @@ def _op_configuracion():
                     con3.commit()
                     con3.close()
                     st.success(f"✅ Operador **{f_nombre}** creado en turno **{f_turno}**")
+                    _, sh_opnew = get_active_client()
+                    if sh_opnew:
+                        gs_sync_operadores(sh_opnew)
                     st.rerun()
 
     with tabs[4]:
@@ -5552,7 +6265,16 @@ def _op_configuracion():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
+    init_state()
     init_db()
+    # Mostrar banner informativo en Cloud si la BD se acaba de restaurar
+    if _IS_CLOUD:
+        con_chk = get_db()
+        n_cub = con_chk.execute("SELECT COUNT(*) FROM cubiculos").fetchone()[0]
+        n_op  = con_chk.execute("SELECT COUNT(*) FROM operadores").fetchone()[0]
+        con_chk.close()
+        if n_cub == 0 or n_op == 0:
+            st.warning("⚠️ Base de datos en Cloud vacía. Configura Google Sheets y recarga la app.")
     # Backup solo en local (en Cloud /tmp no persiste y puede fallar)
 #    if not _IS_CLOUD:
 #        _auto_backup_diario()
