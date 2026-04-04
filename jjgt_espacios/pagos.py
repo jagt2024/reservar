@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════════════════════
-#  JJGT · Espacios de Descanso Personal — Terminal de Transportes
+#  SUITE SALITRE · Espacios de Descanso Personal — Terminal de Transportes
 #  MÓDULO DE PAGOS · Kiosco Táctil 24/7
 # ══════════════════════════════════════════════════════════════════════════════
 #
@@ -29,8 +29,10 @@
 #
 #  ── NOTAS ─────────────────────────────────────────────────────────────────
 #    · La app SIEMPRE inicia en la pantalla de login de operador
-#    · Cada nueva reserva se sincroniza automáticamente a jjgt_pagos
-#    · Backup diario automático en carpeta backups/ (solo en ejecución local)
+#    · Cada nuevo registro (cliente, reserva, pago, factura) se escribe en
+#      jjgt_pagos de Google Sheets EN EL MISMO MOMENTO que en SQLite,
+#      con reintentos automáticos ante errores 429 (MAX_RETRIES=4, backoff exp.)
+#    · Backup automático al cierre de turno del operador en carpeta backups/
 # ══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
@@ -48,6 +50,10 @@ from typing import Optional
 
 import pandas as pd
 import pytz
+
+# ── Reintentos para escrituras en Google Sheets ───────────────────────────────
+MAX_RETRIES         = 4          # intentos ante error 429
+INITIAL_RETRY_DELAY = 2         # segundos base del backoff exponencial
 
 # Imports opcionales — no bloquean si no están instalados
 try:
@@ -94,7 +100,7 @@ except ImportError:
 # Para producción real usar una BD externa (Supabase, Railway, etc.)
 _IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "").startswith("/home/appuser")
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
-NEGOCIO      = "JJGT · Espacios de Descanso"
+NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
 DIRECCION    = "Terminal de Transportes · Local 42"
 TELEFONO     = "320 551 1091"
@@ -106,6 +112,7 @@ CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573205511091"
 DRIVE_FILE   = "jjgt_pagos"
+EMAIL        = "josegarjagt@gmail.com"
 
 ESTADOS_CUBICULO = {
     "libre":        {"label": "LIBRE",        "color": "#00ff88", "bg": "rgba(0,255,136,0.12)"},
@@ -116,7 +123,7 @@ ESTADOS_CUBICULO = {
 }
 
 METODOS_PAGO = ["Nequi", "Daviplata", "Efectivo", "PSE", "MercadoPago", "Transferencia", "Tarjeta"]
-IVA_PCT      = 0.19
+IVA_PCT      = 0.0
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -125,7 +132,7 @@ st.set_page_config(
     page_title=f"{NEGOCIO} · Pagos",
     page_icon="💤",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -192,6 +199,73 @@ section[data-testid="stSidebar"] {
   border-right: 1px solid var(--border);
 }
 
+/* ── Sidebar — textos visibles sobre fondo oscuro ─────────── */
+/* Fuerza todos los textos del sidebar a color claro */
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] div,
+section[data-testid="stSidebar"] small,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3 {
+  color: #e2e8f0 !important;
+}
+/* Radio — opciones del menú */
+section[data-testid="stSidebar"] .stRadio label,
+section[data-testid="stSidebar"] .stRadio p,
+section[data-testid="stSidebar"] .stRadio span,
+section[data-testid="stSidebar"] [role="radiogroup"] label,
+section[data-testid="stSidebar"] [role="radiogroup"] p {
+  color: #e2e8f0 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.3px !important;
+}
+/* Radio — opción seleccionada resaltada en cyan */
+section[data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div p,
+section[data-testid="stSidebar"] .stRadio [aria-checked="true"] ~ div span,
+section[data-testid="stSidebar"] [role="radiogroup"] [data-testid*="radioOption"]:has(input:checked) p,
+section[data-testid="stSidebar"] [role="radiogroup"] [data-testid*="radioOption"]:has(input:checked) span {
+  color: var(--cyan) !important;
+}
+/* Radio — bullet activo */
+section[data-testid="stSidebar"] .stRadio [aria-checked="true"],
+section[data-testid="stSidebar"] [role="radiogroup"] input[type="radio"]:checked {
+  accent-color: var(--cyan) !important;
+  border-color: var(--cyan) !important;
+}
+/* Caption / texto gris secundario */
+section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
+section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] span,
+section[data-testid="stSidebar"] .stCaption,
+section[data-testid="stSidebar"] small {
+  color: #94a3b8 !important;
+  font-size: 12px !important;
+}
+/* Botones en el sidebar */
+section[data-testid="stSidebar"] div.stButton > button {
+  color: #e2e8f0 !important;
+  border-color: rgba(226,232,240,0.25) !important;
+  min-height: 52px !important;
+  font-size: 15px !important;
+}
+section[data-testid="stSidebar"] div.stButton > button:hover {
+  color: var(--cyan) !important;
+  border-color: var(--cyan) !important;
+  box-shadow: 0 0 16px rgba(0,212,255,0.25) !important;
+}
+/* Divider sidebar */
+section[data-testid="stSidebar"] hr {
+  border-color: rgba(226,232,240,0.12) !important;
+}
+/* Radio container — fondo suave al hover */
+section[data-testid="stSidebar"] .stRadio > div > label:hover {
+  background: rgba(0,212,255,0.06) !important;
+  border-radius: 8px !important;
+}
+
 /* ── Todos los contenedores ───────────────────────────────── */
 .block-container { padding: 1rem 2rem !important; }
 
@@ -236,7 +310,7 @@ div.stButton > button[kind="primary"]:hover {
   border-radius: 12px !important;
   color: var(--text) !important;
   font-family: 'Syne', sans-serif !important;
-  font-size: 18px !important;
+  font-size: 18px !important; 
   padding: 14px 18px !important;
 }
 .stTextInput input:focus, .stNumberInput input:focus {
@@ -247,7 +321,7 @@ label, .stTextInput label, .stNumberInput label, .stSelectbox label {
   font-family: 'Syne', sans-serif !important;
   font-size: 15px !important;
   font-weight: 600 !important;
-  color: var(--text-dim) !important;
+  color: var(--text-white) !important;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
@@ -852,285 +926,560 @@ def inject_live_clock():
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# SYNC EN LÍNEA A GOOGLE SHEETS — hilo background con cola de eventos
+# GOOGLE SHEETS — CREDENCIALES, CONEXIÓN Y ESCRITURA
+# Patrón basado en el ejemplo de referencia proporcionado.
+# Orden: PRIMERO insertar en Google Sheets, LUEGO en SQLite.
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Cola global de eventos de sincronización (thread-safe)
-_sync_queue: queue.Queue = queue.Queue(maxsize=200)
-_sync_thread_started = False
+SPREADSHEET_ID = "1JmKNZ4ld2u43EU_ymn8NhFtXti2mDcPLkM42ciMTLC4"
+
+DRIVE_SHEETS = {
+    # ── reservas: columnas BD + desnormalización cubiculo/cliente/wifi ────────
+    # BD: id, numero_reserva, cubiculo_id, cliente_id, factura_id,
+    #     hora_inicio, hora_fin_programada, hora_fin_real,
+    #     horas_contratadas, precio_hora, subtotal, iva, total,
+    #     metodo_pago, estado_pago, codigo_acceso, referencia_pago, notas, creado_en
+    "Reservas": [
+        "ID_Reserva","Numero_Reserva","cubiculo_id","cliente_id","factura_id",
+        "hora_inicio","hora_fin_programada","hora_fin_real","horas_contratadas",
+        "Precio_Hora","Subtotal","IVA","Total_COP",
+        "Metodo_Pago","Estado_Pago","Codigo_Acceso",
+        "Referencia_Pago","Notas","creado_en",
+    ],
+    # ── pagos: columnas BD + num_reserva de JOIN ──────────────────────────────
+    # BD: id, reserva_id, monto, metodo, referencia_externa,
+    #     estado, fecha_pago, confirmado_por, notas
+    "Pagos": [
+        "ID_Pago","ID_Reserva","Monto_COP","Metodo","Referencia_Externa","Estado",
+        "Fecha_Pago","Confirmado_Por","Notas",
+    ],
+    # ── clientes: todas las columnas BD ──────────────────────────────────────
+    # BD: id, nombre, tipo_documento, numero_documento, telefono, email, ciudad,
+    #     regimen, tipo_persona, razon_social, nit_empresa, activo, creado_en
+    "Clientes": [
+        "ID_Cliente","Nombre","Tipo_Doc","Num_Doc","Telefono",
+        "Email","Ciudad","Regimen","Tipo_Persona",
+        "Razon_Social","NIT_Empresa","Activo","Creado_En",
+    ],
+    # ── cubiculos_estado: columnas BD + datos de reserva activa ──────────────
+    # BD: id, numero, nombre, estado, reserva_activa_id, hora_disponible,
+    #     precio_hora_base, wifi_ssid, wifi_password, servicios
+    # JOIN reservas: hora_inicio, hora_fin_programada, codigo_acceso, cliente
+    "Cubiculos_Estado": [
+        "Cubiculo_ID","Numero","Nombre","Estado",
+        "Cliente_Actual","Hora_Inicio","Hora_Fin_Prog","Tiempo_Rest_Min",
+        "Codigo_Acceso","WiFi_SSID","WiFi_Pass",
+        "Precio_Hora_Base","Total_Reservas","Ingresos_Total","Notas",
+    ],
+    # ── facturas: columnas BD + desnormalización cliente/item/reserva ─────────
+    # BD: id, numero, tipo, fecha_emision, fecha_vencimiento, cliente_id,
+    #     subtotal, descuento, iva, retenciones, total,
+    #     estado, moneda, notas, metodo_pago, creado_en, actualizado_en
+    "Facturas": [
+        "ID_Factura","Num_Factura","Tipo","Fecha_Emision","Fecha_Vencimieento",
+        "Cliente__id","Subtotal","Descuento","IVA","Retenciones","Total_COP",
+        "Estado","Moneda","notas","Metodo_Pago","Creado_En","Actualizado_En",
+    ],
+    # ── factura_items: columnas BD ────────────────────────────────────────────
+    # BD: id, factura_id, codigo, descripcion, cantidad, unidad,
+    #     precio_unitario, descuento_pct, iva_pct, subtotal
+    "Factura_items": [
+        "id","ID_Factura","codigo","descripcion","cantidad","unidad",
+        "precio_unitario","Descuento_pct","Iva_pct","subtotal_COP",
+    ],
+    # ── operadores: columnas BD ───────────────────────────────────────────────
+    # BD: id, nombre, pin_hash, rol, turno,
+    #     hora_inicio_turno, hora_fin_turno, permisos, activo
+    "Operadores": [
+        "ID_Operador","Nombre","Rol","Turno",
+        "Hora_Ini_Turno","Hora_Fin_Turno","Permisos","Activo",
+    ],
+    # ── configuracion_pagos: columnas BD ─────────────────────────────────────
+    # BD: clave TEXT PRIMARY KEY, valor TEXT
+    "Configuracion_Pagos": [
+        "Clave","Valor",
+    ],
+   
+    # ── tarifas: columnas BD en el mismo orden ────────────────────────────────
+    # BD: id, nombre, descripcion, precio_hora, descuento_3h_pct, descuento_6h_pct,
+    #     hora_inicio_especial, hora_fin_especial, aplica_festivos, activo
+    "Tarifas_Config": [
+        "ID","Nombre","Descripcion","Precio_Hora_COP",
+        "Desc_3h_Pct","Desc_6h_Pct",
+        "Hora_Ini_Espec","Hora_Fin_Espec","Aplica_Festivos","Activo",
+    ],
+    # ── dashboard diario: calculado, sin tabla BD directa ────────────────────
+    "Dashboard_Diario": [
+        "Fecha","Total_Reservas","Completadas","Canceladas",
+        "Ingresos_Brutos","IVA_Recaudado","Ingresos_Netos",
+        "Nequi_COP","Daviplata_COP","Efectivo_COP","PSE_COP",
+        "MP_COP","Otros_COP","Ocupacion_Pct","Hora_Pico",
+        "Tiempo_Prom_Min","Clientes_Nuevos","Clientes_Recur",
+        "Fact_Min","Fact_Max","Ticket_Prom_COP",
+    ],
+    # ── log operaciones: sin tabla BD directa ────────────────────────────────
+    "Log_Operaciones": [
+        "Timestamp","Tipo_Op","Reserva_ID","Cubiculo",
+        "Operador","Descripcion","Valor_Ant","Valor_Nuevo",
+        "IP","Estado","Notas",
+    ],
+}
 
 
-def _sync_worker():
+def load_credentials_from_toml():
     """
-    Worker que corre en hilo daemon separado: consume la cola y escribe en Google Sheets.
-    - NO usa st.session_state (inaccesible fuera del hilo principal de Streamlit)
-    - Usa _get_module_level_client() para obtener el cliente gspread
-    - Reintentos automáticos con backoff ante errores 429
-    - Sync periódico del estado de cubículos cada 30s (en el timeout)
+    Carga credenciales de Google Service Account desde .streamlit/secrets.toml.
+    Patrón idéntico al ejemplo de referencia.
+    Retorna (dict_creds, config) o (None, None) si falla.
     """
-    import time as _time
+    try:
+        with open('./.streamlit/secrets.toml', 'r', encoding='utf-8') as toml_file:
+            config = toml_lib.load(toml_file)
+            creds = config['sheetsemp']['credentials_sheet']
+            if isinstance(creds, str):
+                creds = json.loads(creds)
+            # Reparar saltos de línea en private_key si vienen como \n literal
+            pk = creds.get("private_key", "")
+            if pk and "\\n" in pk and "\n" not in pk:
+                creds["private_key"] = pk.replace("\\n", "\n")
+            return creds, config
+    except FileNotFoundError:
+        st.error("📁 Archivo secrets.toml no encontrado en .streamlit/")
+        st.info("Crea el archivo `.streamlit/secrets.toml` con tus credenciales de Google")
+        return None, None
+    except KeyError as e:
+        st.error(f"🔑 Clave faltante en secrets.toml: {str(e)}")
+        st.info("Verifica que exista la sección [sheetsemp] con la clave credentials_sheet")
+        return None, None
+    except json.JSONDecodeError as e:
+        st.error(f"📄 Error al parsear JSON en secrets.toml: {str(e)}")
+        return None, None
+    except Exception as e:
+        st.error(f"❌ Error cargando credenciales: {str(e)}")
+        return None, None
 
-    # Contadores para deduplicar eventos de baja prioridad
-    _last_cubiculo_sync = 0
-    _last_dashboard_sync = 0
 
-    while True:
+@st.cache_resource(ttl=300)
+def get_google_sheets_connection(_creds):
+    """
+    Establece conexión con Google Sheets y la cachea 5 minutos.
+    Patrón idéntico al ejemplo de referencia.
+    """
+    try:
+        scope = [
+            'https://spreadsheets.google.com/feeds',
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/spreadsheets',
+        ]
+        credentials = Credentials.from_service_account_info(_creds, scopes=scope)
+        client = gspread.authorize(credentials)
+        return client
+    except Exception as e:
+        st.error(f"❌ Error conectando a Google Sheets: {str(e)}")
+        return None
+
+
+def get_or_create_spreadsheet(client):
+    """
+    Abre jjgt_pagos por SPREADSHEET_ID fijo.
+    - Si el ID no existe en Drive: crea el archivo.
+    - Verifica hoja por hoja antes de crearla (evita error 400 'already exists').
+    - Elimina hoja vacía por defecto (Sheet1, Hoja 1).
+    """
+    if not client:
+        return None
+    try:
+        # Abrir por ID fijo; si no existe, crear archivo nuevo
         try:
-            event = _sync_queue.get(timeout=10)
-        except queue.Empty:
-            # Timeout de 30s: sync periódico del estado si hay credenciales
-            now = _time.time()
-            if now - _last_cubiculo_sync >= 10:
-                _last_cubiculo_sync = now
-                try:
-                    _sync_cubiculos_estado()
-                except Exception:
-                    pass
-            continue
+            sh = client.open_by_key(SPREADSHEET_ID)
+        except gspread.SpreadsheetNotFound:
+            sh = client.create(DRIVE_FILE)
+            st.warning(f"⚠️ Archivo no encontrado con ese ID. Se creó uno nuevo.")
 
-        try:
-            etype = event.get("type")
-            retries = event.get("_retries", 0)
-
-            if etype == "nueva_reserva":
-                _sync_write_reserva(event)
-
-            elif etype == "liberar_cubiculo":
-                _sync_liberar_cubiculo_sheets(event)
-
-            elif etype == "cubiculos_estado":
-                now = _time.time()
-                if now - _last_cubiculo_sync >= 5:  # Deduplicar — mínimo 5s entre syncs
-                    _last_cubiculo_sync = now
-                    _sync_cubiculos_estado()
-
-            elif etype == "dashboard_diario":
-                now = _time.time()
-                if now - _last_dashboard_sync >= 10:
-                    _last_dashboard_sync = now
-                    _sync_dashboard_diario()
-
-            elif etype == "cliente":
-                _sync_write_cliente(event)
-
-        except Exception as ex:
-            # Reencolar con backoff si es error de quota (máx 3 reintentos)
-            retries = event.get("_retries", 0)
-            if retries < 3:
-                event["_retries"] = retries + 1
-                _time.sleep(2 ** retries)
-                try:
-                    _sync_queue.put_nowait(event)
-                except queue.Full:
-                    pass
-        finally:
+        # Verificar/crear cada hoja individualmente para evitar error 400
+        existing_titles = {ws.title for ws in sh.worksheets()}
+        for name, headers in DRIVE_SHEETS.items():
+            if name in existing_titles:
+                continue
             try:
-                _sync_queue.task_done()
+                ws = sh.add_worksheet(title=name,
+                                      rows=5000,
+                                      cols=max(len(headers), 26))
+                ws.append_row(headers)
+                time.sleep(0.5)
+            except gspread.exceptions.APIError as api_err:
+                if "already exists" in str(api_err).lower():
+                    pass
+                else:
+                    raise
+
+        # Eliminar hoja vacía por defecto si quedó
+        for default_name in ["Sheet1", "Hoja 1", "Hoja1"]:
+            try:
+                sh.del_worksheet(sh.worksheet(default_name))
             except Exception:
                 pass
-        _time.sleep(0.15)  # micro-pausa entre operaciones
+
+        return sh
+    except Exception as e:
+        st.error(f"❌ Error abriendo spreadsheet: {str(e)}")
+        return None
 
 
-def _ensure_sync_thread():
-    """Arranca el worker thread una sola vez por proceso."""
-    global _sync_thread_started
-    if not _sync_thread_started:
-        t = threading.Thread(target=_sync_worker, daemon=True, name="jjgt-sheets-sync")
-        t.start()
-        _sync_thread_started = True
-
-
-def encolar_sync(event: dict):
-    """Encola un evento de sincronización sin bloquear el hilo principal."""
-    _ensure_sync_thread()
-    try:
-        _sync_queue.put_nowait(event)
-    except queue.Full:
-        pass  # Cola llena — se omite sin bloquear
-
-
-def _sync_write_reserva(event: dict):
+def get_active_client():
     """
-    Escribe la nueva reserva directamente en Google Sheets.
-    Usa _get_module_level_client() para ser seguro en worker threads
-    (NO depende de st.session_state).
+    Flujo completo: credenciales → cliente cacheado → spreadsheet.
+    Retorna (client, spreadsheet) o (None, None).
     """
     if not GSPREAD_AVAILABLE:
-        return
-    client, sh = _get_module_level_client()
-    if not sh:
-        _marcar_sync_pendiente("Reservas", event.get("reserva_id", 0))
-        return
+        return None, None
+    creds, _ = load_credentials_from_toml()
+    if not creds:
+        return None, None
+    client = get_google_sheets_connection(creds)
+    if not client:
+        return None, None
+    sh = get_or_create_spreadsheet(client)
+    return client, sh
+
+
+def _reset_gs_cache():
+    """Limpia la caché de conexión para forzar reconexión."""
     try:
-        reserva_id  = event["reserva_id"]
-        num_reserva = event["num_reserva"]
-        num_factura = event.get("num_factura", "")
+        get_google_sheets_connection.clear()
+    except Exception:
+        pass
 
-        con = get_db()
-        cur = con.cursor()
-        cur.execute("""
-            SELECT r.id, r.numero_reserva, r.creado_en,
-                   cu.numero, cl.nombre, cl.numero_documento, cl.telefono, cl.email,
-                   r.horas_contratadas, r.hora_inicio, r.hora_fin_programada,
-                   r.hora_fin_real, r.precio_hora, r.subtotal, r.iva, r.total,
-                   r.metodo_pago, r.estado_pago, r.codigo_acceso,
-                   cu.wifi_ssid, cu.wifi_password, r.referencia_pago, r.notas
-            FROM reservas r
-            JOIN cubiculos cu ON r.cubiculo_id = cu.id
-            JOIN clientes cl  ON r.cliente_id  = cl.id
-            WHERE r.id = ?
-        """, (reserva_id,))
-        row = cur.fetchone()
-        con.close()
-        if not row:
-            return
 
-        fila = [
-            str(row[0]), str(row[1]), str(row[2] or ""),       # ID, Num, Fecha
-            str(row[3] or ""), str(row[4] or ""),              # Cubículo, Cliente
-            str(row[5] or ""), str(row[6] or ""),              # Doc, Tel
-            str(row[7] or ""), str(row[8] or ""),              # Email, Horas
-            str(row[9] or ""), str(row[10] or ""),             # Inicio, Fin_prog
-            str(row[11] or ""),                                # Fin_real
-            str(row[12] or ""), str(row[13] or ""),            # Precio, Subtotal
-            str(row[14] or ""), str(row[15] or ""),            # IVA, Total
-            str(row[16] or ""), str(row[17] or ""),            # Método, Estado
-            str(row[18] or ""),                                # Código acceso
-            str(row[19] or ""), str(row[20] or ""),            # WiFi SSID, Pass
-            str(num_factura),
-            str(row[21] or ""), "sistema", str(row[22] or "")  # Ref, Op, Notas
-        ]
+# ── Funciones internas de escritura ──────────────────────────────────────────
 
-        # Escribir en hoja Reservas (upsert directo sin pasar por get_active_client)
-        ws = _api_call(sh.worksheet, "Reservas")
-        all_vals = _api_call(ws.get_all_values)
-        headers  = all_vals[0] if all_vals else DRIVE_SHEETS["Reservas"]
-        col_idx  = headers.index("Numero_Reserva") if "Numero_Reserva" in headers else -1
-        encontrado = False
+def _gs_get_or_create_ws(sh, hoja: str):
+    """
+    Devuelve el worksheet para `hoja`, creándola si no existe.
+    La búsqueda es insensible a mayúsculas/minúsculas para evitar el error
+    cuando las hojas fueron creadas con nombre en minúscula.
+    Compatible con gspread v4, v5 y v6.
+    """
+    # Buscar la hoja ignorando mayúsculas/minúsculas
+    meta  = sh.fetch_sheet_metadata()
+    hoja_lower = hoja.lower()
+    for sheet in meta.get('sheets', []):
+        titulo = sheet['properties']['title']
+        if titulo.lower() == hoja_lower:
+            # Encontrada — retornar el worksheet usando el título real
+            return sh.worksheet(titulo)
+
+    # La hoja no existe → crearla
+    headers = DRIVE_SHEETS.get(hoja, [])
+    try:
+        new_ws = sh.add_worksheet(
+            title=hoja, rows=5000, cols=max(len(headers), 26)
+        )
+        if headers:
+            new_ws.append_row(headers)
+        return new_ws
+    except gspread.exceptions.APIError as e:
+        if "already exists" in str(e).lower():
+            # Condición de carrera — buscar de nuevo
+            meta2 = sh.fetch_sheet_metadata()
+            for sheet in meta2.get('sheets', []):
+                if sheet['properties']['title'].lower() == hoja_lower:
+                    return sh.worksheet(sheet['properties']['title'])
+        raise
+
+
+def _gs_update_row(ws, row_num: int, padded: list):
+    """
+    Actualiza una fila completa.
+    Usa kwargs nombrados para compatibilidad con gspread v4 y v6:
+      v4: update(range_name, values)  →  range_name= funciona
+      v6: update(values, range_name)  →  values= funciona
+    """
+    ws.update(values=[padded], range_name=f"A{row_num}")
+
+
+def _gs_update_range(ws, range_name: str, data: list):
+    """
+    Escribe un bloque de datos en el rango indicado.
+    Usa kwargs nombrados para compatibilidad con gspread v4 y v6.
+    """
+    ws.update(values=data, range_name=range_name)
+
+
+def _gs_append(sh, hoja: str, fila: list) -> bool:
+    """Agrega una fila. Si la hoja está vacía, escribe primero los encabezados."""
+    try:
+        ws = _gs_get_or_create_ws(sh, hoja)
+        vals = ws.get_all_values()
+        if not vals:
+            ws.append_row(DRIVE_SHEETS.get(hoja, []))
+        ws.append_row([str(v) if v is not None else "" for v in fila])
+        return True
+    except Exception as e:
+        import traceback
+        st.warning(f"⚠️ Error escribiendo en '{hoja}': {type(e).__name__}: {e}\n```\n{traceback.format_exc()}\n```")
+        return False
+
+
+def _gs_upsert(sh, hoja: str, col_clave: str, valor_clave: str, fila: list) -> bool:
+    """
+    Busca col_clave == valor_clave y actualiza esa fila.
+    Si no existe la agrega al final (append_row).
+    Compatible con gspread v4, v5 y v6.
+    """
+    import traceback
+    try:
+        ws = _gs_get_or_create_ws(sh, hoja)
+        vals = ws.get_all_values()
+        fila_str = [str(v) if v is not None else "" for v in fila]
+
+        if not vals:
+            ws.append_row(DRIVE_SHEETS.get(hoja, []))
+            ws.append_row(fila_str)
+            return True
+
+        hdr = vals[0]
+        col_idx = hdr.index(col_clave) if col_clave in hdr else -1
         if col_idx >= 0:
-            for i, r in enumerate(all_vals[1:], start=2):
-                if len(r) > col_idx and str(r[col_idx]) == str(num_reserva):
-                    padded = (fila + [""] * len(headers))[:len(headers)]
-                    _api_call(ws.update, f"A{i}", [padded])
-                    encontrado = True
-                    break
-        if not encontrado:
-            _api_call(ws.append_row, fila)
+            for i, r in enumerate(vals[1:], start=2):
+                if len(r) > col_idx and str(r[col_idx]) == str(valor_clave):
+                    padded = (fila_str + [""] * len(hdr))[:len(hdr)]
+                    _gs_update_row(ws, i, padded)
+                    return True
 
-        # También escribir en hoja Pagos
-        con2 = get_db()
-        pago_row = con2.execute(
-            "SELECT id, reserva_id, monto, metodo, referencia_externa, estado, fecha_pago, confirmado_por, notas "
-            "FROM pagos WHERE reserva_id=? ORDER BY id DESC LIMIT 1", (reserva_id,)).fetchone()
-        con2.close()
-        if pago_row:
-            ws_pagos = _api_call(sh.worksheet, "Pagos")
-            fila_pago = [str(v) if v is not None else "" for v in pago_row]
-            fila_pago.insert(2, str(num_reserva))  # Num_Reserva
-            fila_pago.append("")  # Tiempo_Proc_Min y Notas
-            _api_call(ws_pagos.append_row, fila_pago)
-
-        # Log
-        ws_log = _api_call(sh.worksheet, "Log_Operaciones")
-        _api_call(ws_log.append_row, [
-            datetime.now().isoformat(), "nueva_reserva", str(reserva_id),
-            str(row[3] or ""), "sistema",
-            f"Reserva {num_reserva} | Factura {num_factura} | {row[16]} | ${float(row[15] or 0):,.0f}",
-            "", "", "", "exito", ""
-        ])
-    except Exception as ex:
-        # Marcar para reintento
-        _marcar_sync_pendiente("Reservas", event.get("reserva_id", 0))
+        ws.append_row(fila_str)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error upsert '{hoja}': {type(e).__name__}: {e}\n```\n{traceback.format_exc()}\n```")
+        return False
 
 
-def _sync_liberar_cubiculo_sheets(event: dict):
-    """Actualiza el estado del cubículo y la reserva en Sheets al liberarlo."""
-    if not GSPREAD_AVAILABLE:
-        return
-    client, sh = _get_module_level_client()
-    if not sh:
-        return
+# ── Escritura por entidad ─────────────────────────────────────────────────────
+
+def gs_escribir_cliente(sh, datos: dict) -> bool:
+    # Columnas: ID_Cliente, Nombre, Tipo_Doc, Num_Doc, Telefono,
+    #           Email, Ciudad, Regimen, Tipo_Persona,
+    #           Razon_Social, NIT_Empresa, Activo,
+    #           Total_Reservas, Total_Gastado_COP, Creado_En
+    num_doc = str(datos.get("numero_documento", ""))
+    # Calcular totales desde SQLite si el cliente ya existe
+    total_res = total_gas = ""
     try:
-        num_cub     = event.get("numero", "")
-        num_reserva = event.get("num_reserva", "")
-        hora_fin    = event.get("hora_fin_real", "")
-
-        # Actualizar Hora_Fin_Real y Estado_Pago en hoja Reservas
-        if num_reserva:
-            ws = _api_call(sh.worksheet, "Reservas")
-            all_vals = _api_call(ws.get_all_values)
-            if all_vals:
-                headers = all_vals[0]
-                col_num = headers.index("Numero_Reserva") if "Numero_Reserva" in headers else -1
-                col_fin = headers.index("Hora_Fin_Real") if "Hora_Fin_Real" in headers else -1
-                col_est = headers.index("Estado_Pago") if "Estado_Pago" in headers else -1
-                for i, r in enumerate(all_vals[1:], start=2):
-                    if col_num >= 0 and len(r) > col_num and r[col_num] == num_reserva:
-                        if col_fin >= 0:
-                            _api_call(ws.update_cell, i, col_fin + 1, str(hora_fin))
-                        if col_est >= 0:
-                            _api_call(ws.update_cell, i, col_est + 1, "completado")
-                        break
-
-        # Log
-        ws_log = _api_call(sh.worksheet, "Log_Operaciones")
-        _api_call(ws_log.append_row, [
-            datetime.now().isoformat(), "liberar_cubiculo", "",
-            str(num_cub), "sistema",
-            f"Cubículo {num_cub} liberado | Fin real: {hora_fin}",
-            "", "", "", "exito", ""
-        ])
-
-        # Actualizar hoja Cubiculos_Estado
-        _sync_cubiculos_estado_con_sh(sh)
-    except Exception:
-        pass
-
-
-def _sync_cubiculos_estado():
-    """Sync periódico del estado de todos los cubículos (worker-safe)."""
-    if not GSPREAD_AVAILABLE:
-        return
-    _, sh = _get_module_level_client()
-    if not sh:
-        return
-    _sync_cubiculos_estado_con_sh(sh)
-
-
-def _sync_cubiculos_estado_con_sh(sh):
-    """Sobreescribe la hoja Cubiculos_Estado con el estado actual en tiempo real."""
-    try:
-        from datetime import datetime as _dt
-        cubiculos = get_cubiculos()
-        ws = _api_call(sh.worksheet, "Cubiculos_Estado")
-        _api_call(ws.clear)
-        _api_call(ws.append_row, DRIVE_SHEETS["Cubiculos_Estado"])
-        for c in cubiculos:
-            _api_call(ws.append_row, [
-                str(c["id"]), c["numero"], c["estado"],
-                "",  # Cliente_Actual (no disponible aquí)
-                str(c.get("hora_inicio") or ""),
-                str(c.get("hora_fin") or ""),
-                str(c.get("minutos_restantes") or ""),
-                c.get("wifi_ssid",""), c.get("wifi_password",""), "",
-                "", "", _dt.now().isoformat(), ""
-            ])
-            time.sleep(0.05)
-    except Exception:
-        pass
-
-
-def _sync_dashboard_diario():
-    """Actualiza la fila del Dashboard_Diario para hoy (worker-safe)."""
-    if not GSPREAD_AVAILABLE:
-        return
-    _, sh = _get_module_level_client()
-    if not sh:
-        return
-    try:
-        today_str = datetime.now().strftime("%Y-%m-%d")
         con = get_db()
-        stats = con.execute("""
+        row = con.execute(
+            "SELECT COUNT(*), COALESCE(SUM(r.total),0) FROM reservas r "
+            "JOIN clientes c ON r.cliente_id=c.id WHERE c.numero_documento=?",
+            (num_doc,)).fetchone()
+        con.close()
+        if row:
+            total_res, total_gas = str(row[0]), str(round(float(row[1]), 2))
+    except Exception:
+        pass
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("nombre", "")),
+        str(datos.get("tipo_documento", "CC")),
+        num_doc,
+        str(datos.get("telefono", "")),
+        str(datos.get("email", "")),
+        str(datos.get("ciudad", "")),
+        str(datos.get("regimen", "Simplificado")),
+        str(datos.get("tipo_persona", "Natural")),
+        str(datos.get("razon_social", "")),
+        str(datos.get("nit_empresa", "")),
+        str(datos.get("activo", "1")),
+        total_res,
+        total_gas,
+        str(datos.get("creado_en", "")),
+    ]
+    return _gs_upsert(sh, "Clientes", "Num_Doc", num_doc, fila)
+
+
+def gs_escribir_factura(sh, datos: dict) -> bool:
+    # Columnas: ID_Factura, Num_Factura, Tipo, Fecha_Emision, Fecha_Venc,
+    #           Cliente, Documento, Email, Razon_Social, NIT_Emp,
+    #           Descripcion, Subtotal, Descuento, Base_Gravable, IVA, Retenciones, Total_COP,
+    #           Metodo_Pago, Estado, Moneda,
+    #           Num_Reserva, Cubiculo, Creado_En, Actualizado_En
+    subtotal = float(datos.get("subtotal", 0) or 0)
+    descuento = float(datos.get("descuento", 0) or 0)
+    base_gravable = subtotal - descuento
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("numero", "")),
+        str(datos.get("tipo", "Factura de Venta")),
+        str(datos.get("fecha_emision", "")),
+        str(datos.get("fecha_vencimiento", "")),
+        str(datos.get("cliente_nombre", "")),
+        str(datos.get("cliente_doc", "")),
+        str(datos.get("cliente_email", "")),
+        str(datos.get("razon_social", "")),
+        str(datos.get("nit_empresa", "")),
+        str(datos.get("descripcion", "")),
+        str(subtotal),
+        str(descuento),
+        str(round(base_gravable, 2)),
+        str(datos.get("iva", "")),
+        str(datos.get("retenciones", "0")),
+        str(datos.get("total", "")),
+        str(datos.get("metodo_pago", "")),
+        str(datos.get("estado", "pagada")),
+        str(datos.get("moneda", "COP")),
+        str(datos.get("num_reserva", "")),
+        str(datos.get("cubiculo", "")),
+        str(datos.get("creado_en", "")),
+        str(datos.get("actualizado_en", "")),
+    ]
+    return _gs_upsert(sh, "Facturas", "Num_Factura",
+                      str(datos.get("numero", "")), fila)
+
+
+def gs_escribir_reserva(sh, datos: dict) -> bool:
+    # Columnas: ID_Reserva, Numero_Reserva, Creado_En, Cubiculo_Num,
+    #           Cliente_Nombre, Documento, Telefono, Email,
+    #           Horas_Contratadas, Hora_Inicio, Hora_Fin_Prog, Hora_Fin_Real,
+    #           Precio_Hora, Subtotal, IVA, Total_COP,
+    #           Metodo_Pago, Estado_Pago, Codigo_Acceso,
+    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("numero_reserva", "")),
+        str(datos.get("creado_en", "")),
+        str(datos.get("cubiculo_num", "")),
+        str(datos.get("cliente_nombre", "")),
+        str(datos.get("cliente_doc", "")),
+        str(datos.get("cliente_tel", "")),
+        str(datos.get("cliente_email", "")),
+        str(datos.get("horas", "")),
+        str(datos.get("hora_inicio", "")),
+        str(datos.get("hora_fin_prog", "")),
+        str(datos.get("hora_fin_real", "")),
+        str(datos.get("precio_hora", "")),
+        str(datos.get("subtotal", "")),
+        str(datos.get("iva", "")),
+        str(datos.get("total", "")),
+        str(datos.get("metodo_pago", "")),
+        str(datos.get("estado_pago", "confirmado")),
+        str(datos.get("codigo_acceso", "")),
+        str(datos.get("wifi_ssid", "")),
+        str(datos.get("wifi_pass", "")),
+        str(datos.get("num_factura", "")),
+        str(datos.get("referencia_pago", "")),
+        str(datos.get("operador", "sistema")),
+        str(datos.get("notas", "")),
+    ]
+    return _gs_upsert(sh, "Reservas", "Numero_Reserva",
+                      str(datos.get("numero_reserva", "")), fila)
+
+
+def gs_escribir_pago(sh, datos: dict) -> bool:
+    # Columnas: ID_Pago, ID_Reserva, Num_Reserva, Fecha_Pago,
+    #           Monto_COP, Metodo, Referencia_Externa, Estado,
+    #           Confirmado_Por, Notas
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("reserva_id", "")),
+        str(datos.get("num_reserva", "")),
+        str(datos.get("fecha_pago", "")),
+        str(datos.get("monto", "")),
+        str(datos.get("metodo", "")),
+        str(datos.get("referencia_externa", "")),
+        str(datos.get("estado", "confirmado")),
+        str(datos.get("confirmado_por", "sistema")),
+        str(datos.get("notas", "")),
+    ]
+    return _gs_upsert(sh, "Pagos", "Num_Reserva",
+                      str(datos.get("num_reserva", "")), fila)
+
+
+def gs_escribir_log(sh, tipo_op, reserva_id, cubiculo, operador, descripcion, estado="exito"):
+    if sh:
+        _gs_append(sh, "Log_Operaciones", [
+            ahora_col().isoformat(), tipo_op, str(reserva_id), str(cubiculo),
+            operador, descripcion, "", "", "", estado, ""
+        ])
+
+
+def gs_sync_cubiculos(sh):
+    """Vuelca estado de cubículos a Cubiculos_Estado (clear + update batch)."""
+    if not sh:
+        return False
+    try:
+        # JOIN con reservas activas para obtener cliente y código de acceso
+        con = get_db()
+        rows = con.execute("""
+            SELECT c.id, c.numero, c.nombre, c.estado,
+                   c.precio_hora_base, c.wifi_ssid, c.wifi_password, c.notas,
+                   r.hora_inicio, r.hora_fin_programada, r.codigo_acceso,
+                   cl.nombre AS cliente_nombre,
+                   (SELECT COUNT(*) FROM reservas WHERE cubiculo_id=c.id) AS total_res,
+                   (SELECT COALESCE(SUM(total),0) FROM reservas WHERE cubiculo_id=c.id) AS ingresos
+            FROM cubiculos c
+            LEFT JOIN reservas r ON c.reserva_activa_id = r.id
+            LEFT JOIN clientes cl ON r.cliente_id = cl.id
+            ORDER BY c.numero
+        """).fetchall()
+        con.close()
+
+        now = ahora_col()
+        ws = _gs_get_or_create_ws(sh, "Cubiculos_Estado")
+        ws.clear()
+        headers = DRIVE_SHEETS["Cubiculos_Estado"]
+        # Columnas: Cubiculo_ID, Numero, Nombre, Estado,
+        #           Cliente_Actual, Hora_Inicio, Hora_Fin_Prog, Tiempo_Rest_Min,
+        #           Codigo_Acceso, WiFi_SSID, WiFi_Pass,
+        #           Precio_Hora_Base, Total_Reservas, Ingresos_Total, Notas
+        data_rows = []
+        for r in rows:
+            (cub_id, numero, nombre, estado,
+             precio_base, wifi_ssid, wifi_pass, notas,
+             hora_ini, hora_fin, codigo_acceso,
+             cliente_nombre, total_res, ingresos) = r
+
+            min_rest = ""
+            if hora_fin and estado in ("ocupado", "por_liberar"):
+                try:
+                    fin = datetime.fromisoformat(hora_fin)
+                    if fin.tzinfo is None:
+                        fin = TZ_COL.localize(fin)
+                    diff = (fin - now).total_seconds() / 60
+                    min_rest = str(max(0, int(diff)))
+                except Exception:
+                    pass
+
+            data_rows.append([
+                str(cub_id),
+                str(numero),
+                str(nombre or ""),
+                str(estado),
+                str(cliente_nombre or ""),
+                str(hora_ini or ""),
+                str(hora_fin or ""),
+                min_rest,
+                str(codigo_acceso or ""),
+                str(wifi_ssid or ""),
+                str(wifi_pass or ""),
+                str(precio_base or ""),
+                str(total_res or 0),
+                str(round(float(ingresos or 0), 2)),
+                str(notas or ""),
+            ])
+
+        _gs_update_range(ws, "A1", [headers] + data_rows)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error sync cubículos: {e}")
+        return False
+
+
+def gs_sync_dashboard(sh):
+    """Actualiza la fila de hoy en Dashboard_Diario."""
+    if not sh:
+        return False
+    try:
+        today = ahora_col().strftime("%Y-%m-%d")
+        con = get_db()
+        s = con.execute("""
             SELECT COUNT(*), SUM(total), SUM(iva),
                    COUNT(CASE WHEN estado_pago='confirmado' THEN 1 END),
                    SUM(CASE WHEN metodo_pago='Nequi'       THEN total ELSE 0 END),
@@ -1140,79 +1489,360 @@ def _sync_dashboard_diario():
                    SUM(CASE WHEN metodo_pago='MercadoPago' THEN total ELSE 0 END),
                    AVG(horas_contratadas)
             FROM reservas WHERE DATE(creado_en)=?
-        """, (today_str,)).fetchone() or [0]*10
+        """, (today,)).fetchone() or [0] * 10
         con.close()
-        brutos = float(stats[1] or 0)
-        iva    = float(stats[2] or 0)
-        fila   = [
-            today_str, str(stats[0]), str(stats[3]), "0",
-            str(brutos), str(iva), str(brutos - iva),
-            str(float(stats[4] or 0)), str(float(stats[5] or 0)),
-            str(float(stats[6] or 0)), str(float(stats[7] or 0)),
-            str(float(stats[8] or 0)), "0", "0", "",
-            str(round(float(stats[9] or 0)*60)), "0", "0", "0", "0", "0"
-        ]
-        # Upsert directo usando el spreadsheet del módulo
-        ws = _api_call(sh.worksheet, "Dashboard_Diario")
-        all_vals = _api_call(ws.get_all_values)
-        headers  = all_vals[0] if all_vals else DRIVE_SHEETS["Dashboard_Diario"]
-        col_idx  = headers.index("Fecha") if "Fecha" in headers else 0
-        encontrado = False
-        for i, r in enumerate(all_vals[1:], start=2):
-            if len(r) > col_idx and r[col_idx] == today_str:
-                padded = (fila + [""] * len(headers))[:len(headers)]
-                _api_call(ws.update, f"A{i}", [padded])
-                encontrado = True
-                break
-        if not encontrado:
-            _api_call(ws.append_row, fila)
-    except Exception:
-        pass
+        brutos = float(s[1] or 0)
+        iva    = float(s[2] or 0)
+        fila = [today, str(s[0]), str(s[3]), "0",
+                str(brutos), str(iva), str(brutos - iva),
+                str(float(s[4] or 0)), str(float(s[5] or 0)),
+                str(float(s[6] or 0)), str(float(s[7] or 0)),
+                str(float(s[8] or 0)), "0", "0", "",
+                str(round(float(s[9] or 0) * 60)), "0", "0", "0", "0", "0"]
+        return _gs_upsert(sh, "Dashboard_Diario", "Fecha", today, fila)
+    except Exception as e:
+        st.warning(f"⚠️ Error sync dashboard: {e}")
+        return False
 
 
-def _sync_write_cliente(event: dict):
-    """Actualiza o agrega el cliente en la hoja Clientes (worker-safe)."""
-    if not GSPREAD_AVAILABLE:
-        return
-    _, sh = _get_module_level_client()
+def gs_sync_factura_items(sh):
+    """Vuelca todos los ítems de facturas a Factura_items (clear + update batch)."""
     if not sh:
-        return
+        return False
     try:
-        cliente_id = event.get("cliente_id")
-        if not cliente_id:
-            return
         con = get_db()
-        row = con.execute(
-            "SELECT id,nombre,tipo_documento,numero_documento,telefono,email,ciudad,"
-            "razon_social,nit_empresa,creado_en FROM clientes WHERE id=?",
-            (cliente_id,)).fetchone()
+        rows = con.execute("""
+            SELECT fi.id, fi.factura_id, fi.codigo, fi.descripcion,
+                   fi.cantidad, fi.unidad, fi.precio_unitario,
+                   fi.descuento_pct, fi.iva_pct, fi.subtotal
+            FROM factura_items fi
+            ORDER BY fi.factura_id, fi.id
+        """).fetchall()
         con.close()
-        if not row:
-            return
-        fila = [
-            str(row[0]), str(row[1] or ""),
-            str(row[2] or ""), str(row[3] or ""),
-            str(row[4] or ""), str(row[5] or ""),
-            str(row[6] or ""),
-            "Si" if row[7] else "No",
-            str(row[7] or ""), str(row[8] or ""),
-            "", "", str(row[9] or ""), str(row[9] or ""), ""
-        ]
-        ws = _api_call(sh.worksheet, "Clientes")
-        all_vals = _api_call(ws.get_all_values)
-        headers  = all_vals[0] if all_vals else DRIVE_SHEETS["Clientes"]
-        col_idx  = headers.index("ID_Cliente") if "ID_Cliente" in headers else 0
-        encontrado = False
-        for i, r in enumerate(all_vals[1:], start=2):
-            if len(r) > col_idx and r[col_idx] == str(cliente_id):
-                padded = (fila + [""] * len(headers))[:len(headers)]
-                _api_call(ws.update, f"A{i}", [padded])
-                encontrado = True
-                break
-        if not encontrado:
-            _api_call(ws.append_row, fila)
+
+        ws = _gs_get_or_create_ws(sh, "Factura_items")
+        ws.clear()
+        headers = DRIVE_SHEETS["Factura_items"]
+        data_rows = []
+        for r in rows:
+            (item_id, factura_id, codigo, descripcion,
+             cantidad, unidad, precio_unitario,
+             descuento_pct, iva_pct, subtotal) = r
+            data_rows.append([
+                str(item_id),
+                str(factura_id or ""),
+                str(codigo or ""),
+                str(descripcion or ""),
+                str(cantidad or ""),
+                str(unidad or ""),
+                str(round(float(precio_unitario or 0), 2)),
+                str(round(float(descuento_pct or 0), 2)),
+                str(round(float(iva_pct or 0), 2)),
+                str(round(float(subtotal or 0), 2)),
+            ])
+
+        _gs_update_range(ws, "A1", [headers] + data_rows)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error sync factura_items: {e}")
+        return False
+
+
+def gs_sync_operadores(sh):
+    """Vuelca la tabla operadores a Operadores (clear + update batch).
+    No exporta pin_hash por seguridad."""
+    if not sh:
+        return False
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT id, nombre, rol, turno,
+                   hora_inicio_turno, hora_fin_turno,
+                   permisos, activo
+            FROM operadores
+            ORDER BY id
+        """).fetchall()
+        con.close()
+
+        ws = _gs_get_or_create_ws(sh, "Operadores")
+        ws.clear()
+        headers = DRIVE_SHEETS["Operadores"]
+        data_rows = []
+        for r in rows:
+            (op_id, nombre, rol, turno,
+             hora_ini, hora_fin,
+             permisos, activo) = r
+            data_rows.append([
+                str(op_id),
+                str(nombre or ""),
+                str(rol or ""),
+                str(turno or ""),
+                str(hora_ini or ""),
+                str(hora_fin or ""),
+                str(permisos or ""),
+                str(activo if activo is not None else "1"),
+            ])
+
+        _gs_update_range(ws, "A1", [headers] + data_rows)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error sync operadores: {e}")
+        return False
+
+
+def gs_sync_configuracion_pagos(sh):
+    """Vuelca la tabla configuracion_pagos a Configuracion_Pagos (clear + update batch)."""
+    if not sh:
+        return False
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT clave, valor
+            FROM configuracion_pagos
+            ORDER BY clave
+        """).fetchall()
+        con.close()
+
+        ws = _gs_get_or_create_ws(sh, "Configuracion_Pagos")
+        ws.clear()
+        headers = DRIVE_SHEETS["Configuracion_Pagos"]
+        data_rows = []
+        for r in rows:
+            clave, valor = r
+            data_rows.append([
+                str(clave or ""),
+                str(valor or ""),
+            ])
+
+        _gs_update_range(ws, "A1", [headers] + data_rows)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error sync configuracion_pagos: {e}")
+        return False
+
+
+def sincronizacion_completa() -> dict:
+    """Vuelca todas las tablas SQLite → Google Sheets en batch con columnas alineadas."""
+    client, sh = get_active_client()
+    if not sh:
+        return {"error": "Sin conexión a Google Sheets. Verifica secrets.toml y credenciales."}
+
+    conteos = {}
+
+    # ── Clientes ──────────────────────────────────────────────────────────────
+    # Columnas: ID_Cliente,Nombre,Tipo_Doc,Num_Doc,Telefono,Email,Ciudad,
+    #           Regimen,Tipo_Persona,Razon_Social,NIT_Empresa,Activo,
+    #           Total_Reservas,Total_Gastado_COP,Creado_En
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT c.id, c.nombre, c.tipo_documento, c.numero_documento,
+                   c.telefono, c.email, c.ciudad, c.regimen, c.tipo_persona,
+                   c.razon_social, c.nit_empresa, c.activo,
+                   COUNT(r.id), COALESCE(SUM(r.total),0),
+                   c.creado_en
+            FROM clientes c
+            LEFT JOIN reservas r ON r.cliente_id = c.id
+            GROUP BY c.id ORDER BY c.id
+        """).fetchall()
+        con.close()
+        ws = _gs_get_or_create_ws(sh, "Clientes")
+        ws.clear()
+        _gs_update_range(ws, "A1", [DRIVE_SHEETS["Clientes"]] +
+                  [[str(v) if v is not None else "" for v in r] for r in rows])
+        conteos["Clientes"] = len(rows)
+    except Exception as e:
+        conteos["Clientes"] = f"Error: {e}"
+
+    # ── Reservas ──────────────────────────────────────────────────────────────
+    # Columnas: ID_Reserva,Numero_Reserva,Creado_En,Cubiculo_Num,
+    #           Cliente_Nombre,Documento,Telefono,Email,
+    #           Horas_Contratadas,Hora_Inicio,Hora_Fin_Prog,Hora_Fin_Real,
+    #           Precio_Hora,Subtotal,IVA,Total_COP,
+    #           Metodo_Pago,Estado_Pago,Codigo_Acceso,
+    #           WiFi_SSID,WiFi_Pass,Num_Factura,Referencia_Pago,Operador,Notas
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT r.id, r.numero_reserva, r.creado_en,
+                   cu.numero,
+                   cl.nombre, cl.numero_documento, cl.telefono, cl.email,
+                   r.horas_contratadas, r.hora_inicio, r.hora_fin_programada, r.hora_fin_real,
+                   r.precio_hora, r.subtotal, r.iva, r.total,
+                   r.metodo_pago, r.estado_pago, r.codigo_acceso,
+                   cu.wifi_ssid, cu.wifi_password,
+                   f.numero, r.referencia_pago, 'sistema', r.notas
+            FROM reservas r
+            LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+            LEFT JOIN clientes cl ON r.cliente_id = cl.id
+            LEFT JOIN facturas f ON r.factura_id = f.id
+            ORDER BY r.id
+        """).fetchall()
+        con.close()
+        ws = _gs_get_or_create_ws(sh, "Reservas")
+        ws.clear()
+        _gs_update_range(ws, "A1", [DRIVE_SHEETS["Reservas"]] +
+                  [[str(v) if v is not None else "" for v in r] for r in rows])
+        conteos["Reservas"] = len(rows)
+    except Exception as e:
+        conteos["Reservas"] = f"Error: {e}"
+
+    # ── Pagos ─────────────────────────────────────────────────────────────────
+    # Columnas: ID_Pago,ID_Reserva,Num_Reserva,Fecha_Pago,
+    #           Monto_COP,Metodo,Referencia_Externa,Estado,Confirmado_Por,Notas
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT p.id, p.reserva_id, r.numero_reserva, p.fecha_pago,
+                   p.monto, p.metodo, p.referencia_externa,
+                   p.estado, p.confirmado_por, p.notas
+            FROM pagos p
+            LEFT JOIN reservas r ON p.reserva_id = r.id
+            ORDER BY p.id
+        """).fetchall()
+        con.close()
+        ws = _gs_get_or_create_ws(sh, "Pagos")
+        ws.clear()
+        _gs_update_range(ws, "A1", [DRIVE_SHEETS["Pagos"]] +
+                  [[str(v) if v is not None else "" for v in r] for r in rows])
+        conteos["Pagos"] = len(rows)
+    except Exception as e:
+        conteos["Pagos"] = f"Error: {e}"
+
+    # ── Facturas ──────────────────────────────────────────────────────────────
+    # Columnas: ID_Factura,Num_Factura,Tipo,Fecha_Emision,Fecha_Venc,
+    #           Cliente,Documento,Email,Razon_Social,NIT_Emp,
+    #           Descripcion,Subtotal,Descuento,Base_Gravable,IVA,Retenciones,Total_COP,
+    #           Metodo_Pago,Estado,Moneda,Num_Reserva,Cubiculo,Creado_En,Actualizado_En
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT f.id, f.numero, f.tipo, f.fecha_emision, f.fecha_vencimiento,
+                   cl.nombre, cl.numero_documento, cl.email,
+                   cl.razon_social, cl.nit_empresa,
+                   fi.descripcion,
+                   f.subtotal, f.descuento,
+                   (f.subtotal - f.descuento),
+                   f.iva, f.retenciones, f.total,
+                   f.metodo_pago, f.estado, f.moneda,
+                   r.numero_reserva, cu.numero,
+                   f.creado_en, f.actualizado_en
+            FROM facturas f
+            LEFT JOIN clientes cl ON f.cliente_id = cl.id
+            LEFT JOIN factura_items fi ON fi.factura_id = f.id
+            LEFT JOIN reservas r ON r.factura_id = f.id
+            LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+            GROUP BY f.id ORDER BY f.id
+        """).fetchall()
+        con.close()
+        ws = _gs_get_or_create_ws(sh, "Facturas")
+        ws.clear()
+        _gs_update_range(ws, "A1", [DRIVE_SHEETS["Facturas"]] +
+                  [[str(v) if v is not None else "" for v in r] for r in rows])
+        conteos["Facturas"] = len(rows)
+    except Exception as e:
+        conteos["Facturas"] = f"Error: {e}"
+
+    # ── Tarifas ───────────────────────────────────────────────────────────────
+    # Columnas: ID,Nombre,Descripcion,Precio_Hora_COP,
+    #           Desc_3h_Pct,Desc_6h_Pct,Hora_Ini_Espec,Hora_Fin_Espec,
+    #           Aplica_Festivos,Activo
+    try:
+        con = get_db()
+        rows = con.execute("""
+            SELECT id, nombre, descripcion, precio_hora,
+                   descuento_3h_pct, descuento_6h_pct,
+                   hora_inicio_especial, hora_fin_especial,
+                   aplica_festivos, activo
+            FROM tarifas ORDER BY id
+        """).fetchall()
+        con.close()
+        ws = _gs_get_or_create_ws(sh, "Tarifas_Config")
+        ws.clear()
+        _gs_update_range(ws, "A1", [DRIVE_SHEETS["Tarifas_Config"]] +
+                  [[str(v) if v is not None else "" for v in r] for r in rows])
+        conteos["Tarifas_Config"] = len(rows)
+    except Exception as e:
+        conteos["Tarifas_Config"] = f"Error: {e}"
+
+    conteos["Cubiculos_Estado"] = "OK" if gs_sync_cubiculos(sh) else "Error"
+    conteos["Dashboard_Diario"] = "OK" if gs_sync_dashboard(sh) else "Error"
+    conteos["Factura_items"]    = "OK" if gs_sync_factura_items(sh) else "Error"
+    conteos["Operadores"]       = "OK" if gs_sync_operadores(sh) else "Error"
+    conteos["Configuracion_Pagos"] = "OK" if gs_sync_configuracion_pagos(sh) else "Error"
+    gs_escribir_log(sh, "sync_completa", "", "", "sistema",
+                    f"Sync completa ejecutada: {conteos}", "exito")
+    return conteos
+
+
+# ── Stubs de compatibilidad ───────────────────────────────────────────────────
+
+def _get_module_level_client():
+    return get_active_client()
+
+def encolar_sync(event: dict):
+    pass  # Reemplazado por escritura directa síncrona
+
+def _ensure_sync_thread():
+    pass
+
+def _marcar_sync_pendiente(tabla: str, registro_id: int):
+    try:
+        con = get_db()
+        con.execute(
+            "INSERT INTO sync_log "
+            "(tabla,registro_id,accion,sync_pendiente,creado_en) VALUES (?,?,?,1,?)",
+            (tabla, registro_id, "upsert", ahora_col().isoformat()))
+        con.commit()
+        con.close()
     except Exception:
         pass
+
+def sheets_append_row(worksheet_name: str, row_data: list) -> bool:
+    _, sh = get_active_client()
+    if not sh:
+        return False
+    return _gs_append(sh, worksheet_name, row_data)
+
+def sheets_upsert_row(worksheet_name, col_key, key_value, row_data):
+    _, sh = get_active_client()
+    if not sh:
+        return False
+    return _gs_upsert(sh, worksheet_name, col_key, key_value, row_data)
+
+def sheets_update_row(worksheet_name, col_key, key_value, update_data):
+    _, sh = get_active_client()
+    if not sh:
+        return False
+    try:
+        ws = sh.worksheet(worksheet_name)
+        vals = ws.get_all_values()
+        if not vals:
+            return False
+        hdr = vals[0]
+        col_idx = hdr.index(col_key) if col_key in hdr else -1
+        if col_idx < 0:
+            return False
+        for i, r in enumerate(vals[1:], start=2):
+            if len(r) > col_idx and str(r[col_idx]) == str(key_value):
+                for col_name, new_val in update_data.items():
+                    if col_name in hdr:
+                        ws.update_cell(i, hdr.index(col_name) + 1, str(new_val))
+                return True
+        return False
+    except Exception:
+        return False
+
+def load_data_from_sheet(client, sheet_name: str, worksheet_name: str) -> pd.DataFrame:
+    """Carga una hoja como DataFrame. Si no existe la crea vacía con encabezados."""
+    try:
+        spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        worksheet   = _gs_get_or_create_ws(spreadsheet, worksheet_name)
+        data        = worksheet.get_all_records()
+        return pd.DataFrame(data) if data else pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Error cargando datos de '{worksheet_name}': {e}")
+        return pd.DataFrame()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1444,6 +2074,8 @@ def _seed_data(cur):
         ("negocio_nit",      NIT),
         ("negocio_direccion",DIRECCION),
         ("negocio_telefono", TELEFONO),
+        ("negocio_email",    ""),
+        ("negocio_web",      ""),
         ("nequi_numero",     NEQUI_NUM),
         ("daviplata_numero", DAVIPLATA_NUM),
         ("cuenta_bancaria",  CUENTA_BANCO),
@@ -1465,20 +2097,41 @@ def _hash_pin(pin: str) -> str:
     return hashlib.sha256(pin.encode()).hexdigest()
 
 
+# Caché en memoria para configuracion_pagos — evita abrir SQLite en cada get_config
+_config_cache: dict = {}
+_config_cache_lock = threading.Lock()
+
+
 def get_config(clave: str, default: str = "") -> str:
-    con = get_db()
-    cur = con.cursor()
-    cur.execute("SELECT valor FROM configuracion_pagos WHERE clave=?", (clave,))
-    row = cur.fetchone()
-    con.close()
-    return row[0] if row else default
+    """Lee configuración con caché en memoria para evitar SQLite en cada render."""
+    with _config_cache_lock:
+        if clave in _config_cache:
+            return _config_cache[clave]
+    try:
+        con = get_db()
+        cur = con.cursor()
+        cur.execute("SELECT valor FROM configuracion_pagos WHERE clave=?", (clave,))
+        row = cur.fetchone()
+        con.close()
+        valor = row[0] if row else default
+    except Exception:
+        valor = default
+    with _config_cache_lock:
+        _config_cache[clave] = valor
+    return valor
 
 
 def set_config(clave: str, valor: str):
-    con = get_db()
-    con.execute("INSERT OR REPLACE INTO configuracion_pagos VALUES (?,?)", (clave, valor))
-    con.commit()
-    con.close()
+    """Guarda configuración en SQLite e invalida la entrada en caché."""
+    try:
+        con = get_db()
+        con.execute("INSERT OR REPLACE INTO configuracion_pagos VALUES (?,?)", (clave, valor))
+        con.commit()
+        con.close()
+    except Exception:
+        pass
+    with _config_cache_lock:
+        _config_cache[clave] = valor
 
 
 def verificar_pin(pin: str, rol: str = None) -> bool:
@@ -1534,13 +2187,13 @@ def calcular_precio(horas: float, tarifa_nombre: str = None) -> dict:
     con.close()
 
     precio_hora   = row[0] if row else 15000
-    desc_3h       = row[1] if row else 10
-    desc_6h       = row[2] if row else 20
+    desc_3h       = row[1] if row else 30
+    desc_6h       = row[2] if row else 40
 
     descuento_pct = 0
     if horas >= 6:
         descuento_pct = desc_6h
-    elif horas >= 3:
+    elif horas >= 2:
         descuento_pct = desc_3h
 
     subtotal_bruto = precio_hora * horas
@@ -1667,15 +2320,27 @@ def liberar_cubiculo(cubiculo_id: int):
     con.commit()
     con.close()
 
-    # Sync a Google Sheets en background
-    encolar_sync({
-        "type":        "liberar_cubiculo",
-        "numero":      num_cub,
-        "num_reserva": num_reserva,
-        "hora_fin_real": hora_fin_real,
-    })
-    encolar_sync({"type": "cubiculos_estado"})
-    encolar_sync({"type": "dashboard_diario"})
+    # Sync a Google Sheets — escritura directa (encolar_sync es stub)
+    _, sh = get_active_client()
+    if sh:
+        if num_reserva:
+            # Actualizar hora_fin_real en hoja Reservas
+            try:
+                ws = _gs_get_or_create_ws(sh, "Reservas")
+                vals = ws.get_all_values()
+                if vals:
+                    hdr = vals[0]
+                    if "Hora_Fin_Real" in hdr and "Numero_Reserva" in hdr:
+                        col_res = hdr.index("Numero_Reserva")
+                        col_fin = hdr.index("Hora_Fin_Real")
+                        for i, r in enumerate(vals[1:], start=2):
+                            if len(r) > col_res and str(r[col_res]) == str(num_reserva):
+                                ws.update_cell(i, col_fin + 1, hora_fin_real)
+                                break
+            except Exception:
+                pass
+        gs_sync_cubiculos(sh)
+        gs_sync_dashboard(sh)
 
 
 def fmt_cop(valor: float) -> str:
@@ -1771,33 +2436,45 @@ def mostrar_qr(metodo: str, monto: int, referencia: str, size: int = 300):
 # INTEGRACIÓN CON FACTURACIÓN
 # ══════════════════════════════════════════════════════════════════════════════
 
-def registrar_en_facturacion(reserva: dict, cliente: dict) -> str:
-    """Crea la factura en la BD compartida. Retorna número de factura."""
-    now   = ahora_col()
-    numf  = generar_numero_factura()
-    con   = get_db()
-    cur   = con.cursor()
+# ══════════════════════════════════════════════════════════════════════════════
+# INTEGRACIÓN CON FACTURACIÓN — orden: Sheets primero, SQLite después
+# ══════════════════════════════════════════════════════════════════════════════
 
-    # Insertar / recuperar cliente
-    cur.execute("SELECT id FROM clientes WHERE numero_documento=?",
-                (cliente.get("numero_documento",""),))
-    row = cur.fetchone()
-    if row:
-        cliente_id = row[0]
+def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
+    """
+    ORDEN: 1) Google Sheets  2) SQLite
+    Retorna (numero_factura, factura_id).
+    """
+    now  = ahora_col()
+    numf = generar_numero_factura()
+
+    descripcion_item = (f"Espacio de descanso {reserva['cubiculo_num']} · "
+                        f"WiFi · Baño · Carga · {reserva['horas']}h")
+    base_gravable = float(reserva["subtotal"]) - float(reserva.get("descuento_val", 0))
+
+    # ── PASO 1 → PASO 2: SQLite primero, luego Sheets con IDs reales ──────────
+    con = get_db()
+    cur = con.cursor()
+
+    row_cli = cur.execute("SELECT id FROM clientes WHERE numero_documento=?",
+                          (cliente.get("numero_documento", ""),)).fetchone()
+    if row_cli:
+        cliente_id = row_cli[0]
+        es_nuevo   = False
     else:
         cur.execute("""INSERT INTO clientes
             (nombre,tipo_documento,numero_documento,telefono,email,
              razon_social,nit_empresa,tipo_persona,creado_en)
             VALUES (?,?,?,?,?,?,?,?,?)""",
-            (cliente["nombre"], cliente.get("tipo_doc","CC"),
-             cliente.get("numero_documento",""), cliente.get("telefono",""),
-             cliente.get("email",""), cliente.get("razon_social",""),
-             cliente.get("nit_empresa",""),
+            (cliente["nombre"], cliente.get("tipo_doc", "CC"),
+             cliente.get("numero_documento", ""), cliente.get("telefono", ""),
+             cliente.get("email", ""), cliente.get("razon_social", ""),
+             cliente.get("nit_empresa", ""),
              "Jurídica" if cliente.get("razon_social") else "Natural",
              now.isoformat()))
         cliente_id = cur.lastrowid
+        es_nuevo   = True
 
-    # Factura
     cur.execute("""INSERT INTO facturas
         (numero,tipo,fecha_emision,fecha_vencimiento,cliente_id,
          subtotal,descuento,iva,retenciones,total,estado,moneda,notas,
@@ -1806,45 +2483,121 @@ def registrar_en_facturacion(reserva: dict, cliente: dict) -> str:
         (numf, "Factura de Venta",
          now.strftime("%Y-%m-%d"), now.strftime("%Y-%m-%d"),
          cliente_id,
-         reserva["subtotal"], reserva.get("descuento_val",0),
+         reserva["subtotal"], reserva.get("descuento_val", 0),
          reserva["iva"], 0, reserva["total"],
          "pagada", "COP",
          f"Cubículo {reserva['cubiculo_num']} · {reserva['horas']}h · WiFi+Baño+Carga",
          reserva["metodo_pago"], now.isoformat(), now.isoformat()))
     factura_id = cur.lastrowid
 
-    # Ítem
     cur.execute("""INSERT INTO factura_items
         (factura_id,codigo,descripcion,cantidad,unidad,precio_unitario,iva_pct,subtotal)
         VALUES (?,?,?,?,?,?,?,?)""",
-        (factura_id, "DESCANSO-H",
-         f"Espacio de descanso {reserva['cubiculo_num']} · WiFi · Baño · Carga · {reserva['horas']}h",
+        (factura_id, "DESCANSO-H", descripcion_item,
          reserva["horas"], "hora",
          reserva["precio_hora"], 19.0, reserva["subtotal"]))
-
     con.commit()
     con.close()
+
+    # ── Sheets con IDs reales post-commit ─────────────────────────────────────
+    _, sh = get_active_client()
+    if sh:
+        # Recuperar numero_documento del cliente para upsert key
+        num_doc = cliente.get("numero_documento", "")
+        gs_escribir_cliente(sh, {
+            "id":               cliente_id,
+            "nombre":           cliente["nombre"],
+            "tipo_documento":   cliente.get("tipo_doc", "CC"),
+            "numero_documento": num_doc,
+            "telefono":         cliente.get("telefono", ""),
+            "email":            cliente.get("email", ""),
+            "ciudad":           cliente.get("ciudad", ""),
+            "regimen":          cliente.get("regimen", "Simplificado"),
+            "tipo_persona":     "Jurídica" if cliente.get("razon_social") else "Natural",
+            "razon_social":     cliente.get("razon_social", ""),
+            "nit_empresa":      cliente.get("nit_empresa", ""),
+            "activo":           "1",
+            "creado_en":        now.isoformat(),
+        })
+        gs_escribir_factura(sh, {
+            "id":               factura_id,
+            "numero":           numf,
+            "tipo":             "Factura de Venta",
+            "fecha_emision":    now.strftime("%Y-%m-%d"),
+            "fecha_vencimiento":now.strftime("%Y-%m-%d"),
+            "cliente_nombre":   cliente["nombre"],
+            "cliente_doc":      num_doc,
+            "cliente_email":    cliente.get("email", ""),
+            "razon_social":     cliente.get("razon_social", ""),
+            "nit_empresa":      cliente.get("nit_empresa", ""),
+            "descripcion":      descripcion_item,
+            "subtotal":         reserva["subtotal"],
+            "descuento":        reserva.get("descuento_val", 0),
+            "iva":              reserva["iva"],
+            "retenciones":      "0",
+            "total":            reserva["total"],
+            "metodo_pago":      reserva["metodo_pago"],
+            "estado":           "pagada",
+            "moneda":           "COP",
+            "num_reserva":      "",          # aún no existe; sync_completa lo llenará
+            "cubiculo":         reserva["cubiculo_num"],
+            "creado_en":        now.isoformat(),
+            "actualizado_en":   now.isoformat(),
+        })
+    else:
+        st.warning("⚠️ Sin conexión a Google Sheets — datos guardados solo en SQLite")
+
     return numf, factura_id
 
 
 def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: str) -> dict:
-    """Crea reserva, factura y activa el cubículo. Retorna dict con todos los datos."""
-    # ── Guard anti-duplicado: si ya existe voucher en session_state con mismo cubículo
-    #    y fue creado en los últimos 30s, devolver el voucher existente sin re-insertar.
+    """
+    Crea reserva, pago, factura y activa el cubículo.
+    Incluye verificación atómica de duplicado dentro de la transacción SQLite.
+    """
+    # Guard anti-duplicado en session_state (mismo objeto voucher)
     if (st.session_state.get("voucher") and
             st.session_state.get("pago_confirmado") and
             st.session_state["voucher"].get("cubiculo") == cubiculo["numero"]):
         return st.session_state["voucher"]
 
-    # Verificar que el cubículo sigue libre antes de insertar
-    con_check = get_db()
-    estado_actual = con_check.execute(
+    now      = ahora_col()
+    hoy_str  = now.strftime("%Y-%m-%d")
+    num_doc  = cliente.get("numero_documento", "")
+
+    con = get_db()
+    cur = con.cursor()
+
+    # ── Verificación atómica 1: cubículo sigue libre ──────────────────────────
+    estado_actual = cur.execute(
         "SELECT estado FROM cubiculos WHERE id=?", (cubiculo["id"],)).fetchone()
-    con_check.close()
     if estado_actual and estado_actual[0] != "libre":
+        con.close()
         raise Exception(f"El cubículo {cubiculo['numero']} ya no está disponible.")
 
-    now  = ahora_col()
+    # ── Verificación atómica 2: cliente sin reserva activa hoy ───────────────
+    if num_doc:
+        dup = cur.execute("""
+            SELECT r.numero_reserva, cu.numero
+            FROM reservas r
+            JOIN clientes c ON r.cliente_id = c.id
+            LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+            WHERE c.numero_documento = ?
+              AND r.estado_pago = 'confirmado'
+              AND SUBSTR(r.hora_inicio, 1, 10) = ?
+              AND (r.hora_fin_real IS NULL OR r.hora_fin_real = '')
+            LIMIT 1
+        """, (num_doc, hoy_str)).fetchone()
+        if dup:
+            con.close()
+            raise Exception(
+                f"El cliente con documento {num_doc} ya tiene la reserva activa "
+                f"{dup[0]} en el cubículo {dup[1]}. "
+                f"No se puede crear una nueva reserva hasta que termine la actual."
+            )
+
+    con.close()
+
     hora_fin = now + timedelta(hours=calc["horas"])
     num_res  = generar_numero_reserva()
     codigo   = generar_codigo_acceso()
@@ -1859,17 +2612,21 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
         "total":         calc["total"],
         "metodo_pago":   metodo,
     }
+
+    # registrar_en_facturacion ya hace Sheets primero, SQLite después
     num_fact, factura_id = registrar_en_facturacion(reserva_data, cliente)
 
+    # Recuperar cliente_id de SQLite
     con = get_db()
     cur = con.cursor()
-
-    # Cliente id
-    cur.execute("SELECT id FROM clientes WHERE numero_documento=?",
-                (cliente.get("numero_documento",""),))
-    row = cur.fetchone()
+    row = cur.execute("SELECT id FROM clientes WHERE numero_documento=?",
+                      (cliente.get("numero_documento", ""),)).fetchone()
     cliente_id = row[0] if row else None
 
+    # ── PASO 1: Google Sheets — Reserva + Pago ───────────────────────────────
+    _, sh = get_active_client()
+
+    # ── PASO 2: SQLite — Reserva + Pago ──────────────────────────────────────
     cur.execute("""INSERT INTO reservas
         (numero_reserva,cubiculo_id,cliente_id,factura_id,hora_inicio,hora_fin_programada,
          horas_contratadas,precio_hora,subtotal,iva,total,metodo_pago,estado_pago,
@@ -1882,18 +2639,62 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
          metodo, "confirmado", codigo, now.isoformat()))
     reserva_id = cur.lastrowid
 
-    # Pago
     cur.execute("""INSERT INTO pagos (reserva_id,monto,metodo,estado,fecha_pago)
                    VALUES (?,?,?,'confirmado',?)""",
                 (reserva_id, calc["total"], metodo, now.isoformat()))
-
+    pago_id = cur.lastrowid
     con.commit()
     con.close()
 
-    activar_cubiculo(cubiculo["id"], reserva_id, hora_fin.isoformat())
+    # ── Escribir en Sheets con IDs reales (una sola vez, post-commit) ─────────
+    if sh:
+        gs_escribir_reserva(sh, {
+            "id":              reserva_id,
+            "numero_reserva":  num_res,
+            "creado_en":       now.isoformat(),
+            "cubiculo_num":    cubiculo["numero"],
+            "cliente_nombre":  cliente["nombre"],
+            "cliente_doc":     cliente.get("numero_documento", ""),
+            "cliente_tel":     cliente.get("telefono", ""),
+            "cliente_email":   cliente.get("email", ""),
+            "horas":           calc["horas"],
+            "hora_inicio":     now.isoformat(),
+            "hora_fin_prog":   hora_fin.isoformat(),
+            "hora_fin_real":   "",
+            "precio_hora":     calc["precio_hora"],
+            "subtotal":        calc["subtotal"],
+            "iva":             calc["iva"],
+            "total":           calc["total"],
+            "metodo_pago":     metodo,
+            "estado_pago":     "confirmado",
+            "codigo_acceso":   codigo,
+            "wifi_ssid":       cubiculo.get("wifi_ssid", ""),
+            "wifi_pass":       cubiculo.get("wifi_password", ""),
+            "num_factura":     num_fact,
+            "referencia_pago": "",
+            "operador":        "sistema",
+            "notas":           "",
+        })
+        gs_escribir_pago(sh, {
+            "id":                 pago_id,
+            "reserva_id":         reserva_id,
+            "num_reserva":        num_res,
+            "fecha_pago":         now.isoformat(),
+            "monto":              calc["total"],
+            "metodo":             metodo,
+            "referencia_externa": "",
+            "estado":             "confirmado",
+            "confirmado_por":     "sistema",
+            "notas":              "",
+        })
+        gs_escribir_log(sh, "nueva_reserva", num_res, cubiculo["numero"],
+                        "sistema",
+                        f"Reserva {num_res} | Factura {num_fact} | "
+                        f"{metodo} | ${calc['total']:,.0f}")
+        gs_sync_cubiculos(sh)
+        gs_sync_dashboard(sh)
 
-    # Sync a Drive
-    _drive_sync_background(num_res, cliente, reserva_id, num_fact)
+    activar_cubiculo(cubiculo["id"], reserva_id, hora_fin.isoformat())
 
     return {
         "numero_reserva": num_res,
@@ -1913,623 +2714,6 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
     }
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# GOOGLE SHEETS — ARCHIVO "jjgt_pagos"
-# ══════════════════════════════════════════════════════════════════════════════
-#
-# Configurar .streamlit/secrets.toml:
-#   [sheetsemp]
-#   credentials_sheet = '''{ ... JSON de Service Account de Google Cloud ... }'''
-#
-# O en Streamlit Cloud → App Settings → Secrets
-# ══════════════════════════════════════════════════════════════════════════════
-
-_SCOPES = [
-    "https://spreadsheets.google.com/feeds",
-    "https://www.googleapis.com/auth/drive",
-    "https://www.googleapis.com/auth/spreadsheets",
-]
-
-
-def init_google_drive():
-    """
-    Abre o crea el archivo 'jjgt_pagos' en Google Drive.
-    Retorna el objeto spreadsheet o None si falla.
-    """
-    if not GSPREAD_AVAILABLE:
-        return None
-    creds, _ = load_credentials_from_toml()
-    if not creds:
-        return None
-    client = get_google_sheets_connection(creds)
-    if not client:
-        return None
-    return get_or_create_spreadsheet(client)
-
-
-DRIVE_SHEETS = {
-    "Reservas":         ["ID_Reserva","Numero_Reserva","Fecha_Hora","Cubiculo",
-                         "Cliente_Nombre","Documento","Telefono","Email",
-                         "Horas","Hora_Inicio","Hora_Fin_Prog","Hora_Fin_Real",
-                         "Precio_Hora","Subtotal","IVA","Total_COP",
-                         "Metodo_Pago","Estado_Pago","Codigo_Acceso",
-                         "WiFi_SSID","WiFi_Pass","Num_Factura","Referencia","Operador","Notas"],
-    "Pagos":            ["ID_Pago","ID_Reserva","Num_Reserva","Fecha_Pago",
-                         "Monto_COP","Metodo","Referencia_Externa","Estado",
-                         "Confirmado_Por","Tiempo_Proc_Min","Notas"],
-    "Clientes":         ["ID_Cliente","Nombre","Tipo_Doc","Num_Doc","Telefono",
-                         "Email","Ciudad","Req_Factura_Empresa","Razon_Social",
-                         "NIT_Empresa","Total_Reservas","Total_Gastado_COP",
-                         "Primera_Visita","Ultima_Visita","Notas"],
-    "Cubiculos_Estado": ["Cubiculo_ID","Numero","Estado","Cliente_Actual",
-                         "Hora_Inicio","Hora_Fin_Prog","Tiempo_Rest_Min",
-                         "WiFi_SSID","WiFi_Pass","Codigo_Acceso","Total_Reservas",
-                         "Ingresos_Total","Ultimo_Mant","Notas"],
-    "Facturas":         ["Num_Factura","Fecha_Emision","Fecha_Venc",
-                         "Cliente","Documento","Email","Razon_Social","NIT_Emp",
-                         "Descripcion","Cantidad_Horas","Precio_Hora","Subtotal",
-                         "Descuento","Base_Gravable","IVA_19pct","Total_COP",
-                         "Metodo_Pago","Estado","Num_Reserva","Cubiculo","Creado_En"],
-    "Dashboard_Diario": ["Fecha","Total_Reservas","Completadas","Canceladas",
-                         "Ingresos_Brutos","IVA_Recaudado","Ingresos_Netos",
-                         "Nequi_COP","Daviplata_COP","Efectivo_COP","PSE_COP",
-                         "MP_COP","Otros_COP","Ocupacion_Pct","Hora_Pico",
-                         "Tiempo_Prom_Min","Clientes_Nuevos","Clientes_Recur",
-                         "Fact_Min","Fact_Max","Ticket_Prom_COP"],
-    "Tarifas_Config":   ["ID","Nombre","Descripcion","Precio_Hora_COP",
-                         "Hora_Ini_Espec","Hora_Fin_Espec","Desc_3h_Pct",
-                         "Desc_6h_Pct","Activo","Vigente_Desde","Notas"],
-    "Log_Operaciones":  ["Timestamp","Tipo_Op","Reserva_ID","Cubiculo",
-                         "Operador","Descripcion","Valor_Ant","Valor_Nuevo",
-                         "IP","Estado","Notas"],
-}
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CREDENCIALES — lee st.secrets primero, luego secrets.toml como fallback
-# ══════════════════════════════════════════════════════════════════════════════
-
-def load_credentials_from_toml():
-    """
-    Obtiene las credenciales de servicio de Google.
-    Orden de búsqueda:
-      1. st.secrets["sheetsemp"]["credentials_sheet"]  (Streamlit Cloud / local secrets.toml)
-      2. Archivo .streamlit/secrets.toml leído manualmente con toml
-      3. Archivo credentials.json en directorio actual (solo local)
-      4. None si no se encuentra nada
-    También lee spreadsheet_id desde secrets si está disponible.
-    Retorna (dict_credenciales, None)
-    """
-    # ── Intento 1: st.secrets ────────────────────────────────────────────────
-    try:
-        raw = st.secrets["sheetsemp"]["credentials_sheet"]
-        if isinstance(raw, str):
-            creds = json.loads(raw)
-        else:
-            creds = dict(raw)
-        if "private_key" in creds and "client_email" in creds:
-            # También leer spreadsheet_id si está en secrets
-            try:
-                sid = st.secrets["sheetsemp"].get("spreadsheet_id", "")
-                if sid and not get_config("drive_spreadsheet_id", ""):
-                    set_config("drive_spreadsheet_id", sid)
-            except Exception:
-                pass
-            return creds, None
-    except Exception:
-        pass  # st.secrets no disponible o clave inexistente → probar con toml
-
-    # ── Intento 2: leer secrets.toml directamente ────────────────────────────
-    toml_candidates = [
-        ".streamlit/secrets.toml",
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), ".streamlit", "secrets.toml"),
-        os.path.expanduser("~/.streamlit/secrets.toml"),
-    ]
-    for toml_path in toml_candidates:
-        if not os.path.isfile(toml_path):
-            continue
-        try:
-            if TOML_AVAILABLE:
-                config = toml_lib.load(toml_path)
-            else:
-                # Fallback: leer como texto y buscar la sección manualmente
-                with open(toml_path, "r", encoding="utf-8") as f:
-                    raw_text = f.read()
-                import re
-                match = re.search(r"credentials_sheet\s*=\s*'''(.*?)'''", raw_text, re.DOTALL)
-                if match:
-                    creds = json.loads(match.group(1).strip())
-                    if "private_key" in creds and "client_email" in creds:
-                        return creds, None
-                continue
-            raw = config.get("sheetsemp", {}).get("credentials_sheet")
-            if raw is None:
-                continue
-            if isinstance(raw, str):
-                creds = json.loads(raw)
-            else:
-                creds = dict(raw)
-            if "private_key" in creds and "client_email" in creds:
-                return creds, None
-        except Exception:
-            continue
-
-    # ── Intento 3: credentials.json en directorio actual (solo ejecución local) ──
-    creds_path = get_config("drive_credentials_path", "credentials.json")
-    if os.path.isfile(creds_path):
-        try:
-            with open(creds_path, "r", encoding="utf-8") as f:
-                creds = json.load(f)
-            if "private_key" in creds and "client_email" in creds:
-                return creds, None
-        except Exception:
-            pass
-
-    return None, None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# HELPERS — reintentos ante quota 429
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _is_quota_err(exc) -> bool:
-    """Detecta errores 429 (quota excedida) de la API de Google."""
-    msg = str(exc).lower()
-    return "429" in msg or "quota" in msg or "rate limit" in msg or "too many requests" in msg
-
-
-def _api_call(fn, *args, retries: int = 4, base_wait: float = 2.0, **kwargs):
-    """
-    Ejecuta fn(*args, **kwargs) con reintentos exponenciales ante errores 429.
-    Espera: 2s, 4s, 8s, 16s antes de lanzar la excepción final.
-    """
-    for attempt in range(retries):
-        try:
-            return fn(*args, **kwargs)
-        except Exception as exc:
-            if _is_quota_err(exc) and attempt < retries - 1:
-                wait = base_wait * (2 ** attempt)
-                time.sleep(wait)
-            else:
-                raise
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CONEXIÓN — sin @st.cache_resource para evitar problemas de hasheo con dicts
-# ══════════════════════════════════════════════════════════════════════════════
-
-# ── Cliente gspread a nivel de módulo (thread-safe, sin session_state) ────────
-_gs_module_client = None
-_gs_module_client_lock = threading.Lock()
-_gs_module_spreadsheet = None
-
-
-def get_google_sheets_connection(creds: dict):
-    """
-    Crea y devuelve un cliente gspread autenticado.
-    Versión dual: en el hilo principal guarda en session_state;
-    en hilos background usa el cache a nivel de módulo (_gs_module_client).
-    Esto permite que el worker thread acceda a Sheets sin st.session_state.
-    """
-    global _gs_module_client
-    if not GSPREAD_AVAILABLE:
-        return None
-    try:
-        # Intentar usar session_state si estamos en el hilo principal de Streamlit
-        try:
-            existing = st.session_state.get("_gs_client")
-            if existing is not None:
-                return existing
-        except Exception:
-            pass  # Estamos en un worker thread — session_state no disponible
-
-        # Cache a nivel de módulo para worker threads
-        with _gs_module_client_lock:
-            if _gs_module_client is not None:
-                return _gs_module_client
-
-        credentials = Credentials.from_service_account_info(creds, scopes=_SCOPES)
-        client = gspread.authorize(credentials)
-
-        # Guardar en ambos caches
-        with _gs_module_client_lock:
-            _gs_module_client = client
-        try:
-            st.session_state._gs_client = client
-        except Exception:
-            pass  # Worker thread — ignorar
-        return client
-    except Exception as e:
-        try:
-            st.error(f"❌ Error conectando a Google Sheets: {e}")
-        except Exception:
-            pass  # Worker thread
-        return None
-
-
-def _get_module_level_client():
-    """
-    Obtiene (o crea) el cliente gspread a nivel de módulo SIN depender de Streamlit.
-    Usado exclusivamente por el worker thread de sincronización.
-    """
-    global _gs_module_client, _gs_module_spreadsheet
-    if not GSPREAD_AVAILABLE:
-        return None, None
-    with _gs_module_client_lock:
-        if _gs_module_client is not None and _gs_module_spreadsheet is not None:
-            return _gs_module_client, _gs_module_spreadsheet
-    # Cargar credenciales leyendo el TOML directamente (sin st.secrets)
-    creds, _ = load_credentials_from_toml()
-    if not creds:
-        return None, None
-    try:
-        credentials = Credentials.from_service_account_info(creds, scopes=_SCOPES)
-        client = gspread.authorize(credentials)
-        # Abrir o crear el spreadsheet
-        sid = get_config("drive_spreadsheet_id", "")
-        if sid:
-            sh = _api_call(client.open_by_key, sid)
-        else:
-            try:
-                sh = _api_call(client.open, DRIVE_FILE)
-            except Exception:
-                sh = _api_call(client.create, DRIVE_FILE)
-                set_config("drive_spreadsheet_id", sh.id)
-        # Verificar hojas
-        existing = [ws.title for ws in _api_call(sh.worksheets)]
-        for name, headers in DRIVE_SHEETS.items():
-            if name not in existing:
-                ws = _api_call(sh.add_worksheet, title=name,
-                               rows=2000, cols=max(len(headers), 26))
-                _api_call(ws.append_row, headers)
-                time.sleep(0.3)
-        with _gs_module_client_lock:
-            _gs_module_client = client
-            _gs_module_spreadsheet = sh
-        return client, sh
-    except Exception:
-        return None, None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# CARGA DE UNA HOJA — robusto, sin get_all_records
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _parse_sheet_values(all_values: list) -> pd.DataFrame:
-    """Convierte lista de listas (get_all_values) en DataFrame limpio."""
-    if not all_values or len(all_values) < 2:
-        return pd.DataFrame()
-    raw_headers = all_values[0]
-    headers, seen = [], {}
-    for h in raw_headers:
-        h = str(h).strip()
-        if not h:
-            h = f"_col{len(headers)}"
-        if h in seen:
-            seen[h] += 1
-            h = f"{h}_{seen[h]}"
-        else:
-            seen[h] = 0
-        headers.append(h)
-    data_rows = []
-    for row in all_values[1:]:
-        padded = (row + [""] * len(headers))[:len(headers)]
-        if any(str(v).strip() for v in padded):
-            data_rows.append(padded)
-    return pd.DataFrame(data_rows, columns=headers)
-
-
-def load_data_from_sheet(client, sheet_name: str, worksheet_name: str) -> pd.DataFrame:
-    """
-    Carga una hoja usando get_all_values() con reintentos automáticos ante 429.
-    """
-    try:
-        sheet      = _api_call(client.open, sheet_name)
-        worksheet  = _api_call(sheet.worksheet, worksheet_name)
-        all_values = _api_call(worksheet.get_all_values)
-        return _parse_sheet_values(all_values)
-    except gspread.exceptions.WorksheetNotFound:
-        st.warning(f"⚠️ Hoja '{worksheet_name}' no existe en '{sheet_name}'.")
-        return pd.DataFrame()
-    except Exception as e:
-        if _is_quota_err(e):
-            st.warning(
-                f"⚠️ Límite de solicitudes alcanzado al cargar '{worksheet_name}'. "
-                f"La API permite 60 lecturas/min. Espera un momento y recarga.")
-        else:
-            st.warning(f"⚠️ Error cargando '{worksheet_name}': {e}")
-        return pd.DataFrame()
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# GESTIÓN DEL SPREADSHEET — crear/verificar hojas
-# ══════════════════════════════════════════════════════════════════════════════
-
-def get_or_create_spreadsheet(client):
-    """
-    Abre 'jjgt_pagos' si existe, o lo crea. Verifica y crea las 8 hojas.
-    Retorna el objeto spreadsheet o None si falla.
-    """
-    try:
-        sid = get_config("drive_spreadsheet_id", "")
-        if sid:
-            sh = _api_call(client.open_by_key, sid)
-        else:
-            try:
-                sh = _api_call(client.open, DRIVE_FILE)
-            except gspread.exceptions.SpreadsheetNotFound:
-                sh = _api_call(client.create, DRIVE_FILE)
-                set_config("drive_spreadsheet_id", sh.id)
-
-        # Verificar / crear hojas faltantes
-        existing = [ws.title for ws in _api_call(sh.worksheets)]
-        for name, headers in DRIVE_SHEETS.items():
-            if name not in existing:
-                ws = _api_call(sh.add_worksheet, title=name,
-                               rows=2000, cols=max(len(headers), 26))
-                _api_call(ws.append_row, headers)
-                time.sleep(0.5)   # pausa pequeña para evitar 429 al crear muchas hojas
-
-        # Eliminar hoja por defecto vacía si existe
-        for default_name in ["Sheet1", "Hoja 1", "Hoja1"]:
-            if default_name in existing:
-                try:
-                    _api_call(sh.del_worksheet, sh.worksheet(default_name))
-                except Exception:
-                    pass
-
-        return sh
-    except Exception as e:
-        return None
-
-
-def get_active_client():
-    """
-    Helper centralizado: carga credenciales → crea cliente → retorna (client, sh, error_msg).
-    Usado por todas las funciones de escritura y lectura.
-    """
-    if not GSPREAD_AVAILABLE:
-        return None, None, "gspread no instalado. Ejecuta: pip install gspread google-auth"
-    creds, _ = load_credentials_from_toml()
-    if not creds:
-        return None, None, ("No se encontraron credenciales. Configura .streamlit/secrets.toml "
-                             "con la sección [sheetsemp] y la clave credentials_sheet.")
-    client = get_google_sheets_connection(creds)
-    if not client:
-        return None, None, "No se pudo autenticar con Google Sheets."
-    sh = get_or_create_spreadsheet(client)
-    if not sh:
-        return client, None, "No se pudo abrir/crear el archivo jjgt_pagos."
-    return client, sh, None
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# ESCRITURA EN SHEETS — append / update / upsert
-# ══════════════════════════════════════════════════════════════════════════════
-
-def sheets_append_row(worksheet_name: str, row_data: list) -> bool:
-    """Agrega una fila al final de la hoja indicada. Retorna True si éxito."""
-    _, sh, err = get_active_client()
-    if err:
-        _marcar_sync_pendiente(worksheet_name, 0)
-        return False
-    try:
-        ws = _api_call(sh.worksheet, worksheet_name)
-        _api_call(ws.append_row, [str(v) if v is not None else "" for v in row_data])
-        return True
-    except Exception as e:
-        _marcar_sync_pendiente(worksheet_name, 0)
-        return False
-
-
-def sheets_update_row(worksheet_name: str, col_key: str, key_value: str,
-                      update_data: dict) -> bool:
-    """
-    Busca la fila donde col_key == key_value y actualiza las columnas indicadas.
-    update_data = {"NombreColumna": "NuevoValor", ...}
-    """
-    _, sh, err = get_active_client()
-    if err:
-        return False
-    try:
-        ws         = _api_call(sh.worksheet, worksheet_name)
-        all_vals   = _api_call(ws.get_all_values)
-        df         = _parse_sheet_values(all_vals)
-        if df.empty or col_key not in df.columns:
-            return False
-        matches    = df.index[df[col_key].astype(str) == str(key_value)].tolist()
-        if not matches:
-            return False
-        row_idx    = matches[0] + 2   # +1 header, +1 base-1 de gspread
-        headers    = list(df.columns)
-        for col_name, new_val in update_data.items():
-            if col_name in headers:
-                col_idx = headers.index(col_name) + 1
-                _api_call(ws.update_cell, row_idx, col_idx, str(new_val))
-        return True
-    except Exception:
-        return False
-
-
-def sheets_upsert_row(worksheet_name: str, col_key: str,
-                      key_value: str, row_data: list) -> bool:
-    """
-    Si existe una fila con col_key == key_value: actualiza toda la fila.
-    Si no existe: agrega nueva fila.
-    """
-    _, sh, err = get_active_client()
-    if err:
-        _marcar_sync_pendiente(worksheet_name, 0)
-        return False
-    try:
-        ws       = _api_call(sh.worksheet, worksheet_name)
-        all_vals = _api_call(ws.get_all_values)
-        if not all_vals:
-            _api_call(ws.append_row, DRIVE_SHEETS.get(worksheet_name, []))
-            all_vals = _api_call(ws.get_all_values)
-
-        headers  = all_vals[0] if all_vals else []
-        col_idx  = headers.index(col_key) if col_key in headers else -1
-        row_str  = [str(v) if v is not None else "" for v in row_data]
-
-        if col_idx >= 0:
-            for i, r in enumerate(all_vals[1:], start=2):
-                if len(r) > col_idx and str(r[col_idx]) == str(key_value):
-                    # Actualizar fila existente
-                    padded = (row_str + [""] * len(headers))[:len(headers)]
-                    _api_call(ws.update, f"A{i}", [padded])
-                    return True
-
-        # No encontrada → agregar
-        _api_call(ws.append_row, row_str)
-        return True
-    except Exception:
-        _marcar_sync_pendiente(worksheet_name, 0)
-        return False
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# SINCRONIZACIÓN — background y completa
-# ══════════════════════════════════════════════════════════════════════════════
-
-def _marcar_sync_pendiente(tabla: str, registro_id: int):
-    """Registra en SQLite que un registro necesita ser sincronizado a Drive."""
-    try:
-        con = get_db()
-        con.execute(
-            "INSERT INTO sync_log (tabla,registro_id,accion,sync_pendiente,creado_en) VALUES (?,?,?,1,?)",
-            (tabla, registro_id, "upsert", ahora_col().isoformat()))
-        con.commit()
-        con.close()
-    except Exception:
-        pass
-
-
-def _drive_sync_background(num_reserva: str, cliente: dict,
-                            reserva_id: int, num_factura: str):
-    """
-    Encola la sincronización en el worker thread — no bloquea el hilo principal.
-    El worker escribirá en Google Sheets de forma asíncrona.
-    """
-    encolar_sync({
-        "type":        "nueva_reserva",
-        "num_reserva": num_reserva,
-        "reserva_id":  reserva_id,
-        "num_factura": num_factura,
-        "cliente":     cliente,
-    })
-    # También encolar cliente y dashboard
-    con = get_db()
-    row = con.execute("SELECT id FROM clientes WHERE numero_documento=?",
-                      (cliente.get("numero_documento",""),)).fetchone()
-    con.close()
-    if row:
-        encolar_sync({"type": "cliente", "cliente_id": row[0]})
-    encolar_sync({"type": "dashboard_diario"})
-    encolar_sync({"type": "cubiculos_estado"})
-
-
-def sincronizacion_completa() -> dict:
-    """
-    Exporta todo el contenido de SQLite al archivo jjgt_pagos en Google Sheets.
-    Retorna dict con conteo de registros sincronizados por hoja.
-    """
-    client, sh, err = get_active_client()
-    if err:
-        return {"error": err}
-
-    con  = get_db()
-    cur  = con.cursor()
-    conteos = {}
-
-    tablas_map = [
-        ("reservas",       "Reservas",       "Reservas"),
-        ("pagos",          "Pagos",          "Pagos"),
-        ("clientes",       "Clientes",       "Clientes"),
-        ("facturas",       "Facturas",       "Facturas"),
-        ("factura_items",  "Factura_Items",  "Factura_Items"),
-        ("cubiculos",      "Cubiculos",      "Cubiculos"),
-        ("tarifas",        "Tarifas_Config", "Tarifas_Config"),
-        ("operadores",     "Operadores",     "Operadores"),
-        ("configuracion_pagos",  "Configuracion_Pagos",   "Configuracion_Pagos"),
-    ]
-
-    for tabla_sql, sheet_name, _ in tablas_map:
-        try:
-            cur.execute(f"SELECT * FROM {tabla_sql}")
-            rows = cur.fetchall()
-            ws   = _api_call(sh.worksheet, sheet_name)
-            _api_call(ws.clear)
-            _api_call(ws.append_row, DRIVE_SHEETS[sheet_name])
-            for row in rows:
-                row_str = [str(v) if v is not None else "" for v in row]
-                _api_call(ws.append_row, row_str)
-                time.sleep(0.1)   # micro-pausa para evitar 429
-            conteos[sheet_name] = len(rows)
-        except Exception as e:
-            conteos[sheet_name] = f"Error: {e}"
-
-    # Cubículos en tiempo real
-    try:
-        cubiculos = get_cubiculos()
-        ws = _api_call(sh.worksheet, "Cubiculos_Estado")
-        _api_call(ws.clear)
-        _api_call(ws.append_row, DRIVE_SHEETS["Cubiculos_Estado"])
-        for c in cubiculos:
-            _api_call(ws.append_row, [
-                str(c["id"]), c["numero"], c["estado"], "",
-                str(c.get("hora_inicio") or ""),
-                str(c.get("hora_fin") or ""),
-                str(c.get("minutos_restantes") or ""),
-                c.get("wifi_ssid",""), c.get("wifi_password",""), "",
-                "", "", "", ""
-            ])
-            time.sleep(0.1)
-        conteos["Cubiculos_Estado"] = len(cubiculos)
-    except Exception as e:
-        conteos["Cubiculos_Estado"] = f"Error: {e}"
-
-    # Dashboard diario
-    try:
-        today_str = ahora_col().strftime("%Y-%m-%d")
-        cur.execute("""SELECT COUNT(*), SUM(total), SUM(iva),
-                              COUNT(CASE WHEN estado_pago='confirmado' THEN 1 END),
-                              SUM(CASE WHEN metodo_pago='Nequi' THEN total ELSE 0 END),
-                              SUM(CASE WHEN metodo_pago='Daviplata' THEN total ELSE 0 END),
-                              SUM(CASE WHEN metodo_pago='Efectivo' THEN total ELSE 0 END),
-                              SUM(CASE WHEN metodo_pago='PSE' THEN total ELSE 0 END),
-                              SUM(CASE WHEN metodo_pago='MercadoPago' THEN total ELSE 0 END),
-                              AVG(horas_contratadas)
-                       FROM reservas WHERE DATE(creado_en)=?""", (today_str,))
-        stats = cur.fetchone() or [0]*10
-        ingresos_brutos = float(stats[1] or 0)
-        iva_rec         = float(stats[2] or 0)
-        row_dash = [
-            today_str, stats[0], stats[3], 0,
-            ingresos_brutos, iva_rec, ingresos_brutos - iva_rec,
-            float(stats[4] or 0), float(stats[5] or 0), float(stats[6] or 0),
-            float(stats[7] or 0), float(stats[8] or 0), 0,
-            0, "", round(float(stats[9] or 0) * 60), 0, 0, 0, 0, 0
-        ]
-        sheets_upsert_row("Dashboard_Diario", "Fecha", today_str, row_dash)
-        conteos["Dashboard_Diario"] = 1
-    except Exception as e:
-        conteos["Dashboard_Diario"] = f"Error: {e}"
-
-    # Log de la sincronización
-    try:
-        sheets_append_row("Log_Operaciones", [
-            ahora_col().isoformat(), "sync_completa", "", "",
-            "sistema", "Sincronización completa ejecutada",
-            "", "", "", "exito", json.dumps({k: v for k, v in conteos.items()
-                                              if not str(v).startswith("Error")})
-        ])
-    except Exception:
-        pass
-
-    con.commit()
-    con.close()
-    return conteos
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2672,19 +2856,20 @@ h1{{color:#00d4ff;text-align:center;font-size:18px;}}
 
 def init_state():
     defaults = {
-        "pantalla":         "operador_login",  # La app SIEMPRE inicia en login de operador
-        "cubiculo_sel":     None,
-        "horas_sel":        1.0,
-        "calc":             None,
-        "cliente":          {},
-        "metodo_pago":      None,
-        "voucher":          None,
-        "pago_confirmado":  False,
-        "operador_ok":      False,
-        "operador_info":    {},               # Datos del operador activo
-        "pin_intentos":     0,
-        "modulo_op":        "dashboard",
-        "_backup_fecha":    "",
+        "pantalla":              "operador_login",  # La app SIEMPRE inicia en login de operador
+        "cubiculo_sel":          None,
+        "horas_sel":             1.0,
+        "calc":                  None,
+        "cliente":               {},
+        "metodo_pago":           None,
+        "voucher":               None,
+        "pago_confirmado":       False,
+        "operador_ok":           False,
+        "operador_info":         {},               # Datos del operador activo
+        "pin_intentos":          0,
+        "modulo_op":             "dashboard",
+        "_backup_fecha":         "",
+        "_procesando_reserva":   False,           # Guardia anti-doble-clic en confirmación
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -2692,7 +2877,10 @@ def init_state():
 
 
 def _auto_backup_diario():
-    """Genera backup diario en disco si no se hizo hoy."""
+    """
+    Genera backup al inicio del proceso si no se hizo hoy.
+    Mantiene compatibilidad — el backup principal ahora ocurre al cerrar turno.
+    """
     today_str = ahora_col().strftime("%Y-%m-%d")
     if st.session_state.get("_backup_fecha") == today_str:
         return
@@ -2708,10 +2896,49 @@ def _auto_backup_diario():
         pass
 
 
+def _backup_cierre_turno(operador_info: dict):
+    """
+    Genera y guarda un backup al momento de cerrar el turno del operador.
+    El archivo queda en backups/cierre_<turno>_<operador>_<fecha_hora>.xlsx
+    Solo se ejecuta en entorno local (en Cloud /tmp no persiste entre sesiones).
+    """
+    if _IS_CLOUD:
+        return
+    try:
+        os.makedirs("backups", exist_ok=True)
+        ahora  = ahora_col()
+        turno  = operador_info.get("turno", "turno")
+        nombre = operador_info.get("nombre", "op").replace(" ", "_").lower()
+        ts_str = ahora.strftime("%Y-%m-%d_%H%M")
+        fname  = f"cierre_{turno}_{nombre}_{ts_str}.xlsx"
+        backup_path = os.path.join("backups", fname)
+        data, _, _ = generar_backup_diario()
+        with open(backup_path, "wb") as bf:
+            bf.write(data)
+        # Registrar en Google Sheets si la conexion esta activa
+        try:
+            _, sh_cierre = get_active_client()
+            if sh_cierre:
+                gs_sync_dashboard(sh_cierre)
+            sheets_append_row("Log_Operaciones", [
+                ahora.isoformat(), "cierre_turno", "", "",
+                operador_info.get("nombre", ""),
+                f"Backup cierre de turno '{turno}' — {fname}",
+                "", "", "", "exito", ""
+            ])
+        except Exception:
+            pass
+    except Exception:
+        pass
+
+
 init_state()
 
 
 def ir_a(pantalla: str):
+    # Al navegar fuera de confirmación, liberar el lock de procesamiento
+    if pantalla != "confirmacion":
+        st.session_state["_procesando_reserva"] = False
     st.session_state.pantalla = pantalla
     st.rerun()
 
@@ -2804,6 +3031,10 @@ def render_cubiculo_card(cub: dict, seleccionado: bool = False) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_bienvenida():
+    # Seguridad: si no hay operador autenticado, redirigir al login
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header()
     inject_live_clock()
     render_reloj()
@@ -2883,14 +3114,24 @@ def show_bienvenida():
     </div>
     """, unsafe_allow_html=True)
 
-    # Botón principal
+    # Botón principal + info del operador activo
+    op_bienvenida = st.session_state.get("operador_info", {})
+    op_nombre_b   = op_bienvenida.get("nombre", "")
+    if op_nombre_b:
+        st.markdown(f"""
+        <div style="text-align:center;font-size:13px;color:#94a3b8;margin-bottom:8px">
+          👤 Atendido por: <b style="color:#00d4ff">{op_nombre_b}</b>
+          · Turno {op_bienvenida.get("turno","").capitalize()}
+        </div>
+        """, unsafe_allow_html=True)
+
     _, col, _ = st.columns([1, 2, 1])
     with col:
         if libres > 0:
             if st.button("🛏️  RESERVAR MI ESPACIO", type="primary", use_container_width=True):
                 ir_a("seleccion")
         else:
-            st.markdown('<div class="alerta-roja">❌ No hay cubículos disponibles en este momento.<br>Por favor espera o consulta a un operador.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="alerta-roja">❌ No hay cubículos disponibles en este momento.<br>Por favor espera o consulta al operador.</div>', unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -2923,13 +3164,12 @@ def show_bienvenida():
             </div>
             """, unsafe_allow_html=True)
 
-    # Acceso operador
+    # Botones de acción del operador
     st.markdown("<br>", unsafe_allow_html=True)
-    _, c2, _ = st.columns([3, 1, 3])
-    with c2:
-        if st.button("👤 Operador", use_container_width=True):
-            st.session_state.pantalla = "operador_login"
-            st.rerun()
+    _, col_back, _ = st.columns([2, 1, 2])
+    with col_back:
+        if st.button("⬅️ Volver al Panel", use_container_width=True):
+            ir_a("operador")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2937,6 +3177,9 @@ def show_bienvenida():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_seleccion():
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header("Elige tu cubículo y tiempo de descanso")
     render_stepper(0)
     inject_live_clock()
@@ -2945,13 +3188,13 @@ def show_seleccion():
 
     with col_left:
         st.markdown("#### ⏱️ ¿Cuánto tiempo necesitas?")
-        tiempos = {"30 min": 0.5, "1 hora": 1.0, "2 horas": 2.0,
+        tiempos = {"30 min": 0.3, "1 hora": 1.0, "2 horas": 2.0,
                    "3 horas": 3.0, "4 horas": 4.0, "⚙️ Personalizar": -1}
         cols_t  = st.columns(3)
         for i, (label, val) in enumerate(tiempos.items()):
             with cols_t[i % 3]:
                 sel = st.session_state.horas_sel
-                activo = (sel == val) or (val == -1 and sel not in [0.5,1,2,3,4])
+                activo = (sel == val) or (val == -1 and sel not in [0.3,1,2,3,4])
                 if st.button(label, key=f"btn_t_{i}",
                              type="primary" if activo else "secondary",
                              use_container_width=True):
@@ -2962,9 +3205,9 @@ def show_seleccion():
                     st.rerun()
 
         horas = st.session_state.horas_sel
-        if horas not in [0.5, 1.0, 2.0, 3.0, 4.0]:
-            horas = st.number_input("Horas personalizadas", min_value=0.5, max_value=12.0,
-                                     value=float(horas), step=0.5)
+        if horas not in [0.3, 1.0, 2.0, 3.0, 4.0]:
+            horas = st.number_input("Horas personalizadas", min_value=0.3, max_value=12.0,
+                                     value=float(horas), step=0.3)
             st.session_state.horas_sel = horas
 
         # Cálculo en tiempo real
@@ -3014,8 +3257,13 @@ def show_seleccion():
     st.markdown("---")
     col_v, col_c = st.columns([1, 1])
     with col_v:
-        if st.button("← Volver", use_container_width=True):
-            ir_a("bienvenida")
+        col_vv1, col_vv2 = st.columns(2)
+        with col_vv1:
+            if st.button("← Volver", use_container_width=True):
+                ir_a("bienvenida")
+        with col_vv2:
+            if st.button("✖ Cancelar al panel", use_container_width=True):
+                ir_a("operador")
     with col_c:
         if st.session_state.cubiculo_sel and st.session_state.calc:
             cub_sel = st.session_state.cubiculo_sel
@@ -3038,6 +3286,9 @@ def show_seleccion():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_datos():
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header("Tus datos para la reserva")
     inject_live_clock()
     render_stepper(1)
@@ -3082,8 +3333,13 @@ def show_datos():
 
         c_v, c_c = st.columns([1, 2])
         with c_v:
-            if st.button("← Volver", use_container_width=True):
-                ir_a("seleccion")
+            col_dv1, col_dv2 = st.columns(2)
+            with col_dv1:
+                if st.button("← Volver", use_container_width=True):
+                    ir_a("seleccion")
+            with col_dv2:
+                if st.button("✖ Panel", use_container_width=True):
+                    ir_a("operador")
         with c_c:
             if st.button("CONTINUAR AL PAGO →", type="primary", use_container_width=True):
                 if errores:
@@ -3107,6 +3363,9 @@ def show_datos():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_pago():
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header("Elige cómo pagar")
     render_stepper(2)
     inject_live_clock()
@@ -3157,33 +3416,136 @@ def show_pago():
         _pago_otros(monto, ref)
 
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("← Volver a mis datos", use_container_width=True):
-        ir_a("datos")
+    col_pb1, col_pb2 = st.columns(2)
+    with col_pb1:
+        if st.button("← Volver a mis datos", use_container_width=True):
+            ir_a("datos")
+    with col_pb2:
+        if st.button("✖ Cancelar al panel", use_container_width=True):
+            ir_a("operador")
 
 
 def _pago_nequi(monto: int, ref: str):
+    """
+    Pantalla de pago con Nequi.
+    Muestra el QR de cobro personal con instrucciones paso a paso para que el
+    cliente abra Nequi, acceda a 'Tu QR personal' y escanee para pagar.
+    El QR codifica el deep-link nequi:// con monto y referencia exactos.
+    """
     nequi_num = get_config("nequi_numero", NEQUI_NUM)
+
+    # ── Encabezado ────────────────────────────────────────────────────────────
     st.markdown(f"""
-    <div style="background:rgba(0,100,40,0.2);border:2px solid rgba(0,255,100,0.3);
-                border-radius:12px;padding:20px;margin-bottom:16px">
-      <div style="font-size:20px;font-weight:700;color:#00c853;margin-bottom:8px">
-        💚 Pago con Nequi
-      </div>
-      <div style="font-size:16px;color:#e2e8f0">
-        Envía <b style="color:#00ff88">{fmt_cop(monto)} COP</b><br>
-        al número <b style="font-family:'Inconsolata';font-size:22px;color:#00ff88">{nequi_num}</b><br>
-        desde tu app Nequi
+    <div style="background:linear-gradient(135deg,rgba(0,150,60,0.25),rgba(0,220,90,0.10));
+                border:2px solid rgba(0,220,90,0.45);border-radius:16px;
+                padding:20px 24px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+        <span style="font-size:32px">💚</span>
+        <div>
+          <div style="font-size:22px;font-weight:800;color:#00c853;letter-spacing:-0.5px">
+            Paga con Nequi
+          </div>
+          <div style="font-size:13px;color:#94a3b8;margin-top:2px">
+            Número de cuenta: <b style="font-family:'Inconsolata';color:#00ff88">{nequi_num}</b>
+          </div>
+        </div>
+        <div style="margin-left:auto;text-align:right">
+          <div style="font-size:13px;color:#94a3b8">Total a pagar</div>
+          <div style="font-family:'Inconsolata';font-size:32px;font-weight:800;
+                      color:#00ff88;text-shadow:0 0 20px rgba(0,255,136,0.4)">
+            {fmt_cop(monto)} COP
+          </div>
+        </div>
       </div>
     </div>
     """, unsafe_allow_html=True)
-    mostrar_qr("Nequi", monto, ref)
-    st.markdown("""
-    <div style="text-align:center;margin-top:8px">
-      <div style="font-size:13px;color:#94a3b8">
-        Abre Nequi → Pagar → Escanear QR o Enviar a número
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
+
+    col_qr, col_steps = st.columns([1, 1], gap="large")
+
+    with col_qr:
+        # ── QR de cobro ───────────────────────────────────────────────────────
+        st.markdown("""
+        <div style="text-align:center;font-size:13px;font-weight:700;
+                    color:#00c853;letter-spacing:2px;text-transform:uppercase;
+                    margin-bottom:8px">
+          📷 Escanea este QR con Nequi
+        </div>
+        """, unsafe_allow_html=True)
+
+        _, qr_b64 = mostrar_qr("Nequi", monto, ref, size=280)
+
+        # Datos del pago bajo el QR
+        st.markdown(f"""
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(0,220,90,0.25);
+                    border-radius:10px;padding:12px;margin-top:10px;text-align:center">
+          <div style="font-size:11px;color:#94a3b8;letter-spacing:1px;
+                      text-transform:uppercase;margin-bottom:4px">Referencia de pago</div>
+          <div style="font-family:'Inconsolata';font-size:14px;font-weight:700;
+                      color:#e2e8f0;word-break:break-all">{ref}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:6px">
+            Número Nequi del comercio: <b style="color:#00c853">{nequi_num}</b>
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_steps:
+        # ── Instrucciones paso a paso ─────────────────────────────────────────
+        st.markdown("""
+        <div style="font-size:14px;font-weight:700;color:#00c853;letter-spacing:1px;
+                    text-transform:uppercase;margin-bottom:14px">
+          📱 ¿Cómo pagar?
+        </div>
+        """, unsafe_allow_html=True)
+
+        pasos = [
+            ("1", "Abre la app <b>Nequi</b> en tu celular",
+             "No necesitas iniciar sesión si ya estás autenticado"),
+            ("2", 'Toca el ícono <b style="color:#00ff88">$</b> en la pantalla principal',
+             "Es el botón de cobros / pagos rápidos"),
+            ("3", 'Selecciona <b>"Usa tu QR"</b>',
+             "Aparece en el menú de opciones de pago"),
+            ("4", 'Elige <b>"Tu QR personal"</b>',
+             "Para cobrar desde tu cuenta personal"),
+            ("5", 'Toca <b>"Generar tu QR"</b> y muéstraselo al operador',
+             "O usa el QR de la pantalla para transferir directamente"),
+            ("6", f'Envía <b style="color:#00ff88">{fmt_cop(monto)} COP</b> al número <b style="color:#00ff88">{nequi_num}</b>',
+             "Confirma el monto antes de aprobar"),
+        ]
+
+        for num, titulo, subtitulo in pasos:
+            st.markdown(f"""
+            <div style="display:flex;gap:12px;align-items:flex-start;
+                        margin-bottom:12px;padding:10px 12px;
+                        background:rgba(0,100,40,0.12);
+                        border-left:3px solid rgba(0,220,90,0.5);
+                        border-radius:0 8px 8px 0">
+              <div style="min-width:28px;height:28px;border-radius:50%;
+                          background:#00c853;color:#000;font-weight:800;
+                          font-size:13px;display:flex;align-items:center;
+                          justify-content:center;flex-shrink:0">{num}</div>
+              <div>
+                <div style="font-size:14px;color:#e2e8f0">{titulo}</div>
+                <div style="font-size:11px;color:#94a3b8;margin-top:2px">{subtitulo}</div>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Alerta de monto
+        st.markdown(f"""
+        <div style="background:rgba(0,200,83,0.15);border:1px solid rgba(0,200,83,0.4);
+                    border-radius:10px;padding:12px;text-align:center;margin-top:4px">
+          <div style="font-size:12px;color:#94a3b8;margin-bottom:4px">
+            ⚠️ Verifica siempre el monto antes de confirmar
+          </div>
+          <div style="font-family:'Inconsolata';font-size:26px;font-weight:800;color:#00ff88">
+            {fmt_cop(monto)} COP
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # ── Botón de confirmación ─────────────────────────────────────────────────
     if st.button("✅ Ya pagué con Nequi — Confirmar pago", type="primary",
                  use_container_width=True, key="confirm_nequi"):
         _confirmar_pago("Nequi")
@@ -3350,11 +3712,123 @@ def _confirmar_pago(metodo: str):
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_confirmacion():
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header("Procesando tu pago")
     render_stepper(3)
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
+        # ── Guardia anti-doble-clic ────────────────────────────────────────────
+        # Si ya hay un proceso en curso (mismo cubiculo + cliente), mostrar spinner
+        # y no volver a ejecutar crear_reserva_completa.
+        if st.session_state.get("_procesando_reserva"):
+            st.info("⏳ Ya se está procesando una reserva, por favor espera...")
+            return
+
+        # Si ya se confirmó exitosamente en esta sesión, mostrar resultado directo
+        if st.session_state.get("pago_confirmado") and st.session_state.get("voucher"):
+            voucher = st.session_state["voucher"]
+            st.markdown("""
+            <div class="confirm-ok">
+              <div style="font-size:80px">✅</div>
+              <div style="font-size:32px;font-weight:800;color:#00ff88;margin:12px 0">
+                ¡PAGO CONFIRMADO!
+              </div>
+              <div style="font-size:18px;color:#e2e8f0">
+                Tu cubículo está listo. ¡Disfruta tu descanso!
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            time.sleep(0.5)
+            st.markdown(f"""
+            <div style="text-align:center;margin:24px 0">
+              <div style="font-size:16px;color:#94a3b8;letter-spacing:3px;
+                          text-transform:uppercase">Tu cubículo</div>
+              <div style="font-family:'Inconsolata';font-size:80px;font-weight:700;
+                          color:#00d4ff;line-height:1">{voucher['cubiculo']}</div>
+              <div style="font-size:16px;color:#94a3b8;letter-spacing:3px;
+                          text-transform:uppercase;margin-top:8px">Código de acceso</div>
+              <div style="font-family:'Inconsolata';font-size:72px;font-weight:700;
+                          color:#00ff88;letter-spacing:16px;
+                          text-shadow:0 0 40px rgba(0,255,136,0.6)">{voucher['codigo_acceso']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button("📋 VER MI VOUCHER COMPLETO", type="primary", use_container_width=True):
+                ir_a("voucher")
+            return
+
+        # ── Verificar reserva duplicada: mismo cliente con reserva activa hoy ──
+        cliente_sel = st.session_state.get("cliente", {})
+        num_doc     = cliente_sel.get("numero_documento", "")
+
+        if not num_doc:
+            st.session_state["_procesando_reserva"] = False
+            st.error("❌ No se encontró documento del cliente en la sesión. Vuelve a ingresar los datos.")
+            if st.button("← Volver a datos", use_container_width=True):
+                ir_a("datos")
+            return
+
+        # Consulta de duplicado — si falla, bloquear por seguridad
+        reserva_dup = None
+        error_dup   = None
+        try:
+            _con_dup = get_db()
+            hoy_str = ahora_col().strftime("%Y-%m-%d")
+            reserva_dup = _con_dup.execute("""
+                SELECT r.numero_reserva, r.hora_inicio, r.hora_fin_programada,
+                       cu.numero AS cubiculo_num
+                FROM reservas r
+                JOIN clientes c ON r.cliente_id = c.id
+                LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+                WHERE c.numero_documento = ?
+                  AND r.estado_pago = 'confirmado'
+                  AND SUBSTR(r.hora_inicio, 1, 10) = ?
+                  AND (r.hora_fin_real IS NULL OR r.hora_fin_real = '')
+                ORDER BY r.id DESC LIMIT 1
+            """, (num_doc, hoy_str)).fetchone()
+            _con_dup.close()
+        except Exception as e_dup:
+            error_dup = str(e_dup)
+
+        if error_dup:
+            st.error(f"❌ Error al verificar reservas existentes: {error_dup}. No se puede continuar.")
+            if st.button("← Volver al pago", use_container_width=True, key="btn_dup_err"):
+                ir_a("pago")
+            return
+
+        if reserva_dup:
+            num_res_dup, hi_dup, hf_dup, cub_num_dup = reserva_dup
+            st.markdown(f"""
+            <div class="confirm-fail">
+              <div style="font-size:50px">⚠️</div>
+              <div style="font-size:22px;font-weight:700;color:#ffd32a;margin:12px 0">
+                Reserva duplicada detectada
+              </div>
+              <div style="font-size:15px;color:#e2e8f0">
+                El cliente con documento <b>{num_doc}</b> ya tiene una reserva activa hoy:<br>
+                <b>Reserva {num_res_dup}</b> · Cubículo <b>{cub_num_dup or '—'}</b><br>
+                {hi_dup[:16] if hi_dup else ''} → {hf_dup[:16] if hf_dup else ''}
+              </div>
+              <div style="font-size:13px;color:#94a3b8;margin-top:12px">
+                No se puede crear una nueva reserva para un cliente
+                que ya tiene una reserva activa que aún no ha terminado.
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            col_d1, col_d2 = st.columns(2)
+            with col_d1:
+                if st.button("← Volver al pago", use_container_width=True, key="btn_dup_back"):
+                    ir_a("pago")
+            with col_d2:
+                if st.button("✖ Ir al panel", use_container_width=True, key="btn_dup_panel"):
+                    ir_a("operador")
+            return  # ← SIEMPRE retorna aquí si hay duplicado
+
+        # ── Marcar proceso en curso ANTES de ejecutar ──────────────────────────
+        st.session_state["_procesando_reserva"] = True
+
         with st.spinner("⚙️ Activando tu cubículo..."):
             time.sleep(1.2)
 
@@ -3367,6 +3841,7 @@ def show_confirmacion():
             )
             st.session_state.voucher        = voucher
             st.session_state.pago_confirmado = True
+            st.session_state["_procesando_reserva"] = False
 
             st.markdown("""
             <div class="confirm-ok">
@@ -3401,6 +3876,7 @@ def show_confirmacion():
                 ir_a("voucher")
 
         except Exception as e:
+            st.session_state["_procesando_reserva"] = False
             st.markdown(f"""
             <div class="confirm-fail">
               <div style="font-size:60px">❌</div>
@@ -3419,6 +3895,9 @@ def show_confirmacion():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def show_voucher():
+    if not st.session_state.get("operador_ok"):
+        ir_a("operador_login")
+        return
     render_header("Tu reserva confirmada")
     render_stepper(4)
     inject_live_clock()
@@ -3560,21 +4039,32 @@ def show_voucher():
                                mime="text/html", use_container_width=True)
 
     with c3:
-        if st.button("✅ IR A MI CUBÍCULO", type="primary", use_container_width=True):
-            # Reset flujo
-            for k in ["pantalla","cubiculo_sel","horas_sel","calc","cliente",
-                       "metodo_pago","voucher","pago_confirmado"]:
-                if k == "pantalla":
-                    st.session_state[k] = "bienvenida"
-                elif k == "horas_sel":
-                    st.session_state[k] = 1.0
-                elif k in ["cubiculo_sel","calc","metodo_pago","voucher"]:
-                    st.session_state[k] = None
-                elif k == "pago_confirmado":
-                    st.session_state[k] = False
-                elif k == "cliente":
-                    st.session_state[k] = {}
-            st.rerun()
+        col_v3a, col_v3b = st.columns(2)
+        with col_v3a:
+            if st.button("✅ IR A MI CUBÍCULO", type="primary", use_container_width=True):
+                # Reset flujo de reserva, volver a bienvenida (kiosk view)
+                for k in ["cubiculo_sel","calc","metodo_pago","voucher","pago_confirmado","cliente"]:
+                    if k == "horas_sel":
+                        st.session_state[k] = 1.0
+                    elif k in ["cubiculo_sel","calc","metodo_pago","voucher"]:
+                        st.session_state[k] = None
+                    elif k == "pago_confirmado":
+                        st.session_state[k] = False
+                    elif k == "cliente":
+                        st.session_state[k] = {}
+                st.session_state["pantalla"] = "bienvenida"
+                st.rerun()
+        with col_v3b:
+            if st.button("🔧 Volver al Panel", use_container_width=True):
+                for k in ["cubiculo_sel","calc","metodo_pago","voucher","pago_confirmado","cliente"]:
+                    st.session_state.pop(k, None)
+                st.session_state["cubiculo_sel"]    = None
+                st.session_state["calc"]            = None
+                st.session_state["metodo_pago"]     = None
+                st.session_state["voucher"]         = None
+                st.session_state["pago_confirmado"] = False
+                st.session_state["cliente"]         = {}
+                ir_a("operador")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3583,10 +4073,15 @@ def show_voucher():
 
 def show_operador_login():
     """
-    Pantalla de login de operador.
-    Es la pantalla INICIAL de la app (punto 3).
-    Muestra título y reloj siempre visibles.
+    Pantalla de login de operador — PANTALLA INICIAL de la app.
+    Si el operador ya está autenticado (sesión activa), va directo al panel.
+    Siempre muestra título y reloj.
     """
+    # Si ya está autenticado, ir directamente al panel
+    if st.session_state.get("operador_ok"):
+        ir_a("operador")
+        return
+
     render_header("Acceso de Operadores")
     inject_live_clock()
     render_reloj()
@@ -3628,16 +4123,18 @@ def show_operador_login():
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # Info de PINs de acceso (solo visible localmente para setup inicial)
-    with st.expander("ℹ️ Acceso inicial (cambiar PINs en Configuración)"):
-        st.markdown("""
+    # Info de PINs de acceso (solo visible en ejecución LOCAL — no en Cloud)
+    if not _IS_CLOUD:
+        with st.expander("ℹ️ PINs de acceso inicial (cambiar en ⚙️ Configuración → Operadores)"):
+            st.markdown("""
 | Operador | PIN | Turno | Permisos |
 |---|---|---|---|
 | Admin JJGT | `1234` | Admin | Todos |
 | Op. Mañana | `1111` | 06:00–14:00 | Reservas, Pagos, Voucher |
 | Op. Tarde  | `2222` | 14:00–22:00 | Reservas, Pagos, Voucher |
 | Op. Noche  | `3333` | 22:00–06:00 | Reservas, Pagos, Voucher |
-        """)
+            """)
+            st.warning("⚠️ Cambia estos PINs inmediatamente en **Configuración → Operadores**")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3653,18 +4150,40 @@ def show_operador():
     permisos = op.get("permisos", ["reservas","pagos","voucher"])
     es_admin = "admin" in permisos or op.get("rol") == "admin"
 
-    # Auto-rerun del panel operador cada 30 segundos (solo en Dashboard)
+    # Auto-rerun: cada 30s en Dashboard, cada 60s en Cubículos
     now_ts = int(time.time())
     last_rerun = st.session_state.get("_op_last_rerun", 0)
-    if now_ts - last_rerun >= 30:
+    current_mod = st.session_state.get("modulo_op_radio", "🏠 Dashboard")
+    rerun_interval = 60 if current_mod == "🏠 Dashboard" else 120
+    if last_rerun == 0:
         st.session_state["_op_last_rerun"] = now_ts
-        if st.session_state.get("modulo_op_radio", "🏠 Dashboard") == "🏠 Dashboard":
+    elif now_ts - last_rerun >= rerun_interval:
+        if current_mod in ("🏠 Dashboard", "🛏️ Cubículos"):
+            st.session_state["_op_last_rerun"] = now_ts
             st.rerun()
 
     # Sidebar
     with st.sidebar:
         st.markdown(f"## 💤 {NEGOCIO}")
-        st.divider()
+        #st.divider()
+
+        # Reloj en el sidebar (actualizado por JS iframe)
+        inject_live_clock()
+        ahora_sb = ahora_col()
+        st.markdown(f"""
+        <div style="text-align:center;margin-bottom:8px">
+          <div class="jjgt-clock-hms" style="font-family:'Inconsolata',monospace;
+               font-size:28px;font-weight:700;color:#00d4ff;
+               text-shadow:0 0 12px rgba(0,212,255,0.5)">
+            {ahora_sb.strftime('%H:%M:%S')}
+          </div>
+          <div class="jjgt-clock-fecha" style="font-size:11px;color:#94a3b8;
+               letter-spacing:1px;text-transform:uppercase">
+            {ahora_sb.strftime('%a %d/%m/%Y').upper()}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+        #st.divider()
 
         # Info del operador activo
         turno_icons = {"mañana":"☀️","tarde":"🌤️","noche":"🌙","diurno":"☀️","admin":"👑"}
@@ -3686,6 +4205,7 @@ def show_operador():
             ("🛏️ Cubículos",        "reservas" in permisos or es_admin),
             ("⏳ Pagos Pendientes",  "pagos"    in permisos or es_admin),
             ("📊 Reportes",         "reportes"  in permisos or es_admin),
+            ("🗑️ Gestión de Datos", es_admin),
             ("☁️ Google Drive",     es_admin),
             ("⚙️ Configuración",    "configuracion" in permisos or es_admin),
         ]
@@ -3698,6 +4218,8 @@ def show_operador():
         st.caption("🟢 Sync Drive activa" if drive_ok else "🔴 Drive sin configurar")
 
         if st.button("🚪 Cerrar sesión", use_container_width=True):
+            # Backup al cierre de turno (solo local)
+            _backup_cierre_turno(op)
             st.session_state.operador_ok   = False
             st.session_state.operador_info = {}
             ir_a("operador_login")
@@ -3710,6 +4232,7 @@ def show_operador():
         "🛏️ Cubículos":        _op_cubiculos,
         "⏳ Pagos Pendientes":  _op_pagos_pendientes,
         "📊 Reportes":         _op_reportes,
+        "🗑️ Gestión de Datos": _op_gestion_datos,
         "☁️ Google Drive":     _op_google_drive,
         "⚙️ Configuración":    _op_configuracion,
     }
@@ -3718,216 +4241,270 @@ def show_operador():
 
 def _op_nueva_reserva():
     """
-    Módulo del panel de operador para crear una reserva manualmente.
-    Flujo: seleccionar cubículo → datos cliente → pago → voucher/factura.
-    El operador puede asignar cubículos y registrar pagos sin usar el kiosco público.
+    Módulo del panel de operador para crear una reserva.
+    Dos modos:
+    - Rápido (inline): formulario completo en el panel — ideal para operadores
+    - Kiosk: activa el flujo del kiosco público paso a paso
     """
-    st.markdown("### ➕ Nueva Reserva — Asignación por Operador")
+    st.markdown("### ➕ Nueva Reserva")
     op = st.session_state.get("operador_info", {})
     st.caption(f"Operador: **{op.get('nombre','—')}** · Turno: {op.get('turno','—')}")
 
-    # ── Paso 1: Seleccionar cubículo ───────────────────────────────────────────
-    st.markdown("#### 🛏️ Paso 1 — Seleccionar cubículo y tiempo")
-    cubiculos_libres = get_cubiculos_libres()
-    if not cubiculos_libres:
-        st.error("❌ No hay cubículos disponibles en este momento.")
-        return
+    tab_rapido, tab_kiosk = st.tabs(["⚡ Formulario Rápido", "🖥️ Flujo Kiosco"])
 
-    col_cub, col_hrs = st.columns([1, 1])
-    with col_cub:
-        opciones_cub = {f"{c['numero']} — {c['nombre']}": c for c in cubiculos_libres}
-        sel_label    = st.selectbox("Cubículo libre", list(opciones_cub.keys()),
-                                     key="op_res_cubiculo")
-        cubiculo_sel = opciones_cub[sel_label]
+    # ── TAB KIOSCO ────────────────────────────────────────────────────────────
+    with tab_kiosk:
+        st.markdown("Activa el flujo completo del kiosco táctil paso a paso.")
+        st.info("El cliente selecciona cubículo, ingresa sus datos y elige método de pago.")
+        cubiculos_k = get_cubiculos_libres()
+        if cubiculos_k:
+            if st.button("🛏️ INICIAR FLUJO KIOSCO", type="primary",
+                         use_container_width=True, key="btn_kiosco_flow"):
+                st.session_state["cubiculo_sel"]    = None
+                st.session_state["horas_sel"]       = 1.0
+                st.session_state["calc"]            = None
+                st.session_state["cliente"]         = {}
+                st.session_state["metodo_pago"]     = None
+                st.session_state["voucher"]         = None
+                st.session_state["pago_confirmado"] = False
+                ir_a("seleccion")
+        else:
+            st.error("❌ No hay cubículos disponibles en este momento.")
 
-    with col_hrs:
-        horas_sel = st.number_input("Horas a reservar", min_value=0.5, max_value=12.0,
-                                     value=1.0, step=0.5, key="op_res_horas")
-        calc = calcular_precio(horas_sel)
-        st.markdown(f"""
-        <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
-                    border-radius:8px;padding:10px;margin-top:8px;font-size:14px">
-          Subtotal: <b>{fmt_cop(calc['subtotal'])}</b> ·
-          IVA 19%: <b>{fmt_cop(calc['iva'])}</b> ·
-          <b style="color:#00ff88;font-size:16px">Total: {fmt_cop(calc['total'])} COP</b>
-        </div>
-        """, unsafe_allow_html=True)
+    # ── TAB FORMULARIO RÁPIDO ─────────────────────────────────────────────────
+    with tab_rapido:
+        st.markdown("**Formulario rápido de asignación directa:**")
 
-    st.divider()
+        # Paso 1: Cubículo y tiempo
+        st.markdown("#### 🛏️ Paso 1 — Cubículo y tiempo")
+        cubiculos_libres = get_cubiculos_libres()
+        if not cubiculos_libres:
+            st.error("❌ No hay cubículos disponibles.")
+            return
 
-    # ── Paso 2: Datos del cliente ──────────────────────────────────────────────
-    st.markdown("#### 👤 Paso 2 — Datos del cliente")
-    col_c1, col_c2 = st.columns(2)
-    with col_c1:
-        c_nombre  = st.text_input("Nombre completo *", key="op_res_nombre",
-                                   placeholder="Nombre del pasajero")
-        c_tel     = st.text_input("Teléfono", key="op_res_tel", placeholder="300 000 0000")
-        c_tipo_doc = st.selectbox("Tipo documento", ["CC","CE","Pasaporte","NIT","TI"],
-                                    key="op_res_tipodoc")
-    with col_c2:
-        c_doc     = st.text_input("Número de documento", key="op_res_doc")
-        c_email   = st.text_input("Email (opcional)", key="op_res_email")
-        req_fact  = st.checkbox("¿Requiere factura empresarial?", key="op_res_req_fact")
+        col_cub, col_hrs = st.columns(2)
+        with col_cub:
+            opciones_cub = {f"{c['numero']} — {c['nombre']}": c for c in cubiculos_libres}
+            sel_label    = st.selectbox("Cubículo libre", list(opciones_cub.keys()),
+                                        key="op_res_cubiculo")
+            cubiculo_sel = opciones_cub[sel_label]
 
-    razon_social = ""
-    nit_empresa  = ""
-    if req_fact:
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            razon_social = st.text_input("Razón social", key="op_res_razon")
-        with col_f2:
-            nit_empresa  = st.text_input("NIT empresa",  key="op_res_nit")
-
-    st.divider()
-
-    # ── Paso 3: Método de pago ─────────────────────────────────────────────────
-    st.markdown("#### 💳 Paso 3 — Método de pago")
-    metodo_pago = st.selectbox("Método de pago", METODOS_PAGO, key="op_res_metodo")
-    referencia  = st.text_input("Referencia / número de comprobante (opcional)",
-                                 key="op_res_ref",
-                                 placeholder="Número de transacción o comprobante")
-
-    # ── Paso 4: Confirmar y crear reserva ─────────────────────────────────────
-    st.divider()
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("✅ CONFIRMAR Y CREAR RESERVA", type="primary",
-                      use_container_width=True, key="op_res_confirmar"):
-            if not c_nombre.strip():
-                st.error("⚠️ El nombre del cliente es obligatorio.")
-            else:
-                cliente_data = {
-                    "nombre":           c_nombre.strip(),
-                    "tipo_doc":         c_tipo_doc,
-                    "numero_documento": c_doc.strip(),
-                    "telefono":         c_tel.strip(),
-                    "email":            c_email.strip(),
-                    "razon_social":     razon_social.strip(),
-                    "nit_empresa":      nit_empresa.strip(),
-                }
-                with st.spinner("Creando reserva y sincronizando..."):
-                    try:
-                        voucher = crear_reserva_completa(
-                            cubiculo_sel, cliente_data, calc, metodo_pago)
-                        # Guardar voucher para mostrar
-                        st.session_state["_op_last_voucher"] = voucher
-                        st.session_state["_op_voucher_ref"]  = referencia
-                        st.success(f"✅ Reserva **{voucher['numero_reserva']}** creada. "
-                                   f"Cubículo **{voucher['cubiculo']}** activado.")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error al crear reserva: {e}")
-    with col_btn2:
-        if st.button("🔄 Limpiar formulario", use_container_width=True, key="op_res_limpiar"):
-            for k in ["op_res_nombre","op_res_tel","op_res_doc","op_res_email",
-                      "_op_last_voucher","_op_voucher_ref"]:
-                st.session_state.pop(k, None)
-            st.rerun()
-
-    # ── Mostrar voucher si existe ──────────────────────────────────────────────
-    last_v = st.session_state.get("_op_last_voucher")
-    if last_v:
-        st.divider()
-        st.markdown("#### 🎫 Voucher de la última reserva")
-        col_v1, col_v2 = st.columns([2, 1])
-        with col_v1:
-            ref_op = st.session_state.get("_op_voucher_ref","")
+        with col_hrs:
+            horas_sel = st.number_input("Horas a reservar",
+                                        min_value=0.3, max_value=12.0,
+                                        value=1.0, step=0.3, key="op_res_horas")
+            calc = calcular_precio(horas_sel)
             st.markdown(f"""
-            <div class="voucher-box" style="max-width:100%">
-              <div style="text-align:center;margin-bottom:12px">
-                <div style="font-size:18px;font-weight:800;color:#00d4ff">{NEGOCIO}</div>
-                <div style="font-size:12px;color:#94a3b8">Reserva creada por operador</div>
-              </div>
-              <table style="width:100%;font-size:14px;border-collapse:collapse">
-                <tr><td style="color:#94a3b8;padding:3px 0">Reserva</td>
-                    <td style="text-align:right;font-family:'Inconsolata';font-weight:700">{last_v["numero_reserva"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Factura</td>
-                    <td style="text-align:right;font-family:'Inconsolata'">{last_v["numero_factura"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Cliente</td>
-                    <td style="text-align:right;font-weight:700">{last_v["cliente_nombre"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Cubículo</td>
-                    <td style="text-align:right;font-size:18px;color:#00d4ff;font-weight:700">{last_v["cubiculo"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Horario</td>
-                    <td style="text-align:right">{last_v["hora_inicio"]} → {last_v["hora_fin"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">WiFi</td>
-                    <td style="text-align:right;font-family:'Inconsolata'">{last_v["wifi_ssid"]} / {last_v["wifi_password"]}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Método</td>
-                    <td style="text-align:right">{last_v["metodo_pago"]}{" · " + ref_op if ref_op else ""}</td></tr>
-                <tr><td style="color:#94a3b8;padding:3px 0">Total</td>
-                    <td style="text-align:right;font-size:18px;font-weight:700;color:#00ff88">{fmt_cop(last_v["total"])} COP</td></tr>
-              </table>
-              <div style="text-align:center;margin-top:16px">
-                <div style="font-size:12px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase">CÓDIGO DE ACCESO</div>
-                <div style="font-family:'Inconsolata';font-size:56px;font-weight:700;
-                            color:#00ff88;letter-spacing:12px;
-                            text-shadow:0 0 30px rgba(0,255,136,0.6)">{last_v["codigo_acceso"]}</div>
-              </div>
+            <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
+                        border-radius:8px;padding:10px;margin-top:8px;font-size:14px">
+              Subtotal: <b>{fmt_cop(calc['subtotal'])}</b> ·
+              IVA 19%: <b>{fmt_cop(calc['iva'])}</b><br>
+              <b style="color:#00ff88;font-size:16px">Total: {fmt_cop(calc['total'])} COP</b>
             </div>
             """, unsafe_allow_html=True)
-        with col_v2:
-            # Botones de acción
-            if REPORTLAB_AVAILABLE:
-                pdf_b = generar_ticket_pdf(last_v)
-                if pdf_b:
-                    st.download_button("📄 Imprimir PDF",
-                                       data=pdf_b,
-                                       file_name=f"ticket_{last_v['numero_reserva']}.pdf",
-                                       mime="application/pdf",
-                                       use_container_width=True)
-            html_v_str = voucher_html(last_v)
-            st.download_button("🌐 Voucher HTML",
-                               data=html_v_str.encode(),
-                               file_name=f"voucher_{last_v['numero_reserva']}.html",
-                               mime="text/html",
-                               use_container_width=True)
-            wa_msg = (f"JJGT Reserva {last_v['numero_reserva']} · "
-                      f"Cubículo {last_v['cubiculo']} · "
-                      f"Código: {last_v['codigo_acceso']} · "
-                      f"WiFi: {last_v['wifi_ssid']} Clave: {last_v['wifi_password']} · "
-                      f"Total: {fmt_cop(last_v['total'])} COP")
-            wa_url = f"https://wa.me/?text={wa_msg.replace(' ','%20')}"
-            st.markdown(
-                f'''<a href="{wa_url}" target="_blank">
-                <button style="width:100%;padding:12px;margin-top:8px;
-                  background:rgba(37,211,102,0.2);border:2px solid rgba(37,211,102,0.5);
-                  border-radius:12px;color:#25d366;font-weight:700;font-size:15px;
-                  cursor:pointer">📱 Enviar WhatsApp</button></a>''',
-                unsafe_allow_html=True)
-            if st.button("🆕 Nueva reserva", use_container_width=True,
-                          key="op_res_nueva_tras_voucher", type="primary"):
-                for k in ["_op_last_voucher","_op_voucher_ref"]:
+
+        st.divider()
+
+        # Paso 2: Datos del cliente
+        st.markdown("#### 👤 Paso 2 — Datos del cliente")
+        col_c1, col_c2 = st.columns(2)
+        with col_c1:
+            c_nombre   = st.text_input("Nombre completo *", key="op_res_nombre",
+                                       placeholder="Nombre del pasajero")
+            c_tel      = st.text_input("Teléfono", key="op_res_tel",
+                                       placeholder="300 000 0000")
+            c_tipo_doc = st.selectbox("Tipo documento",
+                                      ["CC","CE","Pasaporte","NIT","TI"],
+                                      key="op_res_tipodoc")
+        with col_c2:
+            c_doc   = st.text_input("Número de documento", key="op_res_doc")
+            c_email = st.text_input("Email (opcional)", key="op_res_email")
+            req_fact = st.checkbox("¿Requiere factura empresarial?",
+                                   key="op_res_req_fact")
+
+        razon_social = ""
+        nit_empresa  = ""
+        if req_fact:
+            col_f1, col_f2 = st.columns(2)
+            with col_f1:
+                razon_social = st.text_input("Razón social", key="op_res_razon")
+            with col_f2:
+                nit_empresa  = st.text_input("NIT empresa",  key="op_res_nit")
+
+        st.divider()
+
+        # Paso 3: Método de pago con QR
+        st.markdown("#### 💳 Paso 3 — Método de pago")
+        metodo_pago = st.selectbox("Método de pago", METODOS_PAGO,
+                                   key="op_res_metodo")
+
+        monto_total = int(calc["total"])
+        # Referencia única para este intento de pago
+        ref_pago = f"OP-{ahora_col().strftime('%Y%m%d%H%M')}-{cubiculo_sel['numero'].replace('#','')}"
+
+        # Mostrar QR según método
+        METODOS_CON_QR = ["Nequi", "Daviplata", "PSE", "MercadoPago", "Transferencia"]
+        if metodo_pago in METODOS_CON_QR:
+            st.markdown(f"**Monto a cobrar:** `{fmt_cop(monto_total)} COP`")
+            mostrar_qr(metodo_pago, monto_total, ref_pago, size=220)
+            st.caption(f"Referencia: `{ref_pago}`")
+        elif metodo_pago == "Efectivo":
+            st.markdown(f"""
+            <div style="background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);
+                        border-radius:10px;padding:16px;text-align:center">
+              <div style="font-size:13px;color:#94a3b8;margin-bottom:4px">TOTAL EN EFECTIVO</div>
+              <div style="font-size:36px;font-weight:700;color:#84cc16">{fmt_cop(monto_total)} COP</div>
+            </div>
+            """, unsafe_allow_html=True)
+        else:  # Tarjeta
+            st.info(f"💳 Procesar {fmt_cop(monto_total)} COP en el datáfono antes de confirmar.")
+
+        referencia = st.text_input("Referencia / número de comprobante de pago",
+                                   key="op_res_ref",
+                                   placeholder="Ingresa el número de transacción o comprobante")
+
+        st.divider()
+
+        # Paso 4: Confirmar
+        col_btn1, col_btn2 = st.columns(2)
+        with col_btn1:
+            btn_label = "✅ CONFIRMAR PAGO Y CREAR RESERVA"
+            if st.button(btn_label, type="primary",
+                         use_container_width=True, key="op_res_confirmar"):
+                if not c_nombre.strip():
+                    st.error("⚠️ El nombre del cliente es obligatorio.")
+                elif metodo_pago in METODOS_CON_QR and not referencia.strip():
+                    st.warning("⚠️ Se recomienda ingresar la referencia de pago para métodos digitales.")
+                    # Permitir continuar igualmente (warning, no error)
+                    cliente_data = {
+                        "nombre":           c_nombre.strip(),
+                        "tipo_doc":         c_tipo_doc,
+                        "numero_documento": c_doc.strip(),
+                        "telefono":         c_tel.strip(),
+                        "email":            c_email.strip(),
+                        "razon_social":     razon_social.strip(),
+                        "nit_empresa":      nit_empresa.strip(),
+                    }
+                    with st.spinner("Creando reserva..."):
+                        try:
+                            voucher = crear_reserva_completa(
+                                cubiculo_sel, cliente_data, calc, metodo_pago)
+                            st.session_state["_op_last_voucher"] = voucher
+                            st.session_state["_op_voucher_ref"]  = referencia or ref_pago
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+                else:
+                    cliente_data = {
+                        "nombre":           c_nombre.strip(),
+                        "tipo_doc":         c_tipo_doc,
+                        "numero_documento": c_doc.strip(),
+                        "telefono":         c_tel.strip(),
+                        "email":            c_email.strip(),
+                        "razon_social":     razon_social.strip(),
+                        "nit_empresa":      nit_empresa.strip(),
+                    }
+                    with st.spinner("Creando reserva y sincronizando..."):
+                        try:
+                            voucher = crear_reserva_completa(
+                                cubiculo_sel, cliente_data, calc, metodo_pago)
+                            st.session_state["_op_last_voucher"] = voucher
+                            st.session_state["_op_voucher_ref"]  = referencia or ref_pago
+                            st.success(
+                                f"✅ Reserva **{voucher['numero_reserva']}** creada — "
+                                f"Cubículo **{voucher['cubiculo']}** activado.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error al crear reserva: {e}")
+        with col_btn2:
+            if st.button("🔄 Limpiar formulario", use_container_width=True,
+                         key="op_res_limpiar"):
+                for k in ["op_res_nombre","op_res_tel","op_res_doc","op_res_email",
+                          "_op_last_voucher","_op_voucher_ref"]:
                     st.session_state.pop(k, None)
                 st.rerun()
+
+        # ── Voucher de última reserva ──────────────────────────────────────────
+        last_v = st.session_state.get("_op_last_voucher")
+        if last_v:
+            st.divider()
+            st.markdown("#### 🎫 Voucher — Última reserva creada")
+            col_v1, col_v2 = st.columns([2, 1])
+            with col_v1:
+                ref_op = st.session_state.get("_op_voucher_ref","")
+                st.markdown(f"""
+                <div class="voucher-box" style="max-width:100%">
+                  <div style="text-align:center;margin-bottom:12px">
+                    <div style="font-size:18px;font-weight:800;color:#00d4ff">{NEGOCIO}</div>
+                    <div style="font-size:12px;color:#94a3b8">Reserva creada por operador</div>
+                  </div>
+                  <table style="width:100%;font-size:14px;border-collapse:collapse">
+                    <tr><td style="color:#94a3b8;padding:3px 0">Reserva</td>
+                        <td style="text-align:right;font-family:'Inconsolata';font-weight:700">{last_v["numero_reserva"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Factura</td>
+                        <td style="text-align:right;font-family:'Inconsolata'">{last_v["numero_factura"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Cliente</td>
+                        <td style="text-align:right;font-weight:700">{last_v["cliente_nombre"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Cubículo</td>
+                        <td style="text-align:right;font-size:18px;color:#00d4ff;font-weight:700">{last_v["cubiculo"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Horario</td>
+                        <td style="text-align:right">{last_v["hora_inicio"]} → {last_v["hora_fin"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">WiFi</td>
+                        <td style="text-align:right;font-family:'Inconsolata'">{last_v["wifi_ssid"]} / {last_v["wifi_password"]}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Método</td>
+                        <td style="text-align:right">{last_v["metodo_pago"]}{(" · " + ref_op) if ref_op else ""}</td></tr>
+                    <tr><td style="color:#94a3b8;padding:3px 0">Total</td>
+                        <td style="text-align:right;font-size:18px;font-weight:700;color:#00ff88">{fmt_cop(last_v["total"])} COP</td></tr>
+                  </table>
+                  <div style="text-align:center;margin-top:16px">
+                    <div style="font-size:12px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase">CÓDIGO DE ACCESO</div>
+                    <div style="font-family:'Inconsolata';font-size:56px;font-weight:700;
+                                color:#00ff88;letter-spacing:12px;
+                                text-shadow:0 0 30px rgba(0,255,136,0.6)">{last_v["codigo_acceso"]}</div>
+                  </div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            with col_v2:
+                if REPORTLAB_AVAILABLE:
+                    pdf_b = generar_ticket_pdf(last_v)
+                    if pdf_b:
+                        st.download_button("📄 Imprimir PDF",
+                                           data=pdf_b,
+                                           file_name=f"ticket_{last_v['numero_reserva']}.pdf",
+                                           mime="application/pdf",
+                                           use_container_width=True)
+                html_v_str = voucher_html(last_v)
+                st.download_button("🌐 Voucher HTML",
+                                   data=html_v_str.encode(),
+                                   file_name=f"voucher_{last_v['numero_reserva']}.html",
+                                   mime="text/html",
+                                   use_container_width=True)
+                wa_msg = (f"JJGT Reserva {last_v['numero_reserva']} | "
+                          f"Cubículo {last_v['cubiculo']} | "
+                          f"Código: {last_v['codigo_acceso']} | "
+                          f"WiFi: {last_v['wifi_ssid']} Clave: {last_v['wifi_password']} | "
+                          f"Total: {fmt_cop(last_v['total'])} COP")
+                wa_url = f"https://wa.me/?text={wa_msg.replace(' ','%20')}"
+                st.markdown(
+                    f'''<a href="{wa_url}" target="_blank">
+                    <button style="width:100%;padding:12px;margin-top:8px;
+                      background:rgba(37,211,102,0.2);border:2px solid rgba(37,211,102,0.5);
+                      border-radius:12px;color:#25d366;font-weight:700;font-size:15px;
+                      cursor:pointer">📱 Enviar WhatsApp</button></a>''',
+                    unsafe_allow_html=True)
+                st.markdown("<br>", unsafe_allow_html=True)
+                if st.button("🆕 Nueva reserva", use_container_width=True,
+                             key="op_res_nueva", type="primary"):
+                    for k in ["_op_last_voucher","_op_voucher_ref"]:
+                        st.session_state.pop(k, None)
+                    st.rerun()
 
 
 def _op_dashboard():
     st.markdown("### 🏠 Dashboard Operacional")
     inject_live_clock()
-    # Auto-rerun del servidor cada 30s para refrescar KPIs y estados (sin recarga manual)
-    st.markdown("""
-    <script>
-    (function(){
-      if (!window._jjgt_dash_refresh) {
-        window._jjgt_dash_refresh = true;
-        setInterval(function(){
-          // Simular click en cualquier botón de Streamlit para forzar rerun
-          // Alternativa: usar el mecanismo interno de Streamlit
-          var btn = document.querySelector('[data-testid="stBaseButton-secondary"]');
-          if (!btn) {
-            // Intentar forzar rerun via WebSocket message (Streamlit interno)
-            try {
-              window.parent.postMessage({type: "streamlit:forceRerun"}, "*");
-            } catch(e) {}
-          }
-        }, 30000);
-      }
-    })();
-    </script>
-    """, unsafe_allow_html=True)
-
-    # Contador de rerun cada 30s usando session_state
-    if "dash_rerun_counter" not in st.session_state:
-        st.session_state.dash_rerun_counter = 0
+    # El rerun automático del dashboard se maneja en show_operador() cada 30s
     cubiculos = get_cubiculos()
     libres    = sum(1 for c in cubiculos if c["estado"] == "libre")
     ocupados  = sum(1 for c in cubiculos if c["estado"] == "ocupado")
@@ -4319,108 +4896,376 @@ def _op_reportes():
             )
 
 
+
+def _op_gestion_datos():
+    """
+    Módulo de gestión de datos — permite al admin eliminar registros
+    de reservas, pagos, clientes y facturas en cualquier momento.
+    Solo accesible para operadores con rol admin.
+    """
+    st.markdown("### 🗑️ Gestión de Datos")
+    st.warning("⚠️ **Zona de administración** — Las eliminaciones son permanentes e irreversibles.")
+
+    op = st.session_state.get("operador_info", {})
+    if op.get("rol") != "admin" and "admin" not in op.get("permisos", []):
+        st.error("❌ Solo los administradores pueden acceder a esta sección.")
+        return
+
+    tab_res, tab_cli, tab_pag, tab_fact = st.tabs([
+        "📋 Reservas", "👤 Clientes", "💰 Pagos", "🧾 Facturas"])
+
+    # ── RESERVAS ──────────────────────────────────────────────────────────────
+    with tab_res:
+        st.markdown("#### Eliminar reservas")
+        con = get_db()
+        rows_r = con.execute("""
+            SELECT r.id, r.numero_reserva, c.nombre, cu.numero,
+                   r.hora_inicio, r.hora_fin_programada, r.total,
+                   r.estado_pago, r.creado_en
+            FROM reservas r
+            LEFT JOIN clientes c  ON r.cliente_id  = c.id
+            LEFT JOIN cubiculos cu ON r.cubiculo_id = cu.id
+            ORDER BY r.id DESC LIMIT 100
+        """).fetchall()
+        con.close()
+
+        if not rows_r:
+            st.info("No hay reservas registradas.")
+        else:
+            df_r = pd.DataFrame(rows_r, columns=[
+                "ID","Número","Cliente","Cubículo",
+                "Inicio","Fin Prog.","Total","Estado","Creada"])
+            df_r["Total"] = df_r["Total"].apply(lambda x: fmt_cop(float(x)) if x else "")
+            st.dataframe(df_r, use_container_width=True, hide_index=True)
+
+            st.markdown("**Eliminar reserva específica:**")
+            col_r1, col_r2 = st.columns([2,1])
+            with col_r1:
+                nums_r = [r[1] for r in rows_r]
+                sel_num_r = st.selectbox("Seleccionar reserva", nums_r, key="del_res_sel")
+            with col_r2:
+                pin_del_r = st.text_input("PIN admin para confirmar",
+                                          type="password", key="del_res_pin")
+            if st.button("🗑️ ELIMINAR RESERVA SELECCIONADA", type="primary",
+                         use_container_width=True, key="btn_del_res"):
+                if not verificar_pin(pin_del_r, "admin"):
+                    st.error("❌ PIN admin incorrecto")
+                else:
+                    con2 = get_db()
+                    # Obtener ID y cubiculo_id para limpiar estado
+                    row_to_del = con2.execute(
+                        "SELECT id, cubiculo_id FROM reservas WHERE numero_reserva=?",
+                        (sel_num_r,)).fetchone()
+                    if row_to_del:
+                        res_id, cub_id = row_to_del
+                        con2.execute("DELETE FROM pagos    WHERE reserva_id=?", (res_id,))
+                        con2.execute("DELETE FROM factura_items WHERE factura_id IN "
+                                     "(SELECT id FROM facturas WHERE numero IN "
+                                     "(SELECT numero FROM reservas WHERE id=?))", (res_id,))
+                        con2.execute("DELETE FROM reservas WHERE id=?", (res_id,))
+                        # Liberar cubículo si estaba activo
+                        con2.execute(
+                            "UPDATE cubiculos SET estado='libre', reserva_activa_id=NULL, "
+                            "hora_disponible=NULL WHERE id=? AND reserva_activa_id=?",
+                            (cub_id, res_id))
+                        con2.commit()
+                    con2.close()
+                    st.success(f"✅ Reserva {sel_num_r} eliminada correctamente")
+                    _, sh_del = get_active_client()
+                    if sh_del:
+                        gs_sync_cubiculos(sh_del)
+                    st.rerun()
+
+    # ── CLIENTES ──────────────────────────────────────────────────────────────
+    with tab_cli:
+        st.markdown("#### Eliminar clientes")
+        con = get_db()
+        rows_c = con.execute(
+            "SELECT id, nombre, tipo_documento, numero_documento, telefono, creado_en "
+            "FROM clientes ORDER BY id DESC LIMIT 100").fetchall()
+        con.close()
+
+        if not rows_c:
+            st.info("No hay clientes registrados.")
+        else:
+            df_c = pd.DataFrame(rows_c, columns=["ID","Nombre","Tipo Doc","Documento","Teléfono","Creado"])
+            st.dataframe(df_c, use_container_width=True, hide_index=True)
+
+            st.markdown("**Eliminar cliente:**")
+            col_c1, col_c2 = st.columns([2,1])
+            with col_c1:
+                cli_opts = {f"{r[1]} ({r[3] or 'sin doc'})": r[0] for r in rows_c}
+                sel_cli = st.selectbox("Seleccionar cliente", list(cli_opts.keys()), key="del_cli_sel")
+                sel_cli_id = cli_opts[sel_cli]
+            with col_c2:
+                pin_del_c = st.text_input("PIN admin", type="password", key="del_cli_pin")
+            st.warning("⚠️ Eliminar un cliente también eliminará sus reservas y pagos asociados.")
+            if st.button("🗑️ ELIMINAR CLIENTE", type="primary",
+                         use_container_width=True, key="btn_del_cli"):
+                if not verificar_pin(pin_del_c, "admin"):
+                    st.error("❌ PIN admin incorrecto")
+                else:
+                    con2 = get_db()
+                    # Obtener reservas del cliente para liberar cubículos
+                    res_ids = [r[0] for r in con2.execute(
+                        "SELECT id FROM reservas WHERE cliente_id=?", (sel_cli_id,)).fetchall()]
+                    for rid in res_ids:
+                        cub = con2.execute(
+                            "SELECT cubiculo_id FROM reservas WHERE id=?", (rid,)).fetchone()
+                        if cub:
+                            con2.execute(
+                                "UPDATE cubiculos SET estado='libre', reserva_activa_id=NULL, "
+                                "hora_disponible=NULL WHERE reserva_activa_id=?", (rid,))
+                        con2.execute("DELETE FROM pagos WHERE reserva_id=?", (rid,))
+                    if res_ids:
+                        con2.execute(f"DELETE FROM reservas WHERE cliente_id=?", (sel_cli_id,))
+                    con2.execute("DELETE FROM clientes WHERE id=?", (sel_cli_id,))
+                    con2.commit()
+                    con2.close()
+                    st.success(f"✅ Cliente eliminado con {len(res_ids)} reserva(s) asociada(s)")
+                    _, sh_del2 = get_active_client()
+                    if sh_del2:
+                        gs_sync_cubiculos(sh_del2)
+                    st.rerun()
+
+    # ── PAGOS ──────────────────────────────────────────────────────────────────
+    with tab_pag:
+        st.markdown("#### Eliminar / anular pagos")
+        con = get_db()
+        rows_p = con.execute("""
+            SELECT p.id, r.numero_reserva, p.monto, p.metodo,
+                   p.estado, p.fecha_pago
+            FROM pagos p
+            LEFT JOIN reservas r ON p.reserva_id = r.id
+            ORDER BY p.id DESC LIMIT 100
+        """).fetchall()
+        con.close()
+
+        if not rows_p:
+            st.info("No hay pagos registrados.")
+        else:
+            df_p = pd.DataFrame(rows_p, columns=["ID","Reserva","Monto","Método","Estado","Fecha"])
+            df_p["Monto"] = df_p["Monto"].apply(lambda x: fmt_cop(float(x)) if x else "")
+            st.dataframe(df_p, use_container_width=True, hide_index=True)
+
+            col_p1, col_p2 = st.columns([2,1])
+            with col_p1:
+                pago_opts = {f"#{r[0]} — {r[1]} — {fmt_cop(float(r[2]))}": r[0] for r in rows_p}
+                sel_pago = st.selectbox("Seleccionar pago", list(pago_opts.keys()), key="del_pago_sel")
+                sel_pago_id = pago_opts[sel_pago]
+            with col_p2:
+                pin_del_p = st.text_input("PIN admin", type="password", key="del_pago_pin")
+            accion_p = st.radio("Acción", ["Anular (marcar como anulado)", "Eliminar definitivamente"],
+                                key="del_pago_accion", horizontal=True)
+            if st.button("✅ APLICAR ACCIÓN", type="primary",
+                         use_container_width=True, key="btn_del_pago"):
+                if not verificar_pin(pin_del_p, "admin"):
+                    st.error("❌ PIN admin incorrecto")
+                else:
+                    con2 = get_db()
+                    if "Anular" in accion_p:
+                        con2.execute("UPDATE pagos SET estado='anulado' WHERE id=?", (sel_pago_id,))
+                        st.success(f"✅ Pago #{sel_pago_id} anulado")
+                    else:
+                        con2.execute("DELETE FROM pagos WHERE id=?", (sel_pago_id,))
+                        st.success(f"✅ Pago #{sel_pago_id} eliminado")
+                    con2.commit()
+                    con2.close()
+                    st.rerun()
+
+    # ── FACTURAS ──────────────────────────────────────────────────────────────
+    with tab_fact:
+        st.markdown("#### Eliminar / anular facturas")
+        con = get_db()
+        rows_f = con.execute("""
+            SELECT f.id, f.numero, c.nombre, f.total, f.estado, f.fecha_emision
+            FROM facturas f
+            LEFT JOIN clientes c ON f.cliente_id = c.id
+            ORDER BY f.id DESC LIMIT 100
+        """).fetchall()
+        con.close()
+
+        if not rows_f:
+            st.info("No hay facturas registradas.")
+        else:
+            df_f = pd.DataFrame(rows_f, columns=["ID","Número","Cliente","Total","Estado","Fecha"])
+            df_f["Total"] = df_f["Total"].apply(lambda x: fmt_cop(float(x)) if x else "")
+            st.dataframe(df_f, use_container_width=True, hide_index=True)
+
+            col_f1, col_f2 = st.columns([2,1])
+            with col_f1:
+                fact_opts = {f"{r[1]} — {r[2]}": r[0] for r in rows_f}
+                sel_fact = st.selectbox("Seleccionar factura", list(fact_opts.keys()), key="del_fact_sel")
+                sel_fact_id = fact_opts[sel_fact]
+            with col_f2:
+                pin_del_f = st.text_input("PIN admin", type="password", key="del_fact_pin")
+            accion_f = st.radio("Acción", ["Anular (marcar como anulada)", "Eliminar definitivamente"],
+                                key="del_fact_accion", horizontal=True)
+            if st.button("✅ APLICAR ACCIÓN", type="primary",
+                         use_container_width=True, key="btn_del_fact"):
+                if not verificar_pin(pin_del_f, "admin"):
+                    st.error("❌ PIN admin incorrecto")
+                else:
+                    con2 = get_db()
+                    if "Anular" in accion_f:
+                        con2.execute("UPDATE facturas SET estado='anulada' WHERE id=?", (sel_fact_id,))
+                        st.success(f"✅ Factura anulada")
+                    else:
+                        con2.execute("DELETE FROM factura_items WHERE factura_id=?", (sel_fact_id,))
+                        con2.execute("DELETE FROM facturas WHERE id=?", (sel_fact_id,))
+                        st.success(f"✅ Factura eliminada definitivamente")
+                    con2.commit()
+                    con2.close()
+                    st.rerun()
+
 def _op_google_drive():
-    st.markdown("### ☁️ Integración con Google Drive")
-    st.markdown(f"**Archivo destino:** `{DRIVE_FILE}`")
+    """Panel de integración con Google Sheets — estado, diagnóstico y acciones."""
+    st.markdown("### ☁️ Google Drive / Google Sheets")
+    st.markdown(f"**Archivo de datos:** `{DRIVE_FILE}`")
 
-    #c1, c2 = st.columns(2)
-    #with c1:
-    #    creds_file = st.file_uploader("📤 Subir credentials.json", type=["json"])
-    #    if creds_file:
-    #        creds_path = "credentials.json"
-    #        with open(creds_path, "wb") as f:
-    #            f.write(creds_file.read())
-    #        set_config("drive_credentials_path", creds_path)
-    #        # Invalidar cache del cliente para reconectar con nuevas credenciales
-    #        global _gs_module_client  # noqa
-    #        global _gs_module_spreadsheet  # noqa
-    #        _gs_module_client = None
-    #        _gs_module_spreadsheet = None
-    #        try:
-    #            st.session_state._gs_client = None
-    #        except Exception:
-    #            pass
-    #        st.success("✅ Credenciales guardadas")
+    # ── Estado de la conexión ─────────────────────────────────────────────────
+    _, sh_now = _get_module_level_client()
+    sid_saved = get_config("drive_spreadsheet_id", "")
+    global _gs_cached_creds
 
-    #with c2:
-    #    sheet_id = st.text_input("ID del Spreadsheet existente (opcional)",
-    #                              value=get_config("drive_spreadsheet_id",""),
-    #                              placeholder="Dejar vacío para crear/buscar automáticamente")
-    #    if sheet_id:
-    #        set_config("drive_spreadsheet_id", sheet_id)
+    if sh_now and sid_saved:
+        drive_url = f"https://docs.google.com/spreadsheets/d/{sid_saved}/edit"
+        st.success(f"✅ **Conectado** a `{sh_now.title}`")
+        st.markdown(
+            f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
+            f'Abrir {sh_now.title} en Google Sheets ↗</a>',
+            unsafe_allow_html=True)
+        st.info("🔄 **Sincronización automática activa** — cada reserva, pago y "
+                "liberación se inserta en Google Sheets en tiempo real.")
+    else:
+        st.warning("⚠️ Sin conexión activa a Google Sheets.")
+
+        # Diagnóstico de credenciales
+        with st.expander("🔍 Diagnóstico de credenciales"):
+            st.markdown("**Verificando fuentes de credenciales:**")
+
+            # Test 1: st.secrets
+            try:
+                raw = st.secrets["sheetsemp"]["credentials_sheet"]
+                st.success("✅ `st.secrets['sheetsemp']['credentials_sheet']` — encontrado")
+                try:
+                    c = _normalize_creds(raw)
+                    if "private_key" in c and "client_email" in c:
+                        st.success(f"✅ Credenciales válidas — `{c.get('client_email','?')}`")
+                    else:
+                        st.error(f"❌ Credenciales incompletas — faltan campos: "
+                                 f"{'private_key ' if 'private_key' not in c else ''}"
+                                 f"{'client_email' if 'client_email' not in c else ''}")
+                except Exception as e:
+                    st.error(f"❌ Error parseando credenciales: {e}")
+            except Exception as e:
+                st.warning(f"⚠️ `st.secrets` no disponible o incompleto: {e}")
+
+            # Test 2: secrets.toml
+            toml_paths = [
+                ".streamlit/secrets.toml",
+                os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                             ".streamlit", "secrets.toml"),
+            ]
+            for tp in toml_paths:
+                exists = os.path.isfile(tp)
+                icon = "✅" if exists else "❌"
+                st.markdown(f"{icon} `{tp}` — {'existe' if exists else 'NO existe'}")
+                if exists and TOML_AVAILABLE:
+                    try:
+                        with open(tp, "r", encoding="utf-8") as _tf:
+                            _cfg = toml_lib.load(_tf)
+                        _raw = _cfg.get("sheetsemp", {}).get("credentials_sheet")
+                        if _raw:
+                            _c = _normalize_creds(_raw)
+                            if "private_key" in _c and "client_email" in _c:
+                                st.success(f"  ✅ JSON válido en `{tp}` — `{_c.get('client_email','?')}`")
+                            else:
+                                st.warning(f"  ⚠️ `{tp}` encontrado pero credenciales incompletas")
+                        else:
+                            st.warning(f"  ⚠️ `{tp}` existe pero falta [sheetsemp].credentials_sheet")
+                    except KeyError as _e:
+                        st.error(f"  🔑 Clave faltante en `{tp}`: {_e}")
+                    except Exception as _e:
+                        st.error(f"  ❌ Error leyendo `{tp}`: {_e}")
+                elif exists and not TOML_AVAILABLE:
+                    st.info("  💡 Instala toml para validar el contenido: pip install toml")
+
+            # Test 3: Spreadsheet ID
+            sid_diag = get_config("drive_spreadsheet_id", "")
+            if sid_diag:
+                st.success(f"✅ Spreadsheet ID configurado: `{sid_diag}`")
+            else:
+                st.error("❌ Spreadsheet ID no configurado — ve a ⚙️ Configuración → Google Sheets")
+
+            # Botón para forzar re-intento
+            if st.button("🔄 Reintentar conexión ahora", key="retry_conn"):
+                _gs_cached_creds = None  # invalidar caché
+                global _gs_module_client, _gs_module_spreadsheet  # noqa
+                _gs_module_client = None
+                _gs_module_spreadsheet = None
+                st.rerun()
 
     st.divider()
-    creds_ok = os.path.exists(get_config("drive_credentials_path","credentials.json"))
-    #st.info("✅ credentials.json presente" if creds_ok else
-    #        "⚠️ Sube el archivo credentials.json de tu Service Account de Google Cloud")
 
-    # ── Mostrar enlace al archivo si ya está configurado ──────────────────────
-    sid_saved = get_config("drive_spreadsheet_id", "1SjiLLK3bVqUNWaqvDaQzB3_JLNfJYe58YjFM47c7GMw")
-    if sid_saved:
-        drive_url = f"https://docs.google.com/spreadsheets/d/{sid_saved}/edit"
-        st.markdown(
-            f'🔗 **Archivo en Drive:** <a href="{drive_url}" target="_blank">'
-            f'Abrir jjgt_pagos en Google Sheets</a>',
-            unsafe_allow_html=True)
-
-    st.info("✅ **Sincronización automática activa** — cada nueva reserva, pago y liberación de cubículo se inserta en tiempo real en el archivo `jjgt_pagos` sin intervención manual.")
-
-    col_sync1, col_sync2 = st.columns(2)
-    with col_sync1:
-        if st.button("☁️ Forzar sincronización completa ahora", type="primary", use_container_width=True):
-            with st.spinner("Sincronizando todas las tablas..."):
+    # ── Acciones manuales ─────────────────────────────────────────────────────
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        if st.button("☁️ Forzar sincronización completa", type="primary",
+                     use_container_width=True):
+            with st.spinner("Sincronizando todas las tablas con Google Sheets..."):
                 resultado = sincronizacion_completa()
                 if "error" in resultado:
                     st.error(f"❌ {resultado['error']}")
                 else:
-                    st.success("✅ Sincronización completada correctamente")
-                    st.json(resultado)
-    with col_sync2:
+                    st.success("✅ Sincronización completada")
+                    st.json({k: v for k, v in resultado.items()
+                             if not str(v).startswith("Error")})
+    with col_s2:
         if st.button("🔄 Verificar conexión", use_container_width=True):
             with st.spinner("Probando conexión..."):
+                # Invalidar caché para forzar reconexión real
+                _reset_gs_cache()
                 _, sh_test = _get_module_level_client()
                 if sh_test:
-                    st.success(f"✅ Conectado a **{sh_test.title}** — sync automática funcionando")
+                    st.success(f"✅ Conectado a **{sh_test.title}** — sync funcionando")
                 else:
-                    st.error("❌ Sin conexión. Verifica credentials.json en .streamlit/secrets.toml")
+                    st.error("❌ Sin conexión — revisa las credenciales en Configuración")
 
     st.divider()
 
-    # ── Cargar y mostrar datos desde Google Sheets ────────────────────────────
-    st.markdown("#### 📊 Datos en Google Sheets")
-    if not GSPREAD_AVAILABLE:
-        st.warning("gspread no instalado.")
-    elif not creds_ok and not get_config("drive_spreadsheet_id",""):
-        st.info("Configura las credenciales para ver los datos.")
-    else:
-        hoja_sel = st.selectbox("Ver hoja:", list(DRIVE_SHEETS.keys()), key="gs_hoja_sel")
-        if st.button("🔄 Cargar datos de Google Sheets", use_container_width=True):
-            with st.spinner(f"Cargando {hoja_sel}..."):
-                client_gs, sh_gs, err_gs = get_active_client()
-                if err_gs:
-                    st.error(f"❌ {err_gs}")
+    # ── Cargar datos desde Google Sheets ─────────────────────────────────────
+    st.markdown("#### 📊 Consultar datos en Google Sheets")
+    if sh_now:
+        hoja_sel = st.selectbox("Ver hoja:", list(DRIVE_SHEETS.keys()),
+                                key="gs_hoja_sel")
+        if st.button("🔄 Cargar datos", use_container_width=True):
+            with st.spinner(f"Cargando hoja '{hoja_sel}'..."):
+                client_gs, sh_gs = get_active_client()
+                if not client_gs:
+                    st.error("❌ Sin conexión a Google Sheets. Verifica las credenciales.")
                 else:
                     df_gs = load_data_from_sheet(client_gs, DRIVE_FILE, hoja_sel)
                     if df_gs.empty:
-                        st.info(f"La hoja '{hoja_sel}' está vacía o no existe.")
+                        st.info(f"La hoja '{hoja_sel}' está vacía.")
                     else:
                         st.success(f"✅ {len(df_gs)} filas cargadas desde '{hoja_sel}'")
                         st.dataframe(df_gs, use_container_width=True, hide_index=True)
-
-                        # Botón de descarga
                         csv_gs = df_gs.to_csv(index=False).encode()
                         st.download_button(
-                            f"📥 Descargar {hoja_sel} como CSV",
+                            f"📥 Descargar {hoja_sel}.csv",
                             data=csv_gs,
-                            file_name=f"jjgt_pagos_{hoja_sel.lower()}_{ahora_col().strftime('%Y%m%d')}.csv",
+                            file_name=f"jjgt_{hoja_sel.lower()}_{ahora_col().strftime('%Y%m%d')}.csv",
                             mime="text/csv",
-                            use_container_width=True
-                        )
+                            use_container_width=True)
+    else:
+        st.info("Configura las credenciales primero para consultar los datos.")
 
     st.divider()
-    st.markdown("**Hojas que se crearán en `jjgt_pagos`:**")
+    st.markdown("**Hojas sincronizadas en `jjgt_pagos`:**")
     for nombre, cols in DRIVE_SHEETS.items():
-        st.markdown(f"- **{nombre}** ({len(cols)} columnas): `{', '.join(cols[:6])}...`")
+        st.markdown(f"- **{nombre}** · {len(cols)} columnas: "
+                    f"`{', '.join(cols[:5])}`{'...' if len(cols) > 5 else ''}")
 
 
 def _op_configuracion():
@@ -4439,15 +5284,32 @@ def _op_configuracion():
 
     with tabs[0]:
         st.markdown("**Datos del negocio**")
-        nombre_n = st.text_input("Nombre del negocio",
-                                  value=get_config("negocio_nombre", NEGOCIO))
-        nit_n    = st.text_input("NIT", value=get_config("negocio_nit", NIT))
-        dir_n    = st.text_input("Dirección en terminal",
-                                  value=get_config("negocio_direccion", DIRECCION))
-        tel_n    = st.text_input("Teléfono", value=get_config("negocio_telefono", TELEFONO))
+        col_ng1, col_ng2 = st.columns(2)
+        with col_ng1:
+            nombre_n = st.text_input("Nombre del negocio",
+                                      value=get_config("negocio_nombre", NEGOCIO))
+            nit_n    = st.text_input("NIT / RUT",
+                                      value=get_config("negocio_nit", NIT))
+            dir_n    = st.text_input("Dirección en terminal",
+                                      value=get_config("negocio_direccion", DIRECCION))
+        with col_ng2:
+            tel_n    = st.text_input("Teléfono",
+                                      value=get_config("negocio_telefono", TELEFONO))
+            email_n  = st.text_input("Email del negocio",
+                                      value=get_config("negocio_email", ""),
+                                      placeholder="contacto@jjgt.com.co")
+            web_n    = st.text_input("Sitio web (opcional)",
+                                      value=get_config("negocio_web", ""),
+                                      placeholder="https://www.jjgt.com.co")
         if st.button("💾 Guardar datos negocio", type="primary"):
-            for k, v in [("negocio_nombre",nombre_n),("negocio_nit",nit_n),
-                          ("negocio_direccion",dir_n),("negocio_telefono",tel_n)]:
+            for k, v in [
+                ("negocio_nombre",   nombre_n),
+                ("negocio_nit",      nit_n),
+                ("negocio_direccion",dir_n),
+                ("negocio_telefono", tel_n),
+                ("negocio_email",    email_n),
+                ("negocio_web",      web_n),
+            ]:
                 set_config(k, v)
             st.success("✅ Datos del negocio actualizados")
 
@@ -4691,21 +5553,24 @@ def _op_configuracion():
 
 def main():
     init_db()
-    _auto_backup_diario()
-    _ensure_sync_thread()   # Arrancar worker de sync a Google Sheets si no está corriendo
+    # Backup solo en local (en Cloud /tmp no persiste y puede fallar)
+#    if not _IS_CLOUD:
+#        _auto_backup_diario()
+    _ensure_sync_thread()  # Arrancar worker de sync a Google Sheets
 
     pantalla = st.session_state.pantalla
     router   = {
-        "bienvenida":     show_bienvenida,
+        "operador_login": show_operador_login,   # Pantalla inicial
+        "operador":       show_operador,
+        "bienvenida":     show_bienvenida,       # Kiosco (requiere auth)
         "seleccion":      show_seleccion,
         "datos":          show_datos,
         "pago":           show_pago,
         "confirmacion":   show_confirmacion,
         "voucher":        show_voucher,
-        "operador_login": show_operador_login,
-        "operador":       show_operador,
     }
-    router.get(pantalla, show_bienvenida)()
+    # El default siempre es el login, nunca bienvenida sin autenticar
+    router.get(pantalla, show_operador_login)()
 
 
 if __name__ == "__main__":
