@@ -2895,8 +2895,8 @@ def _backup_cierre_turno(operador_info: dict):
     El archivo queda en backups/cierre_<turno>_<operador>_<fecha_hora>.xlsx
     Solo se ejecuta en entorno local (en Cloud /tmp no persiste entre sesiones).
     """
-    if _IS_CLOUD:
-        return
+    #if _IS_CLOUD:
+    #    return
     try:
         os.makedirs("backups", exist_ok=True)
         ahora  = ahora_col()
