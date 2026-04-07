@@ -1139,7 +1139,7 @@ def load_credentials_from_toml():
         return None, None
 
 
-@st.cache_resource(ttl=300)
+#@st.cache_resource(ttl=300)
 def get_google_sheets_connection(_creds):
     """
     Establece conexión con Google Sheets y la cachea 5 minutos.
@@ -1154,8 +1154,14 @@ def get_google_sheets_connection(_creds):
         credentials = Credentials.from_service_account_info(_creds, scopes=scope)
         client = gspread.authorize(credentials)
         return client
+
     except Exception as e:
-        st.error(f"❌ Error conectando a Google Sheets: {str(e)}")
+        err_str = str(e)
+        if "429" in err_str or "quota" in err_str.lower():
+            st.error("❌ Cuota de API de Google Sheets agotada. Intenta en unos minutos.")
+            return _gs_with_retry(_open_and_init, operacion="abrir spreadsheet")
+        else: st.error(f"❌ Error conectando a Google Sheets: {str(e)}")
+
         return None
 
 
@@ -1562,9 +1568,9 @@ def gs_sync_cubiculos(sh):
 
 
 def gs_sync_dashboard(sh):
-    ""'Actualiza la fila de hoy en Dashboard_Diario (datos calculados desde Sheets).
+    """Actualiza la fila de hoy en Dashboard_Diario (datos calculados desde Sheets).
     Usa force=True para siempre leer datos frescos al sincronizar el dashboard.
-    ""'
+    """
     if not sh:
         return False
     try:
@@ -1573,10 +1579,10 @@ def gs_sync_dashboard(sh):
         reservas_gs = _gs_read_sheet("Reservas", force=True)
 
         # Filtrar reservas de hoy confirmadas
-        # El campo Creado_En puede venir con la clave 'Creado_En' o 'creado_en'
-        # según cómo se creó la hoja (nueva vs existente)
+        # _gs_fecha_ymd normaliza ISO, DD/MM/YYYY y otros formatos que Sheets
+        # puede devolver al auto-convertir fechas, evitando falsos negativos.
         hoy_res = [r for r in reservas_gs
-                   if (_gs_val(r, "Creado_En", _gs_val(r, "creado_en", "")))[:10] == today
+                   if _gs_fecha_ymd(r, "Creado_En") == today
                    and _gs_val(r, "Estado_Pago") == "confirmado"]
 
         total_res = len(hoy_res)
@@ -1853,7 +1859,17 @@ def _gs_read_sheet(hoja: str, force: bool = False) -> list:
     try:
         def _fetch():
             ws = _gs_get_or_create_ws(sh, hoja)
-            return ws.get_all_records()
+            # default_blank="" garantiza que columnas vacías aparezcan en el dict
+            # (evita que Creado_En y otros campos vacíos se omitan del registro)
+            # numericise_ignore=[*] evita que gspread convierta fechas ISO a números
+            try:
+                return ws.get_all_records(default_blank="", numericise_ignore=["all"])
+            except TypeError:
+                # Versiones antiguas de gspread no soportan numericise_ignore
+                try:
+                    return ws.get_all_records(default_blank="")
+                except TypeError:
+                    return ws.get_all_records()
 
         records = _gs_with_retry(_fetch, operacion=f"leer '{hoja}'")
         st.session_state[cache_key] = records
@@ -1891,6 +1907,46 @@ def _gs_int(row: dict, key: str, default: int = 0) -> int:
         return int(float(_gs_val(row, key, default)))
     except Exception:
         return int(default)
+
+
+def _gs_fecha_ymd(row: dict, key: str) -> str:
+    """
+    Extrae los primeros 10 caracteres (YYYY-MM-DD) de un campo de fecha en un
+    registro de Google Sheets, normalizando los formatos más comunes:
+      · ISO 8601:  "2025-04-07T14:32:11..."  → "2025-04-07"
+      · Con zona:  "2025-04-07T14:32:11-05:00" → "2025-04-07"
+      · Sheets DD/MM/YYYY: "07/04/2025 14:32" → "2025-04-07"
+      · Sheets MM/DD/YYYY: "04/07/2025"       → detectado y reordenado
+    Devuelve "" si el valor está vacío o no puede parsearse.
+    """
+    raw = _gs_val(row, key, "").strip()
+    if not raw:
+        return ""
+    # Formato ISO o con T: tomar los primeros 10 chars directamente
+    if len(raw) >= 10 and raw[4:5] == "-":
+        return raw[:10]
+    # Formato con barras (Sheets puede auto-formatear)
+    if "/" in raw:
+        parte = raw.split(" ")[0]   # quitar la parte de hora si la hay
+        partes = parte.split("/")
+        if len(partes) == 3:
+            a, b, c = partes
+            if len(c) == 4:                   # DD/MM/YYYY o MM/DD/YYYY
+                # Heurística: si a > 12 es día; si b > 12 es día
+                if int(a) > 12:               # DD/MM/YYYY
+                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
+                else:                         # asumir DD/MM/YYYY (Colombia)
+                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
+            elif len(a) == 4:                 # YYYY/MM/DD
+                return f"{a}-{b.zfill(2)}-{c.zfill(2)}"
+    # Fallback: intentar parsear con datetime
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y", "%d-%m-%Y %H:%M"):
+        try:
+            return datetime.strptime(raw[:len(fmt)], fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    # Último recurso: los primeros 10 chars tal cual
+    return raw[:10]
 
 
 
@@ -2534,7 +2590,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
             if (str(r.get("Documento", "")) == num_doc and
                     _gs_val(r, "Estado_Pago") == "confirmado" and
                     not _gs_val(r, "Hora_Fin_Real") and
-                    _gs_val(r, "Hora_Inicio", "")[:10] == hoy_str):
+                    _gs_fecha_ymd(r, "Hora_Inicio") == hoy_str):
                 raise Exception(
                     f"El cliente con documento {num_doc} ya tiene la reserva activa "
                     f"{_gs_val(r, 'Numero_Reserva')} en el cubículo {_gs_val(r, 'Cubiculo_Num')}. "
@@ -3713,7 +3769,7 @@ def show_confirmacion():
                 if (str(r.get("Documento", "")) == num_doc and
                         _gs_val(r, "Estado_Pago") == "confirmado" and
                         not _gs_val(r, "Hora_Fin_Real") and
-                        _gs_val(r, "Hora_Inicio", "")[:10] == hoy_str):
+                        _gs_fecha_ymd(r, "Hora_Inicio") == hoy_str):
                     reserva_dup = (
                         _gs_val(r, "Numero_Reserva"),
                         _gs_val(r, "Hora_Inicio"),
@@ -4542,12 +4598,12 @@ def _op_dashboard():
     ingresos_hoy = sum(
         _gs_float(r, "Total_COP") for r in reservas_gs
         if _gs_val(r, "Estado_Pago") == "confirmado" and
-           _gs_val(r, "creado_en", "")[:10] == today
+           _gs_fecha_ymd(r, "Creado_En") == today
     )
     reservas_hoy = sum(
         1 for r in reservas_gs
         if _gs_val(r, "Estado_Pago") == "confirmado" and
-           _gs_val(r, "creado_en", "")[:10] == today
+           _gs_fecha_ymd(r, "Creado_En") == today
     )
     pend = sum(1 for r in pagos_gs if _gs_val(r, "Estado") == "pendiente")
 
@@ -4877,7 +4933,7 @@ def _op_reportes():
     # Filtrar por período
     rows = []
     for r in reservas_gs:
-        fecha_r = _gs_val(r, "creado_en", "")[:10]
+        fecha_r = _gs_fecha_ymd(r, "Creado_En")
         if desde <= fecha_r <= hasta:
             rows.append({
                 "Reserva":  _gs_val(r, "Numero_Reserva"),
@@ -5036,7 +5092,7 @@ def _op_gestion_datos():
                 "Inicio":   _gs_val(r, "Hora_Inicio", "")[:16],
                 "Total":    fmt_cop(_gs_float(r, "Total_COP")),
                 "Estado":   _gs_val(r, "Estado_Pago"),
-                "Creada":   _gs_val(r, "creado_en", "")[:10],
+                "Creada":   _gs_fecha_ymd(r, "Creado_En"),
             } for r in reservas_gs])
             st.dataframe(df_r, use_container_width=True, hide_index=True)
 
@@ -5080,7 +5136,7 @@ def _op_gestion_datos():
                 "Tipo Doc":  _gs_val(r, "Tipo_Doc"),
                 "Documento": _gs_val(r, "Num_Doc"),
                 "Teléfono":  _gs_val(r, "Telefono"),
-                "Creado":    _gs_val(r, "Creado_En", "")[:10],
+                "Creado":    _gs_fecha_ymd(r, "Creado_En"),
             } for r in clientes_gs])
             st.dataframe(df_c, use_container_width=True, hide_index=True)
 
@@ -5169,7 +5225,7 @@ def _op_gestion_datos():
                 "Cliente": _gs_val(r, "Cliente__id"),
                 "Total":   fmt_cop(_gs_float(r, "Total_COP")),
                 "Estado":  _gs_val(r, "Estado"),
-                "Fecha":   _gs_val(r, "Fecha_Emision", "")[:10],
+                "Fecha":   _gs_fecha_ymd(r, "Fecha_Emision"),
             } for r in facturas_gs])
             st.dataframe(df_f, use_container_width=True, hide_index=True)
 
