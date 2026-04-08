@@ -1627,9 +1627,16 @@ def gs_sync_dashboard(sh):
             "0",                     # Fact_Max
             str(round(ticket, 0)),   # Ticket_Prom_COP
         ]
-        return _gs_upsert(sh, "Dashboard_Diario", "Fecha", today, fila)
+        resultado = _gs_upsert(sh, "Dashboard_Diario", "Fecha", today, fila)
+        # Sync exitoso: limpiar flag de pendiente si existía
+        st.session_state.pop("_dashboard_sync_pendiente", None)
+        return resultado
     except Exception as e:
-        st.warning(f"⚠️ Error sync dashboard: {e}")
+        err_str = str(e)
+        # No mostrar warning en pantalla del cliente (puede asustar); solo loguear
+        # y marcar como pendiente para reintento en el próximo render del operador
+        st.session_state["_dashboard_sync_pendiente"] = True
+        st.session_state["_dashboard_sync_error"] = err_str
         return False
 
 
@@ -2389,7 +2396,9 @@ def liberar_cubiculo(cubiculo_id):
         except Exception:
             pass
         _gs_invalidate_cache("Reservas", "Cubiculos_Estado")
-        gs_sync_dashboard(sh)
+
+    # gs_sync_dashboard con reconexión automática (fuera del if sh:)
+    gs_sync_dashboard(sh)
 
 
 def fmt_cop(valor: float) -> str:
@@ -2685,7 +2694,11 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
         # Invalidar caché de Reservas ANTES del sync del dashboard
         # para que gs_sync_dashboard lea la reserva recién escrita
         _gs_invalidate_cache("Reservas", "Cubiculos_Estado", "Pagos")
-        gs_sync_dashboard(sh)
+
+    # gs_sync_dashboard se llama FUERA del bloque "if sh:" para que pueda
+    # reconectar por su cuenta si la conexión cayó durante la creación de la
+    # reserva (Nequi sin referencia, caída momentánea, etc.)
+    gs_sync_dashboard(sh)
 
     activar_cubiculo(cubiculo["id"], num_res, hora_fin.isoformat())
 
@@ -2895,8 +2908,8 @@ def _backup_cierre_turno(operador_info: dict):
     El archivo queda en backups/cierre_<turno>_<operador>_<fecha_hora>.xlsx
     Solo se ejecuta en entorno local (en Cloud /tmp no persiste entre sesiones).
     """
-    #if _IS_CLOUD:
-    #    return
+    if _IS_CLOUD:
+        return
     try:
         os.makedirs("backups", exist_ok=True)
         ahora  = ahora_col()
@@ -4168,6 +4181,22 @@ def show_operador():
     op = st.session_state.get("operador_info", {})
     permisos = op.get("permisos", ["reservas","pagos","voucher"])
     es_admin = "admin" in permisos or op.get("rol") == "admin"
+
+    # ── Reintento silencioso de sync de dashboard pendiente ───────────────────
+    # Si una reserva anterior no pudo sincronizar el Dashboard_Diario por caída
+    # de conexión (Nequi sin comprobante, timeout, etc.), se reintenta aquí de
+    # forma silenciosa cada vez que el operador abre su panel.
+    if st.session_state.get("_dashboard_sync_pendiente"):
+        try:
+            _, _sh_retry = get_active_client()
+            if _sh_retry:
+                _gs_invalidate_cache("Reservas")
+                exito = gs_sync_dashboard(_sh_retry)
+                if exito:
+                    err_prev = st.session_state.pop("_dashboard_sync_error", "")
+                    st.toast("✅ Dashboard sincronizado (reintento exitoso)", icon="✅")
+        except Exception:
+            pass  # Se volverá a intentar en el próximo render
 
     # Auto-rerun: cada 30s en Dashboard, cada 60s en Cubículos
     now_ts = int(time.time())
