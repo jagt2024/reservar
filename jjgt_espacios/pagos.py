@@ -2904,24 +2904,36 @@ def _auto_backup_diario():
 
 def _backup_cierre_turno(operador_info: dict):
     """
-    Genera y guarda un backup al momento de cerrar el turno del operador.
-    El archivo queda en backups/cierre_<turno>_<operador>_<fecha_hora>.xlsx
-    Solo se ejecuta en entorno local (en Cloud /tmp no persiste entre sesiones).
+    Genera un backup al momento de cerrar el turno del operador.
+
+    - En entorno LOCAL: guarda el archivo en la carpeta backups/ del proyecto.
+    - En Streamlit Cloud: almacena el backup en session_state["_backup_cierre_bytes"]
+      para que el sidebar pueda ofrecer el botón de descarga antes de cerrar sesión.
+      (En Cloud /tmp no persiste entre sesiones, así que no se escribe a disco.)
     """
-    if _IS_CLOUD:
-        return
     try:
-        os.makedirs("backups", exist_ok=True)
         ahora  = ahora_col()
         turno  = operador_info.get("turno", "turno")
         nombre = operador_info.get("nombre", "op").replace(" ", "_").lower()
         ts_str = ahora.strftime("%Y-%m-%d_%H%M")
-        fname  = f"cierre_{turno}_{nombre}_{ts_str}.xlsx"
-        backup_path = os.path.join("backups", fname)
-        data, _, _ = generar_backup_diario()
-        with open(backup_path, "wb") as bf:
-            bf.write(data)
-        # Registrar en Google Sheets si la conexion esta activa
+
+        data, fname_base, mime = generar_backup_diario()
+        # Nombre del archivo de cierre diferente al backup genérico
+        fname = f"cierre_{turno}_{nombre}_{ts_str}.xlsx" if mime.endswith("sheet") else                 f"cierre_{turno}_{nombre}_{ts_str}.zip"
+
+        if _IS_CLOUD:
+            # En Cloud: guardar en session_state para descarga inmediata en el sidebar
+            st.session_state["_backup_cierre_bytes"] = data
+            st.session_state["_backup_cierre_fname"] = fname
+            st.session_state["_backup_cierre_mime"]  = mime
+        else:
+            # En local: guardar en carpeta backups/
+            os.makedirs("backups", exist_ok=True)
+            backup_path = os.path.join("backups", fname)
+            with open(backup_path, "wb") as bf:
+                bf.write(data)
+
+        # Registrar en Google Sheets
         try:
             _, sh_cierre = get_active_client()
             if sh_cierre:
@@ -4265,12 +4277,35 @@ def show_operador():
         drive_ok = GSPREAD_AVAILABLE and bool(get_config("drive_spreadsheet_id",""))
         st.caption("🟢 Sync Drive activa" if drive_ok else "🔴 Drive sin configurar")
 
-        if st.button("🚪 Cerrar sesión", use_container_width=True):
-            # Backup al cierre de turno (solo local)
-            _backup_cierre_turno(op)
-            st.session_state.operador_ok   = False
-            st.session_state.operador_info = {}
-            ir_a("operador_login")
+        # ── Backup pendiente de descarga (Cloud) ─────────────────────────
+        if st.session_state.get("_backup_cierre_bytes"):
+            st.download_button(
+                "📥 Descargar backup de cierre",
+                data=st.session_state["_backup_cierre_bytes"],
+                file_name=st.session_state.get("_backup_cierre_fname", "backup_cierre.xlsx"),
+                mime=st.session_state.get("_backup_cierre_mime",
+                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+                use_container_width=True,
+                key="btn_dl_backup_cierre",
+            )
+            if st.button("✅ Ya descargué — Cerrar sesión", use_container_width=True,
+                         key="btn_logout_post_backup"):
+                for k in ["_backup_cierre_bytes","_backup_cierre_fname","_backup_cierre_mime"]:
+                    st.session_state.pop(k, None)
+                st.session_state.operador_ok   = False
+                st.session_state.operador_info = {}
+                ir_a("operador_login")
+        else:
+            if st.button("🚪 Cerrar sesión", use_container_width=True):
+                # Genera backup (local → escribe a disco / Cloud → guarda en session_state)
+                _backup_cierre_turno(op)
+                if _IS_CLOUD and st.session_state.get("_backup_cierre_bytes"):
+                    # En Cloud: mantener sesión abierta para que el operador pueda descargar
+                    st.rerun()
+                else:
+                    st.session_state.operador_ok   = False
+                    st.session_state.operador_info = {}
+                    ir_a("operador_login")
 
     render_header(f"Panel — {op.get('nombre','Operador')}")
 
@@ -4939,6 +4974,207 @@ def generar_backup_diario():
         return buf.getvalue(), f"backup_jjgt_{now_str}.zip", "application/zip"
 
 
+def generar_reporte_pdf(rows: list, desde: str, hasta: str,
+                        total_ing: float, total_res: int, completadas: int) -> bytes:
+    """
+    Genera un PDF de reporte de reservas para el período indicado.
+    Retorna los bytes del PDF listos para descarga.
+    """
+    if not REPORTLAB_AVAILABLE:
+        return b""
+
+    buf = io.BytesIO()
+    doc_pdf = SimpleDocTemplate(
+        buf,
+        pagesize=A4,
+        leftMargin=18*mm, rightMargin=18*mm,
+        topMargin=18*mm,  bottomMargin=18*mm,
+        title=f"Reporte Reservas {desde} – {hasta}",
+    )
+
+    styles = getSampleStyleSheet()
+    # ── Estilos personalizados ────────────────────────────────────────────────
+    titulo_style = ParagraphStyle(
+        "TituloReporte",
+        parent=styles["Normal"],
+        fontSize=18, fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#0A1628"),
+        spaceAfter=4, alignment=TA_CENTER,
+    )
+    sub_style = ParagraphStyle(
+        "SubReporte",
+        parent=styles["Normal"],
+        fontSize=10, fontName="Helvetica",
+        textColor=colors.HexColor("#64748B"),
+        spaceAfter=2, alignment=TA_CENTER,
+    )
+    label_style = ParagraphStyle(
+        "LabelKPI",
+        parent=styles["Normal"],
+        fontSize=8, fontName="Helvetica",
+        textColor=colors.HexColor("#64748B"),
+        alignment=TA_CENTER, spaceAfter=0,
+    )
+    valor_style = ParagraphStyle(
+        "ValorKPI",
+        parent=styles["Normal"],
+        fontSize=16, fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#0E7490"),
+        alignment=TA_CENTER, spaceAfter=0,
+    )
+    sec_style = ParagraphStyle(
+        "SeccionReporte",
+        parent=styles["Normal"],
+        fontSize=11, fontName="Helvetica-Bold",
+        textColor=colors.HexColor("#0E7490"),
+        spaceBefore=10, spaceAfter=4,
+    )
+    pie_style = ParagraphStyle(
+        "PieReporte",
+        parent=styles["Normal"],
+        fontSize=7, fontName="Helvetica",
+        textColor=colors.HexColor("#94A3B8"),
+        alignment=TA_CENTER, spaceBefore=6,
+    )
+
+    def hr_line(color="#CBD5E1", thickness=0.5):
+        return HRFlowable(width="100%", thickness=thickness,
+                          color=colors.HexColor(color), spaceAfter=6, spaceBefore=2)
+
+    ahora_str = ahora_col().strftime("%d/%m/%Y %H:%M")
+    periodo_str = f"{desde} – {hasta}" if desde != hasta else desde
+
+    story = []
+
+    # ── Encabezado ────────────────────────────────────────────────────────────
+    story.append(Paragraph("💤 " + NEGOCIO, titulo_style))
+    story.append(Paragraph("REPORTE DE RESERVAS", sub_style))
+    story.append(Paragraph(f"Período: {periodo_str}  ·  Generado: {ahora_str}", sub_style))
+    story.append(hr_line("#0E7490", 1.5))
+    story.append(Spacer(1, 4*mm))
+
+    # ── KPIs ──────────────────────────────────────────────────────────────────
+    col_w = (doc_pdf.width - 8*mm) / 3
+    kpi_table = Table(
+        [[
+            [Paragraph("TOTAL RESERVAS", label_style), Paragraph(str(total_res), valor_style)],
+            [Paragraph("COMPLETADAS", label_style),    Paragraph(str(completadas), valor_style)],
+            [Paragraph("INGRESOS", label_style),       Paragraph(fmt_cop(total_ing), valor_style)],
+        ]],
+        colWidths=[col_w, col_w, col_w],
+    )
+    kpi_table.setStyle([
+        ("BACKGROUND",  (0,0), (-1,-1), colors.HexColor("#E0F7FA")),
+        ("BOX",         (0,0), (-1,-1), 0.5, colors.HexColor("#0E7490")),
+        ("INNERGRID",   (0,0), (-1,-1), 0.3, colors.HexColor("#BAE6FD")),
+        ("TOPPADDING",  (0,0), (-1,-1), 8),
+        ("BOTTOMPADDING",(0,0),(-1,-1), 8),
+        ("LEFTPADDING", (0,0), (-1,-1), 6),
+        ("RIGHTPADDING",(0,0), (-1,-1), 6),
+        ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+    ])
+    story.append(kpi_table)
+    story.append(Spacer(1, 5*mm))
+
+    # ── Resumen por método de pago ────────────────────────────────────────────
+    if rows:
+        metodos_totales = {}
+        for r in rows:
+            if r.get("Estado") == "confirmado":
+                m = r.get("Método", "—")
+                metodos_totales[m] = metodos_totales.get(m, 0) + r.get("Total", 0)
+
+        if metodos_totales:
+            story.append(Paragraph("Desglose por método de pago", sec_style))
+            story.append(hr_line())
+            met_data = [["Método de Pago", "Ingresos COP", "% del Total"]]
+            for met, val in sorted(metodos_totales.items(), key=lambda x: -x[1]):
+                pct = f"{val/total_ing*100:.1f}%" if total_ing > 0 else "—"
+                met_data.append([met, fmt_cop(val), pct])
+            met_data.append(["TOTAL", fmt_cop(total_ing), "100%"])
+
+            met_table = Table(met_data, colWidths=[doc_pdf.width*0.45, doc_pdf.width*0.30, doc_pdf.width*0.25])
+            met_table.setStyle([
+                ("BACKGROUND",   (0,0), (-1,0), colors.HexColor("#0E7490")),
+                ("TEXTCOLOR",    (0,0), (-1,0), colors.white),
+                ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+                ("FONTSIZE",     (0,0), (-1,-1), 9),
+                ("FONTNAME",     (0,-1),(-1,-1), "Helvetica-Bold"),
+                ("BACKGROUND",   (0,-1),(-1,-1), colors.HexColor("#E0F7FA")),
+                ("ROWBACKGROUNDS",(0,1),(-1,-2),
+                    [colors.white, colors.HexColor("#F8FAFC")]),
+                ("GRID",         (0,0), (-1,-1), 0.3, colors.HexColor("#CBD5E1")),
+                ("TOPPADDING",   (0,0), (-1,-1), 5),
+                ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+                ("LEFTPADDING",  (0,0), (-1,-1), 8),
+                ("RIGHTPADDING", (0,0), (-1,-1), 8),
+                ("ALIGN",        (1,0), (-1,-1), "RIGHT"),
+            ])
+            story.append(met_table)
+            story.append(Spacer(1, 5*mm))
+
+    # ── Detalle de reservas ───────────────────────────────────────────────────
+    story.append(Paragraph("Detalle de reservas del período", sec_style))
+    story.append(hr_line())
+
+    if rows:
+        col_widths = [
+            doc_pdf.width * 0.22,  # Reserva
+            doc_pdf.width * 0.22,  # Cliente
+            doc_pdf.width * 0.08,  # Cub
+            doc_pdf.width * 0.08,  # Horas
+            doc_pdf.width * 0.14,  # Total
+            doc_pdf.width * 0.14,  # Método
+            doc_pdf.width * 0.12,  # Estado
+        ]
+        det_data = [["Reserva", "Cliente", "Cub.", "Horas", "Total COP", "Método", "Estado"]]
+        for r in rows:
+            det_data.append([
+                r.get("Reserva", ""),
+                (r.get("Cliente","") or "")[:20],
+                r.get("Cubículo",""),
+                str(r.get("Horas","")),
+                fmt_cop(r.get("Total",0)),
+                r.get("Método",""),
+                r.get("Estado",""),
+            ])
+
+        det_table = Table(det_data, colWidths=col_widths, repeatRows=1)
+        # Color de fila Estado
+        row_bg = []
+        for i, r in enumerate(rows, start=1):
+            bg = colors.HexColor("#F0FFF4") if r.get("Estado") == "confirmado"                  else colors.HexColor("#FEF2F2")
+            row_bg.append(("BACKGROUND", (0, i), (-1, i), bg))
+
+        det_table.setStyle([
+            ("BACKGROUND",   (0,0), (-1,0), colors.HexColor("#0E7490")),
+            ("TEXTCOLOR",    (0,0), (-1,0), colors.white),
+            ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+            ("FONTSIZE",     (0,0), (-1,-1), 7.5),
+            ("GRID",         (0,0), (-1,-1), 0.25, colors.HexColor("#CBD5E1")),
+            ("TOPPADDING",   (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+            ("LEFTPADDING",  (0,0), (-1,-1), 5),
+            ("RIGHTPADDING", (0,0), (-1,-1), 5),
+            ("ALIGN",        (3,0), (4,-1), "RIGHT"),
+        ] + row_bg)
+        story.append(det_table)
+    else:
+        story.append(Paragraph("No hay reservas para el período seleccionado.", styles["Normal"]))
+
+    # ── Pie de página ─────────────────────────────────────────────────────────
+    story.append(Spacer(1, 6*mm))
+    story.append(hr_line("#CBD5E1"))
+    story.append(Paragraph(
+        f"{NEGOCIO}  ·  {DIRECCION}  ·  NIT {NIT}  ·  {TELEFONO}",
+        pie_style
+    ))
+    story.append(Paragraph(f"Reporte generado el {ahora_str}", pie_style))
+
+    doc_pdf.build(story)
+    return buf.getvalue()
+
+
 def _op_reportes():
     st.markdown("### 📊 Reportes")
     periodo = st.selectbox("Período", ["Hoy", "Esta semana", "Este mes", "Histórico"])
@@ -4989,10 +5225,32 @@ def _op_reportes():
         df["Total"] = df["Total"].apply(fmt_cop)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
-        csv = pd.DataFrame(rows).to_csv(index=False).encode()
-        st.download_button("📥 Exportar CSV del período", data=csv,
-                           file_name=f"reservas_{desde}_{hasta}.csv",
-                           mime="text/csv")
+        col_csv, col_pdf = st.columns(2)
+        with col_csv:
+            csv = pd.DataFrame(rows).to_csv(index=False).encode()
+            st.download_button(
+                "📥 Exportar CSV",
+                data=csv,
+                file_name=f"reservas_{desde}_{hasta}.csv",
+                mime="text/csv",
+                use_container_width=True,
+            )
+        with col_pdf:
+            if REPORTLAB_AVAILABLE:
+                with st.spinner("Generando PDF..."):
+                    pdf_bytes = generar_reporte_pdf(
+                        rows, desde, hasta, total_ing, total_res, completadas
+                    )
+                if pdf_bytes:
+                    st.download_button(
+                        "📄 Exportar PDF",
+                        data=pdf_bytes,
+                        file_name=f"reporte_{desde}_{hasta}.pdf",
+                        mime="application/pdf",
+                        use_container_width=True,
+                    )
+            else:
+                st.caption("*(instala reportlab para PDF)*")
 
         try:
             import plotly.express as px
