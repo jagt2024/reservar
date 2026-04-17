@@ -102,9 +102,9 @@ _IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
-DIRECCION    = "Terminal de Transportes · Local 42"
+DIRECCION    = "Terminal de Transportes · Modulo 3 Local 230"
 TELEFONO     = "320 551 1091"
-NIT          = "900.123.456-7"
+NIT          = "902047871-3"
 TZ_COL       = pytz.timezone("America/Bogota")
 NEQUI_NUM    = "320 551 1091"
 DAVIPLATA_NUM= "320 551 1091"
@@ -112,7 +112,7 @@ CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573205511091"
 DRIVE_FILE   = "jjgt_pagos"
-EMAIL        = "josegarjagt@gmail.com"
+EMAIL        = "suitesalitre@gmail.com"
 
 ESTADOS_CUBICULO = {
     "libre":        {"label": "LIBRE",        "color": "#00ff88", "bg": "rgba(0,255,136,0.12)"},
@@ -191,7 +191,6 @@ html, body, .stApp {
 /* ── Ocultar UI de Streamlit ──────────────────────────────── */
 #MainMenu, footer, header { visibility: hidden !important; }
 .stDeployButton { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
@@ -2171,13 +2170,13 @@ def calcular_precio(horas: float, tarifa_nombre: str = None) -> dict:
 
     rows = _gs_read_sheet("Tarifas_Config")
     precio_hora = 15000
-    desc_3h = 20
-    desc_6h = 30
+    desc_3h = 3.334
+    desc_6h = 3.334
     for r in rows:
         if _gs_val(r, "Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
             precio_hora = _gs_float(r, "Precio_Hora_COP", 15000)
-            desc_3h = _gs_float(r, "Desc_3h_Pct", 20)
-            desc_6h = _gs_float(r, "Desc_6h_Pct", 30)
+            desc_3h = _gs_float(r, "Desc_3h_Pct", 3.334)
+            desc_6h = _gs_float(r, "Desc_6h_Pct", 3.334)
             break
 
     descuento_pct = 0
@@ -2186,11 +2185,11 @@ def calcular_precio(horas: float, tarifa_nombre: str = None) -> dict:
     elif horas >= 2:
         descuento_pct = desc_3h
 
-    subtotal_bruto = precio_hora * horas
-    descuento_val  = subtotal_bruto * (descuento_pct / 100)
-    subtotal       = subtotal_bruto - descuento_val
-    iva            = subtotal * IVA_PCT
-    total          = subtotal + iva
+    subtotal_bruto = round(precio_hora * horas,0)
+    descuento_val  = round(subtotal_bruto * (descuento_pct / 100),0)
+    subtotal       = round(subtotal_bruto - descuento_val,0)
+    iva            = round(subtotal * IVA_PCT,0)
+    total          = round(subtotal + iva,0)
 
     return {
         "precio_hora":   precio_hora,
@@ -2200,7 +2199,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None) -> dict:
         "descuento_val": descuento_val,
         "subtotal":      subtotal,
         "iva":           iva,
-        "total":         total,
+        "total":         round(total,0)
     }
 
 
@@ -3102,7 +3101,7 @@ def show_bienvenida():
     libres     = sum(1 for c in cubiculos if c["estado"] == "libre")
     total      = len(cubiculos)
     tarifa_act = "Madrugada" if 0 <= ahora_col().hour < 6 else "Estándar"
-    precio_min = 10000 if tarifa_act == "Madrugada" else 15000
+    precio_min = 15000 if tarifa_act == "Madrugada" else 15000
 
     # Disponibilidad
     color_disp = "#00ff88" if libres > 3 else ("#ffd32a" if libres > 0 else "#ff4757")
@@ -3206,13 +3205,13 @@ def show_seleccion():
 
     with col_left:
         st.markdown("#### ⏱️ ¿Cuánto tiempo necesitas?")
-        tiempos = {"30 min": 0.3, "1 hora": 1.0, "2 horas": 2.0,
+        tiempos = {"30 min": 0.5, "1 hora": 1.0, "2 horas": 2.0,
                    "3 horas": 3.0, "4 horas": 4.0, "⚙️ Personalizar": -1}
         cols_t  = st.columns(3)
         for i, (label, val) in enumerate(tiempos.items()):
             with cols_t[i % 3]:
                 sel = st.session_state.horas_sel
-                activo = (sel == val) or (val == -1 and sel not in [0.3,1,2,3,4])
+                activo = (sel == val) or (val == -1 and sel not in [0.5,1,2,3,4])
                 if st.button(label, key=f"btn_t_{i}",
                              type="primary" if activo else "secondary",
                              use_container_width=True):
@@ -3223,9 +3222,9 @@ def show_seleccion():
                     st.rerun()
 
         horas = st.session_state.horas_sel
-        if horas not in [0.3, 1.0, 2.0, 3.0, 4.0]:
-            horas = st.number_input("Horas personalizadas", min_value=0.3, max_value=12.0,
-                                     value=float(horas), step=0.3)
+        if horas not in [0.5, 1.0, 2.0, 3.0, 4.0]:
+            horas = st.number_input("Horas personalizadas", min_value=0.5, max_value=18.0,
+                                     value=float(horas), step=0.5)
             st.session_state.horas_sel = horas
 
         # Cálculo en tiempo real
@@ -4400,8 +4399,8 @@ def _op_nueva_reserva():
 
         with col_hrs:
             horas_sel = st.number_input("Horas a reservar",
-                                        min_value=0.3, max_value=12.0,
-                                        value=1.0, step=0.3, key="op_res_horas")
+                                        min_value=0.5, max_value=18.0,
+                                        value=1.0, step=0.5, key="op_res_horas")
             calc = calcular_precio(horas_sel)
             st.markdown(f"""
             <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
