@@ -188,9 +188,6 @@ html, body, .stApp {
   100% { opacity: 0.6; }
 }
 
-/* ── Ocultar UI de Streamlit ──────────────────────────────── */
-#MainMenu, footer, header { visibility: hidden !important; }
-.stDeployButton { display: none !important; }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
