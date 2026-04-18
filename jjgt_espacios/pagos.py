@@ -141,7 +141,7 @@ hide_streamlit_style = """
             <style>
             #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
             footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
-            header {visibility: hidden;}  /* Oculta la cabecera */
+            #header {visibility: hidden;}  /* Oculta la cabecera */
             .stDeployButton {display:none;}  /* Oculta el botón de deploy */
             .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
             .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
