@@ -136,22 +136,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
-hide_streamlit_style = """
-            <style>
-            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
-            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
-            #header {visibility: hidden;}  /* Oculta la cabecera */
-            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
-            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
-            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
-            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
-            
-            /* En algunas versiones más recientes se usan diferentes clases CSS */
-            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
-            </stylecd>
-            """
-st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CSS — MODO KIOSCO TÁCTIL
