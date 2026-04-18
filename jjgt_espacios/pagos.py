@@ -195,6 +195,7 @@ html, body, .stApp {
 /* ── Ocultar UI de Streamlit ──────────────────────────────── */
 #MainMenu, footer, header { visibility: hidden !important; }
 .stDeployButton { display: none !important; }
+/* [data-testid="collapsedControl"] { display: none !important; } */
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
