@@ -136,6 +136,8 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.cache_data.clear()
+st.cache_resource.clear()
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CSS — MODO KIOSCO TÁCTIL
