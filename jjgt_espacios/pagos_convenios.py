@@ -1,6 +1,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 #  SUITE SALITRE · Espacios de Descanso Personal — Terminal de Transportes
-#  MÓDULO DE PAGOS · Kiosco Táctil 24/7
+#  MÓDULO DE PAGOS + CONVENIOS · Kiosco Táctil 24/7
 # ══════════════════════════════════════════════════════════════════════════════
 #
 #  Instalación:
@@ -33,6 +33,8 @@
 #      jjgt_pagos de Google Sheets EN EL MISMO MOMENTO que en SQLite,
 #      con reintentos automáticos ante errores 429 (MAX_RETRIES=4, backoff exp.)
 #    · Backup automático al cierre de turno del operador en carpeta backups/
+#    · Convenios: reservas solo en jjgt_convenios, Cubiculos_Estado en ambos
+#    · Config de convenios por empresa en Configuracion_Pagos de jjgt_convenios
 # ══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
@@ -111,8 +113,14 @@ DAVIPLATA_NUM= "320 551 1091"
 CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573205511091"
-DRIVE_FILE   = "jjgt_pagos"
+DRIVE_FILE           = "jjgt_pagos"
+DRIVE_FILE_CONVENIOS = "jjgt_convenios"
 EMAIL        = "josegarjagt@gmail.com"
+
+# ID del Spreadsheet de Convenios (se configura igual que el principal)
+SPREADSHEET_ID_CONVENIOS = ""  # Se llena desde Configuracion_Pagos clave "convenios_spreadsheet_id"
+
+METODOS_PAGO_CONVENIO = ["Convenio"]  # Método exclusivo para convenios (pago queda pendiente)
 
 ESTADOS_CUBICULO = {
     "libre":        {"label": "LIBRE",        "color": "#00ff88", "bg": "rgba(0,255,136,0.12)"},
@@ -122,9 +130,8 @@ ESTADOS_CUBICULO = {
     "reservado":    {"label": "RESERVADO",    "color": "#74b9ff", "bg": "rgba(116,185,255,0.12)"},
 }
 
-METODOS_PAGO = ["Nequi", "Daviplata", "Efectivo", "PSE", "MercadoPago", "Transferencia", "Tarjeta"]
+METODOS_PAGO = ["Nequi", "Daviplata", "Efectivo", "PSE", "MercadoPago", "Transferencia", "Tarjeta", "Convenio"]
 IVA_PCT      = 0.0
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -149,7 +156,7 @@ hide_streamlit_style = """
             
             /* En algunas versiones más recientes se usan diferentes clases CSS */
             /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
-            </stylecd>
+            </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
@@ -209,6 +216,7 @@ html, body, .stApp {
 /* ── Ocultar UI de Streamlit ──────────────────────────────── */
 #MainMenu, footer, header { visibility: hidden !important; }
 .stDeployButton { display: none !important; }
+[data-testid="collapsedControl"] { display: none !important; }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
@@ -1084,19 +1092,18 @@ DRIVE_SHEETS = {
         "Clave",   # nombre de la configuración
         "Valor",   # valor de la configuración
     ],
-    # Tarifas → 11 campos
+    # Tarifas → 10 campos
     "Tarifas_Config": [
-        "ID",               # id de la tarifa
-        "Nombre",           # "Estándar", "Madrugada", "Festivo"
-        "Descripcion",      # descripción (ej. "Tarifa Unica")
-        "Precio_Hora_COP",  # precio por hora (o precio total para Noche Completa)
-        "Desc_3h_Pct",      # descuento a partir de 2h (%)
-        "Desc_6h_Pct",      # descuento a partir de 6h (%)
-        "Hora_Ini_Espec",   # hora inicio tarifa especial
-        "Hora_Fin_Espec",   # hora fin tarifa especial
-        "Aplica_Festivos",  # "0" o "1"
-        "Activo",           # "1" o "0"
-        "Horas_A_Reservar", # horas fijas a reservar (usado para Tarifa Unica / Noche Completa)
+        "ID",             # id de la tarifa
+        "Nombre",         # "Estándar", "Madrugada", "Festivo"
+        "Descripcion",    # descripción
+        "Precio_Hora_COP",# precio por hora
+        "Desc_3h_Pct",    # descuento a partir de 2h (%)
+        "Desc_6h_Pct",    # descuento a partir de 6h (%)
+        "Hora_Ini_Espec", # hora inicio tarifa especial
+        "Hora_Fin_Espec", # hora fin tarifa especial
+        "Aplica_Festivos",# "0" o "1"
+        "Activo",         # "1" o "0"
     ],
     # gs_sync_dashboard → 21 campos calculados
     "Dashboard_Diario": [
@@ -1120,6 +1127,97 @@ DRIVE_SHEETS = {
         "IP",           # IP del cliente (vacío)
         "Estado",       # "exito" o "error"
         "Notas",        # notas adicionales
+    ],
+}
+
+# ── DRIVE_SHEETS_CONVENIOS: estructura del spreadsheet jjgt_convenios ─────────
+# Igual a DRIVE_SHEETS pero con las hojas que requieren identificador de convenio/empresa
+# y la hoja extra "Empresa".
+DRIVE_SHEETS_CONVENIOS = {
+    # Hoja exclusiva de Empresas con convenio
+    "Empresa": [
+        "Id_Empresa",
+        "Nombre_Empresa",
+        "Nit_Empresa",
+        "Tipo_Empresa",          # "Privada","Pública","Mixta","ONG"
+        "Email_Empresa",
+        "Telefono_Empresa",
+        "Tipo_Convenio",         # "Descuento","Crédito","Prepago","Corporativo"
+        "Observaciones",
+        "Activo",                # "1"/"0"
+        "Creado_En",
+    ],
+    # Reservas con campo convenio
+    "Reservas": [
+        "ID_Reserva","Numero_Reserva","Creado_En","Cubiculo_Num",
+        "Cliente_Nombre","Documento","Telefono","Email",
+        "Horas_Contratadas","Hora_Inicio","Hora_Fin_Prog","Hora_Fin_Real",
+        "Precio_Hora","Subtotal","IVA","Total_COP",
+        "Metodo_Pago","Estado_Pago","Codigo_Acceso",
+        "WiFi_SSID","WiFi_Pass","Num_Factura","Referencia_Pago",
+        "Operador","Notas",
+        "Id_Empresa","Nombre_Empresa",  # campos de convenio añadidos
+    ],
+    # Clientes con campo convenio
+    "Clientes": [
+        "ID_Cliente","Nombre","Tipo_Doc","Num_Doc","Telefono","Email",
+        "Ciudad","Regimen","Tipo_Persona","Razon_Social","NIT_Empresa",
+        "Activo","Total_Reservas","Total_Gastado","Creado_En",
+        "Id_Empresa","Nombre_Empresa",  # campos de convenio añadidos
+    ],
+    # Pagos con campo convenio
+    "Pagos": [
+        "ID_Pago","ID_Reserva","Num_Reserva","Fecha_Pago",
+        "Monto_COP","Metodo","Referencia_Externa","Estado",
+        "Confirmado_Por","Notas",
+        "Id_Empresa","Nombre_Empresa",  # campos de convenio añadidos
+    ],
+    # Facturas con campo convenio
+    "Facturas": [
+        "ID_Factura","Num_Factura","Tipo","Fecha_Emision","Fecha_Vencimiento",
+        "Cliente_Nombre","Cliente_Doc","Cliente_Email","Razon_Social","NIT_Empresa",
+        "Descripcion","Subtotal","Descuento","Base_Gravable","IVA","Retenciones",
+        "Total_COP","Metodo_Pago","Estado","Moneda","Num_Reserva","Cubiculo",
+        "Creado_En","Actualizado_En",
+        "Id_Empresa","Nombre_Empresa",  # campos de convenio añadidos
+    ],
+    "Factura_items": [
+        "ID_Item","ID_Factura","Codigo","Descripcion","Cantidad","Unidad",
+        "Precio_Unitario","Descuento_Pct","IVA_Pct","Subtotal",
+        "Id_Empresa",  # campo de convenio añadido
+    ],
+    "Dashboard_Diario": [
+        "Fecha","Total_Reservas","Completadas","Canceladas",
+        "Ingresos_Brutos","IVA_Recaudado","Ingresos_Netos",
+        "Nequi_COP","Daviplata_COP","Efectivo_COP","PSE_COP",
+        "MP_COP","Otros_COP","Convenio_COP","Ocupacion_Pct","Hora_Pico",
+        "Tiempo_Prom_Min","Clientes_Nuevos","Clientes_Recur",
+        "Fact_Min","Fact_Max","Ticket_Prom_COP",
+    ],
+    "Cubiculos_Estado": [
+        "Cubiculo_ID","Numero","Nombre","Estado","Cliente_Actual",
+        "Hora_Inicio","Hora_Fin_Prog","Tiempo_Rest_Min","Codigo_Acceso",
+        "WiFi_SSID","WiFi_Pass","Precio_Hora_Base",
+    ],
+    "Tarifas_Config": [
+        "ID","Id_Empresa","Nombre_Empresa","Nombre","Descripcion","Precio_Hora_COP",
+        "Desc_3h_Pct","Desc_6h_Pct","Hora_Ini_Espec","Hora_Fin_Espec",
+        "Aplica_Festivos","Activo",
+    ],
+    "Operadores": [
+        "ID_Operador","Nombre","Rol","Turno",
+        "Hora_Ini_Turno","Hora_Fin_Turno","Permisos","Activo",
+    ],
+    "Configuracion_Pagos": [
+        "Id_Empresa",         # FK → hoja Empresa
+        "Nombre_Empresa",     # nombre para legibilidad
+        "Clave",              # nombre del parámetro
+        "Valor",              # valor del parámetro
+        "Actualizado_En",     # timestamp del último cambio
+    ],
+    "Log_Operaciones": [
+        "Timestamp","Tipo_Op","Reserva_ID","Cubiculo","Operador",
+        "Descripcion","Valor_Ant","Valor_Nuevo","IP","Estado","Notas",
     ],
 }
 
@@ -1247,6 +1345,56 @@ def get_active_client():
         return None, None
     sh = get_or_create_spreadsheet(client)
     return client, sh
+
+
+def get_active_client_convenios():
+    """Retorna (client, spreadsheet_convenios). Cachea en session_state por ID."""
+    if not GSPREAD_AVAILABLE:
+        return None, None
+    sid_conv = get_config("convenios_spreadsheet_id", "")
+    if not sid_conv:
+        return None, None
+    # Reusar caché si el ID no cambió
+    cached_sh  = st.session_state.get("_conv_sh_cache")
+    cached_sid = st.session_state.get("_conv_sh_sid", "")
+    if cached_sh is not None and cached_sid == sid_conv:
+        client_c = st.session_state.get("_conv_client_cache")
+        return client_c, cached_sh
+    creds, _ = load_credentials_from_toml()
+    if not creds:
+        return None, None
+    client = get_google_sheets_connection(creds)
+    if not client:
+        return None, None
+    try:
+        def _open_conv():
+            try:
+                sh = client.open_by_key(sid_conv)
+            except gspread.SpreadsheetNotFound:
+                sh = client.create(DRIVE_FILE_CONVENIOS)
+            existing = {ws.title for ws in sh.worksheets()}
+            for name, headers in DRIVE_SHEETS_CONVENIOS.items():
+                if name not in existing:
+                    try:
+                        ws = sh.add_worksheet(title=name, rows=5000, cols=max(len(headers), 26))
+                        ws.append_row(headers)
+                        time.sleep(0.3)
+                    except gspread.exceptions.APIError as e:
+                        if "already exists" not in str(e).lower():
+                            raise
+            for default_name in ["Sheet1", "Hoja 1", "Hoja1"]:
+                try:
+                    sh.del_worksheet(sh.worksheet(default_name))
+                except Exception:
+                    pass
+            return sh
+        sh_conv = _gs_with_retry(_open_conv, operacion="abrir jjgt_convenios")
+        st.session_state["_conv_sh_cache"]     = sh_conv
+        st.session_state["_conv_sh_sid"]       = sid_conv
+        st.session_state["_conv_client_cache"] = client
+        return client, sh_conv
+    except Exception:
+        return client, None
 
 
 def _reset_gs_cache():
@@ -1514,6 +1662,482 @@ def gs_escribir_log(sh, tipo_op, reserva_id, cubiculo, operador, descripcion, es
         ])
 
 
+# ── Funciones de escritura para CONVENIOS ─────────────────────────────────────
+
+def gs_escribir_empresa(sh_conv, datos: dict) -> bool:
+    """Escribe o actualiza una empresa en la hoja Empresa del spreadsheet de convenios."""
+    fila = [
+        str(datos.get("id_empresa", "")),
+        str(datos.get("nombre_empresa", "")),
+        str(datos.get("nit_empresa", "")),
+        str(datos.get("tipo_empresa", "Privada")),
+        str(datos.get("email_empresa", "")),
+        str(datos.get("telefono_empresa", "")),
+        str(datos.get("tipo_convenio", "Crédito")),
+        str(datos.get("observaciones", "")),
+        str(datos.get("activo", "1")),
+        str(datos.get("creado_en", ahora_col().isoformat())),
+    ]
+    return _gs_upsert(sh_conv, "Empresa", "Id_Empresa",
+                      str(datos.get("id_empresa", "")), fila)
+
+
+def gs_escribir_reserva_convenio(sh_conv, datos: dict) -> bool:
+    """Escribe una reserva en jjgt_convenios con campos de empresa/convenio."""
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("numero_reserva", "")),
+        str(datos.get("creado_en", "")),
+        str(datos.get("cubiculo_num", "")),
+        str(datos.get("cliente_nombre", "")),
+        str(datos.get("cliente_doc", "")),
+        str(datos.get("cliente_tel", "")),
+        str(datos.get("cliente_email", "")),
+        str(datos.get("horas", "")),
+        str(datos.get("hora_inicio", "")),
+        str(datos.get("hora_fin_prog", "")),
+        str(datos.get("hora_fin_real", "")),
+        str(datos.get("precio_hora", "")),
+        str(datos.get("subtotal", "")),
+        str(datos.get("iva", "")),
+        str(datos.get("total", "")),
+        str(datos.get("metodo_pago", "Convenio")),
+        str(datos.get("estado_pago", "pendiente")),   # siempre pendiente en convenio
+        str(datos.get("codigo_acceso", "")),
+        str(datos.get("wifi_ssid", "")),
+        str(datos.get("wifi_pass", "")),
+        str(datos.get("num_factura", "")),
+        str(datos.get("referencia_pago", "")),
+        str(datos.get("operador", "sistema")),
+        str(datos.get("notas", "")),
+        str(datos.get("id_empresa", "")),
+        str(datos.get("nombre_empresa", "")),
+    ]
+    return _gs_upsert(sh_conv, "Reservas", "Numero_Reserva",
+                      str(datos.get("numero_reserva", "")), fila)
+
+
+def gs_escribir_pago_convenio(sh_conv, datos: dict) -> bool:
+    """Escribe un pago de convenio (pendiente) en jjgt_convenios."""
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("reserva_id", "")),
+        str(datos.get("num_reserva", "")),
+        str(datos.get("fecha_pago", "")),
+        str(datos.get("monto", "")),
+        str(datos.get("metodo", "Convenio")),
+        str(datos.get("referencia_externa", "")),
+        str(datos.get("estado", "pendiente")),
+        str(datos.get("confirmado_por", "sistema")),
+        str(datos.get("notas", "")),
+        str(datos.get("id_empresa", "")),
+        str(datos.get("nombre_empresa", "")),
+    ]
+    return _gs_upsert(sh_conv, "Pagos", "Num_Reserva",
+                      str(datos.get("num_reserva", "")), fila)
+
+
+def gs_escribir_cliente_convenio(sh_conv, datos: dict, id_empresa: str, nombre_empresa: str) -> bool:
+    """Escribe un cliente en jjgt_convenios con campo de empresa."""
+    num_doc = str(datos.get("numero_documento", ""))
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("nombre", "")),
+        str(datos.get("tipo_documento", "CC")),
+        num_doc,
+        str(datos.get("telefono", "")),
+        str(datos.get("email", "")),
+        str(datos.get("ciudad", "")),
+        str(datos.get("regimen", "Simplificado")),
+        str(datos.get("tipo_persona", "Natural")),
+        str(datos.get("razon_social", "")),
+        str(datos.get("nit_empresa", "")),
+        str(datos.get("activo", "1")),
+        "", "",  # Total_Reservas, Total_Gastado calculados en otro momento
+        str(datos.get("creado_en", ahora_col().isoformat())),
+        id_empresa,
+        nombre_empresa,
+    ]
+    return _gs_upsert(sh_conv, "Clientes", "Num_Doc", num_doc, fila)
+
+
+def gs_escribir_factura_convenio(sh_conv, datos: dict, id_empresa: str, nombre_empresa: str) -> bool:
+    """Escribe una factura de convenio en jjgt_convenios."""
+    subtotal = float(datos.get("subtotal", 0) or 0)
+    descuento = float(datos.get("descuento", 0) or 0)
+    base_gravable = round(subtotal - descuento, 2)
+    fila = [
+        str(datos.get("id", "")),
+        str(datos.get("numero", "")),
+        str(datos.get("tipo", "Factura de Venta")),
+        str(datos.get("fecha_emision", "")),
+        str(datos.get("fecha_vencimiento", "")),
+        str(datos.get("cliente_nombre", "")),
+        str(datos.get("cliente_doc", "")),
+        str(datos.get("cliente_email", "")),
+        str(datos.get("razon_social", "")),
+        str(datos.get("nit_empresa", "")),
+        str(datos.get("descripcion", "")),
+        str(subtotal), str(descuento), str(base_gravable),
+        str(datos.get("iva", "")),
+        str(datos.get("retenciones", "0")),
+        str(datos.get("total", "")),
+        str(datos.get("metodo_pago", "Convenio")),
+        str(datos.get("estado", "pendiente")),
+        str(datos.get("moneda", "COP")),
+        str(datos.get("num_reserva", "")),
+        str(datos.get("cubiculo", "")),
+        str(datos.get("creado_en", "")),
+        str(datos.get("actualizado_en", "")),
+        id_empresa,
+        nombre_empresa,
+    ]
+    return _gs_upsert(sh_conv, "Facturas", "Num_Factura",
+                      str(datos.get("numero", "")), fila)
+
+
+def get_config_empresa_convenio(sh_conv, id_empresa: str) -> dict:
+    """
+    Lee la configuración de pagos/tarifas para una empresa específica desde
+    la hoja Configuracion_Pagos de jjgt_convenios.
+    Retorna dict con claves:
+      convenios_dias_credito, convenios_horas_min,
+      convenios_descuento_pct, convenios_max_pendientes
+    Con fallback a los valores globales de Configuracion_Pagos de jjgt_pagos.
+    """
+    defaults = {
+        "convenios_dias_credito":   float(get_config("convenios_dias_credito",  "30")),
+        "convenios_horas_min":      float(get_config("convenios_horas_min",     "1.0")),
+        "convenios_descuento_pct":  float(get_config("convenios_descuento_pct", "0")),
+        "convenios_max_pendientes": int(  get_config("convenios_max_pendientes","10")),
+    }
+    if not sh_conv or not id_empresa:
+        return defaults
+    try:
+        ws = _gs_get_or_create_ws(sh_conv, "Configuracion_Pagos")
+        vals = ws.get_all_values()
+        if not vals or len(vals) < 2:
+            return defaults
+        hdr = vals[0]
+        # Normalizar cabeceras
+        def _norm(h): return h.strip().lower().replace(" ","_")
+        hdr_n = [_norm(h) for h in hdr]
+        ci_emp  = hdr_n.index("id_empresa")    if "id_empresa"    in hdr_n else -1
+        ci_cla  = hdr_n.index("clave")         if "clave"         in hdr_n else -1
+        ci_val  = hdr_n.index("valor")         if "valor"         in hdr_n else -1
+        if ci_emp < 0 or ci_cla < 0 or ci_val < 0:
+            return defaults
+        result = dict(defaults)
+        for row in vals[1:]:
+            if len(row) <= max(ci_emp, ci_cla, ci_val):
+                continue
+            if row[ci_emp].strip() != id_empresa:
+                continue
+            clave = row[ci_cla].strip()
+            valor = row[ci_val].strip()
+            if clave in result:
+                try:
+                    if clave == "convenios_max_pendientes":
+                        result[clave] = int(float(valor))
+                    else:
+                        result[clave] = float(valor)
+                except (ValueError, TypeError):
+                    pass
+        return result
+    except Exception:
+        return defaults
+
+
+def upsert_config_empresa_convenio(sh_conv, id_empresa: str, nombre_empresa: str,
+                                    configs: dict) -> bool:
+    """
+    Guarda/actualiza la configuración de una empresa en Configuracion_Pagos
+    de jjgt_convenios. Una fila por clave por empresa.
+    configs = {"convenios_dias_credito": 30, "convenios_horas_min": 1.0, ...}
+    """
+    if not sh_conv:
+        return False
+    now_iso = ahora_col().isoformat()
+    ok = True
+    try:
+        ws = _gs_get_or_create_ws(sh_conv, "Configuracion_Pagos")
+        vals = ws.get_all_values()
+        hdr = vals[0] if vals else DRIVE_SHEETS_CONVENIOS["Configuracion_Pagos"]
+        # Normalizar cabeceras
+        def _norm(h): return h.strip().lower().replace(" ","_")
+        hdr_n = [_norm(h) for h in hdr]
+        ci_emp = hdr_n.index("id_empresa") if "id_empresa" in hdr_n else -1
+        ci_cla = hdr_n.index("clave")      if "clave"      in hdr_n else -1
+        ci_val = hdr_n.index("valor")      if "valor"      in hdr_n else -1
+        ci_nom = hdr_n.index("nombre_empresa") if "nombre_empresa" in hdr_n else -1
+        ci_upd = hdr_n.index("actualizado_en") if "actualizado_en" in hdr_n else -1
+
+        if ci_emp < 0 or ci_cla < 0 or ci_val < 0:
+            # Hoja sin cabeceras correctas: reescribir cabeceras
+            ws.clear()
+            ws.append_row(DRIVE_SHEETS_CONVENIOS["Configuracion_Pagos"])
+            vals = ws.get_all_values()
+            hdr_n = [_norm(h) for h in vals[0]]
+            ci_emp = hdr_n.index("id_empresa")
+            ci_cla = hdr_n.index("clave")
+            ci_val = hdr_n.index("valor")
+            ci_nom = hdr_n.index("nombre_empresa")
+            ci_upd = hdr_n.index("actualizado_en")
+
+        for clave, valor in configs.items():
+            valor_str = str(valor)
+            # Buscar fila existente con id_empresa + clave
+            fila_idx = -1
+            for i, row in enumerate(vals[1:], start=2):
+                if (len(row) > max(ci_emp, ci_cla) and
+                        row[ci_emp].strip() == id_empresa and
+                        row[ci_cla].strip() == clave):
+                    fila_idx = i
+                    break
+            nueva_fila = [""] * len(hdr)
+            if ci_emp >= 0: nueva_fila[ci_emp] = id_empresa
+            if ci_nom >= 0: nueva_fila[ci_nom] = nombre_empresa
+            if ci_cla >= 0: nueva_fila[ci_cla] = clave
+            if ci_val >= 0: nueva_fila[ci_val] = valor_str
+            if ci_upd >= 0: nueva_fila[ci_upd] = now_iso
+            if fila_idx > 0:
+                ws.update(values=[nueva_fila], range_name=f"A{fila_idx}")
+            else:
+                ws.append_row(nueva_fila)
+                # Refrescar vals para el siguiente upsert
+                vals = ws.get_all_values()
+    except Exception:
+        ok = False
+    return ok
+
+
+def get_empresas_convenio() -> list:
+    """Lee empresas activas de jjgt_convenios usando caché (_gs_read_sheet_conv)."""
+    canonical = {
+        "id_empresa":"Id_Empresa","nombre_empresa":"Nombre_Empresa",
+        "nit_empresa":"Nit_Empresa","tipo_empresa":"Tipo_Empresa",
+        "email_empresa":"Email_Empresa","telefono_empresa":"Telefono_Empresa",
+        "tipo_convenio":"Tipo_Convenio","observaciones":"Observaciones",
+        "activo":"Activo","creado_en":"Creado_En",
+    }
+    try:
+        raw_list = _gs_read_sheet_conv("Empresa", force=False)
+        if not raw_list:
+            return []
+        result = []
+        for raw in raw_list:
+            d = {}
+            for k, v in raw.items():
+                norm = canonical.get(k.strip().lower().replace(" ","_"), k.strip())
+                d[norm] = str(v).strip() if v is not None else ""
+            if d.get("Activo","1") in ("1","","True","true","SI","si"):
+                result.append(d)
+        return result
+    except Exception:
+        return []
+
+
+def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
+                            id_empresa: str, nombre_empresa: str, operador: str = "sistema") -> dict:
+    """
+    Crea reserva de convenio.
+    ► Escribe ÚNICAMENTE en jjgt_convenios (Reservas, Pagos, Clientes, Facturas, Factura_items).
+    ► Actualiza Cubiculos_Estado en jjgt_pagos Y jjgt_convenios (fuente de verdad del estado físico).
+    ► Aplica los descuentos configurados para la empresa (get_config_empresa_convenio).
+    ► El pago queda en estado PENDIENTE — se cobra a la empresa.
+    """
+    now         = ahora_col()
+    num_res     = generar_numero_reserva()
+    num_fac     = generar_numero_factura()
+    cod_acc     = generar_codigo_acceso()
+    hora_inicio = now
+    hora_fin    = now + timedelta(hours=calc["horas"])
+    diff_min    = int((hora_fin - now).total_seconds() / 60)
+
+    _, sh_pag  = get_active_client()
+    _, sh_conv = get_active_client_convenios()
+
+    # ── Verificar cubículo disponible en jjgt_pagos ───────────────────────────
+    cubiculos_now = get_cubiculos()
+    cub_actual = next((c for c in cubiculos_now if c["numero"] == cubiculo["numero"]), None)
+    if cub_actual and cub_actual["estado"] != "libre":
+        raise Exception(f"El cubículo {cubiculo['numero']} ya no está disponible.")
+
+    descripcion_item = (f"Convenio {nombre_empresa} · Cubículo {cubiculo['numero']} · "
+                        f"WiFi · Baño · Carga · {calc['horas']}h")
+
+    reserva_data = {
+        "id":              num_res,
+        "numero_reserva":  num_res,
+        "creado_en":       now.isoformat(),
+        "cubiculo_num":    cubiculo["numero"],
+        "cliente_nombre":  cliente["nombre"],
+        "cliente_doc":     cliente.get("numero_documento", ""),
+        "cliente_tel":     cliente.get("telefono", ""),
+        "cliente_email":   cliente.get("email", ""),
+        "horas":           calc["horas"],
+        "hora_inicio":     hora_inicio.isoformat(),
+        "hora_fin_prog":   hora_fin.isoformat(),
+        "hora_fin_real":   "",
+        "precio_hora":     calc["precio_hora"],
+        "subtotal":        calc["subtotal"],
+        "iva":             calc["iva"],
+        "total":           calc["total"],
+        "metodo_pago":     "Convenio",
+        "estado_pago":     "pendiente",
+        "codigo_acceso":   cod_acc,
+        "wifi_ssid":       cubiculo.get("wifi_ssid", ""),
+        "wifi_pass":       cubiculo.get("wifi_password", ""),
+        "num_factura":     num_fac,
+        "referencia_pago": f"CONV-{id_empresa}-{num_res}",
+        "operador":        operador,
+        "notas":           f"Convenio: {nombre_empresa} | Desc: {calc.get('descuento_pct',0):.1f}%",
+        "id_empresa":      id_empresa,
+        "nombre_empresa":  nombre_empresa,
+    }
+
+    pago_data = {
+        "id":                 f"CONV-{int(time.time())}",
+        "reserva_id":         num_res,
+        "num_reserva":        num_res,
+        "fecha_pago":         now.isoformat(),
+        "monto":              calc["total"],
+        "metodo":             "Convenio",
+        "referencia_externa": f"CONV-{id_empresa}",
+        "estado":             "pendiente",
+        "confirmado_por":     "convenio",
+        "notas":              f"Empresa: {nombre_empresa}",
+        "id_empresa":         id_empresa,
+        "nombre_empresa":     nombre_empresa,
+    }
+
+    # ── Helper: actualizar Cubiculos_Estado en cualquier spreadsheet ──────────
+    def _actualizar_cubiculos_estado(sh_target):
+        if not sh_target:
+            return
+        try:
+            ws_c  = _gs_get_or_create_ws(sh_target, "Cubiculos_Estado")
+            vals_c = ws_c.get_all_values()
+            if not vals_c or "Numero" not in vals_c[0]:
+                return
+            hdr_c = vals_c[0]
+            ci_n   = hdr_c.index("Numero")
+            ci_e   = hdr_c.index("Estado")           if "Estado"          in hdr_c else -1
+            ci_cli = hdr_c.index("Cliente_Actual")   if "Cliente_Actual"  in hdr_c else -1
+            ci_ini = hdr_c.index("Hora_Inicio")      if "Hora_Inicio"     in hdr_c else -1
+            ci_fin = hdr_c.index("Hora_Fin_Prog")    if "Hora_Fin_Prog"   in hdr_c else -1
+            ci_cod = hdr_c.index("Codigo_Acceso")    if "Codigo_Acceso"   in hdr_c else -1
+            ci_tr  = hdr_c.index("Tiempo_Rest_Min")  if "Tiempo_Rest_Min" in hdr_c else -1
+            for i_c, r_c in enumerate(vals_c[1:], start=2):
+                if len(r_c) > ci_n and r_c[ci_n] == cubiculo["numero"]:
+                    updates = {}
+                    if ci_e   >= 0: updates[ci_e   + 1] = "ocupado"
+                    if ci_cli >= 0: updates[ci_cli  + 1] = cliente["nombre"]
+                    if ci_ini >= 0: updates[ci_ini  + 1] = hora_inicio.isoformat()
+                    if ci_fin >= 0: updates[ci_fin  + 1] = hora_fin.isoformat()
+                    if ci_cod >= 0: updates[ci_cod  + 1] = cod_acc
+                    if ci_tr  >= 0: updates[ci_tr   + 1] = str(diff_min)
+                    for col_i, val in updates.items():
+                        ws_c.update_cell(i_c, col_i, val)
+                    break
+        except Exception:
+            pass
+
+    # ── 1. jjgt_convenios: todos los registros (ÚNICO destino de datos) ───────
+    if sh_conv:
+        gs_escribir_reserva_convenio(sh_conv, reserva_data)
+
+        gs_escribir_pago_convenio(sh_conv, pago_data)
+
+        gs_escribir_cliente_convenio(sh_conv, {
+            "nombre":           cliente["nombre"],
+            "tipo_documento":   cliente.get("tipo_doc", "CC"),
+            "numero_documento": cliente.get("numero_documento", ""),
+            "telefono":         cliente.get("telefono", ""),
+            "email":            cliente.get("email", ""),
+        }, id_empresa, nombre_empresa)
+
+        gs_escribir_factura_convenio(sh_conv, {
+            "id":               num_fac,
+            "numero":           num_fac,
+            "tipo":             "Factura de Venta Convenio",
+            "fecha_emision":    now.strftime("%Y-%m-%d"),
+            "fecha_vencimiento":now.strftime("%Y-%m-%d"),
+            "cliente_nombre":   cliente["nombre"],
+            "cliente_doc":      cliente.get("numero_documento", ""),
+            "cliente_email":    cliente.get("email", ""),
+            "descripcion":      descripcion_item,
+            "subtotal":         calc["subtotal"],
+            "descuento":        calc.get("descuento_val", 0),
+            "iva":              calc["iva"],
+            "total":            calc["total"],
+            "metodo_pago":      "Convenio",
+            "estado":           "pendiente",
+            "moneda":           "COP",
+            "num_reserva":      num_res,
+            "cubiculo":         cubiculo["numero"],
+            "creado_en":        now.isoformat(),
+            "actualizado_en":   now.isoformat(),
+        }, id_empresa, nombre_empresa)
+
+        # Factura_items en jjgt_convenios (11 campos + Id_Empresa)
+        _gs_append(sh_conv, "Factura_items", [
+            num_fac,
+            num_fac,
+            "CONVENIO-H",
+            descripcion_item,
+            str(calc["horas"]),
+            "hora",
+            str(calc["precio_hora"]),
+            str(round(calc.get("descuento_pct", 0), 2)),
+            "19.0",
+            str(calc["subtotal"]),
+            id_empresa,
+        ])
+
+        # Cubiculos_Estado en jjgt_convenios
+        _actualizar_cubiculos_estado(sh_conv)
+
+        # Dashboard_Diario en jjgt_convenios — acumulación incremental
+        try:
+            _gs_sync_dashboard_convenios(sh_conv, nueva_reserva=reserva_data)
+        except Exception:
+            pass
+        # Invalida caché de hojas escritas en esta operación
+        _gs_invalidate_cache_conv("Reservas","Pagos","Clientes","Facturas",
+                                   "Factura_items","Dashboard_Diario")
+
+    # ── 2. jjgt_pagos: SOLO actualiza Cubiculos_Estado ───────────────────────
+    # Los datos de la reserva NO se duplican en jjgt_pagos.
+    # El estado físico del cubículo sí se actualiza para que el panel
+    # operativo refleje la ocupación en tiempo real.
+    _actualizar_cubiculos_estado(sh_pag)
+    if sh_pag:
+        _gs_invalidate_cache("Cubiculos_Estado")
+
+    return {
+        "numero_reserva":  num_res,
+        "numero_factura":  num_fac,
+        "cubiculo":        cubiculo["numero"],
+        "hora_inicio":     hora_inicio.strftime("%H:%M"),
+        "hora_fin":        hora_fin.strftime("%H:%M"),
+        "horas":           calc["horas"],
+        "precio_hora":     calc["precio_hora"],
+        "descuento_pct":   calc.get("descuento_pct", 0),
+        "descuento_val":   calc.get("descuento_val", 0),
+        "subtotal":        calc["subtotal"],
+        "iva":             calc["iva"],
+        "total":           calc["total"],
+        "metodo_pago":     "Convenio",
+        "estado_pago":     "pendiente",
+        "codigo_acceso":   cod_acc,
+        "wifi_ssid":       cubiculo.get("wifi_ssid", ""),
+        "wifi_password":   cubiculo.get("wifi_password", ""),
+        "id_empresa":      id_empresa,
+        "nombre_empresa":  nombre_empresa,
+    }
+
+
 def gs_sync_cubiculos(sh):
     """Actualiza Cubiculos_Estado en Sheets desde los datos de Reservas (sin SQLite)."""
     if not sh:
@@ -1544,7 +2168,7 @@ def gs_sync_cubiculos(sh):
         # Construir mapa número → reserva activa
         res_activas = {}
         for r in reservas_gs:
-            if (_gs_val(r, "Estado_Pago") == "confirmado" and
+            if (_gs_val(r, "Estado_Pago") in ("confirmado", "pendiente") and
                     not _gs_val(r, "Hora_Fin_Real")):
                 cub_num = _gs_val(r, "Cubiculo_Num")
                 if cub_num:
@@ -1611,7 +2235,8 @@ def gs_sync_dashboard(sh):
         efectivo  = sum(_gs_float(r, "Total_COP") for r in hoy_res if _gs_val(r, "Metodo_Pago") == "Efectivo")
         pse       = sum(_gs_float(r, "Total_COP") for r in hoy_res if _gs_val(r, "Metodo_Pago") == "PSE")
         mp        = sum(_gs_float(r, "Total_COP") for r in hoy_res if _gs_val(r, "Metodo_Pago") == "MercadoPago")
-        otros     = brutos - (nequi + daviplata + efectivo + pse + mp)
+        convenio  = sum(_gs_float(r, "Total_COP") for r in hoy_res if _gs_val(r, "Metodo_Pago") == "Convenio")
+        otros     = brutos - (nequi + daviplata + efectivo + pse + mp + convenio)
         avg_horas = (sum(_gs_float(r, "Horas_Contratadas") for r in hoy_res) / total_res) if total_res > 0 else 0
         ticket    = round(brutos / total_res, 0) if total_res > 0 else 0
 
@@ -1635,7 +2260,7 @@ def gs_sync_dashboard(sh):
             str(round(efectivo,2)),  # Efectivo_COP
             str(round(pse, 2)),      # PSE_COP
             str(round(mp, 2)),       # MP_COP
-            str(round(otros, 2)),    # Otros_COP
+            str(round(convenio, 2)), # Otros_COP (Convenio en jjgt_pagos reutiliza este campo)
             "0",                     # Ocupacion_Pct (calculado aparte)
             "",                      # Hora_Pico
             str(round(avg_horas*60)),# Tiempo_Prom_Min
@@ -1655,6 +2280,114 @@ def gs_sync_dashboard(sh):
         # y marcar como pendiente para reintento en el próximo render del operador
         st.session_state["_dashboard_sync_pendiente"] = True
         st.session_state["_dashboard_sync_error"] = err_str
+        return False
+
+
+def _gs_sync_dashboard_convenios(sh_conv, nueva_reserva: dict = None):
+    """
+    Actualiza Dashboard_Diario en jjgt_convenios.
+    - Si se pasa nueva_reserva (dict): acumula sus valores sobre el registro del día.
+    - Si no: recalcula leyendo la hoja Reservas completa (más lento, para recálculos manuales).
+    """
+    if not sh_conv:
+        return False
+    try:
+        today = ahora_col().strftime("%Y-%m-%d")
+        ws_dash = _gs_get_or_create_ws(sh_conv, "Dashboard_Diario")
+        vals_dash = ws_dash.get_all_values()
+        hdr_d = DRIVE_SHEETS_CONVENIOS.get("Dashboard_Diario", [])
+
+        if not vals_dash:
+            ws_dash.append_row(hdr_d)
+            vals_dash = [hdr_d]
+
+        # Leer fila existente del día
+        fila_idx = -1
+        fila_act = {}
+        if len(vals_dash) > 1:
+            hdr_real = vals_dash[0]
+            for i_d, row_d in enumerate(vals_dash[1:], start=2):
+                if row_d and row_d[0] == today:
+                    fila_idx = i_d
+                    fila_act = {hdr_real[j]: (row_d[j] if j < len(row_d) else "")
+                                for j in range(len(hdr_real))}
+                    break
+
+        def _fa(key, default=0.0):
+            try: return float(fila_act.get(key) or default)
+            except: return float(default)
+
+        def _ia(key, default=0):
+            try: return int(float(fila_act.get(key) or default))
+            except: return int(default)
+
+        if nueva_reserva:
+            # Acumulación incremental — no releer Sheets
+            total  = float(nueva_reserva.get("total",   0) or 0)
+            iva    = float(nueva_reserva.get("iva",     0) or 0)
+            horas  = float(nueva_reserva.get("horas",   0) or 0)
+            estado = nueva_reserva.get("estado_pago", "pendiente")
+
+            n_res  = _ia("Total_Reservas", 0) + 1
+            n_conf = _ia("Completadas",    0) + (1 if estado == "confirmado" else 0)
+            n_pend = _ia("Canceladas",     0) + (1 if estado == "pendiente"  else 0)
+            brutos = _fa("Ingresos_Brutos",0) + total
+            iva_t  = _fa("IVA_Recaudado",  0) + iva
+            conv_c = _fa("Convenio_COP",   0) + total
+
+            prev_mins = _fa("Tiempo_Prom_Min", 0) * max(_ia("Total_Reservas",1)-1, 0)
+            avg_h  = (prev_mins/60 + horas) / n_res if n_res > 0 else horas
+            ticket = round(brutos / n_res, 0) if n_res > 0 else total
+
+            prev_min_f = _fa("Fact_Min", total)
+            prev_max_f = _fa("Fact_Max", total)
+            min_f = min(prev_min_f, total) if prev_min_f > 0 else total
+            max_f = max(prev_max_f, total)
+        else:
+            # Recálculo completo desde hoja Reservas
+            try:
+                ws_r = _gs_get_or_create_ws(sh_conv, "Reservas")
+                vr = ws_r.get_all_values()
+                hoy_res = []
+                if vr and len(vr) > 1:
+                    hdr_r = vr[0]
+                    for row in vr[1:]:
+                        d = {hdr_r[i]: (row[i] if i < len(row) else "") for i in range(len(hdr_r))}
+                        if _gs_fecha_ymd(d, "Creado_En") == today:
+                            hoy_res.append(d)
+            except Exception:
+                hoy_res = []
+
+            n_res  = len(hoy_res)
+            n_conf = sum(1 for r in hoy_res if _gs_val(r,"Estado_Pago") == "confirmado")
+            n_pend = sum(1 for r in hoy_res if _gs_val(r,"Estado_Pago") == "pendiente")
+            brutos = sum(_gs_float(r,"Total_COP") for r in hoy_res)
+            iva_t  = sum(_gs_float(r,"IVA")       for r in hoy_res)
+            conv_c = brutos
+            avg_h  = (sum(_gs_float(r,"Horas_Contratadas") for r in hoy_res)/n_res) if n_res>0 else 0
+            ticket = round(brutos/n_res, 0) if n_res>0 else 0
+            min_f  = min((_gs_float(r,"Total_COP") for r in hoy_res), default=0)
+            max_f  = max((_gs_float(r,"Total_COP") for r in hoy_res), default=0)
+
+        fila_nueva = [
+            today, str(n_res), str(n_conf), str(n_pend),
+            str(round(brutos,2)), str(round(iva_t,2)), str(round(brutos-iva_t,2)),
+            "0","0","0","0","0","0",           # Nequi..Otros
+            str(round(conv_c,2)),              # Convenio_COP
+            "0","",                            # Ocupacion_Pct, Hora_Pico
+            str(round(avg_h*60)),              # Tiempo_Prom_Min
+            str(n_res),"0",                    # Clientes_Nuevos, Recur
+            str(round(min_f,2)), str(round(max_f,2)), str(int(ticket)),
+        ]
+        n_hdr  = len(vals_dash[0]) if vals_dash else len(hdr_d)
+        padded = (fila_nueva + [""]*n_hdr)[:n_hdr]
+
+        if fila_idx > 0:
+            ws_dash.update(values=[padded], range_name=f"A{fila_idx}")
+        else:
+            ws_dash.append_row(padded)
+        return True
+    except Exception:
         return False
 
 
@@ -1856,6 +2589,52 @@ def _gs_with_retry(func, *args, operacion: str = "Google Sheets", **kwargs):
             break
 
     raise last_exc
+
+
+
+def _gs_read_sheet_conv(hoja: str, force: bool = False) -> list:
+    """Lee una hoja de jjgt_convenios con caché en session_state (TTL 180s).
+    Las claves usan prefijo '_gs_conv_' para no colisionar con jjgt_pagos."""
+    now_ts  = time.time()
+    cache_k = f"_gs_conv_cache_{hoja}"
+    ts_k    = f"_gs_conv_ts_{hoja}"
+    ttl     = 180
+
+    if not force:
+        cached    = st.session_state.get(cache_k)
+        cached_ts = st.session_state.get(ts_k, 0)
+        if cached is not None and (now_ts - cached_ts) < ttl:
+            return cached
+
+    _, sh_conv = get_active_client_convenios()
+    if not sh_conv:
+        return st.session_state.get(cache_k, [])
+
+    try:
+        def _fetch_c():
+            ws = _gs_get_or_create_ws(sh_conv, hoja)
+            try:
+                return ws.get_all_records(default_blank="", numericise_ignore=["all"])
+            except TypeError:
+                try:
+                    return ws.get_all_records(default_blank="")
+                except TypeError:
+                    return ws.get_all_records()
+
+        records = _gs_with_retry(_fetch_c, operacion=f"leer conv '{hoja}'")
+        st.session_state[cache_k] = records
+        st.session_state[ts_k]    = now_ts
+        return records
+    except Exception:
+        return st.session_state.get(cache_k, [])
+
+
+def _gs_invalidate_cache_conv(*hojas):
+    """Invalida el caché de hojas de jjgt_convenios."""
+    for hoja in hojas:
+        ts_k = f"_gs_conv_ts_{hoja}"
+        if ts_k in st.session_state:
+            st.session_state[ts_k] = 0
 
 
 def _gs_read_sheet(hoja: str, force: bool = False) -> list:
@@ -2292,6 +3071,108 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
     }
 
 
+def calcular_precio_convenio(horas: float, cfg_empresa: dict,
+                              id_empresa: str = "") -> dict:
+    """
+    Calcula precio para reserva de convenio con 3 niveles de tarifa:
+    1. Tarifa específica de la empresa en Tarifas_Config de jjgt_convenios
+       (filtrada por Id_Empresa y horario especial vigente)
+    2. Tarifa genérica [Convenio] en jjgt_pagos
+    3. Fallback: Estándar/Madrugada de jjgt_pagos
+    Aplica descuento por volumen de horas + descuento adicional del convenio en cascada.
+    """
+    hora_actual       = ahora_col().hour
+    tarifa_base       = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
+    precio_hora       = 15000
+    desc_3h           = 0.0
+    desc_6h           = 0.0
+    tarifa_nombre_log = tarifa_base
+    tarifa_encontrada = False
+
+    # ── Nivel 1: tarifa específica de la empresa en jjgt_convenios ───────────
+    if id_empresa:
+        try:
+            rows_tar = _gs_read_sheet_conv("Tarifas_Config", force=False)
+            for d_tar in rows_tar:
+                activo    = str(d_tar.get("Activo","1")).strip() in ("1","True","true")
+                emp_match = str(d_tar.get("Id_Empresa","")).strip() == id_empresa.strip()
+                if not activo or not emp_match:
+                    continue
+                # Verificar horario especial
+                h_ini = str(d_tar.get("Hora_Ini_Espec","")).strip()
+                h_fin = str(d_tar.get("Hora_Fin_Espec","")).strip()
+                en_horario = True
+                if h_ini and h_fin:
+                    try:
+                        hi = int(h_ini.split(":")[0])
+                        hf = int(h_fin.split(":")[0])
+                        en_horario = (hora_actual >= hi or hora_actual < hf) if hi >= hf                                      else (hi <= hora_actual < hf)
+                    except Exception:
+                        en_horario = True
+                if not en_horario:
+                    continue
+                precio_hora       = float(d_tar.get("Precio_Hora_COP") or precio_hora)
+                desc_3h           = float(d_tar.get("Desc_3h_Pct") or 0)
+                desc_6h           = float(d_tar.get("Desc_6h_Pct") or 0)
+                tarifa_nombre_log = str(d_tar.get("Nombre") or f"Empresa {id_empresa}")
+                tarifa_encontrada = True
+                break
+        except Exception:
+            pass
+
+    # ── Nivel 2: tarifa genérica [Convenio] en jjgt_pagos ────────────────────
+    if not tarifa_encontrada:
+        for r in _gs_read_sheet("Tarifas_Config"):
+            nombre = _gs_val(r,"Nombre","")
+            activo = _gs_val(r,"Activo","1") in ("1","True","true")
+            if "[Convenio]" in nombre and activo:
+                precio_hora       = _gs_float(r,"Precio_Hora_COP", precio_hora)
+                desc_3h           = _gs_float(r,"Desc_3h_Pct", 0)
+                desc_6h           = _gs_float(r,"Desc_6h_Pct", 0)
+                tarifa_nombre_log = nombre
+                tarifa_encontrada = True
+                break
+
+    # ── Nivel 3: tarifa base Estándar/Madrugada de jjgt_pagos ────────────────
+    if not tarifa_encontrada:
+        for r in _gs_read_sheet("Tarifas_Config"):
+            if _gs_val(r,"Nombre") == tarifa_base and                _gs_val(r,"Activo","1") in ("1","True","true"):
+                precio_hora       = _gs_float(r,"Precio_Hora_COP", 15000)
+                desc_3h           = _gs_float(r,"Desc_3h_Pct", .3.334)
+                desc_6h           = _gs_float(r,"Desc_6h_Pct", 3.334)
+                tarifa_nombre_log = tarifa_base
+                break
+
+    # ── Descuento por volumen ─────────────────────────────────────────────────
+    desc_vol_pct = desc_6h if horas >= 6 else (desc_3h if horas >= 2 else 0.0)
+
+    # ── Descuento adicional del convenio (en cascada) ─────────────────────────
+    desc_conv_pct = float(cfg_empresa.get("convenios_descuento_pct", 0))
+
+    subtotal_bruto      = round(precio_hora * horas, 2)
+    desc_vol_val        = round(subtotal_bruto * (desc_vol_pct  / 100), 2)
+    after_vol           = subtotal_bruto - desc_vol_val
+    desc_conv_val       = round(after_vol   * (desc_conv_pct / 100), 2)
+    subtotal            = round(after_vol   - desc_conv_val, 2)
+    descuento_total_val = desc_vol_val + desc_conv_val
+    descuento_total_pct = round(descuento_total_val / subtotal_bruto * 100, 2) if subtotal_bruto > 0 else 0
+    iva                 = round(subtotal * IVA_PCT, 2)
+    total               = round(subtotal + iva, 2)
+
+    return {
+        "precio_hora":        precio_hora,
+        "horas":              horas,
+        "tarifa":             tarifa_nombre_log,
+        "descuento_pct":      descuento_total_pct,
+        "descuento_vol_pct":  desc_vol_pct,
+        "descuento_conv_pct": desc_conv_pct,
+        "descuento_val":      descuento_total_val,
+        "subtotal":           subtotal,
+        "iva":                iva,
+        "total":              total,
+    }
+
+
 def get_cubiculos() -> list:
     """
     Lee cubículos directamente desde Google Sheets (Cubiculos_Estado).
@@ -2435,57 +3316,61 @@ def liberar_cubiculo(cubiculo_id):
     reservas_gs = _gs_read_sheet("Reservas")
     for r in reservas_gs:
         if (_gs_val(r, "Cubiculo_Num") == num_cub and
-                _gs_val(r, "Estado_Pago") == "confirmado" and
+                _gs_val(r, "Estado_Pago") in ("confirmado", "pendiente") and
                 not _gs_val(r, "Hora_Fin_Real")):
             num_reserva = _gs_val(r, "Numero_Reserva")
             break
 
-    _, sh = get_active_client()
-    if sh:
-        # Actualizar Hora_Fin_Real en hoja Reservas
+    _, sh      = get_active_client()
+    _, sh_conv = get_active_client_convenios()
+
+    def _liberar_en_sh(sh_target):
+        if not sh_target:
+            return
+        # Actualizar Hora_Fin_Real en Reservas
         if num_reserva:
             try:
-                ws_r = _gs_get_or_create_ws(sh, "Reservas")
+                ws_r = _gs_get_or_create_ws(sh_target, "Reservas")
                 vals_r = ws_r.get_all_values()
-                if vals_r:
-                    hdr_r = vals_r[0]
-                    if "Hora_Fin_Real" in hdr_r and "Numero_Reserva" in hdr_r:
-                        ci_res = hdr_r.index("Numero_Reserva")
-                        ci_fin = hdr_r.index("Hora_Fin_Real")
-                        for i_r, row_r in enumerate(vals_r[1:], start=2):
-                            if len(row_r) > ci_res and str(row_r[ci_res]) == str(num_reserva):
-                                ws_r.update_cell(i_r, ci_fin + 1, hora_fin_real)
-                                break
+                if vals_r and "Hora_Fin_Real" in vals_r[0] and "Numero_Reserva" in vals_r[0]:
+                    ci_res = vals_r[0].index("Numero_Reserva")
+                    ci_fin = vals_r[0].index("Hora_Fin_Real")
+                    for i_r, row_r in enumerate(vals_r[1:], start=2):
+                        if len(row_r) > ci_res and str(row_r[ci_res]) == str(num_reserva):
+                            ws_r.update_cell(i_r, ci_fin + 1, hora_fin_real)
+                            break
             except Exception:
                 pass
-        # Actualizar estado cubículo a libre en Cubiculos_Estado
+        # Actualizar Cubiculos_Estado a libre
         try:
-            ws_c = _gs_get_or_create_ws(sh, "Cubiculos_Estado")
+            ws_c = _gs_get_or_create_ws(sh_target, "Cubiculos_Estado")
             vals_c = ws_c.get_all_values()
-            if vals_c:
-                hdr_c = vals_c[0]
-                if "Numero" in hdr_c and "Estado" in hdr_c:
-                    ci_num = hdr_c.index("Numero")
-                    ci_est = hdr_c.index("Estado")
-                    ci_cli = hdr_c.index("Cliente_Actual") if "Cliente_Actual" in hdr_c else -1
-                    ci_ini = hdr_c.index("Hora_Inicio") if "Hora_Inicio" in hdr_c else -1
-                    ci_fin2 = hdr_c.index("Hora_Fin_Prog") if "Hora_Fin_Prog" in hdr_c else -1
-                    ci_cod = hdr_c.index("Codigo_Acceso") if "Codigo_Acceso" in hdr_c else -1
-                    ci_tr = hdr_c.index("Tiempo_Rest_Min") if "Tiempo_Rest_Min" in hdr_c else -1
-                    for i_c, row_c in enumerate(vals_c[1:], start=2):
-                        if len(row_c) > ci_num and str(row_c[ci_num]) == str(num_cub):
-                            ws_c.update_cell(i_c, ci_est + 1, "libre")
-                            if ci_cli >= 0: ws_c.update_cell(i_c, ci_cli + 1, "")
-                            if ci_ini >= 0: ws_c.update_cell(i_c, ci_ini + 1, "")
-                            if ci_fin2 >= 0: ws_c.update_cell(i_c, ci_fin2 + 1, "")
-                            if ci_cod >= 0: ws_c.update_cell(i_c, ci_cod + 1, "")
-                            if ci_tr >= 0: ws_c.update_cell(i_c, ci_tr + 1, "")
-                            break
+            if vals_c and "Numero" in vals_c[0]:
+                hdr_c  = vals_c[0]
+                ci_num = hdr_c.index("Numero")
+                ci_est = hdr_c.index("Estado")         if "Estado"         in hdr_c else -1
+                ci_cli = hdr_c.index("Cliente_Actual") if "Cliente_Actual" in hdr_c else -1
+                ci_ini = hdr_c.index("Hora_Inicio")    if "Hora_Inicio"    in hdr_c else -1
+                ci_fin2= hdr_c.index("Hora_Fin_Prog")  if "Hora_Fin_Prog"  in hdr_c else -1
+                ci_cod = hdr_c.index("Codigo_Acceso")  if "Codigo_Acceso"  in hdr_c else -1
+                ci_tr  = hdr_c.index("Tiempo_Rest_Min")if "Tiempo_Rest_Min"in hdr_c else -1
+                for i_c, row_c in enumerate(vals_c[1:], start=2):
+                    if len(row_c) > ci_num and str(row_c[ci_num]) == str(num_cub):
+                        if ci_est >= 0: ws_c.update_cell(i_c, ci_est + 1, "libre")
+                        if ci_cli >= 0: ws_c.update_cell(i_c, ci_cli + 1, "")
+                        if ci_ini >= 0: ws_c.update_cell(i_c, ci_ini + 1, "")
+                        if ci_fin2>= 0: ws_c.update_cell(i_c, ci_fin2+ 1, "")
+                        if ci_cod >= 0: ws_c.update_cell(i_c, ci_cod + 1, "")
+                        if ci_tr  >= 0: ws_c.update_cell(i_c, ci_tr  + 1, "0")
+                        break
         except Exception:
             pass
-        _gs_invalidate_cache("Reservas", "Cubiculos_Estado")
 
-    # gs_sync_dashboard con reconexión automática (fuera del if sh:)
+    _liberar_en_sh(sh)
+    _liberar_en_sh(sh_conv)
+
+    # Invalidar caché y sincronizar dashboard
+    _gs_invalidate_cache("Reservas", "Cubiculos_Estado")
     gs_sync_dashboard(sh)
 
 
@@ -2823,8 +3708,6 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
     }
 
 
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # GENERACIÓN DE PDF (ticket térmico 80mm)
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2965,7 +3848,7 @@ h1{{color:#00d4ff;text-align:center;font-size:18px;}}
 
 def init_state():
     defaults = {
-        "pantalla":              "operador_login",  # La app SIEMPRE inicia en login de operador
+        "pantalla":              "operador_login",
         "cubiculo_sel":          None,
         "horas_sel":             1.0,
         "calc":                  None,
@@ -2974,11 +3857,14 @@ def init_state():
         "voucher":               None,
         "pago_confirmado":       False,
         "operador_ok":           False,
-        "operador_info":         {},               # Datos del operador activo
+        "operador_info":         {},
         "pin_intentos":          0,
         "modulo_op":             "dashboard",
         "_backup_fecha":         "",
-        "_procesando_reserva":   False,           # Guardia anti-doble-clic en confirmación
+        "_procesando_reserva":   False,
+        # ── Convenios ───────────────────────────────
+        "_conv_cfg_pendiente":   {},   # config pendiente de guardar por empresa
+        "_conv_emp_sel":         None, # empresa seleccionada en formulario de convenio
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -3309,13 +4195,13 @@ def show_seleccion():
 
     with col_left:
         st.markdown("#### ⏱️ ¿Cuánto tiempo necesitas?")
-        tiempos = {"30 min": 0.5, "1 hora": 1.0, "2 horas": 2.0,
+        tiempos = {"30 min": 0.3, "1 hora": 1.0, "2 horas": 2.0,
                    "3 horas": 3.0, "4 horas": 4.0, "⚙️ Personalizar": -1}
         cols_t  = st.columns(3)
         for i, (label, val) in enumerate(tiempos.items()):
             with cols_t[i % 3]:
                 sel = st.session_state.horas_sel
-                activo = (sel == val) or (val == -1 and sel not in [0.5,1,2,3,4])
+                activo = (sel == val) or (val == -1 and sel not in [0.3,1,2,3,4])
                 if st.button(label, key=f"btn_t_{i}",
                              type="primary" if activo else "secondary",
                              use_container_width=True):
@@ -3398,6 +4284,13 @@ def show_seleccion():
                 ir_a("datos")
         else:
             st.info("👆 Selecciona un cubículo libre para continuar")
+            # Verificar si hay cubículos ocupados por convenio
+            all_cubs = get_cubiculos()
+            conv_ocup = [c for c in all_cubs if c["estado"] == "ocupado"
+                        and c.get("cliente_actual","")]
+            if conv_ocup:
+                st.caption(f"ℹ️ {len(conv_ocup)} cubículo(s) ocupado(s) — "
+                           "puede incluir reservas de convenio")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3415,29 +4308,29 @@ def show_datos():
     _, col, _ = st.columns([1, 2, 1])
     with col:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        nombre = st.text_input("👤 Nombre completo *",
+        nombre = st.text_input("👤 Nombre completo *", key="datos_nombre",
                                placeholder="Ej: María García López",
                                value=st.session_state.cliente.get("nombre",""))
         c1, c2 = st.columns(2)
         with c1:
-            tipo_doc = st.selectbox("Tipo documento", ["CC", "Pasaporte", "CE", "NIT"])
+            tipo_doc = st.selectbox("Tipo documento", ["CC", "Pasaporte", "CE", "NIT"], key="datos_tipo_doc")
         with c2:
-            num_doc = st.text_input("N° de documento *",
+            num_doc = st.text_input("N° de documento *", key="datos_num_doc",
                                     placeholder="1234567890",
                                     value=st.session_state.cliente.get("numero_documento",""))
-        telefono = st.text_input("📱 Teléfono celular *",
+        telefono = st.text_input("📱 Teléfono celular *", key="datos_telefono",
                                  placeholder="310 555 0000",
                                  value=st.session_state.cliente.get("telefono",""))
-        email = st.text_input("📧 Email (opcional — para factura digital)",
+        email = st.text_input("📧 Email (opcional — para factura digital)", key="datos_email",
                               placeholder="tu@email.com",
                               value=st.session_state.cliente.get("email",""))
 
-        factura_emp = st.checkbox("🏢 Requiero factura a nombre de empresa")
+        factura_emp = st.checkbox("🏢 Requiero factura a nombre de empresa", key="datos_req_fact")
         razon_social = ""
         nit_emp = ""
         if factura_emp:
-            razon_social = st.text_input("Razón social", value=st.session_state.cliente.get("razon_social",""))
-            nit_emp      = st.text_input("NIT de la empresa", value=st.session_state.cliente.get("nit_empresa",""))
+            razon_social = st.text_input("Razón social", key="datos_razon_social", value=st.session_state.cliente.get("razon_social",""))
+            nit_emp      = st.text_input("NIT de la empresa", key="datos_nit_empresa", value=st.session_state.cliente.get("nit_empresa",""))
 
         st.markdown("</div>", unsafe_allow_html=True)
 
@@ -3756,7 +4649,7 @@ def _pago_otros(monto: int, ref: str):
     mp_link = get_config("mp_link", MP_LINK)
     metodo_sel = st.radio("Selecciona plataforma:",
                           ["PSE", "MercadoPago", "Transferencia bancaria", "Tarjeta (Datáfono)"],
-                          horizontal=True)
+                          horizontal=True, key="pago_otros_metodo")
 
     if metodo_sel == "PSE":
         st.info(f"**PSE · Referencia:** `{ref}` · **Monto:** {fmt_cop(monto)}")
@@ -4365,6 +5258,7 @@ def show_operador():
         todos_modulos = [
             ("🏠 Dashboard",        True),
             ("➕ Nueva Reserva",     "reservas" in permisos or es_admin),
+            ("🤝 Convenios",         "reservas" in permisos or es_admin),
             ("🛏️ Cubículos",        "reservas" in permisos or es_admin),
             ("⏳ Pagos Pendientes",  "pagos"    in permisos or es_admin),
             ("📊 Reportes",         "reportes"  in permisos or es_admin),
@@ -4378,7 +5272,9 @@ def show_operador():
         st.divider()
 
         drive_ok = GSPREAD_AVAILABLE and bool(get_config("drive_spreadsheet_id",""))
+        conv_ok  = GSPREAD_AVAILABLE and bool(get_config("convenios_spreadsheet_id",""))
         st.caption("🟢 Sync Drive activa" if drive_ok else "🔴 Drive sin configurar")
+        st.caption("🤝 Convenios activo" if conv_ok else "⚪ Convenios sin configurar")
 
         # ── Backup pendiente de descarga (Cloud) ─────────────────────────
         if st.session_state.get("_backup_cierre_bytes"):
@@ -4416,6 +5312,7 @@ def show_operador():
     mod_map = {
         "🏠 Dashboard":        _op_dashboard,
         "➕ Nueva Reserva":    _op_nueva_reserva,
+        "🤝 Convenios":        _op_convenios,
         "🛏️ Cubículos":        _op_cubiculos,
         "⏳ Pagos Pendientes":  _op_pagos_pendientes,
         "📊 Reportes":         _op_reportes,
@@ -4429,6 +5326,7 @@ def show_operador():
     _txt_map = {
         "dashboard":       _op_dashboard,
         "nueva reserva":   _op_nueva_reserva,
+        "convenios":       _op_convenios,
         "cubículos":       _op_cubiculos,
         "cubiculos":       _op_cubiculos,
         "pagos pendientes":_op_pagos_pendientes,
@@ -4462,7 +5360,7 @@ def _op_nueva_reserva():
     op = st.session_state.get("operador_info", {})
     st.caption(f"Operador: **{op.get('nombre','—')}** · Turno: {op.get('turno','—')}")
 
-    tab_rapido, tab_noche, tab_kiosk = st.tabs(["⚡ Formulario Rápido", "🌙 Noche Completa", "🖥️ Flujo Kiosco"])
+    tab_rapido, tab_kiosk, tab_conv = st.tabs(["⚡ Formulario Rápido", "🖥️ Flujo Kiosco", "🤝 Convenio Empresarial"])
 
     # ── TAB KIOSCO ────────────────────────────────────────────────────────────
     with tab_kiosk:
@@ -4897,14 +5795,14 @@ def _op_nueva_reserva():
         col_cub, col_hrs = st.columns(2)
         with col_cub:
             opciones_cub = {f"{c['numero']} — {c['nombre']}": c for c in cubiculos_libres}
-            sel_label    = st.selectbox("Cubículo libre", list(opciones_cub.keys()),
-                                        key="op_res_cubiculo")
+            sel_label    = st.selectbox("Cubículo libre", list(opciones_cub.keys()), key="seleccion_kiosk_cub",
+                                        index=0)
             cubiculo_sel = opciones_cub[sel_label]
 
         with col_hrs:
             horas_sel = st.number_input("Horas a reservar",
                                         min_value=0.5, max_value=18.0,
-                                        value=1.0, step=0.5, key="op_res_horas")
+                                        value=1.0, step=0.3, key="op_res_horas")
             calc = calcular_precio(horas_sel)
             st.markdown(f"""
             <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
@@ -4947,7 +5845,8 @@ def _op_nueva_reserva():
 
         # Paso 3: Método de pago con QR
         st.markdown("#### 💳 Paso 3 — Método de pago")
-        metodo_pago = st.selectbox("Método de pago", METODOS_PAGO,
+        metodo_pago = st.selectbox("Método de pago",
+                                   [m for m in METODOS_PAGO if m != "Convenio"],
                                    key="op_res_metodo")
 
         monto_total = int(calc["total"])
@@ -5111,6 +6010,10 @@ def _op_nueva_reserva():
                         st.session_state.pop(k, None)
                     st.rerun()
 
+    # ── TAB CONVENIO ──────────────────────────────────────────────────────────
+    with tab_conv:
+        _tab_convenio_reserva()
+
 
 def _op_dashboard():
     st.markdown("### 🏠 Dashboard Operacional")
@@ -5175,12 +6078,23 @@ def _op_dashboard():
     pend = sum(1 for r in pagos_gs if _gs_val(r, "Estado") == "pendiente")
 
     c1, c2, c3, c4, c5 = st.columns(5)
+    # Convenios pendientes del día
+    conv_hoy  = sum(1 for r in reservas_gs
+                    if _gs_val(r, "Metodo_Pago") == "Convenio"
+                    and _gs_fecha_ymd(r, "Creado_En") == today)
+    conv_monto = sum(_gs_float(r, "Total_COP") for r in reservas_gs
+                     if _gs_val(r, "Metodo_Pago") == "Convenio"
+                     and _gs_fecha_ymd(r, "Creado_En") == today)
+
     c1.metric("🟢 Libres",    libres)
     c2.metric("🔴 Ocupados",  ocupados)
     c3.metric("🔧 Mantenim.", manten)
     c4.metric("💰 Ingresos hoy", fmt_cop(ingresos_hoy))
     c5.metric("📋 Reservas hoy", reservas_hoy)
 
+    if conv_hoy > 0:
+        st.info(f"🤝 **{conv_hoy} reserva(s) de convenio hoy** · "
+                f"Monto: {fmt_cop(conv_monto)} COP (pendiente de cobro)")
     if pend > 0:
         st.warning(f"⚠️ {pend} pago(s) pendientes de confirmación")
 
@@ -5243,11 +6157,25 @@ def _op_cubiculos():
                 """, unsafe_allow_html=True)
     cubiculos = get_cubiculos()  # refrescar después de liberaciones
 
+    # Precargar reservas de convenio activas (una sola llamada a Sheets)
+    reservas_todas = _gs_read_sheet("Reservas")
+    conv_activas = {
+        _gs_val(r, "Cubiculo_Num"): _gs_val(r, "Nombre_Empresa", "Convenio")
+        for r in reservas_todas
+        if _gs_val(r, "Metodo_Pago") == "Convenio"
+        and _gs_val(r, "Estado_Pago") == "pendiente"
+        and not _gs_val(r, "Hora_Fin_Real")
+    }
+
     for cub in cubiculos:
         estado = cub["estado"]
         info   = ESTADOS_CUBICULO.get(estado, ESTADOS_CUBICULO["libre"])
         mins   = cub.get("minutos_restantes")
-        label_exp = f"{cub['numero']} — {info['label']} | WiFi: {cub['wifi_ssid']}"
+        conv_badge = ""
+        if cub["numero"] in conv_activas:
+            conv_badge = f" 🤝 {conv_activas[cub['numero']]}"
+
+        label_exp = f"{cub['numero']} — {info['label']} | WiFi: {cub['wifi_ssid']}{conv_badge}"
         if mins is not None and mins <= 10 and estado != "libre":
             label_exp += f" ⚠️ {fmt_tiempo(mins)}"
         with st.expander(label_exp):
@@ -5338,17 +6266,55 @@ def _op_cubiculos():
 def _op_pagos_pendientes():
     st.markdown("### ⏳ Pagos Pendientes de Confirmación")
 
+    # ── jjgt_pagos: pagos normales pendientes ────────────────────────────────
     pagos_gs    = _gs_read_sheet("Pagos")
     reservas_gs = _gs_read_sheet("Reservas")
-
-    # Construir mapa de reservas por Numero_Reserva
     res_map = {_gs_val(r, "Numero_Reserva"): r for r in reservas_gs}
+    pendientes_pagos = [r for r in pagos_gs if _gs_val(r, "Estado") == "pendiente"]
 
-    pendientes = [r for r in pagos_gs if _gs_val(r, "Estado") == "pendiente"]
+    # ── jjgt_convenios: pagos de convenio pendientes ─────────────────────────
+    _, sh_conv_pp = get_active_client_convenios()
+    pendientes_conv = []
+    res_map_conv    = {}
+    if sh_conv_pp:
+        try:
+            ws_pp_c = _gs_get_or_create_ws(sh_conv_pp, "Pagos")
+            vals_pp_c = ws_pp_c.get_all_values()
+            if vals_pp_c and len(vals_pp_c) > 1:
+                hdr_pp_c = vals_pp_c[0]
+                for row_pp_c in vals_pp_c[1:]:
+                    d = {hdr_pp_c[i]: (row_pp_c[i] if i < len(row_pp_c) else "")
+                         for i in range(len(hdr_pp_c))}
+                    if d.get("Estado","") == "pendiente":
+                        d["_fuente"] = "convenios"
+                        pendientes_conv.append(d)
+            ws_rr_c = _gs_get_or_create_ws(sh_conv_pp, "Reservas")
+            vals_rr_c = ws_rr_c.get_all_values()
+            if vals_rr_c and len(vals_rr_c) > 1:
+                hdr_rr_c = vals_rr_c[0]
+                for row_rr_c in vals_rr_c[1:]:
+                    d2 = {hdr_rr_c[i]: (row_rr_c[i] if i < len(row_rr_c) else "")
+                          for i in range(len(hdr_rr_c))}
+                    num = d2.get("Numero_Reserva","")
+                    if num:
+                        res_map_conv[num] = d2
+        except Exception:
+            pass
+
+    # Combinar: marcar origen
+    for p in pendientes_pagos:
+        p["_fuente"] = "pagos"
+
+    pendientes = pendientes_pagos + pendientes_conv
 
     if not pendientes:
         st.success("✅ No hay pagos pendientes en este momento.")
         return
+
+    n_conv = len(pendientes_conv)
+    n_norm = len(pendientes_pagos)
+    if n_conv > 0:
+        st.info(f"📋 {n_norm} pago(s) normales + 🤝 {n_conv} pago(s) de convenio pendientes")
 
     for pag in pendientes:
         pago_id  = _gs_val(pag, "ID_Pago")
@@ -5356,19 +6322,32 @@ def _op_pagos_pendientes():
         monto    = _gs_float(pag, "Monto_COP")
         metodo   = _gs_val(pag, "Metodo")
         fecha    = _gs_val(pag, "Fecha_Pago")
-        res_data = res_map.get(num_res, {})
-        cliente  = _gs_val(res_data, "Cliente_Nombre", "—")
-        horas    = _gs_val(res_data, "Horas_Contratadas", "—")
-        cub_num  = _gs_val(res_data, "Cubiculo_Num", "—")
+        fuente   = pag.get("_fuente", "pagos")
+        # Buscar datos de reserva en el mapa correcto según el origen del pago
+        if fuente == "convenios":
+            res_data = res_map_conv.get(num_res, {})
+        else:
+            res_data = res_map.get(num_res, {})
+        cliente  = res_data.get("Cliente_Nombre", _gs_val(res_data, "Cliente_Nombre", "—"))
+        horas    = res_data.get("Horas_Contratadas", _gs_val(res_data, "Horas_Contratadas", "—"))
+        cub_num  = res_data.get("Cubiculo_Num", _gs_val(res_data, "Cubiculo_Num", "—"))
 
         with st.container():
+            # Identificar si es convenio
+            es_convenio  = (metodo == "Convenio")
+            empresa_pend = _gs_val(res_data, "Nombre_Empresa", "") if es_convenio else ""
+            color_borde  = "rgba(162,155,254,0.4)" if es_convenio else "rgba(255,211,42,0.4)"
+            color_num    = "#a29bfe" if es_convenio else "#ffd32a"
+            badge        = f" 🤝 <b style='color:#a29bfe'>CONVENIO: {empresa_pend}</b>" if es_convenio else ""
+
             st.markdown(f"""
-            <div style="background:rgba(255,211,42,0.1);border:1px solid rgba(255,211,42,0.4);
+            <div style="background:rgba(255,211,42,0.08);border:1px solid {color_borde};
                         border-radius:12px;padding:16px;margin-bottom:12px">
               <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
                 <div>
-                  <b style="color:#ffd32a">{num_res}</b> · {cliente}<br>
+                  <b style="color:{color_num}">{num_res}</b> · {cliente}{badge}<br>
                   <span style="color:#94a3b8">{metodo} · {fmt_cop(monto)} COP · {horas}h · Cubículo {cub_num}</span>
+                  {'<br><span style="color:#a29bfe;font-size:12px">Registrado en jjgt_convenios</span>' if es_convenio else ''}
                 </div>
               </div>
             </div>
@@ -5381,37 +6360,106 @@ def _op_pagos_pendientes():
                 if st.button(f"✅ CONFIRMAR PAGO", key=f"conf_{pago_id}",
                              type="primary", use_container_width=True):
                     if verificar_pin(pin_conf):
-                        _, sh_conf = get_active_client()
+                        _, sh_conf      = get_active_client()
+                        _, sh_conv_conf = get_active_client_convenios()
+
+                        def _confirmar_en_sh(sh_target, id_pago_val, num_res_val):
+                            """Confirma pago y reserva en el spreadsheet indicado."""
+                            if not sh_target:
+                                return
+                            try:
+                                ws_cp = _gs_get_or_create_ws(sh_target, "Pagos")
+                                vp = ws_cp.get_all_values()
+                                if vp and "ID_Pago" in vp[0] and "Estado" in vp[0]:
+                                    ci_idp = vp[0].index("ID_Pago")
+                                    ci_ep  = vp[0].index("Estado")
+                                    for ip, rp in enumerate(vp[1:], start=2):
+                                        if len(rp) > ci_idp and str(rp[ci_idp]) == str(id_pago_val):
+                                            ws_cp.update_cell(ip, ci_ep+1, "confirmado")
+                                            break
+                            except Exception: pass
+                            try:
+                                ws_cr = _gs_get_or_create_ws(sh_target, "Reservas")
+                                vr = ws_cr.get_all_values()
+                                if vr and "Numero_Reserva" in vr[0] and "Estado_Pago" in vr[0]:
+                                    ci_nr = vr[0].index("Numero_Reserva")
+                                    ci_ep2 = vr[0].index("Estado_Pago")
+                                    for ir, rr in enumerate(vr[1:], start=2):
+                                        if len(rr) > ci_nr and rr[ci_nr] == num_res_val:
+                                            ws_cr.update_cell(ir, ci_ep2+1, "confirmado")
+                                            break
+                            except Exception: pass
+                            try:
+                                ws_cf = _gs_get_or_create_ws(sh_target, "Facturas")
+                                vf = ws_cf.get_all_values()
+                                if vf and "Num_Reserva" in vf[0] and "Estado" in vf[0]:
+                                    ci_nrf = vf[0].index("Num_Reserva")
+                                    ci_ef  = vf[0].index("Estado")
+                                    for iff, rf in enumerate(vf[1:], start=2):
+                                        if len(rf) > ci_nrf and rf[ci_nrf] == num_res_val:
+                                            ws_cf.update_cell(iff, ci_ef+1, "confirmado")
+                                            break
+                            except Exception: pass
+
+                        if fuente == "convenios":
+                            # Pago de convenio: actualizar SOLO en jjgt_convenios
+                            _confirmar_en_sh(sh_conv_conf, pago_id, num_res)
+                            if sh_conv_conf:
+                                try:
+                                    _gs_sync_dashboard_convenios(sh_conv_conf)
+                                except Exception: pass
+                        else:
+                            # Pago normal: actualizar en jjgt_pagos
+                            _confirmar_en_sh(sh_conf, pago_id, num_res)
+
                         if sh_conf:
-                            # Actualizar estado en Sheets
-                            try:
-                                ws_p = _gs_get_or_create_ws(sh_conf, "Pagos")
-                                vals_p = ws_p.get_all_values()
-                                if vals_p and "ID_Pago" in vals_p[0] and "Estado" in vals_p[0]:
-                                    ci_id = vals_p[0].index("ID_Pago")
-                                    ci_est = vals_p[0].index("Estado")
-                                    for i_p, r_p in enumerate(vals_p[1:], start=2):
-                                        if len(r_p) > ci_id and str(r_p[ci_id]) == str(pago_id):
-                                            ws_p.update_cell(i_p, ci_est + 1, "confirmado")
-                                            break
-                            except Exception:
-                                pass
-                            # Actualizar estado reserva en Sheets
-                            try:
-                                ws_r2 = _gs_get_or_create_ws(sh_conf, "Reservas")
-                                vals_r2 = ws_r2.get_all_values()
-                                if vals_r2 and "Numero_Reserva" in vals_r2[0] and "Estado_Pago" in vals_r2[0]:
-                                    ci_nr = vals_r2[0].index("Numero_Reserva")
-                                    ci_ep = vals_r2[0].index("Estado_Pago")
-                                    for i_r2, r_r2 in enumerate(vals_r2[1:], start=2):
-                                        if len(r_r2) > ci_nr and r_r2[ci_nr] == num_res:
-                                            ws_r2.update_cell(i_r2, ci_ep + 1, "confirmado")
-                                            break
-                            except Exception:
-                                pass
                             gs_sync_cubiculos(sh_conf)
                             gs_sync_dashboard(sh_conf)
-                            _gs_invalidate_cache("Pagos", "Reservas", "Cubiculos_Estado")
+                            _gs_invalidate_cache("Pagos", "Reservas", "Cubiculos_Estado",
+                                                 "Facturas", "Dashboard_Diario")
+                            # Si era un convenio en jjgt_convenios (fuente anterior),
+                            # ya se confirmó arriba directamente
+                            if metodo == "Convenio" and fuente != "convenios":
+                                # Convenio que por alguna razón estaba en jjgt_pagos
+                                _, sh_conv_conf = get_active_client_convenios()
+                                if sh_conv_conf:
+                                    try:
+                                        # Actualizar Pagos en jjgt_convenios
+                                        ws_pc2 = _gs_get_or_create_ws(sh_conv_conf, "Pagos")
+                                        vals_pc2 = ws_pc2.get_all_values()
+                                        if vals_pc2 and "Num_Reserva" in vals_pc2[0]:
+                                            ci_nr2 = vals_pc2[0].index("Num_Reserva")
+                                            ci_e2  = vals_pc2[0].index("Estado") if "Estado" in vals_pc2[0] else -1
+                                            for i_pc2, r_pc2 in enumerate(vals_pc2[1:], start=2):
+                                                if len(r_pc2) > ci_nr2 and r_pc2[ci_nr2] == num_res:
+                                                    if ci_e2 >= 0:
+                                                        ws_pc2.update_cell(i_pc2, ci_e2 + 1, "confirmado")
+                                                    break
+                                        # Actualizar Reservas en jjgt_convenios
+                                        ws_rc2 = _gs_get_or_create_ws(sh_conv_conf, "Reservas")
+                                        vals_rc2 = ws_rc2.get_all_values()
+                                        if vals_rc2 and "Numero_Reserva" in vals_rc2[0]:
+                                            ci_nr3 = vals_rc2[0].index("Numero_Reserva")
+                                            ci_ep2 = vals_rc2[0].index("Estado_Pago") if "Estado_Pago" in vals_rc2[0] else -1
+                                            for i_rc2, r_rc2 in enumerate(vals_rc2[1:], start=2):
+                                                if len(r_rc2) > ci_nr3 and r_rc2[ci_nr3] == num_res:
+                                                    if ci_ep2 >= 0:
+                                                        ws_rc2.update_cell(i_rc2, ci_ep2 + 1, "confirmado")
+                                                    break
+                                        # Actualizar Facturas en jjgt_convenios
+                                        ws_fc2 = _gs_get_or_create_ws(sh_conv_conf, "Facturas")
+                                        vals_fc2 = ws_fc2.get_all_values()
+                                        if vals_fc2 and "Num_Reserva" in vals_fc2[0]:
+                                            ci_nr4 = vals_fc2[0].index("Num_Reserva")
+                                            ci_ef2 = vals_fc2[0].index("Estado") if "Estado" in vals_fc2[0] else -1
+                                            for i_fc2, r_fc2 in enumerate(vals_fc2[1:], start=2):
+                                                if len(r_fc2) > ci_nr4 and r_fc2[ci_nr4] == num_res:
+                                                    if ci_ef2 >= 0:
+                                                        ws_fc2.update_cell(i_fc2, ci_ef2 + 1, "confirmado")
+                                                    break
+                                        _gs_sync_dashboard_convenios(sh_conv_conf)
+                                    except Exception:
+                                        pass
                         st.success(f"✅ Pago {num_res} confirmado")
                         st.rerun()
                     else:
@@ -5445,12 +6493,18 @@ def _op_pagos_pendientes():
 
 def generar_backup_diario():
     """
-    Genera un backup completo descargando todas las hojas desde Google Sheets.
+    Genera backup completo desde jjgt_pagos Y jjgt_convenios (si configurado).
     Retorna (bytes, filename, mimetype).
     """
     now_str = ahora_col().strftime("%Y-%m-%d_%H%M")
     hojas = ["Reservas","Pagos","Clientes","Facturas","Factura_items",
              "Cubiculos_Estado","Tarifas_Config","Operadores","Configuracion_Pagos"]
+    hojas_conv = [
+        "Empresa", "Reservas", "Pagos", "Clientes",
+        "Facturas", "Factura_items", "Dashboard_Diario",
+        "Cubiculos_Estado", "Tarifas_Config", "Operadores",
+        "Configuracion_Pagos", "Log_Operaciones",
+    ]
 
     if OPENPYXL_AVAILABLE:
         buf = io.BytesIO()
@@ -5460,6 +6514,23 @@ def generar_backup_diario():
                     data_h = _gs_read_sheet(hoja)
                     if data_h:
                         pd.DataFrame(data_h).to_excel(writer, sheet_name=hoja[:31], index=False)
+                except Exception:
+                    pass
+            # Agregar hojas de jjgt_convenios al backup
+            sid_conv_bk = get_config("convenios_spreadsheet_id", "")
+            if sid_conv_bk:
+                try:
+                    _, sh_conv_bk = get_active_client_convenios()
+                    if sh_conv_bk:
+                        for hoja_c in hojas_conv:
+                            try:
+                                ws_bk = _gs_get_or_create_ws(sh_conv_bk, hoja_c)
+                                vals_bk = ws_bk.get_all_values()
+                                if vals_bk and len(vals_bk) > 1:
+                                    pd.DataFrame(vals_bk[1:], columns=vals_bk[0]).to_excel(
+                                        writer, sheet_name=f"C_{hoja_c[:28]}", index=False)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
         return buf.getvalue(), f"backup_jjgt_{now_str}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -5472,6 +6543,23 @@ def generar_backup_diario():
                     data_h = _gs_read_sheet(hoja)
                     if data_h:
                         zf.writestr(f"{hoja}.csv", pd.DataFrame(data_h).to_csv(index=False))
+                except Exception:
+                    pass
+            # Agregar datos de jjgt_convenios al ZIP
+            sid_conv_bkz = get_config("convenios_spreadsheet_id", "")
+            if sid_conv_bkz:
+                try:
+                    _, sh_conv_bkz = get_active_client_convenios()
+                    if sh_conv_bkz:
+                        for hoja_cz in hojas_conv:
+                            try:
+                                ws_bkz = _gs_get_or_create_ws(sh_conv_bkz, hoja_cz)
+                                vals_bkz = ws_bkz.get_all_values()
+                                if vals_bkz and len(vals_bkz) > 1:
+                                    csv_bkz = pd.DataFrame(vals_bkz[1:], columns=vals_bkz[0]).to_csv(index=False).encode()
+                                    zf.writestr(f"convenios_{hoja_cz}.csv", csv_bkz)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
         return buf.getvalue(), f"backup_jjgt_{now_str}.zip", "application/zip"
@@ -5680,7 +6768,18 @@ def generar_reporte_pdf(rows: list, desde: str, hasta: str,
 
 def _op_reportes():
     st.markdown("### 📊 Reportes")
-    periodo = st.selectbox("Período", ["Hoy", "Esta semana", "Este mes", "Histórico"])
+    tab_rep_normal, tab_rep_conv = st.tabs(["📋 Reservas Generales", "🤝 Convenios"])
+
+    with tab_rep_normal:
+        _op_reportes_core()
+    with tab_rep_conv:
+        _op_reportes_convenio()
+
+
+def _op_reportes_core():
+    """Reporte de reservas (todas excepto convenio puro)."""
+    periodo = st.selectbox("Período", ["Hoy", "Esta semana", "Este mes", "Histórico"],
+                           key="rep_core_periodo")
     today   = ahora_col()
 
     if periodo == "Hoy":
@@ -5719,9 +6818,15 @@ def _op_reportes():
     completadas  = sum(1 for r in rows if r["Estado"] == "confirmado")
 
     c1, c2, c3 = st.columns(3)
-    c1.metric("Total reservas",  total_res)
-    c2.metric("Completadas",     completadas)
-    c3.metric("Ingresos",        fmt_cop(total_ing))
+    conv_rep  = sum(1 for r in rows if r["Método"] == "Convenio")
+    conv_mont = sum(r["Total"] for r in rows if r["Método"] == "Convenio")
+
+    c1.metric("Total reservas",      total_res)
+    c2.metric("Completadas",         completadas)
+    c3.metric("Ingresos confirmados",fmt_cop(total_ing))
+    if conv_rep > 0:
+        st.info(f"🤝 **{conv_rep} reserva(s) de convenio** en el período · "
+                f"Monto pendiente: **{fmt_cop(conv_mont)} COP** (no incluido en ingresos)")
 
     if rows:
         df = pd.DataFrame(rows)
@@ -5823,6 +6928,131 @@ def _op_reportes():
 
 
 
+
+def _op_reportes_convenio():
+    """Reporte exclusivo de reservas de convenio desde jjgt_pagos (Metodo_Pago == Convenio)."""
+    st.markdown("#### 🤝 Reporte de Convenios")
+
+    periodo_c = st.selectbox("Período", ["Hoy","Esta semana","Este mes","Histórico"],
+                              key="rep_conv_periodo")
+    today_c   = ahora_col()
+    if   periodo_c == "Hoy":
+        desde_c = today_c.strftime("%Y-%m-%d"); hasta_c = desde_c
+    elif periodo_c == "Esta semana":
+        desde_c = (today_c - timedelta(days=today_c.weekday())).strftime("%Y-%m-%d")
+        hasta_c = today_c.strftime("%Y-%m-%d")
+    elif periodo_c == "Este mes":
+        desde_c = today_c.strftime("%Y-%m-01"); hasta_c = today_c.strftime("%Y-%m-%d")
+    else:
+        desde_c = "2020-01-01"; hasta_c = today_c.strftime("%Y-%m-%d")
+
+    # Leer de jjgt_convenios → hoja Reservas (fuente correcta de datos de convenio)
+    _, sh_rep_c = get_active_client_convenios()
+    if not sh_rep_c:
+        st.warning("⚠️ jjgt_convenios no configurado. Ve a ⚙️ Configuración → Convenios.")
+        return
+    rows_c = []
+    try:
+        reservas_conv = _gs_read_sheet_conv("Reservas", force=False)
+        for r in reservas_conv:
+            fecha_r = _gs_fecha_ymd(r, "Creado_En")
+            if desde_c <= fecha_r <= hasta_c:
+                rows_c.append({
+                    "Reserva":   _gs_val(r,"Numero_Reserva"),
+                    "Empresa":   _gs_val(r,"Nombre_Empresa","—"),
+                    "Id_Empresa":_gs_val(r,"Id_Empresa",""),
+                    "Cliente":   _gs_val(r,"Cliente_Nombre"),
+                    "Cubículo":  _gs_val(r,"Cubiculo_Num"),
+                    "Horas":     _gs_float(r,"Horas_Contratadas"),
+                    "Total":     _gs_float(r,"Total_COP"),
+                    "Estado":    _gs_val(r,"Estado_Pago"),
+                    "Fecha":     fecha_r,
+                })
+    except Exception as e_rep:
+        st.error(f"Error leyendo jjgt_convenios → Reservas: {e_rep}")
+        return
+
+    total_c   = sum(r["Total"] for r in rows_c)
+    pend_c    = sum(r["Total"] for r in rows_c if r["Estado"] == "pendiente")
+    conf_c    = sum(r["Total"] for r in rows_c if r["Estado"] == "confirmado")
+    n_emp_c   = len({r["Empresa"] for r in rows_c})
+
+    mc1,mc2,mc3,mc4,mc5 = st.columns(5)
+    mc1.metric("Reservas conv.",    len(rows_c))
+    mc2.metric("Empresas",          n_emp_c)
+    mc3.metric("Total facturado",   fmt_cop(total_c))
+    mc4.metric("Pendiente cobro",   fmt_cop(pend_c))
+    mc5.metric("Confirmado",        fmt_cop(conf_c))
+
+    if rows_c:
+        df_rc = pd.DataFrame(rows_c)
+        df_rc_disp = df_rc.copy()
+        df_rc_disp["Total"]    = df_rc_disp["Total"].apply(fmt_cop)
+        df_rc_disp["Descuento"]= df_rc_disp["Descuento"].apply(fmt_cop)
+        st.dataframe(df_rc_disp, use_container_width=True, hide_index=True)
+
+        # Resumen por empresa
+        st.divider()
+        st.markdown("**Resumen por empresa:**")
+        emp_res = {}
+        for r in rows_c:
+            emp = r["Empresa"]
+            if emp not in emp_res:
+                emp_res[emp] = {"Empresa":emp,"Reservas":0,"Total":0.0,"Pendiente":0.0}
+            emp_res[emp]["Reservas"]  += 1
+            emp_res[emp]["Total"]     += r["Total"]
+            if r["Estado"] == "pendiente":
+                emp_res[emp]["Pendiente"] += r["Total"]
+        df_emp = pd.DataFrame(list(emp_res.values()))
+        df_emp["Total"]     = df_emp["Total"].apply(fmt_cop)
+        df_emp["Pendiente"] = df_emp["Pendiente"].apply(fmt_cop)
+        st.dataframe(df_emp, use_container_width=True, hide_index=True)
+
+        col_exp1, col_exp2 = st.columns(2)
+        with col_exp1:
+            st.download_button(
+                "📥 Exportar CSV Convenios",
+                data=pd.DataFrame(rows_c).to_csv(index=False).encode(),
+                file_name=f"convenios_{desde_c}_{hasta_c}.csv",
+                mime="text/csv", use_container_width=True)
+        with col_exp2:
+            if OPENPYXL_AVAILABLE:
+                buf_rc = io.BytesIO()
+                with pd.ExcelWriter(buf_rc, engine="openpyxl") as writer:
+                    pd.DataFrame(rows_c).to_excel(writer,
+                        sheet_name="Reservas_Convenios", index=False)
+                    pd.DataFrame(list({e["Empresa"]:e for e in list(emp_res.values())}.values())).to_excel(
+                        writer, sheet_name="Resumen_Empresa", index=False)
+                st.download_button(
+                    "📊 Exportar Excel Convenios",
+                    data=buf_rc.getvalue(),
+                    file_name=f"reporte_convenios_{desde_c}_{hasta_c}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    use_container_width=True)
+
+        # También leer de jjgt_convenios si está configurado
+        _, sh_rc = get_active_client_convenios()
+        if sh_rc:
+            with st.expander("📂 Ver datos completos en jjgt_convenios"):
+                try:
+                    ws_rc = _gs_get_or_create_ws(sh_rc, "Reservas")
+                    vals_rc = ws_rc.get_all_values()
+                    if vals_rc and len(vals_rc) > 1:
+                        df_jjgt_c = pd.DataFrame(vals_rc[1:], columns=vals_rc[0])
+                        st.success(f"✅ {len(df_jjgt_c)} registros en jjgt_convenios → Reservas")
+                        st.dataframe(df_jjgt_c, use_container_width=True, hide_index=True)
+                        st.download_button(
+                            "📥 Descargar Reservas jjgt_convenios",
+                            data=df_jjgt_c.to_csv(index=False).encode(),
+                            file_name=f"jjgt_conv_reservas_{today_c.strftime('%Y%m%d')}.csv",
+                            mime="text/csv", use_container_width=True)
+                    else:
+                        st.info("jjgt_convenios → Reservas vacía o sin datos.")
+                except Exception as e:
+                    st.error(f"Error leyendo jjgt_convenios: {e}")
+    else:
+        st.info("No hay reservas de convenio para el período seleccionado.")
+
 def _op_gestion_datos():
     """
     Módulo de gestión de datos — permite al admin eliminar registros
@@ -5836,8 +7066,8 @@ def _op_gestion_datos():
         st.error("❌ Solo los administradores pueden acceder a esta sección.")
         return
 
-    tab_res, tab_cli, tab_pag, tab_fact = st.tabs([
-        "📋 Reservas", "👤 Clientes", "💰 Pagos", "🧾 Facturas"])
+    tab_res, tab_cli, tab_pag, tab_fact, tab_gd_conv = st.tabs([
+        "📋 Reservas", "👤 Clientes", "💰 Pagos", "🧾 Facturas", "🤝 Convenios"])
 
     def _gs_delete_row(sh, hoja, col_clave, valor_clave):
         """Elimina una fila en Sheets buscando por col_clave == valor_clave."""
@@ -5934,7 +7164,7 @@ def _op_gestion_datos():
             with col_c1:
                 cli_opts = {f"{_gs_val(r,'Nombre')} ({_gs_val(r,'Num_Doc') or 'sin doc'})": _gs_val(r,"Num_Doc")
                             for r in clientes_gs if _gs_val(r, "Nombre")}
-                sel_cli = st.selectbox("Seleccionar cliente", list(cli_opts.keys()), key="del_cli_sel")
+                sel_cli = st.selectbox("Seleccionar cliente", list(cli_opts.keys()), key="gd_pagos_cli_sel", index=0)
                 cli_doc_str = cli_opts[sel_cli]
             with col_c2:
                 pin_del_c = st.text_input("PIN admin", type="password", key="del_cli_pin")
@@ -5980,7 +7210,7 @@ def _op_gestion_datos():
             with col_p1:
                 pago_opts = {f"#{_gs_val(r,'ID_Pago')} — {_gs_val(r,'Num_Reserva')} — {fmt_cop(_gs_float(r,'Monto_COP'))}":
                              _gs_val(r, "ID_Pago") for r in pagos_gs if _gs_val(r, "ID_Pago")}
-                sel_pago_id = st.selectbox("Seleccionar pago", list(pago_opts.keys()), key="del_pago_sel")
+                sel_pago_id = st.selectbox("Seleccionar pago", list(pago_opts.keys()), key="gd_pagos_pag_sel", index=0)
                 sel_pago_key = pago_opts[sel_pago_id]
             with col_p2:
                 pin_del_p = st.text_input("PIN admin", type="password", key="del_pago_pin")
@@ -6023,7 +7253,7 @@ def _op_gestion_datos():
             with col_f1:
                 fact_opts = {f"{_gs_val(r,'Num_Factura')} — {_gs_val(r,'Cliente__id')}":
                              _gs_val(r, "Num_Factura") for r in facturas_gs if _gs_val(r, "Num_Factura")}
-                sel_fact_num = st.selectbox("Seleccionar factura", list(fact_opts.keys()), key="del_fact_sel")
+                sel_fact_num = st.selectbox("Seleccionar factura", list(fact_opts.keys()), key="gd_pagos_fac_sel",index=0)
                 sel_fact_key = fact_opts[sel_fact_num]
             with col_f2:
                 pin_del_f = st.text_input("PIN admin", type="password", key="del_fact_pin")
@@ -6046,12 +7276,259 @@ def _op_gestion_datos():
                         _gs_invalidate_cache("Facturas", "Factura_items")
                     st.rerun()
 
+    # ── TAB CONVENIOS ─────────────────────────────────────────────────────────
+    with tab_gd_conv:
+        st.markdown("#### 🤝 Gestión de datos de Convenios")
+        st.caption("Operaciones sobre jjgt_convenios: Reservas, Clientes, Pagos, Facturas y Empresas.")
 
+        _, sh_gd_conv = get_active_client_convenios()
+        if not sh_gd_conv:
+            st.warning("⚠️ jjgt_convenios no configurado. Ve a ⚙️ Configuración → Convenios.")
+        else:
+            sub_gd_res, sub_gd_cli, sub_gd_pag, sub_gd_fact, sub_gd_emp = st.tabs([
+                "📋 Reservas Conv.", "👤 Clientes Conv.",
+                "💰 Pagos Conv.", "🧾 Facturas Conv.", "🏢 Empresas"])
+
+            # ── Sub-tab: Reservas de convenio ─────────────────────────────────
+            with sub_gd_res:
+                st.markdown("**Eliminar reservas de jjgt_convenios**")
+                if st.button("🔄 Actualizar lista", key="btn_reload_gd_res"):
+                    _gs_invalidate_cache_conv("Reservas")
+                try:
+                    res_conv_gd = _gs_read_sheet_conv("Reservas", force=False)
+                    if not res_conv_gd:
+                        st.info("No hay reservas en jjgt_convenios.")
+                    else:
+                        st.dataframe(pd.DataFrame([{
+                            "Reserva":  r.get("Numero_Reserva",""),
+                            "Empresa":  r.get("Nombre_Empresa","—"),
+                            "Cliente":  r.get("Cliente_Nombre",""),
+                            "Estado":   r.get("Estado_Pago",""),
+                            "Total":    fmt_cop(float(r.get("Total_COP","0") or 0)),
+                            "Fecha":    r.get("Creado_En","")[:10],
+                        } for r in res_conv_gd]), use_container_width=True, hide_index=True)
+                        col_gr1, col_gr2 = st.columns([2,1])
+                        with col_gr1:
+                            opts_gr = {f"{r.get('Numero_Reserva','')} — {r.get('Nombre_Empresa','—')} — {r.get('Cliente_Nombre','')}":
+                                       r.get("Numero_Reserva","") for r in res_conv_gd if r.get("Numero_Reserva")}
+                            sel_gr = st.selectbox("Reserva a eliminar", list(opts_gr.keys()), key="gd_conv_res_eliminar_sel")
+                            sel_gr_k = opts_gr.get(sel_gr,"")
+                        with col_gr2:
+                            pin_gr = st.text_input("PIN admin", type="password", key="gd_conv_res_pin")
+                        if st.button("🗑️ Eliminar reserva de jjgt_convenios", type="primary",
+                                     use_container_width=True, key="btn_gd_conv_res"):
+                            if not verificar_pin(pin_gr, "admin"):
+                                st.error("PIN admin incorrecto")
+                            elif sel_gr_k:
+                                try:
+                                    _gs_delete_row(sh_gd_conv, "Reservas", "Numero_Reserva", sel_gr_k)
+                                    _gs_delete_row(sh_gd_conv, "Pagos",    "Num_Reserva",    sel_gr_k)
+                                    st.success(f"✅ Reserva {sel_gr_k} eliminada de jjgt_convenios")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                except Exception as e:
+                    st.error(f"Error accediendo a jjgt_convenios: {e}")
+
+            # ── Sub-tab: Clientes de convenio ─────────────────────────────────
+            with sub_gd_cli:
+                st.markdown("**Eliminar clientes de jjgt_convenios**")
+                if st.button("🔄 Actualizar lista", key="btn_reload_gd_cli"):
+                    _gs_invalidate_cache_conv("Clientes")
+                try:
+                    cli_conv_gd = _gs_read_sheet_conv("Clientes", force=False)
+                    if not cli_conv_gd:
+                        st.info("No hay clientes en jjgt_convenios.")
+                    else:
+                        st.dataframe(pd.DataFrame([{
+                            "Nombre":  c.get("Nombre",""), "Doc": c.get("Num_Doc",""),
+                            "Empresa": c.get("Nombre_Empresa","—"),
+                        } for c in cli_conv_gd]), use_container_width=True, hide_index=True)
+                        col_gc1, col_gc2 = st.columns([2,1])
+                        with col_gc1:
+                            opts_gc = {f"{c.get('Nombre','')} — {c.get('Num_Doc','')}":
+                                       c.get("Num_Doc","") for c in cli_conv_gd if c.get("Num_Doc")}
+                            sel_gc = st.selectbox("Cliente a eliminar", list(opts_gc.keys()), key="gd_conv_cli_sel")
+                            sel_gc_k = opts_gc.get(sel_gc,"")
+                        with col_gc2:
+                            pin_gc = st.text_input("PIN admin", type="password", key="gd_conv_cli_pin")
+                        if st.button("🗑️ Eliminar cliente de jjgt_convenios", type="primary",
+                                     use_container_width=True, key="btn_gd_conv_cli"):
+                            if not verificar_pin(pin_gc, "admin"):
+                                st.error("PIN admin incorrecto")
+                            elif sel_gc_k:
+                                _gs_delete_row(sh_gd_conv, "Clientes", "Num_Doc", sel_gc_k)
+                                st.success(f"✅ Cliente eliminado de jjgt_convenios")
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+            # ── Sub-tab: Pagos de convenio ────────────────────────────────────
+            with sub_gd_pag:
+                st.markdown("**Anular / eliminar pagos de jjgt_convenios**")
+                if st.button("🔄 Actualizar lista", key="btn_reload_gd_pag"):
+                    _gs_invalidate_cache_conv("Pagos")
+                try:
+                    pag_conv_gd = _gs_read_sheet_conv("Pagos", force=False)
+                    if not pag_conv_gd:
+                        st.info("No hay pagos en jjgt_convenios.")
+                    else:
+                        st.dataframe(pd.DataFrame([{
+                            "ID":      p.get("ID_Pago",""), "Reserva": p.get("Num_Reserva",""),
+                            "Empresa": p.get("Nombre_Empresa","—"),
+                            "Monto":   fmt_cop(float(p.get("Monto_COP","0") or 0)),
+                            "Estado":  p.get("Estado",""),
+                        } for p in pag_conv_gd]), use_container_width=True, hide_index=True)
+                        col_gp1, col_gp2 = st.columns([2,1])
+                        with col_gp1:
+                            opts_gp = {f"#{p.get('ID_Pago','')} — {p.get('Num_Reserva','')} — {p.get('Nombre_Empresa','—')}":
+                                       p.get("ID_Pago","") for p in pag_conv_gd if p.get("ID_Pago")}
+                            sel_gp = st.selectbox("Pago a gestionar", list(opts_gp.keys()), key="gd_conv_pag_sel")
+                            sel_gp_k = opts_gp.get(sel_gp,"")
+                        with col_gp2:
+                            pin_gp = st.text_input("PIN admin", type="password", key="gd_conv_pag_pin")
+                        accion_gp = st.radio("Acción", ["Anular (marcar como anulado)", "Eliminar definitivamente"],
+                                             key="gd_conv_pag_accion", horizontal=True)
+                        if st.button("✅ Aplicar acción al pago", type="primary",
+                                     use_container_width=True, key="btn_gd_conv_pag"):
+                            if not verificar_pin(pin_gp, "admin"):
+                                st.error("PIN admin incorrecto")
+                            elif sel_gp_k:
+                                if "Anular" in accion_gp:
+                                    try:
+                                        ws_gdp2 = _gs_get_or_create_ws(sh_gd_conv, "Pagos")
+                                        v2 = ws_gdp2.get_all_values()
+                                        if v2 and "ID_Pago" in v2[0] and "Estado" in v2[0]:
+                                            ci_id2 = v2[0].index("ID_Pago")
+                                            ci_e2  = v2[0].index("Estado")
+                                            for i2, r2 in enumerate(v2[1:], start=2):
+                                                if len(r2) > ci_id2 and r2[ci_id2] == sel_gp_k:
+                                                    ws_gdp2.update_cell(i2, ci_e2+1, "anulado")
+                                                    break
+                                        st.success("✅ Pago anulado en jjgt_convenios")
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+                                else:
+                                    _gs_delete_row(sh_gd_conv, "Pagos", "ID_Pago", sel_gp_k)
+                                    st.success("✅ Pago eliminado de jjgt_convenios")
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+            # ── Sub-tab: Facturas de convenio ─────────────────────────────────
+            with sub_gd_fact:
+                st.markdown("**Anular / eliminar facturas de jjgt_convenios**")
+                try:
+                    ws_gdf = _gs_get_or_create_ws(sh_gd_conv, "Facturas")
+                    vals_gdf = ws_gdf.get_all_values()
+                    fact_conv_gd = []
+                    if vals_gdf and len(vals_gdf) > 1:
+                        hdr_gdf = vals_gdf[0]
+                        for row_gdf in vals_gdf[1:]:
+                            d = {hdr_gdf[i]: (row_gdf[i] if i < len(row_gdf) else "") for i in range(len(hdr_gdf))}
+                            fact_conv_gd.append(d)
+                    if not fact_conv_gd:
+                        st.info("No hay facturas en jjgt_convenios.")
+                    else:
+                        st.dataframe(pd.DataFrame([{
+                            "Número":  f.get("Num_Factura",""),
+                            "Empresa": f.get("Nombre_Empresa","—"),
+                            "Cliente": f.get("Cliente_Nombre",""),
+                            "Total":   fmt_cop(float(f.get("Total_COP","0") or 0)),
+                            "Estado":  f.get("Estado",""),
+                        } for f in fact_conv_gd]), use_container_width=True, hide_index=True)
+                        col_gf1, col_gf2 = st.columns([2,1])
+                        with col_gf1:
+                            opts_gf = {f"{f.get('Num_Factura','')} — {f.get('Nombre_Empresa','—')}":
+                                       f.get("Num_Factura","") for f in fact_conv_gd if f.get("Num_Factura")}
+                            sel_gf = st.selectbox("Factura a gestionar", list(opts_gf.keys()), key="gd_conv_fact_sel")
+                            sel_gf_k = opts_gf.get(sel_gf,"")
+                        with col_gf2:
+                            pin_gf = st.text_input("PIN admin", type="password", key="gd_conv_fact_pin")
+                        accion_gf = st.radio("Acción", ["Anular (marcar como anulada)", "Eliminar definitivamente"],
+                                             key="gd_conv_fact_accion", horizontal=True)
+                        if st.button("✅ Aplicar acción a factura", type="primary",
+                                     use_container_width=True, key="btn_gd_conv_fact"):
+                            if not verificar_pin(pin_gf, "admin"):
+                                st.error("PIN admin incorrecto")
+                            elif sel_gf_k:
+                                if "Anular" in accion_gf:
+                                    try:
+                                        ws_gdf2 = _gs_get_or_create_ws(sh_gd_conv, "Facturas")
+                                        v3 = ws_gdf2.get_all_values()
+                                        if v3 and "Num_Factura" in v3[0] and "Estado" in v3[0]:
+                                            ci_nf3 = v3[0].index("Num_Factura")
+                                            ci_ef3 = v3[0].index("Estado")
+                                            for i3, r3 in enumerate(v3[1:], start=2):
+                                                if len(r3) > ci_nf3 and r3[ci_nf3] == sel_gf_k:
+                                                    ws_gdf2.update_cell(i3, ci_ef3+1, "anulada")
+                                                    break
+                                        st.success("✅ Factura anulada en jjgt_convenios")
+                                    except Exception as e:
+                                        st.error(f"Error: {e}")
+                                else:
+                                    _gs_delete_row(sh_gd_conv, "Facturas",      "Num_Factura", sel_gf_k)
+                                    _gs_delete_row(sh_gd_conv, "Factura_items", "ID_Factura",  sel_gf_k)
+                                    st.success("✅ Factura eliminada de jjgt_convenios")
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+
+            # ── Sub-tab: Empresas ─────────────────────────────────────────────
+            with sub_gd_emp:
+                st.markdown("**Gestionar empresas del convenio en jjgt_convenios**")
+                empresas_gd = get_empresas_convenio()
+                if not empresas_gd:
+                    st.info("No hay empresas registradas en jjgt_convenios.")
+                else:
+                    st.dataframe(pd.DataFrame([{
+                        "ID":       e.get("Id_Empresa",""),
+                        "Empresa":  e.get("Nombre_Empresa",""),
+                        "NIT":      e.get("Nit_Empresa",""),
+                        "Tipo":     e.get("Tipo_Convenio",""),
+                        "Activo":   e.get("Activo","1"),
+                    } for e in empresas_gd]), use_container_width=True, hide_index=True)
+
+                    col_ge1, col_ge2 = st.columns([2,1])
+                    with col_ge1:
+                        opts_ge = {f"{e.get('Nombre_Empresa','')} ({e.get('Nit_Empresa','')})":
+                                   e.get("Id_Empresa","") for e in empresas_gd}
+                        sel_ge = st.selectbox("Empresa a gestionar", list(opts_ge.keys()), key="gd_emp_sel")
+                        sel_ge_k = opts_ge.get(sel_ge,"")
+                    with col_ge2:
+                        pin_ge = st.text_input("PIN admin", type="password", key="gd_emp_pin")
+
+                    accion_ge = st.radio("Acción", ["Desactivar", "Activar", "Eliminar definitivamente"],
+                                         key="gd_emp_accion", horizontal=True)
+                    if st.button("✅ Aplicar acción a empresa", type="primary",
+                                 use_container_width=True, key="btn_gd_emp"):
+                        if not verificar_pin(pin_ge, "admin"):
+                            st.error("PIN admin incorrecto")
+                        elif sel_ge_k:
+                            if accion_ge == "Eliminar definitivamente":
+                                _gs_delete_row(sh_gd_conv, "Empresa", "Id_Empresa", sel_ge_k)
+                                st.success("✅ Empresa eliminada de jjgt_convenios")
+                            else:
+                                new_val = "0" if accion_ge == "Desactivar" else "1"
+                                try:
+                                    ws_ge = _gs_get_or_create_ws(sh_gd_conv, "Empresa")
+                                    v_ge = ws_ge.get_all_values()
+                                    if v_ge and "Id_Empresa" in v_ge[0] and "Activo" in v_ge[0]:
+                                        ci_ge_id  = v_ge[0].index("Id_Empresa")
+                                        ci_ge_act = v_ge[0].index("Activo")
+                                        for i_ge, r_ge in enumerate(v_ge[1:], start=2):
+                                            if len(r_ge) > ci_ge_id and r_ge[ci_ge_id] == sel_ge_k:
+                                                ws_ge.update_cell(i_ge, ci_ge_act+1, new_val)
+                                                break
+                                    st.success(f"✅ Empresa {'desactivada' if new_val=='0' else 'activada'}")
+                                except Exception as e:
+                                    st.error(f"Error: {e}")
+                            st.rerun()
 
 def _op_google_drive():
     """Panel de integración con Google Sheets — estado, diagnóstico y acciones."""
     st.markdown("### ☁️ Google Drive / Google Sheets")
-    st.markdown(f"**Archivo de datos:** `{DRIVE_FILE}`")
+    st.markdown(f"**Archivo principal:** `{DRIVE_FILE}` · **Archivo convenios:** `{DRIVE_FILE_CONVENIOS}`")
 
     # ── Estado de la conexión ─────────────────────────────────────────────────
     _, sh_now = _get_module_level_client()
@@ -6143,7 +7620,7 @@ def _op_google_drive():
     with col_s1:
         if st.button("🔄 Recargar todos los datos desde Sheets", type="primary",
                      use_container_width=True):
-            with st.spinner("Recargando datos desde Google Sheets..."):
+            with st.spinner("Recargando datos de jjgt_pagos y jjgt_convenios..."):
                 _gs_invalidate_cache(
                     "Cubiculos_Estado", "Reservas", "Pagos", "Clientes",
                     "Facturas", "Factura_items", "Operadores",
@@ -6151,9 +7628,11 @@ def _op_google_drive():
                 )
                 with _config_cache_lock:
                     _config_cache.clear()
-                # Forzar precarga
                 cubiculos_now = get_cubiculos()
-                st.success(f"✅ Datos recargados — {len(cubiculos_now)} cubículos disponibles")
+                st.session_state.pop("_conv_cfg_pendiente", None)
+                conv_ok_r = bool(get_config("convenios_spreadsheet_id",""))
+                st.success(f"✅ Datos recargados — {len(cubiculos_now)} cubículos"
+                           f"{' · jjgt_convenios activo' if conv_ok_r else ''}")
                 st.rerun()
     with col_s2:
         if st.button("🔍 Verificar conexión", use_container_width=True):
@@ -6190,8 +7669,8 @@ def _op_google_drive():
     # ── Cargar datos desde Google Sheets ─────────────────────────────────────
     st.markdown("#### 📊 Consultar datos en Google Sheets")
     if sh_now:
-        hoja_sel = st.selectbox("Ver hoja:", list(DRIVE_SHEETS.keys()),
-                                key="gs_hoja_sel")
+        hoja_sel = st.selectbox("Ver hoja:", list(DRIVE_SHEETS.keys()), key="gd_drive_hoja_sel",
+                                index=0)
         if st.button("🔄 Cargar datos", use_container_width=True):
             with st.spinner(f"Cargando hoja '{hoja_sel}'..."):
                 client_gs, sh_gs = get_active_client()
@@ -6215,15 +7694,53 @@ def _op_google_drive():
         st.info("Configura las credenciales primero para consultar los datos.")
 
     st.divider()
-    st.markdown("**Hojas sincronizadas en `jjgt_pagos`:**")
-    for nombre, cols in DRIVE_SHEETS.items():
-        st.markdown(f"- **{nombre}** · {len(cols)} columnas: "
-                    f"`{', '.join(cols[:5])}`{'...' if len(cols) > 5 else ''}")
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        st.markdown("**Hojas en `jjgt_pagos`:**")
+        for nombre, cols in DRIVE_SHEETS.items():
+            st.markdown(f"- **{nombre}** · {len(cols)} cols")
+    with col_info2:
+        st.markdown("**Hojas en `jjgt_convenios`:**")
+        for nombre, cols in DRIVE_SHEETS_CONVENIOS.items():
+            st.markdown(f"- **{nombre}** · {len(cols)} cols")
+
+    # Consulta de datos de jjgt_convenios
+    st.divider()
+    st.markdown("#### 📊 Consultar datos de jjgt_convenios")
+    sid_conv_drive = get_config("convenios_spreadsheet_id", "")
+    if sid_conv_drive:
+        conv_url_drive = f"https://docs.google.com/spreadsheets/d/{sid_conv_drive}/edit"
+        st.markdown(f'🤝 <a href="{conv_url_drive}" target="_blank" style="color:#a29bfe">Abrir jjgt_convenios en Google Sheets ↗</a>', unsafe_allow_html=True)
+        hoja_conv_drive = st.selectbox("Ver hoja de convenios:", list(DRIVE_SHEETS_CONVENIOS.keys()), key="gs_conv_drive_hoja")
+        if st.button("🔄 Cargar datos jjgt_convenios", use_container_width=True, key="btn_load_conv_drive"):
+            _, sh_conv_drive = get_active_client_convenios()
+            if not sh_conv_drive:
+                st.error("Sin conexión a jjgt_convenios.")
+            else:
+                with st.spinner(f"Cargando '{hoja_conv_drive}'..."):
+                    try:
+                        ws_conv_drive = _gs_get_or_create_ws(sh_conv_drive, hoja_conv_drive)
+                        vals_conv_drive = ws_conv_drive.get_all_values()
+                        if not vals_conv_drive or len(vals_conv_drive) < 2:
+                            st.info(f"La hoja '{hoja_conv_drive}' está vacía.")
+                        else:
+                            df_conv_drive = pd.DataFrame(vals_conv_drive[1:], columns=vals_conv_drive[0])
+                            st.success(f"✅ {len(df_conv_drive)} filas en '{hoja_conv_drive}'")
+                            st.dataframe(df_conv_drive, use_container_width=True, hide_index=True)
+                            st.download_button(
+                                f"📥 Descargar {hoja_conv_drive}.csv",
+                                data=df_conv_drive.to_csv(index=False).encode(),
+                                file_name=f"conv_{hoja_conv_drive.lower()}_{ahora_col().strftime('%Y%m%d')}.csv",
+                                mime="text/csv", use_container_width=True)
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+    else:
+        st.info("Configura el ID de jjgt_convenios en ⚙️ Configuración → Convenios.")
 
 
 def _op_configuracion():
     st.markdown("### ⚙️ Configuración del Sistema")
-    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🔗 Google Sheets"])
+    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🔗 Google Sheets", "🤝 Convenios"])
     # Constantes compartidas entre tabs
     _TURNOS            = ["mañana","tarde","noche","diurno","admin"]
     _TURNO_HORAS       = {
@@ -6551,6 +8068,818 @@ def _op_configuracion():
                     pass
                 st.success("✅ credentials.json guardado. Reconectando...")
                 st.rerun()
+
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MÓDULO CONVENIOS — funciones principales
+# ══════════════════════════════════════════════════════════════════════════════
+
+
+    # ── Tab 5: CONVENIOS ───────────────────────────────────────────────────────
+    with tabs[5]:
+        st.markdown("#### 🤝 Configuración de Convenios — `jjgt_convenios`")
+        st.info("Configura el archivo Google Sheets `jjgt_convenios` y gestiona las empresas con convenio.")
+
+        st.markdown("**ID del Spreadsheet `jjgt_convenios`**")
+        sid_conv_cfg = get_config("convenios_spreadsheet_id", "")
+        sid_conv_input = st.text_input("Spreadsheet ID de jjgt_convenios", value=sid_conv_cfg,
+            placeholder="1abc...xyz", key="cfg_sid_convenios",
+            help="ID del archivo jjgt_convenios en Google Sheets")
+        if st.button("Guardar ID jjgt_convenios", type="primary", use_container_width=True, key="btn_save_conv_id"):
+            if sid_conv_input.strip():
+                set_config("convenios_spreadsheet_id", sid_conv_input.strip())
+                st.success("ID de jjgt_convenios guardado.")
+                st.rerun()
+            else:
+                st.error("El ID no puede estar vacío")
+
+        st.divider()
+        st.markdown("#### Empresas con convenio")
+        empresas_cfg2 = get_empresas_convenio()
+        if empresas_cfg2:
+            st.dataframe(pd.DataFrame([{
+                "ID": e.get("Id_Empresa",""), "Empresa": e.get("Nombre_Empresa",""),
+                "NIT": e.get("Nit_Empresa",""), "Tipo Conv.": e.get("Tipo_Convenio",""),
+            } for e in empresas_cfg2]), use_container_width=True, hide_index=True)
+            col_de1c, col_de2c = st.columns([2,1])
+            with col_de1c:
+                emp_del_opts2 = {f"{e.get('Nombre_Empresa','')} ({e.get('Nit_Empresa','')})": e.get("Id_Empresa","") for e in empresas_cfg2}
+                emp_del_sel2 = st.selectbox("Empresa a eliminar", list(emp_del_opts2.keys()), key="del_emp_cfg_sel")
+                emp_del_id2 = emp_del_opts2[emp_del_sel2]
+            with col_de2c:
+                pin_del_emp2 = st.text_input("PIN admin", type="password", key="del_emp_cfg_pin")
+            if st.button("Eliminar empresa", use_container_width=True, key="btn_del_emp_cfg"):
+                if not verificar_pin(pin_del_emp2, "admin"):
+                    st.error("PIN incorrecto")
+                else:
+                    _, sh_conv_del2 = get_active_client_convenios()
+                    if sh_conv_del2:
+                        try:
+                            ws_ed2 = _gs_get_or_create_ws(sh_conv_del2, "Empresa")
+                            vals_ed2 = ws_ed2.get_all_values()
+                            if vals_ed2 and "Id_Empresa" in vals_ed2[0]:
+                                ci_ed2 = vals_ed2[0].index("Id_Empresa")
+                                for i_ed2, r_ed2 in enumerate(vals_ed2[1:], start=2):
+                                    if len(r_ed2) > ci_ed2 and r_ed2[ci_ed2] == emp_del_id2:
+                                        ws_ed2.delete_rows(i_ed2); break
+                        except Exception as e2: st.error(f"Error: {e2}")
+                    st.success("Empresa eliminada"); st.rerun()
+        else:
+            st.info("No hay empresas registradas.")
+
+        st.divider()
+        st.markdown("#### Crear empresa con convenio")
+        with st.form("form_empresa_conv_cfg", clear_on_submit=True):
+            ec1c, ec2c = st.columns(2)
+            with ec1c:
+                e_nomb = st.text_input("Nombre empresa *")
+                e_nitc = st.text_input("NIT *", placeholder="900.123.456-7")
+                e_tipo_ec = st.selectbox("Tipo empresa", ["Privada","Publica","Mixta","ONG"])
+                e_emailc = st.text_input("Email empresa")
+            with ec2c:
+                e_telc = st.text_input("Telefono empresa")
+                e_tipo_cc = st.selectbox("Tipo convenio", ["Credito","Descuento","Prepago","Corporativo"])
+                e_obsc = st.text_area("Observaciones", height=80)
+            if st.form_submit_button("Guardar empresa", type="primary", use_container_width=True):
+                if not e_nomb.strip() or not e_nitc.strip():
+                    st.error("Nombre y NIT son obligatorios")
+                else:
+                    _, sh_conv_save2 = get_active_client_convenios()
+                    if not sh_conv_save2:
+                        st.error("Configura primero el ID de jjgt_convenios")
+                    else:
+                        emp_id2 = f"EMP-{int(time.time())}"
+                        ok2 = gs_escribir_empresa(sh_conv_save2, {
+                            "id_empresa": emp_id2, "nombre_empresa": e_nomb.strip(),
+                            "nit_empresa": e_nitc.strip(), "tipo_empresa": e_tipo_ec,
+                            "email_empresa": e_emailc.strip(), "telefono_empresa": e_telc.strip(),
+                            "tipo_convenio": e_tipo_cc, "observaciones": e_obsc.strip(),
+                            "activo": "1", "creado_en": ahora_col().isoformat(),
+                        })
+                        if ok2: st.success(f"Empresa '{e_nomb}' guardada · ID: {emp_id2}")
+                        else: st.error("Error al guardar.")
+
+        st.divider()
+        st.markdown("#### 💰 Configuración de pagos por empresa")
+        st.caption("Selecciona la empresa y define sus parámetros de convenio. "
+                   "Se guarda en Configuracion_Pagos de jjgt_convenios con una fila por clave.")
+
+        _, sh_cfg_cv = get_active_client_convenios()
+        empresas_cfg_disp = get_empresas_convenio()
+
+        if not empresas_cfg_disp:
+            st.info("Primero crea al menos una empresa en la sección anterior.")
+        else:
+            # Selector de empresa (fuera del form para cargar sus valores actuales)
+            opts_emp_cfg = {
+                f"{e.get('Nombre_Empresa','—')} | NIT: {e.get('Nit_Empresa','')}": e
+                for e in empresas_cfg_disp
+            }
+            emp_cfg_label = st.selectbox(
+                "Empresa a configurar", list(opts_emp_cfg.keys()), key="cfg_emp_cfg_sel"
+            )
+            emp_cfg_sel = opts_emp_cfg[emp_cfg_label]
+            emp_cfg_id   = emp_cfg_sel.get("Id_Empresa", "")
+            emp_cfg_nomb = emp_cfg_sel.get("Nombre_Empresa", "—")
+
+            # Cargar valores actuales de esa empresa
+            cfg_actual = get_config_empresa_convenio(sh_cfg_cv, emp_cfg_id)
+
+            with st.form("form_cfg_pagos_conv", clear_on_submit=False):
+                st.markdown(f"**Configurando:** {emp_cfg_nomb}")
+                col_cv1c, col_cv2c = st.columns(2)
+                with col_cv1c:
+                    conv_dias = st.number_input(
+                        "Días de crédito (plazo cobro)", min_value=1, max_value=90,
+                        value=int(cfg_actual["convenios_dias_credito"]),
+                        key="cfg_cv_dias",
+                        help="Días que tiene la empresa para pagar desde la reserva")
+                    conv_hmin = st.number_input(
+                        "Horas mínimas por reserva", min_value=0.5, max_value=18.0, step=0.5,
+                        value=float(cfg_actual["convenios_horas_min"]),
+                        key="cfg_cv_hmin",
+                        help="Mínimo de horas que debe reservar un empleado de esta empresa")
+                with col_cv2c:
+                    conv_desc = st.number_input(
+                        "Descuento adicional (%)", min_value=0.0, max_value=50.0, step=1.0,
+                        value=float(cfg_actual["convenios_descuento_pct"]),
+                        key="cfg_cv_desc",
+                        help="% de descuento adicional sobre el precio base (se acumula con desc. por horas)")
+                    conv_maxp = st.number_input(
+                        "Máx. reservas pendientes", min_value=1, max_value=100,
+                        value=int(cfg_actual["convenios_max_pendientes"]),
+                        key="cfg_cv_maxp",
+                        help="Máximo de reservas pendientes de cobro que puede tener la empresa")
+                if st.form_submit_button("💾 Guardar configuración de esta empresa",
+                                         type="primary", use_container_width=True):
+                    # 1. Guardar valores globales en jjgt_pagos
+                    for k, v in [
+                        ("convenios_dias_credito",  str(conv_dias)),
+                        ("convenios_horas_min",      str(conv_hmin)),
+                        ("convenios_descuento_pct",  str(conv_desc)),
+                        ("convenios_max_pendientes", str(conv_maxp)),
+                    ]:
+                        set_config(k, v)
+                    # 2. Guardar por empresa en Configuracion_Pagos de jjgt_convenios
+                    if sh_cfg_cv:
+                        ok_cfg = upsert_config_empresa_convenio(
+                            sh_cfg_cv, emp_cfg_id, emp_cfg_nomb,
+                            {
+                                "convenios_dias_credito":   conv_dias,
+                                "convenios_horas_min":      conv_hmin,
+                                "convenios_descuento_pct":  conv_desc,
+                                "convenios_max_pendientes": conv_maxp,
+                            }
+                        )
+                        if ok_cfg:
+                            st.success(
+                                f"✅ Configuración guardada para **{emp_cfg_nomb}** "
+                                f"en jjgt_convenios · Configuracion_Pagos")
+                        else:
+                            st.error("❌ Error guardando en jjgt_convenios. "
+                                     "Verifica la conexión.")
+                    else:
+                        st.warning("⚠️ jjgt_convenios no configurado — "
+                                   "solo se guardó el valor global.")
+
+            # Vista consolidada de configuración de todas las empresas
+            with st.expander("🔍 Ver configuración de todas las empresas", expanded=False):
+                _, sh_vcfg = get_active_client_convenios()
+                rows_ver = []
+                for emp_v in empresas_cfg_disp:
+                    cfg_v = get_config_empresa_convenio(sh_vcfg, emp_v.get("Id_Empresa",""))
+                    rows_ver.append({
+                        "Empresa":      emp_v.get("Nombre_Empresa","—"),
+                        "Dias credito": int(cfg_v["convenios_dias_credito"]),
+                        "Horas min":    cfg_v["convenios_horas_min"],
+                        "Descuento %":  cfg_v["convenios_descuento_pct"],
+                        "Max pendient": int(cfg_v["convenios_max_pendientes"]),
+                    })
+                st.dataframe(pd.DataFrame(rows_ver),
+                             use_container_width=True, hide_index=True)
+
+        st.divider()
+        st.markdown("#### 🛏️ Tarifa especial para convenios")
+        st.caption("Cada tarifa se asocia a una empresa. Se guarda en Tarifas_Config de "
+                   "jjgt_pagos (sin empresa) y en jjgt_convenios (con Id_Empresa).")
+        # Selector empresa para la tarifa — fuera del form para ser legible al submit
+        _emps_tar  = get_empresas_convenio()
+        _opts_tar  = {"(Genérica — aplica a todas las empresas)": ("","")}
+        for _e in _emps_tar:
+            _opts_tar[f"{_e.get('Nombre_Empresa','—')} ({_e.get('Nit_Empresa','')})"] = (
+                _e.get("Id_Empresa",""), _e.get("Nombre_Empresa",""))
+        _sel_tar = st.selectbox("Empresa a la que aplica la tarifa",
+                                list(_opts_tar.keys()), key="cfg_tar_conv_emp_sel")
+        _tar_emp_id, _tar_emp_nom = _opts_tar[_sel_tar]
+
+        with st.form("form_tarifa_conv_cfg", clear_on_submit=True):
+            tc1c, tc2c = st.columns(2)
+            with tc1c:
+                tconv_nomb = st.text_input("Nombre tarifa convenio *", placeholder="Corporativo Noche")
+                tconv_prec = st.number_input("Precio/hora COP", min_value=0, step=500, value=12000)
+                tconv_d3   = st.number_input("Descuento 3h+ (%)", min_value=0.0, max_value=50.0)
+                tconv_fest = st.checkbox("Aplica en festivos")
+            with tc2c:
+                tconv_d6   = st.number_input("Descuento 6h+ (%)", min_value=0.0, max_value=50.0)
+                tconv_hini = st.text_input("Hora inicio especial", placeholder="22:00")
+                tconv_hfin = st.text_input("Hora fin especial",    placeholder="06:00")
+                tconv_desc_txt = st.text_input("Descripción", placeholder="Tarifa nocturna empresarial")
+            if st.form_submit_button("💾 Guardar tarifa convenio", type="primary",
+                                     use_container_width=True):
+                if not tconv_nomb.strip():
+                    st.error("El nombre de la tarifa es obligatorio")
+                else:
+                    tar_id_conv = f"CONV-{int(time.time())}"
+                    nombre_tar  = f"[Convenio] {tconv_nomb.strip()}"
+                    desc_tar    = tconv_desc_txt.strip() or "Tarifa convenio"
+                    # jjgt_pagos: 10 campos estándar (sin empresa)
+                    tar_fila_p = [
+                        tar_id_conv, nombre_tar, desc_tar, str(tconv_prec),
+                        str(tconv_d3), str(tconv_d6),
+                        tconv_hini.strip(), tconv_hfin.strip(),
+                        "1" if tconv_fest else "0", "1",
+                    ]
+                    # jjgt_convenios: 12 campos (con Id_Empresa y Nombre_Empresa)
+                    tar_fila_c = [
+                        tar_id_conv, _tar_emp_id, _tar_emp_nom,
+                        nombre_tar, desc_tar, str(tconv_prec),
+                        str(tconv_d3), str(tconv_d6),
+                        tconv_hini.strip(), tconv_hfin.strip(),
+                        "1" if tconv_fest else "0", "1",
+                    ]
+                    # Guardar en jjgt_pagos
+                    _, sh_tar_p = get_active_client()
+                    if sh_tar_p:
+                        _gs_append(sh_tar_p, "Tarifas_Config", tar_fila_p)
+                        _gs_invalidate_cache("Tarifas_Config")
+                    # Guardar en jjgt_convenios
+                    _, sh_tar_cv = get_active_client_convenios()
+                    if sh_tar_cv:
+                        _gs_append(sh_tar_cv, "Tarifas_Config", tar_fila_c)
+                        _gs_invalidate_cache_conv("Tarifas_Config")
+                    destinos = []
+                    if sh_tar_p:  destinos.append("jjgt_pagos")
+                    if sh_tar_cv: destinos.append("jjgt_convenios")
+                    emp_lbl = f" para **{_tar_emp_nom}**" if _tar_emp_id else " (genérica)"
+                    if destinos:
+                        st.success(f"✅ Tarifa '{nombre_tar}'{emp_lbl} "
+                                   f"guardada en: {', '.join(destinos)}")
+                    else:
+                        st.error("❌ Sin conexión a Google Sheets.")
+
+        st.divider()
+        st.markdown("#### Operadores habilitados para convenios")
+        ops_cv = _gs_read_sheet("Operadores")
+        if ops_cv:
+            st.dataframe(pd.DataFrame([{"Nombre":_gs_val(r,"Nombre"),"Rol":_gs_val(r,"Rol"),
+                "Turno":_gs_val(r,"Turno")} for r in ops_cv if _gs_val(r,"Activo")=="1"]),
+                use_container_width=True, hide_index=True)
+        st.info("Para modificar operadores ve a la pestana Operadores.")
+
+def _tab_convenio_reserva():
+    """Tab de formulario rápido para reservas bajo convenio empresarial."""
+    st.markdown("**Formulario de asignación para convenio empresarial:**")
+    sid_conv = get_config("convenios_spreadsheet_id", "")
+    if not sid_conv:
+        st.warning("El ID del spreadsheet `jjgt_convenios` no está configurado. "
+                   "Ve a ⚙️ Configuración → Convenios.")
+        return
+
+    _, sh_conv = get_active_client_convenios()
+    empresas = get_empresas_convenio()
+    if not empresas:
+        st.info("No hay empresas con convenio activo. Créalas en ⚙️ Configuración → Convenios.")
+        return
+
+    op = st.session_state.get("operador_info", {})
+
+    # ── Paso 1: Empresa ───────────────────────────────────────────────────────
+    st.markdown("#### 🏢 Paso 1 — Empresa del convenio")
+    emp_opts = {f"{e.get('Nombre_Empresa','—')} ({e.get('Tipo_Convenio','—')})": e for e in empresas}
+    emp_label   = st.selectbox("Empresa / Convenio *", list(emp_opts.keys()), key="conv_res_empresa")
+    empresa_sel = emp_opts[emp_label]
+
+    # Cargar configuración de la empresa (descuentos, horas mínimas, etc.)
+    cfg_emp = get_config_empresa_convenio(sh_conv, empresa_sel.get("Id_Empresa", ""))
+    horas_min    = float(cfg_emp.get("convenios_horas_min", 1.0))
+    desc_conv    = float(cfg_emp.get("convenios_descuento_pct", 0.0))
+    max_pend     = int(cfg_emp.get("convenios_max_pendientes", 10))
+
+    col_emp_info1, col_emp_info2, col_emp_info3 = st.columns(3)
+    nit_emp_str   = empresa_sel.get('Nit_Empresa', '—')
+    tipo_conv_str = empresa_sel.get('Tipo_Convenio', '—')
+    dias_cred_val = int(cfg_emp.get('convenios_dias_credito', 30))
+    col_emp_info1.info(f'NIT: {nit_emp_str} | Tipo convenio: {tipo_conv_str}')
+    col_emp_info2.info(f'Desc. adicional: {desc_conv:.1f}% | Horas min.: {horas_min}h')
+    col_emp_info3.info(f'Max. pendientes: {max_pend} | Dias credito: {dias_cred_val}')
+
+    st.divider()
+
+    # ── Paso 2: Cubículo y tiempo ─────────────────────────────────────────────
+    st.markdown("#### 🛏️ Paso 2 — Cubículo y tiempo")
+
+    # Refrescar estado de cubículos desde Sheets
+    cubiculos_libres = get_cubiculos_libres()
+    if not cubiculos_libres:
+        st.error("❌ No hay cubículos disponibles en este momento.")
+        return
+
+    col_cub, col_hrs = st.columns(2)
+    with col_cub:
+        opciones_cub = {f"{c['numero']} — {c['nombre']} | WiFi: {c['wifi_ssid']}": c
+                        for c in cubiculos_libres}
+        sel_label    = st.selectbox("Cubículo libre *", list(opciones_cub.keys()),
+                                    key="conv_res_cubiculo")
+        cubiculo_sel = opciones_cub[sel_label]
+        st.caption(f"Estado actual: 🟢 **LIBRE** · Precio base: {fmt_cop(cubiculo_sel.get('precio_hora_base',15000))}/h")
+
+    with col_hrs:
+        horas_sel = st.number_input(
+            f"Horas a reservar (mín. {horas_min}h)",
+            min_value=horas_min, max_value=18.0,
+            value=max(horas_min, 1.0), step=0.5,
+            key="conv_res_horas")
+
+        # Calcular precio con descuentos del convenio
+        calc = calcular_precio_convenio(horas_sel, cfg_emp, id_empresa=empresa_sel.get("Id_Empresa",""))
+
+        desc_info = ""
+        if calc.get("descuento_vol_pct", 0) > 0:
+            desc_info += f"Desc. volumen: {calc['descuento_vol_pct']:.0f}%  "
+        if calc.get("descuento_conv_pct", 0) > 0:
+            desc_info += f"Desc. convenio: {calc['descuento_conv_pct']:.0f}%"
+
+        st.markdown(f"""
+        <div style="background:rgba(162,155,254,0.12);border:1px solid rgba(162,155,254,0.4);
+                    border-radius:10px;padding:12px;margin-top:8px;font-size:14px">
+          <div style="color:#94a3b8;font-size:12px;margin-bottom:4px">PRECIO CONVENIO</div>
+          <div>Precio/hora: <b>{fmt_cop(calc['precio_hora'])}</b>
+               × {calc['horas']}h = {fmt_cop(round(calc['precio_hora']*calc['horas']))}</div>
+          {'<div style="color:#ffd32a">🏷️ ' + desc_info + f" → Ahorro: {fmt_cop(calc['descuento_val'])}</div>" if calc['descuento_val'] > 0 else ''}
+          <div>Subtotal: <b>{fmt_cop(calc['subtotal'])}</b>
+               · IVA 19%: <b>{fmt_cop(calc['iva'])}</b></div>
+          <div style="font-family:'Inconsolata';font-size:22px;font-weight:700;
+                      color:#a29bfe;margin-top:6px">
+            TOTAL: {fmt_cop(calc['total'])} COP
+          </div>
+          <div style="color:#ffd32a;font-size:12px;margin-top:4px">
+            ⚠️ Pago: PENDIENTE — se cobra a {empresa_sel.get('Nombre_Empresa','la empresa')}
+          </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Paso 3: Datos del cliente ─────────────────────────────────────────────
+    st.markdown("#### 👤 Paso 3 — Datos del cliente")
+    col_c1, col_c2 = st.columns(2)
+    with col_c1:
+        c_nombre   = st.text_input("Nombre completo *", key="conv_res_nombre",
+                                   placeholder="Nombre del empleado / pasajero")
+        c_tel      = st.text_input("Teléfono", key="conv_res_tel", placeholder="300 000 0000")
+        c_tipo_doc = st.selectbox("Tipo documento", ["CC","CE","Pasaporte","NIT","TI"],
+                                  key="conv_res_tipodoc")
+    with col_c2:
+        c_doc   = st.text_input("Número de documento", key="conv_res_doc")
+        c_email = st.text_input("Email (opcional)", key="conv_res_email")
+        st.markdown(f"""
+        <div style="background:rgba(255,211,42,0.08);border:1px solid rgba(255,211,42,0.3);
+                    border-radius:8px;padding:10px;margin-top:24px;font-size:13px">
+          <b style="color:#ffd32a">💼 Convenio:</b> {empresa_sel.get('Nombre_Empresa','—')}<br>
+          <b style="color:#ffd32a">📋 Reserva:</b> {empresa_sel.get('Tipo_Convenio','—')}<br>
+          <span style="color:#94a3b8;font-size:11px">El pago queda PENDIENTE·
+          Se registra solo en jjgt_convenios</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.divider()
+
+    # ── Paso 4: PIN y confirmar ───────────────────────────────────────────────
+    st.markdown("#### 🔐 Paso 4 — Confirmación")
+    col_pin, col_resumen, col_btn = st.columns([1, 2, 2])
+    with col_pin:
+        pin_conv = st.text_input("PIN operador *", type="password", max_chars=8, key="conv_res_pin")
+    with col_resumen:
+        st.markdown(f"""
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:10px;font-size:13px">
+          Empresa: <b>{empresa_sel.get('Nombre_Empresa','—')}</b><br>
+          Cubículo: <b>{cubiculo_sel['numero']}</b> · Horas: <b>{horas_sel}h</b><br>
+          Total: <b style="color:#a29bfe">{fmt_cop(calc['total'])} COP</b>
+          {'· Desc: ' + str(round(calc.get("descuento_pct",0),1)) + '%' if calc.get('descuento_pct',0) > 0 else ''}
+        </div>
+        """, unsafe_allow_html=True)
+    with col_btn:
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("🤝 CREAR RESERVA CONVENIO", type="primary",
+                     use_container_width=True, key="btn_crear_conv"):
+            errores = []
+            if not c_nombre.strip():
+                errores.append("El nombre del cliente es obligatorio")
+            if not verificar_pin(pin_conv):
+                errores.append("PIN de operador incorrecto")
+            if errores:
+                for er in errores:
+                    st.error(er)
+            else:
+                # Doble verificación de disponibilidad antes de crear
+                cub_check = next((c for c in get_cubiculos_libres()
+                                  if c["numero"] == cubiculo_sel["numero"]), None)
+                if not cub_check:
+                    st.error(f"❌ El cubículo {cubiculo_sel['numero']} ya no está disponible. "
+                             "Selecciona otro.")
+                else:
+                    try:
+                        with st.spinner("Creando reserva de convenio en jjgt_convenios..."):
+                            voucher_conv = crear_reserva_convenio(
+                                cubiculo_sel,
+                                {"nombre":            c_nombre.strip(),
+                                 "tipo_doc":          c_tipo_doc,
+                                 "numero_documento":  c_doc.strip(),
+                                 "telefono":          c_tel.strip(),
+                                 "email":             c_email.strip()},
+                                calc,
+                                empresa_sel.get("Id_Empresa", ""),
+                                empresa_sel.get("Nombre_Empresa", ""),
+                                operador=op.get("nombre", "sistema"),
+                            )
+                        st.markdown(f"""
+                        <div style="background:rgba(162,155,254,0.15);border:2px solid #a29bfe;
+                                    border-radius:14px;padding:24px;text-align:center;margin-top:12px">
+                          <div style="font-size:50px">🤝</div>
+                          <div style="font-size:22px;font-weight:800;color:#a29bfe;margin:8px 0">
+                            ¡RESERVA CONVENIO CREADA!
+                          </div>
+                          <div style="font-family:'Inconsolata';font-size:40px;
+                                      font-weight:700;color:#00d4ff">{voucher_conv['cubiculo']}</div>
+                          <div style="color:#e2e8f0;margin-top:8px;font-size:15px">
+                            Reserva: <b>{voucher_conv['numero_reserva']}</b><br>
+                            Empresa: <b>{voucher_conv['nombre_empresa']}</b><br>
+                            Horario: <b>{voucher_conv['hora_inicio']} → {voucher_conv['hora_fin']}</b>
+                              ({voucher_conv['horas']}h)<br>
+                            Total: <b style="color:#a29bfe">{fmt_cop(voucher_conv['total'])} COP</b>
+                            {"· Desc: " + str(round(voucher_conv.get("descuento_pct",0),1)) + "%" if voucher_conv.get("descuento_val",0)>0 else ""}
+                          </div>
+                          <div style="margin-top:12px">
+                            <span style="font-size:13px;color:#94a3b8">Código de acceso</span><br>
+                            <span style="font-family:'Inconsolata';font-size:44px;
+                                         font-weight:700;color:#00ff88;letter-spacing:12px">
+                              {voucher_conv['codigo_acceso']}
+                            </span>
+                          </div>
+                          <div style="margin-top:8px;color:#ffd32a;font-size:13px">
+                            ⚠️ Pago PENDIENTE — se cobra a la empresa
+                          </div>
+                          <div style="color:#94a3b8;font-size:11px;margin-top:4px">
+                            Registrado en jjgt_convenios · Cubículo marcado como OCUPADO
+                          </div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        st.balloons()
+                        _gs_invalidate_cache("Cubiculos_Estado")
+                    except Exception as ex:
+                        st.error(f"❌ Error al crear reserva de convenio: {ex}")
+
+
+def _op_convenios():
+    """Módulo completo de gestión de convenios con empresas."""
+    st.markdown("### 🤝 Módulo de Convenios Empresariales")
+    sid_conv = get_config("convenios_spreadsheet_id", "")
+    if not sid_conv:
+        st.warning("El archivo `jjgt_convenios` no está configurado. "
+                   "Ve a Configuración → Convenios.")
+
+    tab_dash, tab_reserva, tab_reporte, tab_gestion = st.tabs([
+        "📊 Dashboard Convenios", "➕ Nueva Reserva Convenio",
+        "📋 Reporte Convenios",   "🗑️ Gestión Datos Convenios",
+    ])
+
+    # Dashboard Convenios
+    with tab_dash:
+        st.markdown("#### Dashboard Operacional — Convenios")
+        inject_live_clock()
+        today = ahora_col().strftime("%Y-%m-%d")
+        empresas = get_empresas_convenio()
+        # Leer de jjgt_convenios (fuente correcta — todas las filas son de convenio)
+        sid_dash_c = get_config("convenios_spreadsheet_id","")
+        if not sid_dash_c:
+            st.warning("⚠️ jjgt_convenios no configurado. Ve a ⚙️ Configuración → Convenios.")
+        reservas_gs  = _gs_read_sheet_conv("Reservas", force=False) if sid_dash_c else []
+        pagos_gs     = _gs_read_sheet_conv("Pagos",    force=False) if sid_dash_c else []
+        res_conv     = reservas_gs
+        res_conv_hoy = [r for r in res_conv if _gs_fecha_ymd(r, "Creado_En") == today]
+        pend_conv    = [r for r in pagos_gs if _gs_val(r, "Estado") == "pendiente"]
+        total_pend_cop = sum(_gs_float(r, "Monto_COP") for r in pend_conv)
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Empresas activas",    len(empresas))
+        c2.metric("Reservas hoy (Conv)", len(res_conv_hoy))
+        c3.metric("Pagos pendientes",    len(pend_conv))
+        c4.metric("Monto pendiente",     fmt_cop(total_pend_cop))
+        st.divider()
+        if res_conv_hoy:
+            st.markdown("**Reservas de convenio del día:**")
+            df_rch = pd.DataFrame([{
+                "Reserva":   _gs_val(r, "Numero_Reserva"),
+                "Empresa":   _gs_val(r, "Nombre_Empresa", "—"),
+                "Cliente":   _gs_val(r, "Cliente_Nombre"),
+                "Cubículo":  _gs_val(r, "Cubiculo_Num"),
+                "Horas":     _gs_val(r, "Horas_Contratadas"),
+                "Total COP": fmt_cop(_gs_float(r, "Total_COP")),
+                "Estado":    _gs_val(r, "Estado_Pago"),
+            } for r in res_conv_hoy])
+            st.dataframe(df_rch, use_container_width=True, hide_index=True)
+        else:
+            st.info("No hay reservas de convenio registradas hoy.")
+        st.divider()
+        # Config resumida por empresa
+        _, sh_dash_conv = get_active_client_convenios()
+        if sh_dash_conv and empresas:
+            with st.expander("⚙️ Config por empresa (descuentos / crédito)", expanded=False):
+                rows_cfg_dash = []
+                for emp_d in empresas:
+                    cfg_d = get_config_empresa_convenio(sh_dash_conv, emp_d.get("Id_Empresa",""))
+                    rows_cfg_dash.append({
+                        "Empresa":      emp_d.get("Nombre_Empresa","—"),
+                        "Descuento %":  cfg_d["convenios_descuento_pct"],
+                        "Horas min":    cfg_d["convenios_horas_min"],
+                        "Dias credito": int(cfg_d["convenios_dias_credito"]),
+                        "Max pend.":    int(cfg_d["convenios_max_pendientes"]),
+                    })
+                st.dataframe(pd.DataFrame(rows_cfg_dash),
+                             use_container_width=True, hide_index=True)
+
+        st.divider()
+        st.markdown("#### Estado en tiempo real (cubículos)")
+        cubiculos = get_cubiculos()
+        cols_rt = st.columns(4)
+        for i, cub in enumerate(cubiculos):
+            with cols_rt[i % 4]:
+                estado = cub["estado"]
+                info   = ESTADOS_CUBICULO.get(estado, ESTADOS_CUBICULO["libre"])
+                mins   = cub.get("minutos_restantes")
+                hora_fin = cub.get("hora_fin") or ""
+                if hora_fin and estado not in ("libre","mantenimiento"):
+                    timer_html = (f'<div class="jjgt-timer" data-fin="{hora_fin}" '
+                                  f'data-key="cdash-{cub["id"]}" '
+                                  f'style="font-size:12px;color:{"#ff4757" if (mins or 999)<=5 else "#ffd32a" if (mins or 999)<=15 else "#00ff88"};">'
+                                  f'⏱ {fmt_tiempo(mins)}</div>')
+                else:
+                    timer_html = ""
+                st.markdown(f"""
+                <div style="background:{info['bg']};border:1.5px solid {info['color']}55;
+                            border-radius:10px;padding:10px;text-align:center;margin-bottom:8px">
+                  <div style="font-family:'Inconsolata';font-size:24px;font-weight:700;color:{info['color']}">{cub['numero']}</div>
+                  <div style="font-size:10px;font-weight:700;color:{info['color']};letter-spacing:1px">{info['label']}</div>
+                  {timer_html}
+                </div>
+                """, unsafe_allow_html=True)
+
+    # Nueva Reserva Convenio
+    with tab_reserva:
+        _tab_convenio_reserva()
+
+    # Reporte Convenios
+    with tab_reporte:
+        st.markdown("#### Reporte de Convenios")
+        periodo_c = st.selectbox("Período", ["Hoy","Esta semana","Este mes","Histórico"], key="conv_rep_periodo")
+        today_c = ahora_col()
+        if periodo_c == "Hoy":
+            desde_c = today_c.strftime("%Y-%m-%d"); hasta_c = desde_c
+        elif periodo_c == "Esta semana":
+            desde_c = (today_c - timedelta(days=today_c.weekday())).strftime("%Y-%m-%d"); hasta_c = today_c.strftime("%Y-%m-%d")
+        elif periodo_c == "Este mes":
+            desde_c = today_c.strftime("%Y-%m-01"); hasta_c = today_c.strftime("%Y-%m-%d")
+        else:
+            desde_c = "2020-01-01"; hasta_c = today_c.strftime("%Y-%m-%d")
+        # Leer de jjgt_convenios (no de jjgt_pagos)
+        rows_c = []
+        for r in _gs_read_sheet_conv("Reservas", force=False):
+            fecha_r = _gs_fecha_ymd(r, "Creado_En")
+            if desde_c <= fecha_r <= hasta_c:
+                rows_c.append({
+                    "Reserva":   _gs_val(r,"Numero_Reserva"),
+                    "Empresa":   _gs_val(r,"Nombre_Empresa","—"),
+                    "Cliente":   _gs_val(r,"Cliente_Nombre"),
+                    "Cubículo":  _gs_val(r,"Cubiculo_Num"),
+                    "Horas":     _gs_float(r,"Horas_Contratadas"),
+                    "Total":     _gs_float(r,"Total_COP"),
+                    "Estado":    _gs_val(r,"Estado_Pago"),
+                    "Fecha":     fecha_r,
+                })
+        total_c   = sum(r["Total"] for r in rows_c)
+        pend_c    = sum(r["Total"] for r in rows_c if r["Estado"] == "pendiente")
+        confirm_c = sum(r["Total"] for r in rows_c if r["Estado"] == "confirmado")
+        m1,m2,m3,m4 = st.columns(4)
+        m1.metric("Reservas conv.",   len(rows_c))
+        m2.metric("Total facturado",  fmt_cop(total_c))
+        m3.metric("Pendiente cobro",  fmt_cop(pend_c))
+        m4.metric("Confirmado",       fmt_cop(confirm_c))
+        if rows_c:
+            df_rc = pd.DataFrame(rows_c)
+            df_rc_disp = df_rc.copy()
+            df_rc_disp["Total"] = df_rc_disp["Total"].apply(fmt_cop)
+            st.dataframe(df_rc_disp, use_container_width=True, hide_index=True)
+            col_csv_c, col_xls_c = st.columns(2)
+            with col_csv_c:
+                st.download_button("📥 Exportar CSV Convenios",
+                    data=df_rc.to_csv(index=False).encode(),
+                    file_name=f"convenios_{desde_c}_{hasta_c}.csv", mime="text/csv",
+                    use_container_width=True)
+            with col_xls_c:
+                if OPENPYXL_AVAILABLE:
+                    buf_c = io.BytesIO()
+                    with pd.ExcelWriter(buf_c, engine="openpyxl") as writer:
+                        df_rc.to_excel(writer, sheet_name="Reservas_Convenios", index=False)
+                        emp_res = {}
+                        for r in rows_c:
+                            emp = r["Empresa"]
+                            if emp not in emp_res:
+                                emp_res[emp] = {"Empresa":emp,"Reservas":0,"Total":0,"Pendiente":0}
+                            emp_res[emp]["Reservas"] += 1
+                            emp_res[emp]["Total"] += r["Total"]
+                            if r["Estado"] == "pendiente": emp_res[emp]["Pendiente"] += r["Total"]
+                        pd.DataFrame(list(emp_res.values())).to_excel(writer, sheet_name="Resumen_Empresa", index=False)
+                    st.download_button("📊 Exportar Excel Convenios",
+                        data=buf_c.getvalue(),
+                        file_name=f"reporte_convenios_{desde_c}_{hasta_c}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        use_container_width=True)
+        else:
+            st.info("No hay reservas de convenio para el período seleccionado.")
+
+    # Gestión Datos Convenios
+    with tab_gestion:
+        st.markdown("#### Gestión de Datos — Convenios")
+        st.warning("Las eliminaciones son permanentes e irreversibles.")
+        op_g = st.session_state.get("operador_info", {})
+        if op_g.get("rol") != "admin" and "admin" not in op_g.get("permisos", []):
+            st.error("Solo administradores pueden acceder.")
+            return
+
+        def _del_row_both(hoja, col_clave, valor_clave):
+            _, sh_p = get_active_client()
+            _, sh_c = get_active_client_convenios()
+            for sh_x in [sh_p, sh_c]:
+                if not sh_x: continue
+                try:
+                    ws_x = _gs_get_or_create_ws(sh_x, hoja)
+                    vals_x = ws_x.get_all_values()
+                    if vals_x and col_clave in vals_x[0]:
+                        ci = vals_x[0].index(col_clave)
+                        for i in range(len(vals_x)-1, 0, -1):
+                            if len(vals_x[i]) > ci and vals_x[i][ci] == str(valor_clave):
+                                ws_x.delete_rows(i + 1)
+                                break
+                except Exception: pass
+
+        stabs = st.tabs(["Reservas","Clientes","Pagos","Facturas"])
+        with stabs[0]:
+            res_cv = _gs_read_sheet_conv("Reservas", force=False)
+            if not res_cv:
+                st.info("No hay reservas de convenio.")
+            else:
+                st.dataframe(pd.DataFrame([{
+                    "Reserva": _gs_val(r,"Numero_Reserva"), "Empresa": _gs_val(r,"Nombre_Empresa","—"),
+                    "Cliente": _gs_val(r,"Cliente_Nombre"), "Estado": _gs_val(r,"Estado_Pago"),
+                    "Total":   fmt_cop(_gs_float(r,"Total_COP")),
+                } for r in res_cv]), use_container_width=True, hide_index=True)
+                col_d1,col_d2 = st.columns([2,1])
+                with col_d1:
+                    opts = {f"{_gs_val(r,'Numero_Reserva')} — {_gs_val(r,'Nombre_Empresa','—')}":
+                            _gs_val(r,"Numero_Reserva") for r in res_cv}
+                    sel = st.selectbox("Reserva a eliminar", list(opts.keys()), key="del_cv_res")
+                    sel_key = opts[sel]
+                with col_d2:
+                    pin_d = st.text_input("PIN admin", type="password", key="del_cv_res_pin")
+                if st.button("Eliminar reserva convenio", type="primary", use_container_width=True, key="btn_del_cv_res"):
+                    if not verificar_pin(pin_d, "admin"):
+                        st.error("PIN admin incorrecto")
+                    else:
+                        _del_row_both("Reservas","Numero_Reserva", sel_key)
+                        _del_row_both("Pagos","Num_Reserva", sel_key)
+                        _gs_invalidate_cache("Reservas","Pagos")
+                        st.success(f"Reserva {sel_key} eliminada.")
+                        st.rerun()
+        with stabs[1]:
+            _, sh_cv_cli = get_active_client_convenios()
+            if not sh_cv_cli:
+                st.info("Configure jjgt_convenios para ver clientes.")
+            else:
+                try:
+                    ws_cv_cli = _gs_get_or_create_ws(sh_cv_cli, "Clientes")
+                    vals_cv_cli = ws_cv_cli.get_all_values()
+                    clientes_cv = []
+                    if vals_cv_cli and len(vals_cv_cli) > 1:
+                        hdr_cv = vals_cv_cli[0]
+                        for row_cv in vals_cv_cli[1:]:
+                            clientes_cv.append({hdr_cv[i]: (row_cv[i] if i < len(row_cv) else "") for i in range(len(hdr_cv))})
+                    if not clientes_cv:
+                        st.info("No hay clientes de convenio.")
+                    else:
+                        st.dataframe(pd.DataFrame([{"Nombre":r.get("Nombre",""),"Doc":r.get("Num_Doc",""),"Empresa":r.get("Nombre_Empresa","—")} for r in clientes_cv]),
+                                     use_container_width=True, hide_index=True)
+                        col_cc1,col_cc2=st.columns([2,1])
+                        with col_cc1:
+                            opts_cc={f"{r.get('Nombre','')} — {r.get('Num_Doc','')}":r.get("Num_Doc","") for r in clientes_cv if r.get("Num_Doc")}
+                            sel_cc=st.selectbox("Cliente",list(opts_cc.keys()),key="del_cv_cli")
+                            sel_cc_k=opts_cc[sel_cc]
+                        with col_cc2:
+                            pin_cc=st.text_input("PIN admin",type="password",key="del_cv_cli_pin")
+                        if st.button("Eliminar cliente",type="primary",use_container_width=True,key="btn_del_cv_cli"):
+                            if not verificar_pin(pin_cc,"admin"):
+                                st.error("PIN incorrecto")
+                            else:
+                                try:
+                                    ws_cv_cli.get_all_values()
+                                    vals2=ws_cv_cli.get_all_values()
+                                    if vals2 and "Num_Doc" in vals2[0]:
+                                        ci2=vals2[0].index("Num_Doc")
+                                        for i2 in range(len(vals2)-1,0,-1):
+                                            if len(vals2[i2])>ci2 and vals2[i2][ci2]==sel_cc_k:
+                                                ws_cv_cli.delete_rows(i2+1); break
+                                except Exception: pass
+                                st.success("Cliente eliminado de jjgt_convenios.")
+                                st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {e}")
+        with stabs[2]:
+            pag_cv = _gs_read_sheet_conv("Pagos", force=False)
+            if not pag_cv:
+                st.info("No hay pagos de convenio.")
+            else:
+                st.dataframe(pd.DataFrame([{"ID":_gs_val(r,"ID_Pago"),"Reserva":_gs_val(r,"Num_Reserva"),
+                    "Empresa":_gs_val(r,"Nombre_Empresa","—"),"Monto":fmt_cop(_gs_float(r,"Monto_COP")),"Estado":_gs_val(r,"Estado")} for r in pag_cv]),
+                    use_container_width=True, hide_index=True)
+                col_p1,col_p2=st.columns([2,1])
+                with col_p1:
+                    opts_p={f"#{_gs_val(r,'ID_Pago')}—{_gs_val(r,'Num_Reserva')}":_gs_val(r,"ID_Pago") for r in pag_cv if _gs_val(r,"ID_Pago")}
+                    sel_p=st.selectbox("Pago",list(opts_p.keys()),key="del_cv_pag"); sel_p_k=opts_p[sel_p]
+                with col_p2:
+                    pin_p=st.text_input("PIN admin",type="password",key="del_cv_pag_pin")
+                accion_p=st.radio("Acción",["Anular","Eliminar definitivamente"],key="del_cv_pag_ac",horizontal=True)
+                if st.button("Aplicar acción pago",type="primary",use_container_width=True,key="btn_del_cv_pag"):
+                    if not verificar_pin(pin_p,"admin"):
+                        st.error("PIN incorrecto")
+                    else:
+                        _,sh_p2=get_active_client(); _,sh_c2=get_active_client_convenios()
+                        for sh_x2 in [sh_p2,sh_c2]:
+                            if not sh_x2: continue
+                            try:
+                                ws_p2=_gs_get_or_create_ws(sh_x2,"Pagos"); vals_p2=ws_p2.get_all_values()
+                                if vals_p2 and "ID_Pago" in vals_p2[0] and "Estado" in vals_p2[0]:
+                                    ci_id2=vals_p2[0].index("ID_Pago"); ci_e2=vals_p2[0].index("Estado")
+                                    for i_p2,r_p2 in enumerate(vals_p2[1:],start=2):
+                                        if len(r_p2)>ci_id2 and r_p2[ci_id2]==sel_p_k:
+                                            if "Anular" in accion_p: ws_p2.update_cell(i_p2,ci_e2+1,"anulado")
+                                            else: ws_p2.delete_rows(i_p2)
+                                            break
+                            except Exception: pass
+                        _gs_invalidate_cache("Pagos")
+                        st.success("Acción aplicada.")
+                        st.rerun()
+        with stabs[3]:
+            _,sh_cv_fac=get_active_client_convenios()
+            fact_cv=[]
+            if sh_cv_fac:
+                try:
+                    ws_fac=_gs_get_or_create_ws(sh_cv_fac,"Facturas"); vals_fac=ws_fac.get_all_values()
+                    if vals_fac and len(vals_fac)>1:
+                        hdr_fac=vals_fac[0]
+                        for row_fac in vals_fac[1:]:
+                            fact_cv.append({hdr_fac[i]:(row_fac[i] if i<len(row_fac) else "") for i in range(len(hdr_fac))})
+                except Exception: pass
+            if not fact_cv:
+                st.info("No hay facturas de convenio en jjgt_convenios.")
+            else:
+                st.dataframe(pd.DataFrame([{"Número":r.get("Num_Factura",""),"Empresa":r.get("Nombre_Empresa","—"),
+                    "Total":fmt_cop(float(r.get("Total_COP","0") or 0)),"Estado":r.get("Estado","")} for r in fact_cv]),
+                    use_container_width=True, hide_index=True)
+                col_f1,col_f2=st.columns([2,1])
+                with col_f1:
+                    opts_f={f"{r.get('Num_Factura','')}—{r.get('Nombre_Empresa','—')}":r.get("Num_Factura","") for r in fact_cv if r.get("Num_Factura")}
+                    sel_f=st.selectbox("Factura",list(opts_f.keys()),key="del_cv_fac"); sel_f_k=opts_f[sel_f]
+                with col_f2:
+                    pin_f=st.text_input("PIN admin",type="password",key="del_cv_fac_pin")
+                accion_f=st.radio("Acción",["Anular","Eliminar definitivamente"],key="del_cv_fac_ac",horizontal=True)
+                if st.button("Aplicar acción factura",type="primary",use_container_width=True,key="btn_del_cv_fac"):
+                    if not verificar_pin(pin_f,"admin"):
+                        st.error("PIN incorrecto")
+                    else:
+                        if sh_cv_fac:
+                            try:
+                                ws_fac2=_gs_get_or_create_ws(sh_cv_fac,"Facturas"); vals_fac2=ws_fac2.get_all_values()
+                                if vals_fac2 and "Num_Factura" in vals_fac2[0]:
+                                    ci_nf=vals_fac2[0].index("Num_Factura")
+                                    est_idx=vals_fac2[0].index("Estado") if "Estado" in vals_fac2[0] else -1
+                                    for i_f,r_f in enumerate(vals_fac2[1:],start=2):
+                                        if len(r_f)>ci_nf and r_f[ci_nf]==sel_f_k:
+                                            if "Anular" in accion_f and est_idx>=0: ws_fac2.update_cell(i_f,est_idx+1,"anulada")
+                                            elif "Eliminar" in accion_f: ws_fac2.delete_rows(i_f)
+                                            break
+                            except Exception: pass
+                        st.success("Acción aplicada en jjgt_convenios.")
+                        st.rerun()
+
 
 
 # ══════════════════════════════════════════════════════════════════════════════

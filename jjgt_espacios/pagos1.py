@@ -102,9 +102,9 @@ _IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
-DIRECCION    = "Terminal de Transportes · Local 42"
+DIRECCION    = "Terminal de Transportes · Modulo 3 Local 230"
 TELEFONO     = "320 551 1091"
-NIT          = "900.123.456-7"
+NIT          = "902047871-3"
 TZ_COL       = pytz.timezone("America/Bogota")
 NEQUI_NUM    = "320 551 1091"
 DAVIPLATA_NUM= "320 551 1091"
@@ -112,7 +112,7 @@ CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573205511091"
 DRIVE_FILE   = "jjgt_pagos"
-EMAIL        = "josegarjagt@gmail.com"
+EMAIL        = "suitesalitre@gmail.com"
 
 ESTADOS_CUBICULO = {
     "libre":        {"label": "LIBRE",        "color": "#00ff88", "bg": "rgba(0,255,136,0.12)"},
@@ -124,7 +124,6 @@ ESTADOS_CUBICULO = {
 
 METODOS_PAGO = ["Nequi", "Daviplata", "Efectivo", "PSE", "MercadoPago", "Transferencia", "Tarjeta"]
 IVA_PCT      = 0.0
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # PAGE CONFIG
@@ -149,7 +148,7 @@ hide_streamlit_style = """
             
             /* En algunas versiones más recientes se usan diferentes clases CSS */
             /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
-            </stylecd>
+            </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
 
@@ -206,9 +205,6 @@ html, body, .stApp {
   100% { opacity: 0.6; }
 }
 
-/* ── Ocultar UI de Streamlit ──────────────────────────────── */
-#MainMenu, footer, header { visibility: hidden !important; }
-.stDeployButton { display: none !important; }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
@@ -1084,19 +1080,18 @@ DRIVE_SHEETS = {
         "Clave",   # nombre de la configuración
         "Valor",   # valor de la configuración
     ],
-    # Tarifas → 11 campos
+    # Tarifas → 10 campos
     "Tarifas_Config": [
-        "ID",               # id de la tarifa
-        "Nombre",           # "Estándar", "Madrugada", "Festivo"
-        "Descripcion",      # descripción (ej. "Tarifa Unica")
-        "Precio_Hora_COP",  # precio por hora (o precio total para Noche Completa)
-        "Desc_3h_Pct",      # descuento a partir de 2h (%)
-        "Desc_6h_Pct",      # descuento a partir de 6h (%)
-        "Hora_Ini_Espec",   # hora inicio tarifa especial
-        "Hora_Fin_Espec",   # hora fin tarifa especial
-        "Aplica_Festivos",  # "0" o "1"
-        "Activo",           # "1" o "0"
-        "Horas_A_Reservar", # horas fijas a reservar (usado para Tarifa Unica / Noche Completa)
+        "ID",             # id de la tarifa
+        "Nombre",         # "Estándar", "Madrugada", "Festivo"
+        "Descripcion",    # descripción
+        "Precio_Hora_COP",# precio por hora
+        "Desc_3h_Pct",    # descuento a partir de 2h (%)
+        "Desc_6h_Pct",    # descuento a partir de 6h (%)
+        "Hora_Ini_Espec", # hora inicio tarifa especial
+        "Hora_Fin_Espec", # hora fin tarifa especial
+        "Aplica_Festivos",# "0" o "1"
+        "Activo",         # "1" o "0"
     ],
     # gs_sync_dashboard → 21 campos calculados
     "Dashboard_Diario": [
@@ -2181,114 +2176,44 @@ def ahora_col() -> datetime:
     return datetime.now(TZ_COL)
 
 
-def calcular_precio(horas: float, tarifa_nombre: str = None,
-                    precio_override: Optional[float] = None) -> dict:
-    """Calcula precio con tarifa vigente desde Google Sheets.
-
-    Para la tarifa especial 'Noche Completa' el precio es fijo (Precio_Hora_COP
-    representa el precio total de la noche) y las horas se calculan
-    automáticamente a partir de Hora_Ini_Espec → Hora_Fin_Espec.
-    El dict resultante incluye dos claves extra:
-      'hora_ini_espec' y 'hora_fin_espec'  (str "HH:MM" o "")
-      'es_noche_completa'                  (bool)
-
-    precio_override: si se suministra un valor > 0, reemplaza Precio_Hora_COP leído
-                     desde Sheets (usado por el operador en TAB Noche Completa para
-                     aplicar el precio de Tarifa Unica o uno ingresado manualmente).
-    """
+def calcular_precio(horas: float, tarifa_nombre: str = None) -> dict:
+    """Calcula precio con tarifa vigente desde Google Sheets."""
     if tarifa_nombre is None:
         hora_actual = ahora_col().hour
         tarifa_nombre = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
 
     rows = _gs_read_sheet("Tarifas_Config")
-    precio_hora   = 15000
-    desc_3h       = 16.67
-    desc_6h       = 16.67
-    hora_ini_espec = ""
-    hora_fin_espec = ""
-    tarifa_row     = None
-
+    precio_hora = 15000
+    desc_3h = 16.67
+    desc_6h = 16.67
     for r in rows:
         if _gs_val(r, "Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
-            tarifa_row     = r
-            precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
-            desc_3h        = _gs_float(r, "Desc_3h_Pct", 16.67)
-            desc_6h        = _gs_float(r, "Desc_6h_Pct", 16.67)
-            hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
-            hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
+            precio_hora = _gs_float(r, "Precio_Hora_COP", 15000)
+            desc_3h = _gs_float(r, "Desc_3h_Pct", 16.67)
+            desc_6h = _gs_float(r, "Desc_6h_Pct", 16.67)
             break
 
-    # Aplicar precio_override si fue suministrado y es válido
-    if precio_override is not None and precio_override > 0:
-        precio_hora = precio_override
-
-    # ── Lógica especial Noche Completa ────────────────────────────────────────
-    es_noche_completa = (tarifa_nombre == "Noche Completa")
-
-    if es_noche_completa and hora_ini_espec and hora_fin_espec:
-        # Calcular horas entre Hora_Ini_Espec y Hora_Fin_Espec
-        try:
-            now = ahora_col()
-            fmt = "%H:%M"
-            ini_t = datetime.strptime(hora_ini_espec, fmt)
-            fin_t = datetime.strptime(hora_fin_espec, fmt)
-            # Construir datetimes de hoy/mañana según corresponda
-            ini_dt = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
-            fin_dt = now.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
-            if fin_dt <= ini_dt:          # la noche cruza la medianoche
-                fin_dt += timedelta(days=1)
-            horas = round((fin_dt - ini_dt).total_seconds() / 3600, 2)
-        except Exception:
-            horas = horas  # conservar el valor que llegó como argumento
-
-        # Para Noche Completa, Precio_Hora_COP es el precio TOTAL de la noche,
-        # no el precio por hora; no se aplican descuentos adicionales.
-        subtotal_bruto = round(precio_hora, 0)
-        descuento_pct  = 0
-        descuento_val  = 0
-        subtotal       = subtotal_bruto
-        iva            = round(subtotal * IVA_PCT, 0)
-        total          = round(subtotal + iva, 0)
-
-        return {
-            "precio_hora":      precio_hora,
-            "horas":            horas,
-            "tarifa":           tarifa_nombre,
-            "descuento_pct":    descuento_pct,
-            "descuento_val":    descuento_val,
-            "subtotal":         subtotal,
-            "iva":              iva,
-            "total":            round(total, 0),
-            "hora_ini_espec":   hora_ini_espec,
-            "hora_fin_espec":   hora_fin_espec,
-            "es_noche_completa": True,
-        }
-
-    # ── Lógica estándar ───────────────────────────────────────────────────────
     descuento_pct = 0
     if horas >= 6:
         descuento_pct = desc_6h
     elif horas >= 2:
         descuento_pct = desc_3h
 
-    subtotal_bruto = round(precio_hora * horas, 0)
-    descuento_val  = round(subtotal_bruto * (descuento_pct / 100), 0)
-    subtotal       = round(subtotal_bruto - descuento_val, 0)
-    iva            = round(subtotal * IVA_PCT, 0)
-    total          = round(subtotal + iva, 0)
+    subtotal_bruto = round(precio_hora * horas,0)
+    descuento_val  = round(subtotal_bruto * (descuento_pct / 100),0)
+    subtotal       = round(subtotal_bruto - descuento_val,0)
+    iva            = round(subtotal * IVA_PCT,0)
+    total          = round(subtotal + iva,0)
 
     return {
-        "precio_hora":       precio_hora,
-        "horas":             horas,
-        "tarifa":            tarifa_nombre,
-        "descuento_pct":     descuento_pct,
-        "descuento_val":     descuento_val,
-        "subtotal":          subtotal,
-        "iva":               iva,
-        "total":             round(total, 0),
-        "hora_ini_espec":    hora_ini_espec,
-        "hora_fin_espec":    hora_fin_espec,
-        "es_noche_completa": False,
+        "precio_hora":   precio_hora,
+        "horas":         horas,
+        "tarifa":        tarifa_nombre,
+        "descuento_pct": descuento_pct,
+        "descuento_val": descuento_val,
+        "subtotal":      subtotal,
+        "iva":           iva,
+        "total":         round(total,0)
     }
 
 
@@ -2694,22 +2619,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
                     f"No se puede crear una nueva reserva hasta que termine la actual."
                 )
 
-    # ── Hora inicio / fin: fijas para Noche Completa, calculadas para el resto ──
-    if calc.get("es_noche_completa") and calc.get("hora_ini_espec") and calc.get("hora_fin_espec"):
-        try:
-            fmt = "%H:%M"
-            ini_t = datetime.strptime(calc["hora_ini_espec"], fmt)
-            fin_t = datetime.strptime(calc["hora_fin_espec"], fmt)
-            now_nc = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
-            hora_fin = now_nc.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
-            if hora_fin <= now_nc:          # cruza medianoche
-                hora_fin += timedelta(days=1)
-            now = now_nc                    # el inicio de la reserva es Hora_Ini_Espec
-        except Exception:
-            hora_fin = now + timedelta(hours=calc["horas"])
-    else:
-        hora_fin = now + timedelta(hours=calc["horas"])
-
+    hora_fin = now + timedelta(hours=calc["horas"])
     num_res  = generar_numero_reserva()
     codigo   = generar_codigo_acceso()
 
@@ -4462,7 +4372,7 @@ def _op_nueva_reserva():
     op = st.session_state.get("operador_info", {})
     st.caption(f"Operador: **{op.get('nombre','—')}** · Turno: {op.get('turno','—')}")
 
-    tab_rapido, tab_noche, tab_kiosk = st.tabs(["⚡ Formulario Rápido", "🌙 Noche Completa", "🖥️ Flujo Kiosco"])
+    tab_rapido, tab_kiosk = st.tabs(["⚡ Formulario Rápido", "🖥️ Flujo Kiosco"])
 
     # ── TAB KIOSCO ────────────────────────────────────────────────────────────
     with tab_kiosk:
@@ -4482,406 +4392,6 @@ def _op_nueva_reserva():
                 ir_a("seleccion")
         else:
             st.error("❌ No hay cubículos disponibles en este momento.")
-
-    # ── TAB NOCHE COMPLETA ────────────────────────────────────────────────────
-    with tab_noche:
-        st.markdown("**Reserva de Noche Completa — horario y precio fijo desde configuración:**")
-
-        # Leer tarifa Noche Completa desde Sheets
-        _rows_nc = _gs_read_sheet("Tarifas_Config")
-        _tarifa_nc = None
-        for _r_nc in _rows_nc:
-            if _gs_val(_r_nc, "Nombre") == "Noche Completa" and \
-               _gs_val(_r_nc, "Activo", "1") in ("1", "True", "true"):
-                _tarifa_nc = _r_nc
-                break
-
-        # ── Leer Horas_A_Reservar y Precio_Hora_COP desde fila "Tarifa Unica" ──
-        _horas_config_tu  = 0.0
-        _precio_config_tu = 0.0
-        _desc_tarifa_unica_encontrada = False
-        for _r_tu in _rows_nc:
-            if _gs_val(_r_tu, "Descripcion", "").strip().lower() == "tarifa unica" and \
-               _gs_val(_r_tu, "Activo", "1") in ("1", "True", "true"):
-                _horas_raw_tu = _gs_val(_r_tu, "Horas_A_Reservar", "")
-                try:
-                    _horas_config_tu = float(str(_horas_raw_tu).replace(",", ".").strip())
-                except (ValueError, TypeError):
-                    _horas_config_tu = 0.0
-                _precio_config_tu = _gs_float(_r_tu, "Precio_Hora_COP", 0.0)
-                _desc_tarifa_unica_encontrada = True
-                break
-
-        if not _tarifa_nc:
-            st.error(
-                "❌ No se encontró la tarifa **'Noche Completa'** activa en la hoja "
-                "**Tarifas_Config**. Verifica que exista una fila con Nombre='Noche Completa' "
-                "y Activo='1'."
-            )
-        else:
-            _nc_precio  = _gs_float(_tarifa_nc, "Precio_Hora_COP", 0)
-            _nc_ini_str = _gs_val(_tarifa_nc, "Hora_Ini_Espec", "")
-            _nc_fin_str = _gs_val(_tarifa_nc, "Hora_Fin_Espec", "")
-            _nc_desc    = _gs_val(_tarifa_nc, "Descripcion", "Noche Completa")
-
-            # ── Precio COP: prioridad → Tarifa Unica > fila Noche Completa ────────
-            # 1. Si existe "Tarifa Unica" con Precio_Hora_COP > 0, usar ese.
-            # 2. Si no, usar el Precio_Hora_COP de la fila Noche Completa (_nc_precio).
-            _nc_precio_base = _precio_config_tu if _precio_config_tu > 0 else _nc_precio
-            _nc_precio_fuente = "Tarifa Unica" if _precio_config_tu > 0 else "Noche Completa"
-
-            # ── Horas A Reservar: prioridad → Tarifa Unica > cálculo por horario ─
-            # 1. Si existe configuración "Tarifa Unica" con Horas_A_Reservar > 0, usarla.
-            # 2. Si no, calcular a partir de Hora_Ini_Espec → Hora_Fin_Espec.
-            _nc_horas = 0.0
-            _nc_horas_fuente = "calculada"  # para mostrar al operador
-
-            if _horas_config_tu > 0:
-                _nc_horas = _horas_config_tu
-                _nc_horas_fuente = "Tarifa Unica"
-            elif _nc_ini_str and _nc_fin_str:
-                try:
-                    _t_ini = datetime.strptime(_nc_ini_str, "%H:%M")
-                    _t_fin = datetime.strptime(_nc_fin_str, "%H:%M")
-                    _dt_ini = ahora_col().replace(hour=_t_ini.hour, minute=_t_ini.minute,
-                                                  second=0, microsecond=0)
-                    _dt_fin = ahora_col().replace(hour=_t_fin.hour, minute=_t_fin.minute,
-                                                  second=0, microsecond=0)
-                    if _dt_fin <= _dt_ini:
-                        _dt_fin += timedelta(days=1)
-                    _nc_horas = round((_dt_fin - _dt_ini).total_seconds() / 3600, 2)
-                    _nc_horas_fuente = "calculada"
-                except Exception:
-                    _nc_horas = 0.0
-
-            # ── Campos editables: Precio COP y Horas A Reservar ──────────────────
-            _col_hr1, _col_hr2, _col_hr3 = st.columns([2, 2, 1])
-
-            with _col_hr1:
-                _nc_precio_input = st.number_input(
-                    "💰 Precio Tarifa (COP)",
-                    min_value=0,
-                    max_value=9_999_999,
-                    value=int(_nc_precio_base) if _nc_precio_base > 0 else 0,
-                    step=500,
-                    format="%d",
-                    key="nc_precio_reservar",
-                    help=(
-                        f"Cargado desde Tarifas_Config · Descripcion='Tarifa Unica' "
-                        f"(Precio_Hora_COP = {fmt_cop(_precio_config_tu)} COP). "
-                        f"Puedes ajustarlo manualmente; este valor se usará como precio total."
-                        if _desc_tarifa_unica_encontrada and _precio_config_tu > 0
-                        else (
-                            f"Cargado desde fila 'Noche Completa' "
-                            f"(Precio_Hora_COP = {fmt_cop(_nc_precio)} COP). "
-                            f"Puedes ajustarlo manualmente."
-                            if _nc_precio > 0
-                            else "Ingresa el precio total de la reserva."
-                        )
-                    ),
-                )
-
-            with _col_hr2:
-                _nc_horas_input = st.number_input(
-                    "🕐 Horas A Reservar",
-                    min_value=0.5,
-                    max_value=24.0,
-                    value=float(_nc_horas) if _nc_horas > 0 else 1.0,
-                    step=0.5,
-                    format="%.1f",
-                    key="nc_horas_reservar",
-                    help=(
-                        f"Valor cargado desde Tarifas_Config · Descripcion='Tarifa Unica' "
-                        f"({_nc_horas_fuente}). Puedes ajustarlo manualmente."
-                        if _desc_tarifa_unica_encontrada
-                        else "Ingresa manualmente las horas a reservar."
-                    ),
-                )
-
-            with _col_hr3:
-                if _desc_tarifa_unica_encontrada:
-                    _badge_precio_txt = fmt_cop(_precio_config_tu) if _precio_config_tu > 0 else "—"
-                    _badge_horas_txt  = f"{_horas_config_tu:.1f} h" if _horas_config_tu > 0 else "—"
-                    st.markdown(
-                        f"<div style='padding-top:8px;font-size:12px;color:#a29bfe;line-height:1.7'>"
-                        f"📋 <b>Tarifa Unica</b><br>"
-                        f"<span style='color:#00ff88'>💰 {_badge_precio_txt}</span><br>"
-                        f"<span style='color:#a29bfe'>🕐 {_badge_horas_txt}</span><br>"
-                        f"<span style='color:#94a3b8;font-size:10px'>Sheets · Config</span></div>",
-                        unsafe_allow_html=True,
-                    )
-                else:
-                    st.markdown(
-                        "<div style='padding-top:8px;font-size:11px;color:#ffd32a;line-height:1.6'>"
-                        "⚠️ Sin fila<br>'Tarifa Unica'<br>en Tarifas_Config</div>",
-                        unsafe_allow_html=True,
-                    )
-
-            # Usar los valores ingresados/ajustados por el operador
-            _nc_horas       = _nc_horas_input
-            _nc_precio_final = float(_nc_precio_input)
-
-            # Banner informativo de la tarifa
-            st.markdown(f"""
-            <div style="background:rgba(162,155,254,0.10);border:1.5px solid rgba(162,155,254,0.4);
-                        border-radius:12px;padding:16px 20px;margin-bottom:16px">
-              <div style="font-size:15px;font-weight:700;color:#a29bfe;letter-spacing:1px">
-                🌙 {_nc_desc}
-                <span style="font-size:11px;font-weight:400;color:#94a3b8;margin-left:8px">
-                  · precio desde: {_nc_precio_fuente}
-                </span>
-              </div>
-              <div style="margin-top:8px;font-size:14px;color:#e2e8f0">
-                <b>Horario fijo:</b> {_nc_ini_str or '—'} → {_nc_fin_str or '—'}
-                &nbsp;·&nbsp; <b>Horas a reservar:</b>
-                <span style="color:#a29bfe;font-weight:700">{_nc_horas:.1f} h</span>
-                &nbsp;·&nbsp; <b>Precio total:</b>
-                <span style="color:#00ff88;font-weight:700">{fmt_cop(_nc_precio_final)} COP</span>
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if not _nc_ini_str or not _nc_fin_str:
-                st.warning(
-                    "⚠️ La tarifa 'Noche Completa' no tiene **Hora_Ini_Espec** y/o "
-                    "**Hora_Fin_Espec** configuradas. Completa esos campos en Tarifas_Config."
-                )
-            else:
-                # Calcular precio completo usando horas y precio confirmados por el operador
-                _calc_nc = calcular_precio(_nc_horas, "Noche Completa",
-                                           precio_override=_nc_precio_final)
-
-                # Paso 1: Cubículo
-                st.markdown("#### 🛏️ Paso 1 — Cubículo")
-                _cubiculos_nc = get_cubiculos_libres()
-                if not _cubiculos_nc:
-                    st.error("❌ No hay cubículos disponibles.")
-                else:
-                    _opc_nc = {f"{c['numero']} — {c['nombre']}": c for c in _cubiculos_nc}
-                    _sel_nc = st.selectbox("Cubículo libre", list(_opc_nc.keys()),
-                                           key="nc_cubiculo")
-                    _cub_nc = _opc_nc[_sel_nc]
-
-                    # Resumen de precio
-                    st.markdown(f"""
-                    <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.2);
-                                border-radius:8px;padding:10px;margin-top:4px;font-size:14px">
-                      Tarifa: <b>Noche Completa</b> ·
-                      Horario: <b>{_nc_ini_str} → {_nc_fin_str}</b> ·
-                      Horas: <b style="color:#a29bfe">{_nc_horas:.1f} h</b><br>
-                      Precio unitario aplicado:
-                      <b style="color:#ffd32a">{fmt_cop(_nc_precio_final)} COP</b>
-                      &nbsp;·&nbsp;
-                      <b style="color:#00ff88;font-size:16px">Total: {fmt_cop(_calc_nc['total'])} COP</b>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    st.divider()
-
-                    # Paso 2: Datos del cliente
-                    st.markdown("#### 👤 Paso 2 — Datos del cliente")
-                    _col_nc1, _col_nc2 = st.columns(2)
-                    with _col_nc1:
-                        _nc_nombre   = st.text_input("Nombre completo *", key="nc_nombre",
-                                                     placeholder="Nombre del pasajero")
-                        _nc_tel      = st.text_input("Teléfono", key="nc_tel",
-                                                     placeholder="300 000 0000")
-                        _nc_tipo_doc = st.selectbox("Tipo documento",
-                                                    ["CC","CE","Pasaporte","NIT","TI"],
-                                                    key="nc_tipodoc")
-                    with _col_nc2:
-                        _nc_doc      = st.text_input("Número de documento", key="nc_doc")
-                        _nc_email    = st.text_input("Email (opcional)", key="nc_email")
-                        _nc_req_fact = st.checkbox("¿Requiere factura empresarial?",
-                                                   key="nc_req_fact")
-
-                    _nc_razon = ""
-                    _nc_nit   = ""
-                    if _nc_req_fact:
-                        _col_nf1, _col_nf2 = st.columns(2)
-                        with _col_nf1:
-                            _nc_razon = st.text_input("Razón social", key="nc_razon")
-                        with _col_nf2:
-                            _nc_nit   = st.text_input("NIT empresa",  key="nc_nit")
-
-                    st.divider()
-
-                    # Paso 3: Método de pago
-                    st.markdown("#### 💳 Paso 3 — Método de pago")
-                    _nc_metodo = st.selectbox("Método de pago", METODOS_PAGO, key="nc_metodo")
-                    _nc_monto  = int(_calc_nc["total"])
-                    _nc_ref_pago = (f"NC-{ahora_col().strftime('%Y%m%d%H%M')}-"
-                                    f"{_cub_nc['numero'].replace('#','')}")
-
-                    METODOS_CON_QR_NC = ["Nequi", "Daviplata", "PSE", "MercadoPago", "Transferencia"]
-                    if _nc_metodo in METODOS_CON_QR_NC:
-                        st.markdown(f"**Monto a cobrar:** `{fmt_cop(_nc_monto)} COP`")
-                        mostrar_qr(_nc_metodo, _nc_monto, _nc_ref_pago, size=220)
-                        st.caption(f"Referencia: `{_nc_ref_pago}`")
-                    elif _nc_metodo == "Efectivo":
-                        st.markdown(f"""
-                        <div style="background:rgba(132,204,22,0.1);border:1px solid rgba(132,204,22,0.3);
-                                    border-radius:10px;padding:16px;text-align:center">
-                          <div style="font-size:13px;color:#94a3b8;margin-bottom:4px">TOTAL EN EFECTIVO</div>
-                          <div style="font-size:36px;font-weight:700;color:#84cc16">{fmt_cop(_nc_monto)} COP</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.info(f"💳 Procesar {fmt_cop(_nc_monto)} COP en el datáfono antes de confirmar.")
-
-                    _nc_referencia = st.text_input(
-                        "Referencia / número de comprobante de pago",
-                        key="nc_ref",
-                        placeholder="Ingresa el número de transacción o comprobante"
-                    )
-
-                    st.divider()
-
-                    # Paso 4: Confirmar
-                    _col_nc_btn1, _col_nc_btn2 = st.columns(2)
-                    with _col_nc_btn1:
-                        if st.button("✅ CONFIRMAR PAGO Y CREAR RESERVA", type="primary",
-                                     use_container_width=True, key="nc_confirmar"):
-                            if not _nc_nombre.strip():
-                                st.error("⚠️ El nombre del cliente es obligatorio.")
-                            else:
-                                if _nc_metodo in METODOS_CON_QR_NC and not _nc_referencia.strip():
-                                    st.toast("⚠️ Sin referencia de pago — se registrará sin comprobante.",
-                                             icon="⚠️")
-                                _nc_cliente = {
-                                    "nombre":           _nc_nombre.strip(),
-                                    "tipo_doc":         _nc_tipo_doc,
-                                    "numero_documento": _nc_doc.strip(),
-                                    "telefono":         _nc_tel.strip(),
-                                    "email":            _nc_email.strip(),
-                                    "razon_social":     _nc_razon.strip(),
-                                    "nit_empresa":      _nc_nit.strip(),
-                                }
-                                try:
-                                    _nc_voucher = crear_reserva_completa(
-                                        _cub_nc, _nc_cliente, _calc_nc, _nc_metodo
-                                    )
-                                    # Actualizar referencia de pago si fue ingresada
-                                    if _nc_referencia.strip():
-                                        try:
-                                            _, _sh_nc = get_active_client()
-                                            if _sh_nc:
-                                                _ws_nc = _gs_get_or_create_ws(_sh_nc, "Reservas")
-                                                _vals_nc = _ws_nc.get_all_values()
-                                                if _vals_nc and "Referencia_Pago" in _vals_nc[0] \
-                                                        and "Numero_Reserva" in _vals_nc[0]:
-                                                    _ci_nr_nc = _vals_nc[0].index("Numero_Reserva")
-                                                    _ci_rp_nc = _vals_nc[0].index("Referencia_Pago")
-                                                    for _i_nc, _row_nc in enumerate(_vals_nc[1:], start=2):
-                                                        if (len(_row_nc) > _ci_nr_nc and
-                                                                _row_nc[_ci_nr_nc] == _nc_voucher["numero_reserva"]):
-                                                            _ws_nc.update_cell(_i_nc, _ci_rp_nc + 1,
-                                                                               _nc_referencia.strip())
-                                                            break
-                                        except Exception:
-                                            pass
-                                    st.session_state["_nc_last_voucher"] = _nc_voucher
-                                    st.session_state["_nc_voucher_ref"]  = _nc_referencia.strip() or _nc_ref_pago
-                                    st.success(
-                                        f"✅ Reserva **{_nc_voucher['numero_reserva']}** creada — "
-                                        f"Cubículo **{_nc_voucher['cubiculo']}** activado. "
-                                        f"Horario: {_nc_ini_str} → {_nc_fin_str} · "
-                                        f"Horas: {_nc_horas:.1f} h"
-                                    )
-                                    st.rerun()
-                                except Exception as _e_nc:
-                                    st.error(f"❌ Error al crear reserva: {_e_nc}")
-
-                    with _col_nc_btn2:
-                        if st.button("🔄 Limpiar formulario", use_container_width=True,
-                                     key="nc_limpiar"):
-                            for _k_nc in ["nc_nombre", "nc_tel", "nc_doc", "nc_email",
-                                          "_nc_last_voucher", "_nc_voucher_ref"]:
-                                st.session_state.pop(_k_nc, None)
-                            st.rerun()
-
-                    # ── Voucher de última reserva Noche Completa ───────────────────────────
-                    _last_nc = st.session_state.get("_nc_last_voucher")
-                    if _last_nc:
-                        st.divider()
-                        st.markdown("#### 🎫 Voucher — Última reserva Noche Completa creada")
-                        _col_ncv1, _col_ncv2 = st.columns([2, 1])
-                        with _col_ncv1:
-                            _ref_nc_op = st.session_state.get("_nc_voucher_ref", "")
-                            st.markdown(f"""
-                            <div class="voucher-box" style="max-width:100%">
-                              <div style="text-align:center;margin-bottom:12px">
-                                <div style="font-size:18px;font-weight:800;color:#a29bfe">{NEGOCIO}</div>
-                                <div style="font-size:12px;color:#94a3b8">🌙 Noche Completa · Reserva por operador</div>
-                              </div>
-                              <table style="width:100%;font-size:14px;border-collapse:collapse">
-                                <tr><td style="color:#94a3b8;padding:3px 0">Reserva</td>
-                                    <td style="text-align:right;font-family:'Inconsolata';font-weight:700">{_last_nc["numero_reserva"]}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Factura</td>
-                                    <td style="text-align:right;font-family:'Inconsolata'">{_last_nc["numero_factura"]}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Cliente</td>
-                                    <td style="text-align:right;font-weight:700">{_last_nc["cliente_nombre"]}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Cubículo</td>
-                                    <td style="text-align:right;font-size:18px;color:#a29bfe;font-weight:700">{_last_nc["cubiculo"]}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Horario</td>
-                                    <td style="text-align:right">{_nc_ini_str} → {_nc_fin_str}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Horas Reservadas</td>
-                                    <td style="text-align:right;color:#a29bfe;font-weight:700">{_nc_horas:.1f} h</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Precio Aplicado</td>
-                                    <td style="text-align:right;color:#ffd32a">{fmt_cop(_nc_precio_final)} COP</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">WiFi</td>
-                                    <td style="text-align:right;font-family:'Inconsolata'">{_last_nc["wifi_ssid"]} / {_last_nc["wifi_password"]}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Método</td>
-                                    <td style="text-align:right">{_last_nc["metodo_pago"]}{(" · " + _ref_nc_op) if _ref_nc_op else ""}</td></tr>
-                                <tr><td style="color:#94a3b8;padding:3px 0">Total</td>
-                                    <td style="text-align:right;font-size:18px;font-weight:700;color:#00ff88">{fmt_cop(_last_nc["total"])} COP</td></tr>
-                              </table>
-                              <div style="text-align:center;margin-top:16px">
-                                <div style="font-size:12px;color:#94a3b8;letter-spacing:2px;text-transform:uppercase">CÓDIGO DE ACCESO</div>
-                                <div style="font-family:'Inconsolata';font-size:56px;font-weight:700;
-                                            color:#00ff88;letter-spacing:12px;
-                                            text-shadow:0 0 30px rgba(0,255,136,0.6)">{_last_nc["codigo_acceso"]}</div>
-                              </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-
-                        with _col_ncv2:
-                            if REPORTLAB_AVAILABLE:
-                                _pdf_nc = generar_ticket_pdf(_last_nc)
-                                if _pdf_nc:
-                                    st.download_button("📄 Imprimir PDF",
-                                                       data=_pdf_nc,
-                                                       file_name=f"ticket_{_last_nc['numero_reserva']}.pdf",
-                                                       mime="application/pdf",
-                                                       use_container_width=True)
-                            _html_nc = voucher_html(_last_nc)
-                            st.download_button("🌐 Voucher HTML",
-                                               data=_html_nc.encode(),
-                                               file_name=f"voucher_{_last_nc['numero_reserva']}.html",
-                                               mime="text/html",
-                                               use_container_width=True)
-                            _wa_nc = (f"JJGT Reserva {_last_nc['numero_reserva']} | "
-                                      f"🌙 Noche Completa {_nc_ini_str}→{_nc_fin_str} | "
-                                      f"Horas: {_nc_horas:.1f} h | "
-                                      f"Precio: {fmt_cop(_nc_precio_final)} COP | "
-                                      f"Cubículo {_last_nc['cubiculo']} | "
-                                      f"Código: {_last_nc['codigo_acceso']} | "
-                                      f"WiFi: {_last_nc['wifi_ssid']} Clave: {_last_nc['wifi_password']} | "
-                                      f"Total: {fmt_cop(_last_nc['total'])} COP")
-                            _wa_url_nc = f"https://wa.me/?text={_wa_nc.replace(' ','%20')}"
-                            st.markdown(
-                                f'''<a href="{_wa_url_nc}" target="_blank">
-                                <button style="width:100%;padding:12px;margin-top:8px;
-                                  background:rgba(37,211,102,0.2);border:2px solid rgba(37,211,102,0.5);
-                                  border-radius:12px;color:#25d366;font-weight:700;font-size:15px;
-                                  cursor:pointer">📱 Enviar WhatsApp</button></a>''',
-                                unsafe_allow_html=True)
-                            st.markdown("<br>", unsafe_allow_html=True)
-                            if st.button("🆕 Nueva reserva", use_container_width=True,
-                                         key="nc_nueva", type="primary"):
-                                for _k2_nc in ["_nc_last_voucher", "_nc_voucher_ref"]:
-                                    st.session_state.pop(_k2_nc, None)
-                                st.rerun()
 
     # ── TAB FORMULARIO RÁPIDO ─────────────────────────────────────────────────
     with tab_rapido:
