@@ -98,21 +98,28 @@ except ImportError:
 # ──────────────────────────────────────────────────────────────────────────────
 # En Streamlit Cloud, /tmp/ persiste durante la sesión pero no entre deploys.
 # Para producción real usar una BD externa (Supabase, Railway, etc.)
-_IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "").startswith("/home/appuser")
+_IS_CLOUD = bool(
+    os.environ.get("STREAMLIT_SHARING_MODE") or          # señal clásica
+    os.environ.get("STREAMLIT_SERVER_HEADLESS") or       # Cloud moderno
+    os.environ.get("STCLOUD") or                         # alias manual
+    os.environ.get("HOME", "").startswith("/home/appuser") or  # versiones antiguas
+    os.environ.get("HOME", "").startswith("/home/user") or     # versiones recientes
+    not os.path.exists(".")                              # fallback: sin escritura local
+)
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
 DIRECCION    = "Terminal de Transportes · Local 42"
-TELEFONO     = "320 551 1091"
-NIT          = "900.123.456-7"
+TELEFONO     = "3219714969"
+NIT          = "902.047.71-3"
 TZ_COL       = pytz.timezone("America/Bogota")
-NEQUI_NUM    = "320 551 1091"
-DAVIPLATA_NUM= "320 551 1091"
+NEQUI_NUM    = "3219714969"
+DAVIPLATA_NUM= "3219714969"
 CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
-WHATSAPP_OP  = "573205511091"
+WHATSAPP_OP  = "573219714969"
 DRIVE_FILE   = "jjgt_pagos"
-EMAIL        = "josegarjagt@gmail.com"
+EMAIL        = "suitesalitre@gmail.com"
 
 ESTADOS_CUBICULO = {
     "libre":        {"label": "LIBRE",        "color": "#00ff88", "bg": "rgba(0,255,136,0.12)"},
@@ -140,18 +147,13 @@ st.set_page_config(
 #st.cache_resource.clear()
 
 
-# Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
+# CSS base: ocultar elementos Streamlit innecesarios
+# El header NO se toca aquí — su CSS se gestiona en el bloque principal
 hide_streamlit_style = """
             <style>
-            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
-            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
-            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
-            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
-            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
-            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
-            
-            /* En algunas versiones más recientes se usan diferentes clases CSS */
-            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
+            #MainMenu { display: none !important; }
+            footer    { display: none !important; }
+            .stDeployButton { display: none !important; }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -210,61 +212,31 @@ html, body, .stApp {
   100% { opacity: 0.6; }
 }
 
-/* En lugar de ocultar el header, se colapsa a altura cero */
-header[data-testid="stHeader"] {
-  height: 0 !important;
-  min-height: 0 !important;
-  overflow: visible !important;   /* ← permite que el botón sobresalga */
-}
-
-/* El botón se posiciona fijo en la esquina superior izquierda */
-[data-testid="collapsedControl"] {
-  position: fixed !important;
-  top: 0.5rem !important;
-  left: 0.5rem !important;
-  z-index: 99999 !important;
-  background: rgba(13,31,60,0.92) !important;
-  border: 1px solid rgba(0,212,255,0.4) !important;
-}
-
-/* ── Ocultar UI de Streamlit ──────────────────────────────── */
-/* IMPORTANTE: header con height:0 en lugar de visibility:hidden           */
-/* visibility:hidden en el padre se hereda y oculta el botón del sidebar   */
+/* ── Ocultar UI innecesaria de Streamlit ──────────────────── */
 #MainMenu { display: none !important; }
 footer    { display: none !important; }
 .stDeployButton { display: none !important; }
 
-/* El header se colapsa a alto cero — sus hijos siguen siendo clicables    */
+/* ── Header: transparente y sin altura para no ocupar espacio ─ */
+/* NO usar visibility:hidden — se hereda a hijos (incluye botón sidebar) */
 header[data-testid="stHeader"] {
-  height: 0 !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
   background: transparent !important;
-  border: none !important;
+  border-bottom: none !important;
   box-shadow: none !important;
 }
 
-
-/* ── Botón abrir/cerrar sidebar — siempre visible ─────────── */
+/* ── Botón sidebar: siempre visible y accesible ────────────── */
 [data-testid="collapsedControl"] {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  position: fixed !important;
-  top: 0.5rem !important;
-  left: 0.5rem !important;
   z-index: 99999 !important;
-  background: rgba(13,31,60,0.92) !important;
-  border: 1px solid rgba(0,212,255,0.4) !important;
-  border-radius: 8px !important;
-  padding: 4px !important;
 }
 [data-testid="collapsedControl"] svg {
-  fill: #00d4ff !important;
-  width: 20px !important;
-  height: 20px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
@@ -3081,17 +3053,21 @@ def _backup_cierre_turno(operador_info: dict):
         # Nombre del archivo de cierre diferente al backup genérico
         fname = f"cierre_{turno}_{nombre}_{ts_str}.xlsx" if mime.endswith("sheet") else                 f"cierre_{turno}_{nombre}_{ts_str}.zip"
 
-        if _IS_CLOUD:
-            # En Cloud: guardar en session_state para descarga inmediata en el sidebar
-            st.session_state["_backup_cierre_bytes"] = data
-            st.session_state["_backup_cierre_fname"] = fname
-            st.session_state["_backup_cierre_mime"]  = mime
-        else:
-            # En local: guardar en carpeta backups/
-            os.makedirs("backups", exist_ok=True)
-            backup_path = os.path.join("backups", fname)
-            with open(backup_path, "wb") as bf:
-                bf.write(data)
+        # Siempre guardar en session_state para descarga inmediata en sidebar
+        # (funciona tanto en local como en Cloud)
+        st.session_state["_backup_cierre_bytes"] = data
+        st.session_state["_backup_cierre_fname"] = fname
+        st.session_state["_backup_cierre_mime"]  = mime
+
+        # Además, en entorno LOCAL intentar escribir a disco como respaldo adicional
+        if not _IS_CLOUD:
+            try:
+                os.makedirs("backups", exist_ok=True)
+                backup_path = os.path.join("backups", fname)
+                with open(backup_path, "wb") as bf:
+                    bf.write(data)
+            except Exception:
+                pass  # fallo de escritura no crítico — ya está en session_state
 
         # Registrar en Google Sheets
         try:
@@ -4457,10 +4433,10 @@ def show_operador():
                 ir_a("operador_login")
         else:
             if st.button("🚪 Cerrar sesión", use_container_width=True):
-                # Genera backup (local → escribe a disco / Cloud → guarda en session_state)
+                # Genera backup — siempre queda en session_state (local Y cloud)
                 _backup_cierre_turno(op)
-                if _IS_CLOUD and st.session_state.get("_backup_cierre_bytes"):
-                    # En Cloud: mantener sesión abierta para que el operador pueda descargar
+                if st.session_state.get("_backup_cierre_bytes"):
+                    # Mantener sesión abierta para que el operador pueda descargar
                     st.rerun()
                 else:
                     st.session_state.operador_ok   = False
