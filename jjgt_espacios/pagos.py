@@ -210,21 +210,61 @@ html, body, .stApp {
   100% { opacity: 0.6; }
 }
 
+/* En lugar de ocultar el header, se colapsa a altura cero */
+header[data-testid="stHeader"] {
+  height: 0 !important;
+  min-height: 0 !important;
+  overflow: visible !important;   /* ← permite que el botón sobresalga */
+}
+
+/* El botón se posiciona fijo en la esquina superior izquierda */
+[data-testid="collapsedControl"] {
+  position: fixed !important;
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+  z-index: 99999 !important;
+  background: rgba(13,31,60,0.92) !important;
+  border: 1px solid rgba(0,212,255,0.4) !important;
+}
+
 /* ── Ocultar UI de Streamlit ──────────────────────────────── */
-#MainMenu, footer, header { visibility: hidden !important; }
+/* IMPORTANTE: header con height:0 en lugar de visibility:hidden           */
+/* visibility:hidden en el padre se hereda y oculta el botón del sidebar   */
+#MainMenu { display: none !important; }
+footer    { display: none !important; }
 .stDeployButton { display: none !important; }
-/* [data-testid="collapsedControl"] { display: none !important; } */
+
+/* El header se colapsa a alto cero — sus hijos siguen siendo clicables    */
+header[data-testid="stHeader"] {
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
 
 
-/* ── Forzar visibilidad del botón abrir/cerrar sidebar ────── */
-[data-testid="collapsedControl"],
-button[data-testid="collapsedControl"],
-[data-testid="collapsedControl"] svg {
+/* ── Botón abrir/cerrar sidebar — siempre visible ─────────── */
+[data-testid="collapsedControl"] {
   display: flex !important;
   visibility: visible !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  z-index: 9999 !important;
+  position: fixed !important;
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+  z-index: 99999 !important;
+  background: rgba(13,31,60,0.92) !important;
+  border: 1px solid rgba(0,212,255,0.4) !important;
+  border-radius: 8px !important;
+  padding: 4px !important;
+}
+[data-testid="collapsedControl"] svg {
+  fill: #00d4ff !important;
+  width: 20px !important;
+  height: 20px !important;
 }
 
 /* ── Sidebar operador ─────────────────────────────────────── */
