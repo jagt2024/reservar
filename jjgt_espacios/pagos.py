@@ -216,6 +216,18 @@ html, body, .stApp {
 .stDeployButton { display: none !important; }
 /* [data-testid="collapsedControl"] { display: none !important; } */
 
+
+/* ── Forzar visibilidad del botón abrir/cerrar sidebar ────── */
+[data-testid="collapsedControl"],
+button[data-testid="collapsedControl"],
+[data-testid="collapsedControl"] svg {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 9999 !important;
+}
+
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
   background: rgba(5,11,26,0.97) !important;
