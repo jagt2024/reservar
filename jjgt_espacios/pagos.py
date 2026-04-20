@@ -983,7 +983,7 @@ SPREADSHEET_ID = "1JmKNZ4ld2u43EU_ymn8NhFtXti2mDcPLkM42ciMTLC4"
 # Cada lista debe coincidir 1:1 con la fila que arman las funciones gs_escribir_*
 # y _gs_append correspondientes. Si cambia una función de escritura, cambiar aquí.
 DRIVE_SHEETS = {
-    # gs_escribir_reserva → 25 campos en este orden exacto
+    # gs_escribir_reserva → 26 campos en este orden exacto
     "Reservas": [
         "ID_Reserva",       # datos["id"]
         "Numero_Reserva",   # datos["numero_reserva"]
@@ -1010,6 +1010,7 @@ DRIVE_SHEETS = {
         "Referencia_Pago",  # datos["referencia_pago"]
         "Operador",         # datos["operador"]
         "Notas",            # datos["notas"]
+        "Acepto_Datos",     # datos["acepto_datos"] — autorización Ley 1581
     ],
     # gs_escribir_pago → 10 campos en este orden exacto
     "Pagos": [
@@ -1483,7 +1484,8 @@ def gs_escribir_reserva(sh, datos: dict) -> bool:
     #           Horas_Contratadas, Hora_Inicio, Hora_Fin_Prog, Hora_Fin_Real,
     #           Precio_Hora, Subtotal, IVA, Total_COP,
     #           Metodo_Pago, Estado_Pago, Codigo_Acceso,
-    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas
+    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas,
+    #           Acepto_Datos
     fila = [
         str(datos.get("id", "")),
         str(datos.get("numero_reserva", "")),
@@ -1510,6 +1512,7 @@ def gs_escribir_reserva(sh, datos: dict) -> bool:
         str(datos.get("referencia_pago", "")),
         str(datos.get("operador", "sistema")),
         str(datos.get("notas", "")),
+        "Sí" if datos.get("acepto_datos") else "No",
     ]
     return _gs_upsert(sh, "Reservas", "Numero_Reserva",
                       str(datos.get("numero_reserva", "")), fila)
@@ -2688,7 +2691,8 @@ def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
     return numf, numf
 
 
-def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: str) -> dict:
+def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: str,
+                           acepto_datos: bool = False) -> dict:
     """
     Crea reserva, pago, factura y activa el cubículo.
     Todo se escribe directamente en Google Sheets.
@@ -2783,6 +2787,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
             "referencia_pago": "",
             "operador":        st.session_state.get("operador_info", {}).get("nombre", "sistema"),
             "notas":           "",
+            "acepto_datos":    acepto_datos,
         })
         gs_escribir_pago(sh, {
             "id":                 num_res,
@@ -3474,6 +3479,20 @@ def show_datos():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # Autorización tratamiento de datos personales
+        st.markdown("<br>", unsafe_allow_html=True)
+        acepto_datos_kiosco = st.checkbox(
+            "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            key="kiosco_acepto_datos",
+        )
+        st.markdown(
+            "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+            "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
         # Validación
         errores = []
         if not nombre.strip():
@@ -3482,6 +3501,8 @@ def show_datos():
             errores.append("El número de documento es obligatorio")
         if not telefono.strip():
             errores.append("El teléfono es obligatorio")
+        if not acepto_datos_kiosco:
+            errores.append("Debes aceptar la autorización de tratamiento de datos personales")
 
         btn_v, btn_p, btn_c = st.columns([1, 1, 2])
         with btn_v:
@@ -3504,6 +3525,7 @@ def show_datos():
                         "email": email.strip(),
                         "razon_social": razon_social,
                         "nit_empresa": nit_emp,
+                        "acepto_datos": acepto_datos_kiosco,
                     }
                     ir_a("pago")
 
@@ -3987,6 +4009,7 @@ def show_confirmacion():
                 st.session_state.cliente,
                 st.session_state.calc,
                 st.session_state.metodo_pago,
+                acepto_datos=st.session_state.cliente.get("acepto_datos", False),
             )
             st.session_state.voucher        = voucher
             st.session_state.pago_confirmado = True
@@ -4770,13 +4793,31 @@ def _op_nueva_reserva():
 
                     st.divider()
 
-                    # Paso 4: Confirmar
+                    # Paso 4: Autorización tratamiento de datos personales
+                    st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
+                    _nc_acepto_datos = st.checkbox(
+                        "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+                        "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+                        key="nc_acepto_datos",
+                    )
+                    st.markdown(
+                        "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+                        "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                    st.divider()
+
+                    # Paso 5: Confirmar
                     _col_nc_btn1, _col_nc_btn2 = st.columns(2)
                     with _col_nc_btn1:
                         if st.button("✅ CONFIRMAR PAGO Y CREAR RESERVA", type="primary",
                                      use_container_width=True, key="nc_confirmar"):
                             if not _nc_nombre.strip():
                                 st.error("⚠️ El nombre del cliente es obligatorio.")
+                            elif not _nc_acepto_datos:
+                                st.error("⚠️ Debes aceptar la autorización de tratamiento de datos personales para continuar.")
                             else:
                                 if _nc_metodo in METODOS_CON_QR_NC and not _nc_referencia.strip():
                                     st.toast("⚠️ Sin referencia de pago — se registrará sin comprobante.",
@@ -4792,7 +4833,8 @@ def _op_nueva_reserva():
                                 }
                                 try:
                                     _nc_voucher = crear_reserva_completa(
-                                        _cub_nc, _nc_cliente, _calc_nc, _nc_metodo
+                                        _cub_nc, _nc_cliente, _calc_nc, _nc_metodo,
+                                        acepto_datos=_nc_acepto_datos
                                     )
                                     # Actualizar referencia de pago si fue ingresada
                                     if _nc_referencia.strip():
@@ -5010,13 +5052,31 @@ def _op_nueva_reserva():
 
         st.divider()
 
-        # Paso 4: Confirmar
+        # Paso 4: Autorización tratamiento de datos personales
+        st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
+        acepto_datos_rapido = st.checkbox(
+            "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            key="op_res_acepto_datos",
+        )
+        st.markdown(
+            "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+            "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        st.divider()
+
+        # Paso 5: Confirmar
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("✅ CONFIRMAR PAGO Y CREAR RESERVA", type="primary",
                          use_container_width=True, key="op_res_confirmar"):
                 if not c_nombre.strip():
                     st.error("⚠️ El nombre del cliente es obligatorio.")
+                elif not acepto_datos_rapido:
+                    st.error("⚠️ Debes aceptar la autorización de tratamiento de datos personales para continuar.")
                 else:
                     # Advertir si falta referencia para métodos digitales, pero no bloquear
                     if metodo_pago in METODOS_CON_QR and not referencia.strip():
@@ -5035,7 +5095,8 @@ def _op_nueva_reserva():
                     with st.spinner("Creando reserva y sincronizando con Google Sheets..."):
                         try:
                             voucher = crear_reserva_completa(
-                                cubiculo_sel, cliente_data, calc, metodo_pago)
+                                cubiculo_sel, cliente_data, calc, metodo_pago,
+                                acepto_datos=acepto_datos_rapido)
                             # Guardar referencia de pago en Sheets si se proporcionó
                             if referencia.strip() and voucher:
                                 try:

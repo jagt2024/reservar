@@ -100,7 +100,14 @@ except ImportError:
 # ──────────────────────────────────────────────────────────────────────────────
 # En Streamlit Cloud, /tmp/ persiste durante la sesión pero no entre deploys.
 # Para producción real usar una BD externa (Supabase, Railway, etc.)
-_IS_CLOUD = os.environ.get("STREAMLIT_SHARING_MODE") or os.environ.get("HOME", "").startswith("/home/appuser")
+_IS_CLOUD = bool(
+    os.environ.get("STREAMLIT_SHARING_MODE") or          # señal clásica
+    os.environ.get("STREAMLIT_SERVER_HEADLESS") or       # Cloud moderno
+    os.environ.get("STCLOUD") or                         # alias manual
+    os.environ.get("HOME", "").startswith("/home/appuser") or  # versiones antiguas
+    os.environ.get("HOME", "").startswith("/home/user") or     # versiones recientes
+    not os.path.exists(".")                              # fallback: sin escritura local
+)
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
@@ -146,16 +153,9 @@ st.set_page_config(
 # Ocultar elementos de la interfaz de Streamlit usando CSS personalizado
 hide_streamlit_style = """
             <style>
-            #MainMenu {visibility: hidden;}  /* Oculta el menú hamburguesa */
-            footer {visibility: hidden;}  /* Oculta el footer "Made with Streamlit" */
-            header {visibility: hidden;}  /* Oculta la cabecera */
-            .stDeployButton {display:none;}  /* Oculta el botón de deploy */
-            .css-1rs6os {visibility: hidden;}  /* Oculta el menú de configuración */
-            .css-14xtw13 {visibility: hidden;}  /* Para algunas versiones de Streamlit */
-            .css-1avcm0n {visibility: hidden;}  /* Para algunas versiones de Streamlit (menú hamburguesa) */
-            
-            /* En algunas versiones más recientes se usan diferentes clases CSS */
-            /* Puedes identificar las clases específicas usando inspeccionar elemento en tu navegador */
+            #MainMenu { display: none !important; }
+            footer    { display: none !important; }
+            .stDeployButton { display: none !important; }
             </style>
             """
 st.markdown(hide_streamlit_style, unsafe_allow_html=True)
@@ -213,10 +213,32 @@ html, body, .stApp {
   100% { opacity: 0.6; }
 }
 
-/* ── Ocultar UI de Streamlit ──────────────────────────────── */
-#MainMenu, footer, header { visibility: hidden !important; }
+/* ── Ocultar UI innecesaria de Streamlit ──────────────────── */
+#MainMenu { display: none !important; }
+footer    { display: none !important; }
 .stDeployButton { display: none !important; }
-[data-testid="collapsedControl"] { display: none !important; }
+
+/* ── Header: transparente y sin altura para no ocupar espacio ─ */
+/* NO usar visibility:hidden — se hereda a hijos (incluye botón sidebar) */
+header[data-testid="stHeader"] {
+  background: transparent !important;
+  border-bottom: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Botón sidebar: siempre visible y accesible ────────────── */
+[data-testid="collapsedControl"] {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  z-index: 99999 !important;
+}
+[data-testid="collapsedControl"] svg {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
 
 /* ── Sidebar operador ─────────────────────────────────────── */
 section[data-testid="stSidebar"] {
@@ -962,7 +984,7 @@ SPREADSHEET_ID = "1JmKNZ4ld2u43EU_ymn8NhFtXti2mDcPLkM42ciMTLC4"
 # Cada lista debe coincidir 1:1 con la fila que arman las funciones gs_escribir_*
 # y _gs_append correspondientes. Si cambia una función de escritura, cambiar aquí.
 DRIVE_SHEETS = {
-    # gs_escribir_reserva → 25 campos en este orden exacto
+    # gs_escribir_reserva → 26 campos en este orden exacto
     "Reservas": [
         "ID_Reserva",       # datos["id"]
         "Numero_Reserva",   # datos["numero_reserva"]
@@ -989,6 +1011,7 @@ DRIVE_SHEETS = {
         "Referencia_Pago",  # datos["referencia_pago"]
         "Operador",         # datos["operador"]
         "Notas",            # datos["notas"]
+        "Acepto_Datos",     # datos["acepto_datos"] — autorización Ley 1581
     ],
     # gs_escribir_pago → 10 campos en este orden exacto
     "Pagos": [
@@ -1157,6 +1180,7 @@ DRIVE_SHEETS_CONVENIOS = {
         "WiFi_SSID","WiFi_Pass","Num_Factura","Referencia_Pago",
         "Operador","Notas",
         "Id_Empresa","Nombre_Empresa",  # campos de convenio añadidos
+        "Acepto_Datos",                 # autorización Ley 1581
     ],
     # Clientes con campo convenio
     "Clientes": [
@@ -1602,7 +1626,8 @@ def gs_escribir_reserva(sh, datos: dict) -> bool:
     #           Horas_Contratadas, Hora_Inicio, Hora_Fin_Prog, Hora_Fin_Real,
     #           Precio_Hora, Subtotal, IVA, Total_COP,
     #           Metodo_Pago, Estado_Pago, Codigo_Acceso,
-    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas
+    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas,
+    #           Acepto_Datos
     fila = [
         str(datos.get("id", "")),
         str(datos.get("numero_reserva", "")),
@@ -1629,6 +1654,7 @@ def gs_escribir_reserva(sh, datos: dict) -> bool:
         str(datos.get("referencia_pago", "")),
         str(datos.get("operador", "sistema")),
         str(datos.get("notas", "")),
+        "Sí" if datos.get("acepto_datos") else "No",
     ]
     return _gs_upsert(sh, "Reservas", "Numero_Reserva",
                       str(datos.get("numero_reserva", "")), fila)
@@ -1712,6 +1738,7 @@ def gs_escribir_reserva_convenio(sh_conv, datos: dict) -> bool:
         str(datos.get("notas", "")),
         str(datos.get("id_empresa", "")),
         str(datos.get("nombre_empresa", "")),
+        "Sí" if datos.get("acepto_datos") else "No",
     ]
     return _gs_upsert(sh_conv, "Reservas", "Numero_Reserva",
                       str(datos.get("numero_reserva", "")), fila)
@@ -3544,7 +3571,8 @@ def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
     return numf, numf
 
 
-def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: str) -> dict:
+def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: str,
+                           acepto_datos: bool = False) -> dict:
     """
     Crea reserva, pago, factura y activa el cubículo.
     Todo se escribe directamente en Google Sheets.
@@ -3639,6 +3667,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
             "referencia_pago": "",
             "operador":        st.session_state.get("operador_info", {}).get("nombre", "sistema"),
             "notas":           "",
+            "acepto_datos":    acepto_datos,
         })
         gs_escribir_pago(sh, {
             "id":                 num_res,
@@ -4334,6 +4363,20 @@ def show_datos():
 
         st.markdown("</div>", unsafe_allow_html=True)
 
+        # Autorización tratamiento de datos personales
+        st.markdown("<br>", unsafe_allow_html=True)
+        acepto_datos_kiosco = st.checkbox(
+            "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            key="kiosco_acepto_datos",
+        )
+        st.markdown(
+            "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+            "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
         # Validación
         errores = []
         if not nombre.strip():
@@ -4342,6 +4385,8 @@ def show_datos():
             errores.append("El número de documento es obligatorio")
         if not telefono.strip():
             errores.append("El teléfono es obligatorio")
+        if not acepto_datos_kiosco:
+            errores.append("Debes aceptar la autorización de tratamiento de datos personales")
 
         btn_v, btn_p, btn_c = st.columns([1, 1, 2])
         with btn_v:
@@ -4364,6 +4409,7 @@ def show_datos():
                         "email": email.strip(),
                         "razon_social": razon_social,
                         "nit_empresa": nit_emp,
+                        "acepto_datos": acepto_datos_kiosco,
                     }
                     ir_a("pago")
 
@@ -4847,6 +4893,7 @@ def show_confirmacion():
                 st.session_state.cliente,
                 st.session_state.calc,
                 st.session_state.metodo_pago,
+                acepto_datos=st.session_state.cliente.get("acepto_datos", False),
             )
             st.session_state.voucher        = voucher
             st.session_state.pago_confirmado = True
@@ -5360,7 +5407,7 @@ def _op_nueva_reserva():
     op = st.session_state.get("operador_info", {})
     st.caption(f"Operador: **{op.get('nombre','—')}** · Turno: {op.get('turno','—')}")
 
-    tab_rapido, tab_kiosk, tab_conv = st.tabs(["⚡ Formulario Rápido", "🖥️ Flujo Kiosco", "🤝 Convenio Empresarial"])
+    tab_rapido, tab_noche, tab_kiosk, tab_conv = st.tabs(["⚡ Formulario Rápido", "🌙 Noche Completa", "🖥️ Flujo Kiosco", "🤝 Convenio Empresarial"])
 
     # ── TAB KIOSCO ────────────────────────────────────────────────────────────
     with tab_kiosk:
@@ -5635,13 +5682,31 @@ def _op_nueva_reserva():
 
                     st.divider()
 
-                    # Paso 4: Confirmar
+                    # Paso 4: Autorización tratamiento de datos personales
+                    st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
+                    _nc_acepto_datos = st.checkbox(
+                        "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+                        "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+                        key="nc_acepto_datos",
+                    )
+                    st.markdown(
+                        "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+                        "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+
+                    st.divider()
+
+                    # Paso 5: Confirmar
                     _col_nc_btn1, _col_nc_btn2 = st.columns(2)
                     with _col_nc_btn1:
                         if st.button("✅ CONFIRMAR PAGO Y CREAR RESERVA", type="primary",
                                      use_container_width=True, key="nc_confirmar"):
                             if not _nc_nombre.strip():
                                 st.error("⚠️ El nombre del cliente es obligatorio.")
+                            elif not _nc_acepto_datos:
+                                st.error("⚠️ Debes aceptar la autorización de tratamiento de datos personales para continuar.")
                             else:
                                 if _nc_metodo in METODOS_CON_QR_NC and not _nc_referencia.strip():
                                     st.toast("⚠️ Sin referencia de pago — se registrará sin comprobante.",
@@ -5657,7 +5722,8 @@ def _op_nueva_reserva():
                                 }
                                 try:
                                     _nc_voucher = crear_reserva_completa(
-                                        _cub_nc, _nc_cliente, _calc_nc, _nc_metodo
+                                        _cub_nc, _nc_cliente, _calc_nc, _nc_metodo,
+                                        acepto_datos=_nc_acepto_datos
                                     )
                                     # Actualizar referencia de pago si fue ingresada
                                     if _nc_referencia.strip():
@@ -5876,13 +5942,31 @@ def _op_nueva_reserva():
 
         st.divider()
 
-        # Paso 4: Confirmar
+        # Paso 4: Autorización tratamiento de datos personales
+        st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
+        acepto_datos_rapido = st.checkbox(
+            "✅ Autorizo el tratamiento de mis datos personales conforme a la "
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            key="op_res_acepto_datos",
+        )
+        st.markdown(
+            "<div style='font-size:12px;color:#94a3b8;margin-top:-8px;margin-bottom:8px'>"
+            "La información suministrada será usada exclusivamente para la gestión de su reserva y facturación."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        st.divider()
+
+        # Paso 5: Confirmar
         col_btn1, col_btn2 = st.columns(2)
         with col_btn1:
             if st.button("✅ CONFIRMAR PAGO Y CREAR RESERVA", type="primary",
                          use_container_width=True, key="op_res_confirmar"):
                 if not c_nombre.strip():
                     st.error("⚠️ El nombre del cliente es obligatorio.")
+                elif not acepto_datos_rapido:
+                    st.error("⚠️ Debes aceptar la autorización de tratamiento de datos personales para continuar.")
                 else:
                     # Advertir si falta referencia para métodos digitales, pero no bloquear
                     if metodo_pago in METODOS_CON_QR and not referencia.strip():
@@ -5901,7 +5985,8 @@ def _op_nueva_reserva():
                     with st.spinner("Creando reserva y sincronizando con Google Sheets..."):
                         try:
                             voucher = crear_reserva_completa(
-                                cubiculo_sel, cliente_data, calc, metodo_pago)
+                                cubiculo_sel, cliente_data, calc, metodo_pago,
+                                acepto_datos=acepto_datos_rapido)
                             # Guardar referencia de pago en Sheets si se proporcionó
                             if referencia.strip() and voucher:
                                 try:
