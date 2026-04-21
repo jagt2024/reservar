@@ -2235,7 +2235,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
     rows = _gs_read_sheet("Tarifas_Config")
     precio_hora   = 15000
     desc_3h       = 16.67
-    desc_6h       = 16.67
+    desc_6h       = (16.67 + 7.501)
     hora_ini_espec = ""
     hora_fin_espec = ""
     tarifa_row     = None
@@ -2245,7 +2245,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
             tarifa_row     = r
             precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
             desc_3h        = _gs_float(r, "Desc_3h_Pct", 16.67)
-            desc_6h        = _gs_float(r, "Desc_6h_Pct", 16.67)
+            desc_6h        = _gs_float(r, "Desc_6h_Pct", 24.171)
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
             break
@@ -2298,9 +2298,15 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
 
     # ── Lógica estándar ───────────────────────────────────────────────────────
     descuento_pct = 0
-    if horas >= 6:
-        descuento_pct = desc_6h
-    elif horas >= 2:
+    if horas == 3:
+        descuento_pct = (desc_6h - 2.0)
+    elif horas == 4:
+        descuento_pct = (desc_6h + .783)
+    elif horas == 5:
+        descuento_pct = (desc_6h + 2.433)
+    elif horas == 6:
+        descuento_pct = (desc_6h + 3.555)
+    elif horas == 2:
         descuento_pct = desc_3h
 
     subtotal_bruto = round(precio_hora * horas, 0)
