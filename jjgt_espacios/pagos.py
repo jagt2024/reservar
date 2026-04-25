@@ -111,7 +111,7 @@ NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
 DIRECCION    = "Terminal de Transportes · Local 42"
 TELEFONO     = "3219714969"
-NIT          = "902.047.71-3"
+NIT          = "902.047.871-3"
 TZ_COL       = pytz.timezone("America/Bogota")
 NEQUI_NUM    = "3219714969"
 DAVIPLATA_NUM= "3219714969"
@@ -2306,6 +2306,8 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
         descuento_pct = (desc_6h + 2.433)
     elif horas == 6:
         descuento_pct = (desc_6h + 3.555)
+    elif horas >= 7:
+        descuento_pct = (desc_6h + 9.150)
     elif horas == 2:
         descuento_pct = desc_3h
 

@@ -53,6 +53,65 @@ from typing import Optional
 import pandas as pd
 import pytz
 
+# ── Logo de la empresa ────────────────────────────────────────────────────────
+def _cargar_logo_b64() -> str:
+    """
+    Busca el logo, lo redimensiona a máx 300×120 px y lo comprime a JPEG
+    de calidad 72 para que pese < 50 KB en base64 (evita WebSocketClosedError
+    por payloads gigantes en Tornado/Streamlit).
+
+    Rutas buscadas (en orden):
+      1. logoSuite_Salitre.jpg junto al script
+      2. assets/logoSuite_Salitre.jpg
+      3. static/logoSuite_Salitre.jpg
+    """
+    _logo_names = [
+        "logoSuite_Salitre.jpg",
+        "assets/logoSuite_Salitre.jpg",
+        "static/logoSuite_Salitre.jpg",
+    ]
+    _script_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in dir() else "."
+    for _name in _logo_names:
+        _path = os.path.join(_script_dir, _name)
+        if os.path.exists(_path):
+            try:
+                # Intentar comprimir con Pillow (disponible si qrcode o reportlab está instalado)
+                from PIL import Image as _PilImg
+                _PilImg.MAX_IMAGE_PIXELS = None  # imagen muy grande — suprimir DecompressionBombWarning
+                with _PilImg.open(_path) as _img:
+                    # Convertir a RGB por si tiene canal alfa (PNG con transparencia)
+                    if _img.mode in ("RGBA", "P", "LA"):
+                        _bg = _PilImg.new("RGB", _img.size, (5, 11, 26))  # fondo = --bg-deep
+                        _bg.paste(_img, mask=_img.split()[-1] if _img.mode in ("RGBA","LA") else None)
+                        _img = _bg
+                    elif _img.mode != "RGB":
+                        _img = _img.convert("RGB")
+                    # Redimensionar manteniendo proporción: máx 300×120 px
+                    _img.thumbnail((300, 120), _PilImg.LANCZOS)
+                    _buf = io.BytesIO()
+                    _img.save(_buf, format="JPEG", quality=72, optimize=True)
+                    return base64.b64encode(_buf.getvalue()).decode()
+            except ImportError:
+                # Pillow no disponible: leer raw (solo si ya es pequeño, < 200 KB)
+                try:
+                    _raw = open(_path, "rb").read()
+                    if len(_raw) <= 200_000:
+                        return base64.b64encode(_raw).decode()
+                    # Archivo demasiado grande sin Pillow → no incluir (evitar crash WS)
+                except Exception:
+                    pass
+            except Exception:
+                pass
+    return ""
+
+_LOGO_B64: str = _cargar_logo_b64()
+_LOGO_HTML: str = (
+    f'<img src="data:image/jpeg;base64,{_LOGO_B64}" '
+    'style="max-height: 250px;max-width:250px;object-fit:contain;'
+    'filter:drop-shadow(0 0 12px rgba(0,212,255,0.35));margin-bottom:4px">'
+    if _LOGO_B64 else ""
+)
+
 # ── Reintentos para escrituras en Google Sheets ───────────────────────────────
 MAX_RETRIES         = 4          # intentos ante error 429
 INITIAL_RETRY_DELAY = 2         # segundos base del backoff exponencial
@@ -95,6 +154,14 @@ try:
 except ImportError:
     OPENPYXL_AVAILABLE = False
 
+# ── Módulo de Facturación Mensual y Control de Cartera ────────────────────────
+try:
+    import facturacion_cartera as _fc_mod
+    FC_AVAILABLE = True
+except ImportError:
+    _fc_mod      = None
+    FC_AVAILABLE = False
+
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTES GLOBALES
 # ──────────────────────────────────────────────────────────────────────────────
@@ -112,17 +179,16 @@ DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
 DIRECCION    = "Terminal de Transportes · Local 42"
-TELEFONO     = "320 551 1091"
-NIT          = "900.123.456-7"
+TELEFONO     = "3219714969"
+NIT          = "902.047.871-3"
 TZ_COL       = pytz.timezone("America/Bogota")
-NEQUI_NUM    = "320 551 1091"
-DAVIPLATA_NUM= "320 551 1091"
+NEQUI_NUM    = "3219714969"
+DAVIPLATA_NUM= "3219714969"
 CUENTA_BANCO = "Bancolombia · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
-WHATSAPP_OP  = "573205511091"
-DRIVE_FILE           = "jjgt_pagos"
-DRIVE_FILE_CONVENIOS = "jjgt_convenios"
-EMAIL        = "josegarjagt@gmail.com"
+WHATSAPP_OP  = "573219714969"
+DRIVE_FILE   = "jjgt_pagos"
+EMAIL        = "suitesalitre@gmail.com"
 
 # ID del Spreadsheet de Convenios (se configura igual que el principal)
 SPREADSHEET_ID_CONVENIOS = ""  # Se llena desde Configuracion_Pagos clave "convenios_spreadsheet_id"
@@ -1118,7 +1184,7 @@ DRIVE_SHEETS = {
     # Tarifas → 10 campos
     "Tarifas_Config": [
         "ID",             # id de la tarifa
-        "Nombre",         # "Estándar", "Madrugada", "Festivo"
+        "Empresa_Nombre", # "Estándar", "Madrugada", "Festivo"
         "Descripcion",    # descripción
         "Precio_Hora_COP",# precio por hora
         "Desc_3h_Pct",    # descuento a partir de 2h (%)
@@ -1224,7 +1290,7 @@ DRIVE_SHEETS_CONVENIOS = {
         "WiFi_SSID","WiFi_Pass","Precio_Hora_Base",
     ],
     "Tarifas_Config": [
-        "ID","Id_Empresa","Nombre_Empresa","Nombre","Descripcion","Precio_Hora_COP",
+        "ID","Id_Empresa","Empresa_Nombre","Descripcion","Precio_Hora_COP",
         "Desc_3h_Pct","Desc_6h_Pct","Hora_Ini_Espec","Hora_Fin_Espec",
         "Aplica_Festivos","Activo",
     ],
@@ -2089,7 +2155,7 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
             "numero":           num_fac,
             "tipo":             "Factura de Venta Convenio",
             "fecha_emision":    now.strftime("%Y-%m-%d"),
-            "fecha_vencimiento":now.strftime("%Y-%m-%d"),
+            "fecha_vencimiento":(hoy + timedelta(days=30)).strftime("%Y-%m-%d"),
             "cliente_nombre":   cliente["nombre"],
             "cliente_doc":      cliente.get("numero_documento", ""),
             "cliente_email":    cliente.get("email", ""),
@@ -3009,17 +3075,17 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
     rows = _gs_read_sheet("Tarifas_Config")
     precio_hora   = 15000
     desc_3h       = 16.67
-    desc_6h       = 16.67
+    desc_6h       = (16.67 + 7.501)
     hora_ini_espec = ""
     hora_fin_espec = ""
     tarifa_row     = None
 
     for r in rows:
-        if _gs_val(r, "Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
+        if _gs_val(r, "Empresa_Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
             tarifa_row     = r
             precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
             desc_3h        = _gs_float(r, "Desc_3h_Pct", 16.67)
-            desc_6h        = _gs_float(r, "Desc_6h_Pct", 16.67)
+            desc_6h        = _gs_float(r, "Desc_6h_Pct", 24.171)
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
             break
@@ -3072,9 +3138,17 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
 
     # ── Lógica estándar ───────────────────────────────────────────────────────
     descuento_pct = 0
-    if horas >= 6:
-        descuento_pct = desc_6h
-    elif horas >= 2:
+    if horas == 3:
+        descuento_pct = (desc_6h - 2.0)
+    elif horas == 4:
+        descuento_pct = (desc_6h + .783)
+    elif horas == 5:
+        descuento_pct = (desc_6h + 2.433)
+    elif horas == 6:
+        descuento_pct = (desc_6h + 3.555)
+    elif horas >= 7:
+        descuento_pct = (desc_6h + 9.150)
+    elif horas == 2:
         descuento_pct = desc_3h
 
     subtotal_bruto = round(precio_hora * horas, 0)
@@ -3111,8 +3185,8 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     hora_actual       = ahora_col().hour
     tarifa_base       = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
     precio_hora       = 15000
-    desc_3h           = 0.0
-    desc_6h           = 0.0
+    desc_3h           = 0 #24.171
+    desc_6h           = 0 #24.171
     tarifa_nombre_log = tarifa_base
     tarifa_encontrada = False
 
@@ -3141,7 +3215,7 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
                 precio_hora       = float(d_tar.get("Precio_Hora_COP") or precio_hora)
                 desc_3h           = float(d_tar.get("Desc_3h_Pct") or 0)
                 desc_6h           = float(d_tar.get("Desc_6h_Pct") or 0)
-                tarifa_nombre_log = str(d_tar.get("Nombre") or f"Empresa {id_empresa}")
+                tarifa_nombre_log = str(d_tar.get("Empresa_Nombre") or f"Empresa {id_empresa}")
                 tarifa_encontrada = True
                 break
         except Exception:
@@ -3150,7 +3224,7 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     # ── Nivel 2: tarifa genérica [Convenio] en jjgt_pagos ────────────────────
     if not tarifa_encontrada:
         for r in _gs_read_sheet("Tarifas_Config"):
-            nombre = _gs_val(r,"Nombre","")
+            nombre = _gs_val(r,"Empresa_Nombre","")
             activo = _gs_val(r,"Activo","1") in ("1","True","true")
             if "[Convenio]" in nombre and activo:
                 precio_hora       = _gs_float(r,"Precio_Hora_COP", precio_hora)
@@ -3163,10 +3237,10 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     # ── Nivel 3: tarifa base Estándar/Madrugada de jjgt_pagos ────────────────
     if not tarifa_encontrada:
         for r in _gs_read_sheet("Tarifas_Config"):
-            if _gs_val(r,"Nombre") == tarifa_base and                _gs_val(r,"Activo","1") in ("1","True","true"):
+            if _gs_val(r,"Empresa_Nombre") == tarifa_base and                _gs_val(r,"Activo","1") in ("1","True","true"):
                 precio_hora       = _gs_float(r,"Precio_Hora_COP", 15000)
-                desc_3h           = _gs_float(r,"Desc_3h_Pct", .3.334)
-                desc_6h           = _gs_float(r,"Desc_6h_Pct", 3.334)
+                desc_3h           = _gs_float(r,"Desc_3h_Pct", 0 )#16.67)
+                desc_6h           = _gs_float(r,"Desc_6h_Pct", 0 )#16.67)
                 tarifa_nombre_log = tarifa_base
                 break
 
@@ -3761,6 +3835,18 @@ def generar_ticket_pdf(voucher: dict) -> Optional[bytes]:
     def hr(): return HRFlowable(width="100%", thickness=0.5, color=colors.black, spaceAfter=3, spaceBefore=3)
     def p(text, style=c_style): return Paragraph(text, style)
 
+    # ── Logo en el ticket PDF ────────────────────────────────────────────────
+    if _LOGO_B64:
+        try:
+            from reportlab.platypus import Image as RLImage
+            _logo_buf_ticket = io.BytesIO(base64.b64decode(_LOGO_B64))
+            _logo_img_ticket = RLImage(_logo_buf_ticket, width=28*mm, height=38*mm)
+            _logo_img_ticket.hAlign = "CENTER"
+            elems.append(_logo_img_ticket)
+            elems.append(Spacer(1, 2))
+        except Exception:
+            pass
+
     elems += [
         p(NEGOCIO, h_style),
         p(TAGLINE, c_style),
@@ -3819,7 +3905,7 @@ def generar_ticket_pdf(voucher: dict) -> Optional[bytes]:
             qr_bytes = base64.b64decode(b64_qr.split(",")[1])
             img_buf  = io.BytesIO(qr_bytes)
             from reportlab.platypus import Image as RLImage
-            rl_img = RLImage(img_buf, width=30*mm, height=30*mm)
+            rl_img = RLImage(img_buf, width=30*mm, height=40*mm)
             elems.append(rl_img)
         except Exception:
             pass
@@ -5267,7 +5353,14 @@ def show_operador():
 
     # Sidebar
     with st.sidebar:
-        st.markdown(f"## 💤 {NEGOCIO}")
+        if _LOGO_B64:
+            st.markdown(
+                f'<div style="text-align:center;padding:8px 0 4px">'
+                f'{_LOGO_HTML}</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(f"## 💤 {NEGOCIO}")
         #st.divider()
 
         # Reloj en el sidebar (actualizado por JS iframe)
@@ -5308,6 +5401,7 @@ def show_operador():
             ("🤝 Convenios",         "reservas" in permisos or es_admin),
             ("🛏️ Cubículos",        "reservas" in permisos or es_admin),
             ("⏳ Pagos Pendientes",  "pagos"    in permisos or es_admin),
+            ("💳 Facturación & Cartera",   es_admin and FC_AVAILABLE), 
             ("📊 Reportes",         "reportes"  in permisos or es_admin),
             ("🗑️ Gestión de Datos", es_admin),
             ("☁️ Google Drive",     es_admin),
@@ -5362,6 +5456,7 @@ def show_operador():
         "🤝 Convenios":        _op_convenios,
         "🛏️ Cubículos":        _op_cubiculos,
         "⏳ Pagos Pendientes":  _op_pagos_pendientes,
+        "💳 Facturación & Cartera":  _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
         "📊 Reportes":         _op_reportes,
         "🗑️ Gestión de Datos": _op_gestion_datos,
         "☁️ Google Drive":     _op_google_drive,
@@ -5371,18 +5466,21 @@ def show_operador():
     # Router robusto: busca por substring de la parte de texto (sin emoji)
     # para tolerar variantes de selector de emoji entre plataformas (Windows, Mac, Linux)
     _txt_map = {
-        "dashboard":       _op_dashboard,
-        "nueva reserva":   _op_nueva_reserva,
-        "convenios":       _op_convenios,
-        "cubículos":       _op_cubiculos,
-        "cubiculos":       _op_cubiculos,
-        "pagos pendientes":_op_pagos_pendientes,
-        "reportes":        _op_reportes,
-        "gestión de datos":_op_gestion_datos,
-        "gestion de datos":_op_gestion_datos,
-        "google drive":    _op_google_drive,
-        "configuración":   _op_configuracion,
-        "configuracion":   _op_configuracion,
+    "dashboard":              _op_dashboard,
+    "nueva reserva":          _op_nueva_reserva,
+    "convenios":              _op_convenios,
+    "cubículos":              _op_cubiculos,
+    "cubiculos":              _op_cubiculos,
+    "pagos pendientes":       _op_pagos_pendientes,
+    "facturación":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
+    "facturacion":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
+    "cartera":                _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
+    "reportes":               _op_reportes,
+    "gestión de datos":       _op_gestion_datos,
+    "gestion de datos":       _op_gestion_datos,
+    "google drive":           _op_google_drive,
+    "configuración":          _op_configuracion,
+    "configuracion":          _op_configuracion,
     }
 
     func = mod_map.get(modulo)
@@ -5436,7 +5534,7 @@ def _op_nueva_reserva():
         _rows_nc = _gs_read_sheet("Tarifas_Config")
         _tarifa_nc = None
         for _r_nc in _rows_nc:
-            if _gs_val(_r_nc, "Nombre") == "Noche Completa" and \
+            if _gs_val(_r_nc, "Empresa_Nombre") == "Noche Completa" and \
                _gs_val(_r_nc, "Activo", "1") in ("1", "True", "true"):
                 _tarifa_nc = _r_nc
                 break
@@ -6723,9 +6821,35 @@ def generar_reporte_pdf(rows: list, desde: str, hasta: str,
     story = []
 
     # ── Encabezado ────────────────────────────────────────────────────────────
-    story.append(Paragraph("💤 " + NEGOCIO, titulo_style))
-    story.append(Paragraph("REPORTE DE RESERVAS", sub_style))
-    story.append(Paragraph(f"Período: {periodo_str}  ·  Generado: {ahora_str}", sub_style))
+    if _LOGO_B64:
+        try:
+            from reportlab.platypus import Image as RLImage
+            _logo_buf_rep = io.BytesIO(base64.b64decode(_LOGO_B64))
+            _logo_img_rep = RLImage(_logo_buf_rep, width=28*mm, height=38*mm)
+            _logo_img_rep.hAlign = "LEFT"
+            _header_logo_col = [_logo_img_rep]
+        except Exception:
+            _header_logo_col = [Paragraph("💤", titulo_style)]
+    else:
+        _header_logo_col = [Paragraph("💤", titulo_style)]
+
+    _header_text_col = [
+        Paragraph(NEGOCIO, titulo_style),
+        Paragraph("REPORTE DE RESERVAS", sub_style),
+        Paragraph(f"Período: {periodo_str}  ·  Generado: {ahora_str}", sub_style),
+    ]
+    _header_table = Table(
+        [[_header_logo_col, _header_text_col]],
+        colWidths=[32*mm, doc_pdf.width - 32*mm],
+    )
+    _header_table.setStyle([
+        ("VALIGN",       (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING",  (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING",   (0, 0), (-1, -1), 0),
+        ("BOTTOMPADDING",(0, 0), (-1, -1), 0),
+    ])
+    story.append(_header_table)
     story.append(hr_line("#0E7490", 1.5))
     story.append(Spacer(1, 4*mm))
 
@@ -7892,7 +8016,7 @@ def _op_configuracion():
         tfs_gs = _gs_read_sheet("Tarifas_Config")
         if tfs_gs:
             df_t = pd.DataFrame([{
-                "Nombre":       _gs_val(r, "Nombre"),
+                "Empresa_Nombre":       _gs_val(r, "Empresa_Nombre"),
                 "Descripción":  _gs_val(r, "Descripcion"),
                 "Precio/hora":  fmt_cop(_gs_float(r, "Precio_Hora_COP", 15000)),
                 "Desc 3h%":     _gs_val(r, "Desc_3h_Pct"),
@@ -8972,6 +9096,12 @@ def _op_convenios():
 # ══════════════════════════════════════════════════════════════════════════════
 
 def main():
+
+    # ── Contexto para módulos externos ────────────────────────────────────────
+    if FC_AVAILABLE and _fc_mod is not None:
+        _fc_mod.set_context(globals())
+    # ─────────────────────────────────────────────────────────────────────────
+
     init_state()
     # Verificar conexión a Google Sheets al arrancar
     if GSPREAD_AVAILABLE:
