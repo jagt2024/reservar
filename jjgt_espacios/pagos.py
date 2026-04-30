@@ -6153,7 +6153,7 @@ def _op_gestion_datos():
 def _op_google_drive():
     """Panel de integración con Google Sheets — estado, diagnóstico y acciones."""
     st.markdown("### ☁️ Google Drive / Google Sheets")
-    st.markdown(f"**Archivo de datos:** `{DRIVE_FILE}`")
+    #st.markdown(f"**Archivo de datos:** `{DRIVE_FILE}`")
 
     # ── Estado de la conexión ─────────────────────────────────────────────────
     _, sh_now = _get_module_level_client()
@@ -6163,10 +6163,10 @@ def _op_google_drive():
     if sh_now and sid_saved:
         drive_url = f"https://docs.google.com/spreadsheets/d/{sid_saved}/edit"
         st.success(f"✅ **Conectado** a `{sh_now.title}`")
-        st.markdown(
-            f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
-            f'Abrir {sh_now.title} en Google Sheets ↗</a>',
-            unsafe_allow_html=True)
+        #st.markdown(
+            #f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
+            #f'Abrir {sh_now.title} en Google Sheets ↗</a>',
+            #unsafe_allow_html=True)
         st.info("🔄 **Sincronización automática activa** — cada reserva, pago y "
                 "liberación se inserta en Google Sheets en tiempo real.")
     else:
@@ -6562,7 +6562,7 @@ def _op_configuracion():
     with tabs[4]:
         st.markdown("#### 🔗 Credenciales Google Sheets")
         st.markdown("""
-        La aplicación se conecta al archivo `jjgt_pagos` en Google Sheets para sincronización automática.
+        La aplicación se conecta al archivo correspondiente en Google Sheets para sincronización automática.
         """)
 
         # ── Entorno de ejecución ───────────────────────────────────────────
@@ -6576,83 +6576,83 @@ def _op_configuracion():
             sid_actual = get_config("drive_spreadsheet_id","")
             drive_url_conf = f"https://docs.google.com/spreadsheets/d/{sid_actual}/edit"
             st.success(f"✅ Conectado a **{sh_status.title}**")
-            st.markdown(f'🔗 <a href="{drive_url_conf}" target="_blank">Abrir {sh_status.title} en Google Sheets</a>',
-                        unsafe_allow_html=True)
+            #st.markdown(f'🔗 <a href="{drive_url_conf}" target="_blank">Abrir {sh_status.title} en Google Sheets</a>',
+            #            unsafe_allow_html=True)
         else:
             st.warning("⚠️ Sin conexión activa a Google Sheets")
 
         st.divider()
 
         # ── Configurar Spreadsheet ID ──────────────────────────────────────
-        st.markdown("**ID del Spreadsheet `jjgt_pagos`**")
-        sid_input = st.text_input("Spreadsheet ID",
-                                   value=get_config("drive_spreadsheet_id",""),
-                                   placeholder="1abc...xyz",
-                                   help="El ID aparece en la URL del archivo: docs.google.com/spreadsheets/d/**ID**/edit")
-        if st.button("💾 Guardar Spreadsheet ID", use_container_width=True):
-            if sid_input.strip():
-                set_config("drive_spreadsheet_id", sid_input.strip())
-                global _gs_module_spreadsheet  # noqa
-                _gs_module_spreadsheet = None
-                st.success("✅ Spreadsheet ID guardado. Reconectando...")
-                st.rerun()
-            else:
-                st.error("El ID no puede estar vacío")
+        #st.markdown("**ID del Spreadsheet `jjgt_pagos`**")
+        #sid_input = st.text_input("Spreadsheet ID",
+        #                           value=get_config("drive_spreadsheet_id",""),
+        #                           placeholder="1abc...xyz",
+        #                           help="El ID aparece en la URL del archivo: docs.google.com/spreadsheets/d/**ID**/edit")
+        #if st.button("💾 Guardar Spreadsheet ID", use_container_width=True):
+        #    if sid_input.strip():
+        #        set_config("drive_spreadsheet_id", sid_input.strip())
+        #        global _gs_module_spreadsheet  # noqa
+        #        _gs_module_spreadsheet = None
+        #        st.success("✅ Spreadsheet ID guardado. Reconectando...")
+        #        st.rerun()
+        #    else:
+        #        st.error("El ID no puede estar vacío")
 
-        st.divider()
+        #st.divider()
 
         # ── Instrucciones según entorno ────────────────────────────────────
-        if _IS_CLOUD:
-            st.markdown("""
-            **📋 Configuración para Streamlit Cloud:**
+        #if _IS_CLOUD:
+        #    st.markdown("""
+        #    **📋 Configuración para Streamlit Cloud:**
 
-            En la app de Streamlit Cloud → **Settings → Secrets**, agrega:
-            ```toml
-            [sheetsemp]
-            credentials_sheet = '''
-            {
-              "type": "service_account",
-              "project_id": "...",
-              "private_key_id": "...",
-              "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
-              "client_email": "...@....iam.gserviceaccount.com",
-              ...
-            }
-            '''
-            spreadsheet_id = "ID_DE_TU_SPREADSHEET"
-            ```
-            """)
-        else:
-            st.markdown("""
-            **📋 Configuración para ejecución local:**
+        #    En la app de Streamlit Cloud → **Settings → Secrets**, agrega:
+        #    ```toml
+        #    [sheetsemp]
+        #    credentials_sheet = '''
+        #   {
+        #      "type": "service_account",
+        #      "project_id": "...",
+        #      "private_key_id": "...",
+        #      "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
+        #      "client_email": "...@....iam.gserviceaccount.com",
+        #      ...
+        #    }
+        #    '''
+        #    spreadsheet_id = "ID_DE_TU_SPREADSHEET"
+        #    ```
+        #    """)
+        #else:
+        #    st.markdown("""
+        #    **📋 Configuración para ejecución local:**
 
-            Crea el archivo `.streamlit/secrets.toml` con:
-            ```toml
-            [sheetsemp]
-            credentials_sheet = '''{ ... JSON de tu Service Account ... }'''
-            spreadsheet_id = "ID_DE_TU_SPREADSHEET"
-            ```
+        #    Crea el archivo `.streamlit/secrets.toml` con:
+        #    ```toml
+        #    [sheetsemp]
+        #    credentials_sheet = '''{ ... JSON de tu Service Account ... }'''
+        #    spreadsheet_id = "ID_DE_TU_SPREADSHEET"
+        #    ```
 
-            O simplemente coloca `credentials.json` en el directorio raíz del proyecto.
-            """)
+        #    O simplemente coloca `credentials.json` en el directorio raíz del proyecto.
+        #    """)
 
-            # Subir credentials.json localmente
-            st.markdown("**O sube tu archivo credentials.json directamente:**")
-            creds_file = st.file_uploader("credentials.json", type=["json"])
-            if creds_file:
-                creds_path = "credentials.json"
-                with open(creds_path, "wb") as f:
-                    f.write(creds_file.read())
-                set_config("drive_credentials_path", creds_path)
-                global _gs_module_client  # noqa
-                _gs_module_client = None
-                _gs_module_spreadsheet = None  # noqa
-                try:
-                    st.session_state._gs_client = None
-                except Exception:
-                    pass
-                st.success("✅ credentials.json guardado. Reconectando...")
-                st.rerun()
+        #    # Subir credentials.json localmente
+        #    st.markdown("**O sube tu archivo credentials.json directamente:**")
+        #    creds_file = st.file_uploader("credentials.json", type=["json"])
+        #    if creds_file:
+        #        creds_path = "credentials.json"
+        #        with open(creds_path, "wb") as f:
+        #            f.write(creds_file.read())
+        #        set_config("drive_credentials_path", creds_path)
+        #        global _gs_module_client  # noqa
+        #        _gs_module_client = None
+        #        _gs_module_spreadsheet = None  # noqa
+        #        try:
+        #            st.session_state._gs_client = None
+        #        except Exception:
+        #            pass
+        #        st.success("✅ credentials.json guardado. Reconectando...")
+        #        st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
