@@ -162,6 +162,22 @@ except ImportError:
     _fc_mod      = None
     FC_AVAILABLE = False
 
+try:
+    import contabilidad as _cont_mod
+    #_cont_mod.set_context(globals())
+    CONT_AVAILABLE = True
+except ImportError:
+    _cont_mod = None
+    CONT_AVAILABLE = False
+
+try:
+    import factura_electronica_dian as _fe_mod
+    _fe_mod.set_context(globals())
+    FE_AVAILABLE = True
+except ImportError:
+    _fe_mod      = None
+    FE_AVAILABLE = False
+
 # ──────────────────────────────────────────────────────────────────────────────
 # CONSTANTES GLOBALES
 # ──────────────────────────────────────────────────────────────────────────────
@@ -1217,6 +1233,25 @@ DRIVE_SHEETS = {
         "Estado",       # "exito" o "error"
         "Notas",        # notas adicionales
     ],
+
+    # contabilidad.py → _escribir_comprobante → 15 campos en este orden exacto
+    "Comprobantes_Contables": [
+        "Fecha",
+        "Numero",
+        "Tipo",
+        "Evento",
+        "Tercero",
+        "Descripcion",
+        "Cuenta_Debito",
+        "Nombre_Debito",
+        "Cuenta_Credito",
+        "Nombre_Credito",
+        "Valor_COP",
+        "Medio_Pago",
+        "Soporte",
+        "Operador",
+        "Observaciones",
+    ],
 }
 
 # ── DRIVE_SHEETS_CONVENIOS: estructura del spreadsheet jjgt_convenios ─────────
@@ -2204,9 +2239,20 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
     # Los datos de la reserva NO se duplican en jjgt_pagos.
     # El estado físico del cubículo sí se actualiza para que el panel
     # operativo refleje la ocupación en tiempo real.
-    _actualizar_cubiculos_estado(sh_pag)
-    if sh_pag:
-        _gs_invalidate_cache("Cubiculos_Estado")
+
+    # 🔥 Comprobante contable automático (convenio)
+
+    if CONT_AVAILABLE and _cont_mod is not None:
+        try:
+            _cont_mod.on_pago_convenio(
+                empresa     = nombre_empresa,
+                valor       = calc["total"],
+                num_reserva = num_res,
+                num_factura = num_fac,
+            )
+        except Exception:
+            pass
+
 
     return {
         "numero_reserva":  num_res,
@@ -3793,6 +3839,38 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
 
     activar_cubiculo(cubiculo["id"], num_res, hora_fin.isoformat())
 
+    # 🔥 Comprobante contable automático
+    try:
+        import contabilidad
+        contabilidad.on_reserva_creada(
+            voucher  = {
+                "numero_reserva": num_res,
+                "numero_factura": num_fact,
+                "cubiculo":       cubiculo["numero"],
+            },
+            calc     = calc,
+            cliente  = cliente,
+            metodo   = metodo,
+        )
+    except Exception:
+        pass
+
+    # ⚡ Factura electrónica DIAN — generación automática del XML
+    try:
+        if FE_AVAILABLE and _fe_mod is not None:
+            _fe_mod.generar_fe_desde_reserva(
+                voucher = {
+                    "numero_reserva": num_res,
+                    "numero_factura": num_fact,
+                    "cubiculo":       cubiculo["numero"],
+                },
+                calc    = calc,
+                cliente = cliente,
+                metodo  = metodo,
+            )
+    except Exception:
+        pass
+
     return {
         "numero_reserva": num_res,
         "numero_factura": num_fact,
@@ -4860,6 +4938,17 @@ def show_confirmacion():
     render_header("Procesando tu pago")
     render_stepper(3)
 
+    try:
+        import contabilidad
+        contabilidad.on_pago_convenio(
+            empresa    = nombre_empresa,
+            valor      = monto_total,
+            num_reserva= num_reserva,
+            num_factura= num_factura,
+        )
+    except Exception:
+        pass
+
     _, col, _ = st.columns([1, 2, 1])
     with col:
         # ── Guardia anti-doble-clic ────────────────────────────────────────────
@@ -5396,16 +5485,18 @@ def show_operador():
 
         # Módulos filtrados por permisos
         todos_modulos = [
-            ("🏠 Dashboard",        True),
-            ("➕ Nueva Reserva",     "reservas" in permisos or es_admin),
-            ("🤝 Convenios",         "reservas" in permisos or es_admin),
-            ("🛏️ Cubículos",        "reservas" in permisos or es_admin),
-            ("⏳ Pagos Pendientes",  "pagos"    in permisos or es_admin),
-            ("💳 Facturación & Cartera",   es_admin and FC_AVAILABLE), 
-            ("📊 Reportes",         "reportes"  in permisos or es_admin),
-            ("🗑️ Gestión de Datos", es_admin),
-            ("☁️ Google Drive",     es_admin),
-            ("⚙️ Configuración",    "configuracion" in permisos or es_admin),
+            ("🏠 Dashboard",             True),
+            ("➕ Nueva Reserva",          "reservas" in permisos or es_admin),
+            ("🤝 Convenios",              "reservas" in permisos or es_admin),
+            ("🛏️ Cubículos",             "reservas" in permisos or es_admin),
+            ("⏳ Pagos Pendientes",       "pagos"    in permisos or es_admin),
+            ("💳 Facturación & Cartera",  es_admin and FC_AVAILABLE),
+            ("⚡ Factura Electrónica",    es_admin and FE_AVAILABLE),
+            ("📒 Contabilidad",           es_admin and CONT_AVAILABLE),
+            ("📊 Reportes",              "reportes"  in permisos or es_admin),
+            ("🗑️ Gestión de Datos",      es_admin),
+            ("☁️ Google Drive",          es_admin),
+            ("⚙️ Configuración",         "configuracion" in permisos or es_admin),
         ]
         modulos_visibles = [m for m, visible in todos_modulos if visible]
 
@@ -5451,16 +5542,18 @@ def show_operador():
 
     # Mapa de módulos — claves exactas del radio button
     mod_map = {
-        "🏠 Dashboard":        _op_dashboard,
-        "➕ Nueva Reserva":    _op_nueva_reserva,
-        "🤝 Convenios":        _op_convenios,
-        "🛏️ Cubículos":        _op_cubiculos,
-        "⏳ Pagos Pendientes":  _op_pagos_pendientes,
-        "💳 Facturación & Cartera":  _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
-        "📊 Reportes":         _op_reportes,
-        "🗑️ Gestión de Datos": _op_gestion_datos,
-        "☁️ Google Drive":     _op_google_drive,
-        "⚙️ Configuración":    _op_configuracion,
+        "🏠 Dashboard":            _op_dashboard,
+        "➕ Nueva Reserva":        _op_nueva_reserva,
+        "🤝 Convenios":            _op_convenios,
+        "🛏️ Cubículos":            _op_cubiculos,
+        "⏳ Pagos Pendientes":      _op_pagos_pendientes,
+        "💳 Facturación & Cartera": _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
+        "⚡ Factura Electrónica":   _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+        "📒 Contabilidad":          _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
+        "📊 Reportes":             _op_reportes,
+        "🗑️ Gestión de Datos":     _op_gestion_datos,
+        "☁️ Google Drive":         _op_google_drive,
+        "⚙️ Configuración":        _op_configuracion,
     }
 
     # Router robusto: busca por substring de la parte de texto (sin emoji)
@@ -5470,17 +5563,16 @@ def show_operador():
     "nueva reserva":          _op_nueva_reserva,
     "convenios":              _op_convenios,
     "cubículos":              _op_cubiculos,
-    "cubiculos":              _op_cubiculos,
     "pagos pendientes":       _op_pagos_pendientes,
-    "facturación":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
-    "facturacion":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
-    "cartera":                _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,  # ← NUEVO
+    "facturación":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
+    "factura electrónica":    _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+    "electronica":            _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+    "contabilidad":           _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
+    "cartera":                _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
     "reportes":               _op_reportes,
-    "gestión de datos":       _op_gestion_datos,
     "gestion de datos":       _op_gestion_datos,
     "google drive":           _op_google_drive,
     "configuración":          _op_configuracion,
-    "configuracion":          _op_configuracion,
     }
 
     func = mod_map.get(modulo)
@@ -6107,6 +6199,18 @@ def _op_nueva_reserva():
                                 f"✅ Reserva **{voucher['numero_reserva']}** creada — "
                                 f"Cubículo **{voucher['cubiculo']}** activado.")
                             st.rerun()
+
+                            #try:
+                            #    import contabilidad
+                            #    contabilidad.on_pago_convenio(
+                            #        empresa    = nombre_empresa,
+                            #        valor      = monto_total,
+                            #        num_reserva= num_reserva,
+                            #        num_factura= num_factura,
+                            #    )
+                            #except Exception:
+                            #    pass
+
                         except Exception as e:
                             st.error(f"❌ Error al crear reserva: {e}")
         with col_btn2:
@@ -6591,9 +6695,31 @@ def _op_pagos_pendientes():
                                 try:
                                     _gs_sync_dashboard_convenios(sh_conv_conf)
                                 except Exception: pass
+
+                                try:
+                                    import contabilidad
+                                    contabilidad.on_pago_convenio(
+                                        empresa    = nombre_empresa,
+                                        valor      = monto_total,
+                                        num_reserva= num_reserva,
+                                        num_factura= num_factura,
+                                    )
+                                except Exception:
+                                    pass
                         else:
                             # Pago normal: actualizar en jjgt_pagos
                             _confirmar_en_sh(sh_conf, pago_id, num_res)
+
+                            try:
+                                import contabilidad
+                                contabilidad.on_pago_convenio(
+                                        empresa    = nombre_empresa,
+                                        valor      = monto_total,
+                                        num_reserva= num_reserva,
+                                        num_factura= num_factura,
+                                )
+                            except Exception:
+                                pass
 
                         if sh_conf:
                             gs_sync_cubiculos(sh_conf)
@@ -6645,6 +6771,17 @@ def _op_pagos_pendientes():
                                         pass
                         st.success(f"✅ Pago {num_res} confirmado")
                         st.rerun()
+                        try:
+                            import contabilidad
+                            contabilidad.on_pago_convenio(
+                                empresa    = nombre_empresa,
+                                valor      = monto_total,
+                                num_reserva= num_reserva,
+                                num_factura= num_factura,
+                            )
+                        except Exception:
+                            pass
+
                     else:
                         st.error("PIN incorrecto")
             with c2:
@@ -7737,7 +7874,7 @@ def _op_gestion_datos():
 def _op_google_drive():
     """Panel de integración con Google Sheets — estado, diagnóstico y acciones."""
     st.markdown("### ☁️ Google Drive / Google Sheets")
-    st.markdown(f"**Archivo principal:** `{DRIVE_FILE}` · **Archivo convenios:** `{DRIVE_FILE_CONVENIOS}`")
+    #st.markdown(f"**Archivo principal:** `{DRIVE_FILE}` · **Archivo convenios:** `{DRIVE_FILE_CONVENIOS}`")
 
     # ── Estado de la conexión ─────────────────────────────────────────────────
     _, sh_now = _get_module_level_client()
@@ -7747,10 +7884,10 @@ def _op_google_drive():
     if sh_now and sid_saved:
         drive_url = f"https://docs.google.com/spreadsheets/d/{sid_saved}/edit"
         st.success(f"✅ **Conectado** a `{sh_now.title}`")
-        st.markdown(
-            f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
-            f'Abrir {sh_now.title} en Google Sheets ↗</a>',
-            unsafe_allow_html=True)
+        #st.markdown(
+        #    f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
+        #    f'Abrir {sh_now.title} en Google Sheets ↗</a>',
+        #    unsafe_allow_html=True)
         st.info("🔄 **Sincronización automática activa** — cada reserva, pago y "
                 "liberación se inserta en Google Sheets en tiempo real.")
     else:
@@ -7786,7 +7923,7 @@ def _op_google_drive():
             for tp in toml_paths:
                 exists = os.path.isfile(tp)
                 icon = "✅" if exists else "❌"
-                st.markdown(f"{icon} `{tp}` — {'existe' if exists else 'NO existe'}")
+                #st.markdown(f"{icon} `{tp}` — {'existe' if exists else 'NO existe'}")
                 if exists and TOML_AVAILABLE:
                     try:
                         with open(tp, "r", encoding="utf-8") as _tf:
@@ -8200,8 +8337,8 @@ def _op_configuracion():
             sid_actual = get_config("drive_spreadsheet_id","")
             drive_url_conf = f"https://docs.google.com/spreadsheets/d/{sid_actual}/edit"
             st.success(f"✅ Conectado a **{sh_status.title}**")
-            st.markdown(f'🔗 <a href="{drive_url_conf}" target="_blank">Abrir {sh_status.title} en Google Sheets</a>',
-                        unsafe_allow_html=True)
+            #st.markdown(f'🔗 <a href="{drive_url_conf}" target="_blank">Abrir {sh_status.title} en Google Sheets</a>',
+            #            unsafe_allow_html=True)
         else:
             st.warning("⚠️ Sin conexión activa a Google Sheets")
 
@@ -9100,6 +9237,13 @@ def main():
     # ── Contexto para módulos externos ────────────────────────────────────────
     if FC_AVAILABLE and _fc_mod is not None:
         _fc_mod.set_context(globals())
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # ── Contexto para módulos contable y factura electrónica ─────────────────
+    if CONT_AVAILABLE and _cont_mod is not None:
+        _cont_mod.set_context(globals())
+    if FE_AVAILABLE and _fe_mod is not None:
+        _fe_mod.set_context(globals())
     # ─────────────────────────────────────────────────────────────────────────
 
     init_state()

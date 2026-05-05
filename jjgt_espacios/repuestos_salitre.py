@@ -1557,24 +1557,354 @@ def show_pagos():
 # MÓDULO: FACTURAS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _html_factura(fac: dict, items: list, empresa_info: dict) -> str:
+    """Genera HTML imprimible de una factura."""
+    num      = fac.get("Num_Factura", "—")
+    emp_nom  = fac.get("Nombre_Empresa", "—")
+    emp_nit  = empresa_info.get("Nit_Empresa", "—")
+    emp_tel  = empresa_info.get("Telefono_Empresa", "—")
+    emp_email= empresa_info.get("Email_Empresa", "—")
+    f_emis   = fac.get("Fecha_Emision", "—")
+    f_venc   = fac.get("Fecha_Vencimiento", "—")
+    subtotal = float(fac.get("Subtotal_COP", 0) or 0)
+    dto      = float(fac.get("Descuento_COP", 0) or 0)
+    iva      = float(fac.get("IVA_COP", 0) or 0)
+    total    = float(fac.get("Total_COP", 0) or 0)
+    estado   = fac.get("Estado", "Emitida")
+    obs      = fac.get("Observaciones", "")
+    creado   = fac.get("Creado_Por", "Sistema")
+
+    badge_color = {"Pagada": "#00c853", "Emitida": "#0288d1",
+                   "Vencida": "#e53935", "Anulada": "#757575"}.get(estado, "#0288d1")
+
+    filas_items = ""
+    if items:
+        for it in items:
+            desc  = it.get("Descripcion", it.get("Tipo_Servicio", ""))
+            qty   = it.get("Cantidad", "1")
+            p_u   = float(it.get("Precio_Unitario", 0) or 0)
+            dto_i = float(it.get("Descuento_Pct", 0) or 0)
+            sub_i = float(it.get("Subtotal", 0) or 0)
+            filas_items += f"""
+            <tr>
+              <td>{desc}</td>
+              <td style="text-align:center">{qty}</td>
+              <td style="text-align:right">$ {p_u:,.0f}</td>
+              <td style="text-align:center">{dto_i}%</td>
+              <td style="text-align:right">$ {sub_i:,.0f}</td>
+            </tr>"""
+    else:
+        filas_items = f"""
+        <tr>
+          <td colspan="5" style="text-align:center;color:#888">
+            {obs or "Sin ítems detallados"}
+          </td>
+        </tr>"""
+
+    return f"""<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Factura {num}</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+  * {{ box-sizing:border-box; margin:0; padding:0; }}
+  body {{ font-family:'Inter',sans-serif; background:#f4f6f9; color:#1a1a2e; padding:20px; }}
+  .page {{ max-width:860px; margin:0 auto; background:#fff; border-radius:12px;
+           box-shadow:0 4px 24px rgba(0,0,0,.12); overflow:hidden; }}
+  /* Header */
+  .header {{ background:linear-gradient(135deg,#0d1f3c,#1a3a6c); color:#fff; padding:32px 40px; }}
+  .header-top {{ display:flex; justify-content:space-between; align-items:flex-start; }}
+  .brand {{ font-size:22px; font-weight:700; letter-spacing:1px; color:#00d4ff; }}
+  .brand-sub {{ font-size:12px; color:#94a3b8; margin-top:4px; }}
+  .fac-num {{ text-align:right; }}
+  .fac-num .label {{ font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }}
+  .fac-num .num {{ font-size:20px; font-weight:700; color:#fff; margin-top:4px; }}
+  .badge {{ display:inline-block; padding:4px 14px; border-radius:20px; font-size:12px;
+            font-weight:700; color:#fff; background:{badge_color}; margin-top:8px; }}
+  /* Info grid */
+  .info-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:0; }}
+  .info-box {{ padding:24px 40px; border-bottom:1px solid #e8edf5; }}
+  .info-box:nth-child(odd) {{ border-right:1px solid #e8edf5; }}
+  .info-title {{ font-size:11px; text-transform:uppercase; letter-spacing:1px;
+                 color:#64748b; font-weight:600; margin-bottom:10px; }}
+  .info-line {{ font-size:13px; color:#1e293b; margin-bottom:4px; }}
+  .info-line strong {{ color:#0d1f3c; }}
+  /* Table */
+  .table-wrap {{ padding:0 40px 24px; }}
+  table {{ width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }}
+  thead tr {{ background:#f1f5fb; }}
+  thead th {{ padding:10px 12px; text-align:left; font-size:11px; text-transform:uppercase;
+              letter-spacing:.8px; color:#64748b; font-weight:600; }}
+  tbody tr {{ border-bottom:1px solid #f1f5fb; }}
+  tbody tr:hover {{ background:#f8fafc; }}
+  tbody td {{ padding:10px 12px; color:#334155; }}
+  /* Totals */
+  .totals {{ padding:0 40px 32px; display:flex; justify-content:flex-end; }}
+  .totals-box {{ width:300px; }}
+  .totals-row {{ display:flex; justify-content:space-between; padding:6px 0;
+                 font-size:13px; color:#64748b; border-bottom:1px solid #f1f5fb; }}
+  .totals-row.total {{ font-size:16px; font-weight:700; color:#0d1f3c; border:none;
+                       padding-top:12px; }}
+  /* Footer */
+  .footer {{ background:#f8fafc; border-top:1px solid #e8edf5; padding:18px 40px;
+             display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; }}
+  .obs {{ padding:0 40px 20px; font-size:12px; color:#64748b;
+          background:#fffbeb; border-left:3px solid #f59e0b; margin:0 40px 20px;
+          padding:12px 16px; border-radius:0 6px 6px 0; }}
+  @media print {{
+    body {{ background:#fff; padding:0; }}
+    .page {{ box-shadow:none; border-radius:0; }}
+    .no-print {{ display:none !important; }}
+  }}
+</style>
+</head>
+<body>
+<div class="no-print" style="text-align:center;margin-bottom:20px">
+  <button onclick="window.print()"
+    style="background:#0d1f3c;color:#00d4ff;border:1.5px solid #00d4ff;
+           padding:10px 32px;border-radius:8px;font-size:15px;font-weight:700;
+           cursor:pointer;letter-spacing:1px">
+    🖨️ IMPRIMIR / GUARDAR PDF
+  </button>
+</div>
+<div class="page">
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="brand">🔧 {NEGOCIO}</div>
+        <div class="brand-sub">{TAGLINE}</div>
+        <div class="brand-sub" style="margin-top:2px">{DIRECCION}</div>
+        <div class="brand-sub">NIT {NIT} · {TELEFONO} · {EMAIL}</div>
+      </div>
+      <div class="fac-num">
+        <div class="label">Factura de Venta</div>
+        <div class="num">{num}</div>
+        <div class="badge">{estado}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- INFO GRID -->
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="info-title">📋 Datos del Cliente</div>
+      <div class="info-line"><strong>{emp_nom}</strong></div>
+      <div class="info-line">NIT: {emp_nit}</div>
+      <div class="info-line">Tel: {emp_tel}</div>
+      <div class="info-line">{emp_email}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-title">📅 Fechas</div>
+      <div class="info-line">Emisión: <strong>{f_emis}</strong></div>
+      <div class="info-line">Vencimiento: <strong>{f_venc}</strong></div>
+      <div class="info-line" style="margin-top:8px">Elaborado por: {creado}</div>
+      <div class="info-line">Generado: {ahora_col().strftime("%d/%m/%Y %H:%M")}</div>
+    </div>
+  </div>
+
+  <!-- ITEMS TABLE -->
+  <div class="table-wrap">
+    <div class="info-title" style="padding-top:20px;margin-bottom:4px">📦 Detalle de Servicios</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Descripción</th>
+          <th style="text-align:center">Cant.</th>
+          <th style="text-align:right">P. Unitario</th>
+          <th style="text-align:center">Dto.</th>
+          <th style="text-align:right">Subtotal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {filas_items}
+      </tbody>
+    </table>
+  </div>
+
+  {"<div class='obs'>📝 " + obs + "</div>" if obs else ""}
+
+  <!-- TOTALS -->
+  <div class="totals">
+    <div class="totals-box">
+      <div class="totals-row"><span>Subtotal</span><span>$ {subtotal:,.0f}</span></div>
+      <div class="totals-row"><span>Descuento</span><span>- $ {dto:,.0f}</span></div>
+      <div class="totals-row"><span>IVA</span><span>$ {iva:,.0f}</span></div>
+      <div class="totals-row total"><span>TOTAL A PAGAR</span><span>$ {total:,.0f}</span></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <span>Suite Salitre S.A.S · NIT {NIT}</span>
+    <span>{TELEFONO} · {EMAIL}</span>
+    <span>Factura #{num}</span>
+  </div>
+</div>
+</body>
+</html>"""
+
+
 def show_facturas():
     st.markdown('<div class="page-title">📄 Facturas</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Generación y consulta de facturas</div>', unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["📋 Listado de Facturas", "➕ Generar Factura"])
+    st.markdown('<div class="page-sub">Consulta, impresión y generación de facturas</div>', unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["📋 Listado de Facturas", "🖨️ Ver / Imprimir Factura", "➕ Generar Nueva Factura"])
 
+    # ── TAB 1: LISTADO ────────────────────────────────────────────────────────
     with tab1:
         facturas = gs_read("Facturas")
         if not facturas:
             st.info("Sin facturas generadas.")
         else:
-            st.dataframe(pd.DataFrame([{
-                "N° Factura": f.get("Num_Factura",""), "Empresa": f.get("Nombre_Empresa",""),
-                "Emisión": f.get("Fecha_Emision",""), "Vencimiento": f.get("Fecha_Vencimiento",""),
-                "Subtotal": fmt_cop(f.get("Subtotal_COP",0)), "IVA": fmt_cop(f.get("IVA_COP",0)),
-                "Total": fmt_cop(f.get("Total_COP",0)), "Estado": f.get("Estado",""),
-            } for f in facturas]), use_container_width=True, hide_index=True)
+            c1, c2, c3 = st.columns(3)
+            empresas_nombres = sorted({f.get("Nombre_Empresa","") for f in facturas if f.get("Nombre_Empresa","")})
+            f_emp_l  = c1.selectbox("Filtrar empresa",  ["Todas"] + empresas_nombres, key="list_emp")
+            f_est_l  = c2.selectbox("Filtrar estado",   ["Todos","Emitida","Pagada","Vencida","Anulada"], key="list_est")
+            f_num_l  = c3.text_input("Buscar N° factura", key="list_num")
+            filtradas = [f for f in facturas
+                         if (f_emp_l == "Todas" or f.get("Nombre_Empresa","") == f_emp_l)
+                         and (f_est_l == "Todos" or f.get("Estado","") == f_est_l)
+                         and (not f_num_l or f_num_l.lower() in f.get("Num_Factura","").lower())]
+            st.caption(f"{len(filtradas)} factura(s) encontrada(s)")
+            if not filtradas:
+                st.info("Sin resultados para el filtro aplicado.")
+            else:
+                st.dataframe(pd.DataFrame([{
+                    "N° Factura":  f.get("Num_Factura",""),
+                    "Empresa":     f.get("Nombre_Empresa",""),
+                    "Emisión":     f.get("Fecha_Emision",""),
+                    "Vencimiento": f.get("Fecha_Vencimiento",""),
+                    "Subtotal":    fmt_cop(f.get("Subtotal_COP",0)),
+                    "IVA":         fmt_cop(f.get("IVA_COP",0)),
+                    "Total":       fmt_cop(f.get("Total_COP",0)),
+                    "Estado":      f.get("Estado",""),
+                    "Creado por":  f.get("Creado_Por",""),
+                } for f in filtradas]), use_container_width=True, hide_index=True)
 
+            # Totales del filtro
+            tot_fil = sum(float(f.get("Total_COP",0) or 0) for f in filtradas)
+            st.markdown(f"**Total filtrado:** {fmt_cop(tot_fil)}")
+
+    # ── TAB 2: VER / IMPRIMIR ─────────────────────────────────────────────────
     with tab2:
+        st.markdown("#### 🔍 Buscar factura existente")
+        facturas_all = gs_read("Facturas")
+        empresas_all = gs_read("Empresa")
+
+        if not facturas_all:
+            st.info("No hay facturas registradas aún.")
+        else:
+            # Filtro por empresa
+            empresas_con_fac = sorted({f.get("Nombre_Empresa","") for f in facturas_all if f.get("Nombre_Empresa","")})
+            col_f1, col_f2 = st.columns([2, 2])
+            sel_emp_imp = col_f1.selectbox(
+                "1. Seleccionar empresa",
+                ["— Todas —"] + empresas_con_fac,
+                key="imp_emp"
+            )
+
+            # Filtrar facturas por empresa
+            facs_empresa = [f for f in facturas_all
+                            if sel_emp_imp == "— Todas —"
+                            or f.get("Nombre_Empresa","") == sel_emp_imp]
+
+            opc_fac = {
+                f"{f.get('Num_Factura','?')}  ·  {f.get('Fecha_Emision','—')}  ·  {fmt_cop(f.get('Total_COP',0))}  ·  [{f.get('Estado','')}]": f
+                for f in sorted(facs_empresa, key=lambda x: x.get("Fecha_Emision",""), reverse=True)
+            }
+
+            if not opc_fac:
+                st.warning("No hay facturas para la empresa seleccionada.")
+            else:
+                sel_fac_key = col_f2.selectbox(
+                    "2. Seleccionar factura",
+                    list(opc_fac.keys()),
+                    key="imp_fac"
+                )
+                fac_sel = opc_fac[sel_fac_key]
+
+                # Cargar ítems de la factura
+                items_all  = gs_read("Facturas_Items")
+                num_sel    = fac_sel.get("Num_Factura","")
+                items_fac  = [i for i in items_all if i.get("Num_Factura","") == num_sel or i.get("Id_Factura","") == num_sel]
+
+                # Buscar datos completos de la empresa
+                emp_info = next(
+                    (e for e in empresas_all if e.get("Nombre_Empresa","") == fac_sel.get("Nombre_Empresa","")),
+                    {}
+                )
+
+                st.markdown("---")
+
+                # Vista previa de campos cargados
+                st.markdown("##### 📋 Datos de la factura cargada")
+                p1, p2, p3, p4 = st.columns(4)
+                p1.metric("N° Factura",  fac_sel.get("Num_Factura","—"))
+                p2.metric("Estado",      fac_sel.get("Estado","—"))
+                p3.metric("Total",       fmt_cop(fac_sel.get("Total_COP",0)))
+                p4.metric("Vencimiento", fac_sel.get("Fecha_Vencimiento","—"))
+
+                # Información completa en expander
+                with st.expander("📄 Ver todos los campos de la factura", expanded=False):
+                    d1, d2 = st.columns(2)
+                    with d1:
+                        st.markdown("**Cliente**")
+                        st.write(f"Empresa: {fac_sel.get('Nombre_Empresa','—')}")
+                        st.write(f"NIT: {emp_info.get('Nit_Empresa','—')}")
+                        st.write(f"Teléfono: {emp_info.get('Telefono_Empresa','—')}")
+                        st.write(f"Email: {emp_info.get('Email_Empresa','—')}")
+                        st.write(f"Contacto: {emp_info.get('Contacto_Nombre','—')}")
+                    with d2:
+                        st.markdown("**Factura**")
+                        st.write(f"Emisión: {fac_sel.get('Fecha_Emision','—')}")
+                        st.write(f"Vencimiento: {fac_sel.get('Fecha_Vencimiento','—')}")
+                        st.write(f"Subtotal: {fmt_cop(fac_sel.get('Subtotal_COP',0))}")
+                        st.write(f"Descuento: {fmt_cop(fac_sel.get('Descuento_COP',0))}")
+                        st.write(f"IVA: {fmt_cop(fac_sel.get('IVA_COP',0))}")
+                        st.write(f"Total: {fmt_cop(fac_sel.get('Total_COP',0))}")
+                        st.write(f"Creado por: {fac_sel.get('Creado_Por','—')}")
+                    if fac_sel.get("Observaciones",""):
+                        st.markdown(f"**Observaciones:** {fac_sel.get('Observaciones','')}")
+
+                # Ítems de la factura
+                if items_fac:
+                    st.markdown("##### 📦 Ítems de la factura")
+                    st.dataframe(pd.DataFrame([{
+                        "Tipo":         i.get("Tipo_Servicio",""),
+                        "Descripción":  i.get("Descripcion",""),
+                        "Cant.":        i.get("Cantidad","1"),
+                        "P. Unitario":  fmt_cop(i.get("Precio_Unitario",0)),
+                        "Dto. %":       i.get("Descuento_Pct","0"),
+                        "Subtotal":     fmt_cop(i.get("Subtotal",0)),
+                    } for i in items_fac]), use_container_width=True, hide_index=True)
+
+                st.markdown("---")
+
+                # Generar HTML imprimible
+                html_fac = _html_factura(fac_sel, items_fac, emp_info)
+
+                col_btn1, col_btn2 = st.columns([1, 1])
+                with col_btn1:
+                    st.download_button(
+                        label="⬇️ Descargar Factura HTML",
+                        data=html_fac.encode("utf-8"),
+                        file_name=f"Factura_{num_sel}.html",
+                        mime="text/html",
+                        use_container_width=True,
+                    )
+                with col_btn2:
+                    if st.button("🖨️ Abrir Vista de Impresión", use_container_width=True, key="btn_print"):
+                        st.session_state["html_preview"] = html_fac
+                        st.session_state["preview_num"]  = num_sel
+
+                # Mostrar preview inline si se solicitó
+                if st.session_state.get("preview_num","") == num_sel and "html_preview" in st.session_state:
+                    st.markdown("##### 👁️ Vista previa de impresión")
+                    st.components.v1.html(st.session_state["html_preview"], height=900, scrolling=True)
+
+    # ── TAB 3: GENERAR NUEVA FACTURA ──────────────────────────────────────────
+    with tab3:
         empresas = get_empresas_activas()
         with st.form("form_factura"):
             c1, c2 = st.columns(2)
