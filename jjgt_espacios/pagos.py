@@ -1867,11 +1867,20 @@ def _gs_with_retry(func, *args, operacion: str = "Google Sheets", **kwargs):
         except Exception as e:
             err_str = str(e)
             # Detectar error 429 (quota) en gspread/APIError
-            is_429 = (
+            is_retryable = (
                 "429" in err_str
-                or "quota" in err_str.lower()
-                or "rate" in err_str.lower()
-                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) == 429)
+                or "quota"               in err_str.lower()
+                or "rate"                in err_str.lower()
+                or "remoteDisconnected"  in err_str
+                or "RemoteDisconnected"  in err_str
+                or "remote end closed"   in err_str.lower()
+                or "connection aborted"  in err_str.lower()
+                or "connection reset"    in err_str.lower()
+                or "timed out"           in err_str.lower()
+                or "broken pipe"         in err_str.lower()
+                or "503"                 in err_str
+                or "502"                 in err_str
+                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) in (429, 500, 502, 503))
             )
             if is_429 and intento < MAX_RETRIES - 1:
                 delay = INITIAL_RETRY_DELAY * (2 ** intento)
@@ -2212,66 +2221,84 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
 def ahora_col() -> datetime:
     return datetime.now(TZ_COL)
 
+def calcular_valor(horas):
+
+    if horas <= 0:
+        return 0
+
+    if horas == 1:
+        return 15000
+
+    return horas * 10000
 
 def calcular_precio(horas: float, tarifa_nombre: str = None,
                     precio_override: Optional[float] = None) -> dict:
     """Calcula precio con tarifa vigente desde Google Sheets.
 
-    Para la tarifa especial 'Noche Completa' el precio es fijo (Precio_Hora_COP
-    representa el precio total de la noche) y las horas se calculan
-    automáticamente a partir de Hora_Ini_Espec → Hora_Fin_Espec.
-    El dict resultante incluye dos claves extra:
-      'hora_ini_espec' y 'hora_fin_espec'  (str "HH:MM" o "")
-      'es_noche_completa'                  (bool)
+    NUEVA LÓGICA:
+    - 1 hora = valor completo (ej: 15.000)
+    - 2 horas o más = 10.000 por cada hora
 
-    precio_override: si se suministra un valor > 0, reemplaza Precio_Hora_COP leído
-                     desde Sheets (usado por el operador en TAB Noche Completa para
-                     aplicar el precio de Tarifa Unica o uno ingresado manualmente).
+    Ejemplo:
+        1h = 15.000
+        2h = 20.000
+        3h = 30.000
+        4h = 40.000
+        ...
     """
+
     if tarifa_nombre is None:
         hora_actual = ahora_col().hour
         tarifa_nombre = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
 
     rows = _gs_read_sheet("Tarifas_Config")
-    precio_hora   = 15000
-    desc_3h       = 16.67
-    desc_6h       = (16.67 + 7.501)
+
+    # Valores por defecto
+    precio_hora = 15000
     hora_ini_espec = ""
     hora_fin_espec = ""
-    tarifa_row     = None
+    tarifa_row = None
 
     for r in rows:
-        if _gs_val(r, "Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
-            tarifa_row     = r
-            precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
-            desc_3h        = _gs_float(r, "Desc_3h_Pct", 16.67)
-            desc_6h        = _gs_float(r, "Desc_6h_Pct", 24.171)
+        if (
+            _gs_val(r, "Empresa_Nombre") == tarifa_nombre
+            and _gs_val(r, "Activo", "1") in ("1", "True", "true")
+        ):
+            tarifa_row = r
+
+            # Precio base primera hora
+            precio_hora = _gs_float(r, "Precio_Hora_COP", 15000)
+
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
             break
 
-    # Aplicar precio_override si fue suministrado y es válido
+    # Override manual
     if precio_override is not None and precio_override > 0:
         precio_hora = precio_override
 
-    # ── Lógica especial Noche Completa ────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # NOCHE COMPLETA
+    # ─────────────────────────────────────────────────────────────
     es_noche_completa = (tarifa_nombre == "Noche Completa")
 
-    if es_noche_completa and hora_ini_espec and hora_fin_espec:
-        # Calcular horas entre Hora_Ini_Espec y Hora_Fin_Espec
-        try:
-            now = ahora_col()
-            fmt = "%H:%M"
-            ini_t = datetime.strptime(hora_ini_espec, fmt)
-            fin_t = datetime.strptime(hora_fin_espec, fmt)
-            # Construir datetimes de hoy/mañana según corresponda
-            ini_dt = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
-            fin_dt = now.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
-            if fin_dt <= ini_dt:          # la noche cruza la medianoche
-                fin_dt += timedelta(days=1)
-            horas = round((fin_dt - ini_dt).total_seconds() / 3600, 2)
-        except Exception:
-            horas = horas  # conservar el valor que llegó como argumento
+    if es_noche_completa:
+        # Calcular horas entre Hora_Ini_Espec y Hora_Fin_Espec (si están configuradas)
+        if hora_ini_espec and hora_fin_espec:
+            try:
+                now = ahora_col()
+                fmt = "%H:%M"
+                ini_t = datetime.strptime(hora_ini_espec, fmt)
+                fin_t = datetime.strptime(hora_fin_espec, fmt)
+                # Construir datetimes de hoy/mañana según corresponda
+                ini_dt = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
+                fin_dt = now.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
+                if fin_dt <= ini_dt:          # la noche cruza la medianoche
+                    fin_dt += timedelta(days=1)
+                horas = round((fin_dt - ini_dt).total_seconds() / 3600, 2)
+            except Exception:
+                horas = horas  # conservar el valor que llegó como argumento
+        # Si no están configuradas las horas especiales, usar horas recibidas como argumento
 
         # Para Noche Completa, Precio_Hora_COP es el precio TOTAL de la noche,
         # no el precio por hora; no se aplican descuentos adicionales.
@@ -2283,53 +2310,60 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
         total          = round(subtotal + iva, 0)
 
         return {
-            "precio_hora":      precio_hora,
-            "horas":            horas,
-            "tarifa":           tarifa_nombre,
-            "descuento_pct":    descuento_pct,
-            "descuento_val":    descuento_val,
-            "subtotal":         subtotal,
-            "iva":              iva,
-            "total":            round(total, 0),
-            "hora_ini_espec":   hora_ini_espec,
-            "hora_fin_espec":   hora_fin_espec,
+            "precio_hora":       precio_hora,
+            "horas":             horas,
+            "tarifa":            tarifa_nombre,
+            "descuento_pct":     descuento_pct,
+            "descuento_val":     descuento_val,
+            "subtotal":          subtotal,
+            "iva":               iva,
+            "total":             round(total, 0),
+            "hora_ini_espec":    hora_ini_espec,
+            "hora_fin_espec":    hora_fin_espec,
             "es_noche_completa": True,
         }
 
-    # ── Lógica estándar ───────────────────────────────────────────────────────
-    descuento_pct = 0
-    if horas == 3:
-        descuento_pct = (desc_6h - 2.0)
-    elif horas == 4:
-        descuento_pct = (desc_6h + .783)
-    elif horas == 5:
-        descuento_pct = (desc_6h + 2.433)
-    elif horas == 6:
-        descuento_pct = (desc_6h + 3.555)
-    elif horas >= 7:
-        descuento_pct = (desc_6h + 9.150)
-    elif horas == 2:
-        descuento_pct = desc_3h
+    # ─────────────────────────────────────────────────────────────
+    # NUEVA LÓGICA ESTÁNDAR
+    # ─────────────────────────────────────────────────────────────
 
-    subtotal_bruto = round(precio_hora * horas, 0)
-    descuento_val  = round(subtotal_bruto * (descuento_pct / 100), 0)
-    subtotal       = round(subtotal_bruto - descuento_val, 0)
-    iva            = round(subtotal * IVA_PCT, 0)
-    total          = round(subtotal + iva, 0)
+    if not es_noche_completa:
 
-    return {
-        "precio_hora":       precio_hora,
-        "horas":             horas,
-        "tarifa":            tarifa_nombre,
-        "descuento_pct":     descuento_pct,
-        "descuento_val":     descuento_val,
-        "subtotal":          subtotal,
-        "iva":               iva,
-        "total":             round(total, 0),
-        "hora_ini_espec":    hora_ini_espec,
-        "hora_fin_espec":    hora_fin_espec,
-        "es_noche_completa": False,
-    }
+        horas = int(horas)
+
+        if horas <= 0:
+            subtotal = 0
+
+        elif horas == 1:
+            subtotal = precio_hora
+
+        else:
+            # Desde 2 horas en adelante:
+            # cada hora vale 10.000
+            subtotal = horas * 10000
+
+        subtotal = round(subtotal, 0)
+
+        # Ya NO se aplican descuentos porcentuales
+        descuento_pct = 0
+        descuento_val = 0
+
+        iva = round(subtotal * IVA_PCT, 0)
+        total = round(subtotal + iva, 0)
+
+        return {
+            "precio_hora": precio_hora,
+            "horas": horas,
+            "tarifa": tarifa_nombre,
+            "descuento_pct": descuento_pct,
+            "descuento_val": descuento_val,
+            "subtotal": subtotal,
+            "iva": iva,
+            "total": total,
+            "hora_ini_espec": hora_ini_espec,
+            "hora_fin_espec": hora_fin_espec,
+            "es_noche_completa": False,
+        }
 
 
 def get_cubiculos() -> list:
@@ -4715,6 +4749,15 @@ def _op_nueva_reserva():
                 _calc_nc = calcular_precio(_nc_horas, "Noche Completa",
                                            precio_override=_nc_precio_final)
 
+                # Guardia: calcular_precio puede retornar None si falla la lectura de Sheets
+                if _calc_nc is None:
+                    st.error(
+                        "❌ No se pudo calcular el precio para Noche Completa. "
+                        "Verifica que la tarifa 'Noche Completa' esté activa en **Tarifas_Config** "
+                        "con un valor válido en **Precio_Hora_COP**."
+                    )
+                    st.stop()
+
                 # Paso 1: Cubículo
                 st.markdown("#### 🛏️ Paso 1 — Cubículo")
                 _cubiculos_nc = get_cubiculos_libres()
@@ -6663,12 +6706,20 @@ def main():
     init_state()
     # Verificar conexión a Google Sheets al arrancar
     if GSPREAD_AVAILABLE:
-        _, sh_check = get_active_client()
-        if not sh_check:
-            st.warning(
-                "⚠️ **Sin conexión a Google Sheets.** "
-                "Configura las credenciales en ⚙️ Configuración → Google Sheets. "
-                "Sin esta conexión la app no podrá mostrar ni guardar datos."
+        try:
+            _, sh_check = get_active_client()
+            if not sh_check:
+                st.warning(
+                    "⚠️ **Sin conexión a Google Sheets.** "
+                    "Configura las credenciales en ⚙️ Configuración → Google Sheets. "
+                    "Sin esta conexión la app no podrá mostrar ni guardar datos."
+                )
+        except Exception as _conn_err:
+            # Error de red transitorio al arrancar — no bloquear la UI
+            st.toast(
+                f"⚠️ Conexión a Google Sheets inestable al arrancar. "
+                "La app reintentará en la siguiente operación.",
+                icon="🔄"
             )
     _ensure_sync_thread()  # stub de compatibilidad
 

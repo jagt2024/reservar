@@ -172,7 +172,7 @@ except ImportError:
 
 try:
     import factura_electronica_dian as _fe_mod
-    _fe_mod.set_context(globals())
+    #_fe_mod.set_context(globals())
     FE_AVAILABLE = True
 except ImportError:
     _fe_mod      = None
@@ -204,6 +204,7 @@ CUENTA_BANCO = "Banco Caja Social · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573219714969"
 DRIVE_FILE   = "jjgt_pagos"
+DRIVE_FILE_CONVENIO = "jjgt_convenios"
 EMAIL        = "suitesalitre@gmail.com"
 
 # ID del Spreadsheet de Convenios (se configura igual que el principal)
@@ -1344,6 +1345,24 @@ DRIVE_SHEETS_CONVENIOS = {
         "Timestamp","Tipo_Op","Reserva_ID","Cubiculo","Operador",
         "Descripcion","Valor_Ant","Valor_Nuevo","IP","Estado","Notas",
     ],
+    # contabilidad.py → _escribir_comprobante → 15 campos en este orden exacto
+    "Comprobantes_Contables": [
+        "Fecha",
+        "Numero",
+        "Tipo",
+        "Evento",
+        "Tercero",
+        "Descripcion",
+        "Cuenta_Debito",
+        "Nombre_Debito",
+        "Cuenta_Credito",
+        "Nombre_Credito",
+        "Valor_COP",
+        "Medio_Pago",
+        "Soporte",
+        "Operador",
+        "Observaciones",
+    ],
 }
 
 
@@ -2139,6 +2158,12 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
         "nombre_empresa":     nombre_empresa,
     }
 
+    if CONT_AVAILABLE and _cont_mod is not None:
+        try:
+            _cont_mod.on_reserva_convenio_creada(voucher, calc, cliente, metodo)
+        except Exception:
+            pass
+
     # ── Helper: actualizar Cubiculos_Estado en cualquier spreadsheet ──────────
     def _actualizar_cubiculos_estado(sh_target):
         if not sh_target:
@@ -2707,13 +2732,22 @@ def _gs_with_retry(func, *args, operacion: str = "Google Sheets", **kwargs):
         except Exception as e:
             err_str = str(e)
             # Detectar error 429 (quota) en gspread/APIError
-            is_429 = (
+            is_retryable = (
                 "429" in err_str
-                or "quota" in err_str.lower()
-                or "rate" in err_str.lower()
-                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) == 429)
+                or "quota"               in err_str.lower()
+                or "rate"                in err_str.lower()
+                or "remoteDisconnected"  in err_str
+                or "RemoteDisconnected"  in err_str
+                or "remote end closed"   in err_str.lower()
+                or "connection aborted"  in err_str.lower()
+                or "connection reset"    in err_str.lower()
+                or "timed out"           in err_str.lower()
+                or "broken pipe"         in err_str.lower()
+                or "503"                 in err_str
+                or "502"                 in err_str
+                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) in (429, 500, 502, 503))
             )
-            if is_429 and intento < MAX_RETRIES - 1:
+            if is_retryable and intento < MAX_RETRIES - 1:
                 delay = INITIAL_RETRY_DELAY * (2 ** intento)
                 st.toast(
                     f"⏳ Cuota de API excedida. Reintentando en {delay}s "
@@ -3840,20 +3874,27 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
     activar_cubiculo(cubiculo["id"], num_res, hora_fin.isoformat())
 
     # 🔥 Comprobante contable automático
-    try:
-        import contabilidad
-        contabilidad.on_reserva_creada(
-            voucher  = {
-                "numero_reserva": num_res,
-                "numero_factura": num_fact,
-                "cubiculo":       cubiculo["numero"],
-            },
-            calc     = calc,
-            cliente  = cliente,
-            metodo   = metodo,
-        )
-    except Exception:
-        pass
+
+    if CONT_AVAILABLE and _cont_mod is not None:
+        #try:
+        #    _cont_mod.on_reserva_creada(voucher, calc, cliente, metodo)
+        #except Exception:
+        #    pass
+
+        try:
+            import contabilidad
+            contabilidad.on_reserva_creada(
+                voucher  = {
+                    "numero_reserva": num_res,
+                    "numero_factura": num_fact,
+                    "cubiculo":       cubiculo["numero"],
+                },
+                calc     = calc,
+                cliente  = cliente,
+                metodo   = metodo,
+            )
+        except Exception:
+            pass
 
     # ⚡ Factura electrónica DIAN — generación automática del XML
     try:
@@ -4938,16 +4979,18 @@ def show_confirmacion():
     render_header("Procesando tu pago")
     render_stepper(3)
 
-    try:
-        import contabilidad
-        contabilidad.on_pago_convenio(
-            empresa    = nombre_empresa,
-            valor      = monto_total,
-            num_reserva= num_reserva,
-            num_factura= num_factura,
-        )
-    except Exception:
-        pass
+    if CONT_AVAILABLE and _cont_mod is not None:
+
+        try:
+            import contabilidad
+            contabilidad.on_pago_convenio(
+                empresa    = nombre_empresa,
+                valor      = monto_total,
+                num_reserva= num_reserva,
+                num_factura= num_factura,
+            )
+        except Exception:
+            pass
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
@@ -6710,16 +6753,18 @@ def _op_pagos_pendientes():
                             # Pago normal: actualizar en jjgt_pagos
                             _confirmar_en_sh(sh_conf, pago_id, num_res)
 
-                            try:
-                                import contabilidad
-                                contabilidad.on_pago_convenio(
+                            if CONT_AVAILABLE and _cont_mod is not None:
+
+                                try:
+                                    import contabilidad
+                                    contabilidad.on_pago_convenio(
                                         empresa    = nombre_empresa,
                                         valor      = monto_total,
                                         num_reserva= num_reserva,
                                         num_factura= num_factura,
-                                )
-                            except Exception:
-                                pass
+                                    )
+                                except Exception:
+                                    pass
 
                         if sh_conf:
                             gs_sync_cubiculos(sh_conf)
@@ -6771,16 +6816,18 @@ def _op_pagos_pendientes():
                                         pass
                         st.success(f"✅ Pago {num_res} confirmado")
                         st.rerun()
-                        try:
-                            import contabilidad
-                            contabilidad.on_pago_convenio(
-                                empresa    = nombre_empresa,
-                                valor      = monto_total,
-                                num_reserva= num_reserva,
-                                num_factura= num_factura,
-                            )
-                        except Exception:
-                            pass
+
+                        if CONT_AVAILABLE and _cont_mod is not None:
+                            try:
+                                import contabilidad
+                                contabilidad.on_pago_convenio(
+                                    empresa    = nombre_empresa,
+                                    valor      = monto_total,
+                                    num_reserva= num_reserva,
+                                    num_factura= num_factura,
+                                )
+                            except Exception:
+                                pass
 
                     else:
                         st.error("PIN incorrecto")
@@ -9248,13 +9295,22 @@ def main():
 
     init_state()
     # Verificar conexión a Google Sheets al arrancar
+
     if GSPREAD_AVAILABLE:
-        _, sh_check = get_active_client()
-        if not sh_check:
-            st.warning(
-                "⚠️ **Sin conexión a Google Sheets.** "
-                "Configura las credenciales en ⚙️ Configuración → Google Sheets. "
-                "Sin esta conexión la app no podrá mostrar ni guardar datos."
+        try:
+            _, sh_check = get_active_client()
+            if not sh_check:
+                st.warning(
+                    "⚠️ **Sin conexión a Google Sheets.** "
+                    "Configura las credenciales en ⚙️ Configuración → Google Sheets. "
+                    "Sin esta conexión la app no podrá mostrar ni guardar datos."
+                )
+        except Exception as _conn_err:
+            # Error de red transitorio al arrancar — no bloquear la UI
+            st.toast(
+                f"⚠️ Conexión a Google Sheets inestable al arrancar. "
+                "La app reintentará en la siguiente operación.",
+                icon="🔄"
             )
     _ensure_sync_thread()  # stub de compatibilidad
 
