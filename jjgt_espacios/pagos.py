@@ -5892,6 +5892,9 @@ def _op_reportes():
     if rows:
         df = pd.DataFrame(rows)
         df["Total"] = df["Total"].apply(fmt_cop)
+        for _col in ["Reserva", "Cliente", "Cubículo", "Método", "Estado", "Fecha"]:
+            if _col in df.columns:
+                df[_col] = df[_col].astype(str)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         col_csv, col_pdf = st.columns(2)
@@ -6050,6 +6053,9 @@ def _op_gestion_datos():
                 "Estado":   _gs_val(r, "Estado_Pago"),
                 "Creada":   _gs_fecha_ymd(r, "Creado_En"),
             } for r in reservas_gs])
+            for _col in ["Número", "Cliente", "Cubículo", "Inicio", "Total", "Estado", "Creada"]:
+                if _col in df_r.columns:
+                    df_r[_col] = df_r[_col].astype(str)
             st.dataframe(df_r, use_container_width=True, hide_index=True)
 
             col_r1, col_r2 = st.columns([2,1])
@@ -6094,6 +6100,9 @@ def _op_gestion_datos():
                 "Teléfono":  _gs_val(r, "Telefono"),
                 "Creado":    _gs_fecha_ymd(r, "Creado_En"),
             } for r in clientes_gs])
+            for _col in ["Nombre", "Tipo Doc", "Documento", "Teléfono", "Creado"]:
+                if _col in df_c.columns:
+                    df_c[_col] = df_c[_col].astype(str)
             st.dataframe(df_c, use_container_width=True, hide_index=True)
 
             col_c1, col_c2 = st.columns([2,1])
@@ -6140,6 +6149,9 @@ def _op_gestion_datos():
                 "Estado":   _gs_val(r, "Estado"),
                 "Fecha":    _gs_val(r, "Fecha_Pago", "")[:16],
             } for r in pagos_gs])
+            for _col in ["ID Pago", "Reserva", "Monto", "Método", "Estado", "Fecha"]:
+                if _col in df_p.columns:
+                    df_p[_col] = df_p[_col].astype(str)
             st.dataframe(df_p, use_container_width=True, hide_index=True)
 
             col_p1, col_p2 = st.columns([2,1])

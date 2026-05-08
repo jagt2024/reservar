@@ -2303,16 +2303,16 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
 
     # 🔥 Comprobante contable automático (convenio)
 
-    if CONT_AVAILABLE and _cont_mod is not None:
-        try:
-            _cont_mod.on_pago_convenio(
-                empresa     = nombre_empresa,
-                valor       = calc["total"],
-                num_reserva = num_res,
-                num_factura = num_fac,
-            )
-        except Exception:
-            pass
+    #if CONT_AVAILABLE and _cont_mod is not None:
+    #    try:
+    #        _cont_mod.on_pago_convenio(
+    #            empresa     = nombre_empresa,
+    #            valor       = calc["total"],
+    #            num_reserva = num_res,
+    #            num_factura = num_fac,
+    #        )
+    #    except Exception:
+    #        pass
 
 
     return {
@@ -7278,6 +7278,8 @@ def _op_reportes_core():
     if rows:
         df = pd.DataFrame(rows)
         df["Total"] = df["Total"].apply(fmt_cop)
+        for _c in ["Reserva","Cliente","Cubículo","Método","Estado","Fecha"]:
+            if _c in df.columns: df[_c] = df[_c].astype(str)
         st.dataframe(df, use_container_width=True, hide_index=True)
 
         col_csv, col_pdf = st.columns(2)
@@ -7436,6 +7438,8 @@ def _op_reportes_convenio():
         df_rc_disp = df_rc.copy()
         df_rc_disp["Total"]    = df_rc_disp["Total"].apply(fmt_cop)
         df_rc_disp["Descuento"]= df_rc_disp["Descuento"].apply(fmt_cop)
+        for _c in ["Reserva","Empresa","Id_Empresa","Cliente","Cubículo","Estado","Fecha"]:
+            if _c in df_rc_disp.columns: df_rc_disp[_c] = df_rc_disp[_c].astype(str)
         st.dataframe(df_rc_disp, use_container_width=True, hide_index=True)
 
         # Resumen por empresa
@@ -7453,6 +7457,8 @@ def _op_reportes_convenio():
         df_emp = pd.DataFrame(list(emp_res.values()))
         df_emp["Total"]     = df_emp["Total"].apply(fmt_cop)
         df_emp["Pendiente"] = df_emp["Pendiente"].apply(fmt_cop)
+        for _c in ["Empresa"]:
+            if _c in df_emp.columns: df_emp[_c] = df_emp[_c].astype(str)
         st.dataframe(df_emp, use_container_width=True, hide_index=True)
 
         col_exp1, col_exp2 = st.columns(2)
@@ -7561,6 +7567,8 @@ def _op_gestion_datos():
                 "Estado":   _gs_val(r, "Estado_Pago"),
                 "Creada":   _gs_fecha_ymd(r, "Creado_En"),
             } for r in reservas_gs])
+            for _c in ["Número","Cliente","Cubículo","Inicio","Total","Estado","Creada"]:
+                if _c in df_r.columns: df_r[_c] = df_r[_c].astype(str)
             st.dataframe(df_r, use_container_width=True, hide_index=True)
 
             col_r1, col_r2 = st.columns([2,1])
@@ -7605,6 +7613,8 @@ def _op_gestion_datos():
                 "Teléfono":  _gs_val(r, "Telefono"),
                 "Creado":    _gs_fecha_ymd(r, "Creado_En"),
             } for r in clientes_gs])
+            for _c in ["Nombre","Tipo Doc","Documento","Teléfono","Creado"]:
+                if _c in df_c.columns: df_c[_c] = df_c[_c].astype(str)
             st.dataframe(df_c, use_container_width=True, hide_index=True)
 
             col_c1, col_c2 = st.columns([2,1])
@@ -7651,6 +7661,8 @@ def _op_gestion_datos():
                 "Estado":   _gs_val(r, "Estado"),
                 "Fecha":    _gs_val(r, "Fecha_Pago", "")[:16],
             } for r in pagos_gs])
+            for _c in ["ID Pago","Reserva","Monto","Método","Estado","Fecha"]:
+                if _c in df_p.columns: df_p[_c] = df_p[_c].astype(str)
             st.dataframe(df_p, use_container_width=True, hide_index=True)
 
             col_p1, col_p2 = st.columns([2,1])
@@ -7694,6 +7706,8 @@ def _op_gestion_datos():
                 "Estado":  _gs_val(r, "Estado"),
                 "Fecha":   _gs_fecha_ymd(r, "Fecha_Emision"),
             } for r in facturas_gs])
+            for _c in ["Número","Cliente","Total","Estado","Fecha"]:
+                if _c in df_f.columns: df_f[_c] = df_f[_c].astype(str)
             st.dataframe(df_f, use_container_width=True, hide_index=True)
 
             col_f1, col_f2 = st.columns([2,1])
@@ -7746,14 +7760,15 @@ def _op_gestion_datos():
                     if not res_conv_gd:
                         st.info("No hay reservas en jjgt_convenios.")
                     else:
-                        st.dataframe(pd.DataFrame([{
-                            "Reserva":  r.get("Numero_Reserva",""),
-                            "Empresa":  r.get("Nombre_Empresa","—"),
-                            "Cliente":  r.get("Cliente_Nombre",""),
-                            "Estado":   r.get("Estado_Pago",""),
+                        _df_gd_r = pd.DataFrame([{
+                            "Reserva":  str(r.get("Numero_Reserva","")),
+                            "Empresa":  str(r.get("Nombre_Empresa","—")),
+                            "Cliente":  str(r.get("Cliente_Nombre","")),
+                            "Estado":   str(r.get("Estado_Pago","")),
                             "Total":    fmt_cop(float(r.get("Total_COP","0") or 0)),
-                            "Fecha":    r.get("Creado_En","")[:10],
-                        } for r in res_conv_gd]), use_container_width=True, hide_index=True)
+                            "Fecha":    str(r.get("Creado_En","")[:10]),
+                        } for r in res_conv_gd])
+                        st.dataframe(_df_gd_r, use_container_width=True, hide_index=True)
                         col_gr1, col_gr2 = st.columns([2,1])
                         with col_gr1:
                             opts_gr = {f"{r.get('Numero_Reserva','')} — {r.get('Nombre_Empresa','—')} — {r.get('Cliente_Nombre','')}":
@@ -7787,10 +7802,12 @@ def _op_gestion_datos():
                     if not cli_conv_gd:
                         st.info("No hay clientes en jjgt_convenios.")
                     else:
-                        st.dataframe(pd.DataFrame([{
-                            "Nombre":  c.get("Nombre",""), "Doc": c.get("Num_Doc",""),
-                            "Empresa": c.get("Nombre_Empresa","—"),
-                        } for c in cli_conv_gd]), use_container_width=True, hide_index=True)
+                        _df_gd_c = pd.DataFrame([{
+                            "Nombre":  str(c.get("Nombre","")),
+                            "Doc":     str(c.get("Num_Doc","")),
+                            "Empresa": str(c.get("Nombre_Empresa","—")),
+                        } for c in cli_conv_gd])
+                        st.dataframe(_df_gd_c, use_container_width=True, hide_index=True)
                         col_gc1, col_gc2 = st.columns([2,1])
                         with col_gc1:
                             opts_gc = {f"{c.get('Nombre','')} — {c.get('Num_Doc','')}":
@@ -7820,12 +7837,14 @@ def _op_gestion_datos():
                     if not pag_conv_gd:
                         st.info("No hay pagos en jjgt_convenios.")
                     else:
-                        st.dataframe(pd.DataFrame([{
-                            "ID":      p.get("ID_Pago",""), "Reserva": p.get("Num_Reserva",""),
-                            "Empresa": p.get("Nombre_Empresa","—"),
+                        _df_gd_p = pd.DataFrame([{
+                            "ID":      str(p.get("ID_Pago","")),
+                            "Reserva": str(p.get("Num_Reserva","")),
+                            "Empresa": str(p.get("Nombre_Empresa","—")),
                             "Monto":   fmt_cop(float(p.get("Monto_COP","0") or 0)),
-                            "Estado":  p.get("Estado",""),
-                        } for p in pag_conv_gd]), use_container_width=True, hide_index=True)
+                            "Estado":  str(p.get("Estado","")),
+                        } for p in pag_conv_gd])
+                        st.dataframe(_df_gd_p, use_container_width=True, hide_index=True)
                         col_gp1, col_gp2 = st.columns([2,1])
                         with col_gp1:
                             opts_gp = {f"#{p.get('ID_Pago','')} — {p.get('Num_Reserva','')} — {p.get('Nombre_Empresa','—')}":
@@ -7877,13 +7896,14 @@ def _op_gestion_datos():
                     if not fact_conv_gd:
                         st.info("No hay facturas en jjgt_convenios.")
                     else:
-                        st.dataframe(pd.DataFrame([{
-                            "Número":  f.get("Num_Factura",""),
-                            "Empresa": f.get("Nombre_Empresa","—"),
-                            "Cliente": f.get("Cliente_Nombre",""),
+                        _df_gd_f = pd.DataFrame([{
+                            "Número":  str(f.get("Num_Factura","")),
+                            "Empresa": str(f.get("Nombre_Empresa","—")),
+                            "Cliente": str(f.get("Cliente_Nombre","")),
                             "Total":   fmt_cop(float(f.get("Total_COP","0") or 0)),
-                            "Estado":  f.get("Estado",""),
-                        } for f in fact_conv_gd]), use_container_width=True, hide_index=True)
+                            "Estado":  str(f.get("Estado","")),
+                        } for f in fact_conv_gd])
+                        st.dataframe(_df_gd_f, use_container_width=True, hide_index=True)
                         col_gf1, col_gf2 = st.columns([2,1])
                         with col_gf1:
                             opts_gf = {f"{f.get('Num_Factura','')} — {f.get('Nombre_Empresa','—')}":
@@ -7928,13 +7948,14 @@ def _op_gestion_datos():
                 if not empresas_gd:
                     st.info("No hay empresas registradas en jjgt_convenios.")
                 else:
-                    st.dataframe(pd.DataFrame([{
-                        "ID":       e.get("Id_Empresa",""),
-                        "Empresa":  e.get("Nombre_Empresa",""),
-                        "NIT":      e.get("Nit_Empresa",""),
-                        "Tipo":     e.get("Tipo_Convenio",""),
-                        "Activo":   e.get("Activo","1"),
-                    } for e in empresas_gd]), use_container_width=True, hide_index=True)
+                    _df_gd_e = pd.DataFrame([{
+                        "ID":      str(e.get("Id_Empresa","")),
+                        "Empresa": str(e.get("Nombre_Empresa","")),
+                        "NIT":     str(e.get("Nit_Empresa","")),
+                        "Tipo":    str(e.get("Tipo_Convenio","")),
+                        "Activo":  str(e.get("Activo","1")),
+                    } for e in empresas_gd])
+                    st.dataframe(_df_gd_e, use_container_width=True, hide_index=True)
 
                     col_ge1, col_ge2 = st.columns([2,1])
                     with col_ge1:
@@ -8254,13 +8275,15 @@ def _op_configuracion():
         tfs_gs = _gs_read_sheet("Tarifas_Config")
         if tfs_gs:
             df_t = pd.DataFrame([{
-                "Empresa_Nombre":       _gs_val(r, "Empresa_Nombre"),
-                "Descripción":  _gs_val(r, "Descripcion"),
-                "Precio/hora":  fmt_cop(_gs_float(r, "Precio_Hora_COP", 15000)),
-                "Desc 3h%":     _gs_val(r, "Desc_3h_Pct"),
-                "Desc 6h%":     _gs_val(r, "Desc_6h_Pct"),
-                "Activo":       _gs_val(r, "Activo"),
+                "Empresa_Nombre": _gs_val(r, "Empresa_Nombre"),
+                "Descripción":    _gs_val(r, "Descripcion"),
+                "Precio/hora":    fmt_cop(_gs_float(r, "Precio_Hora_COP", 15000)),
+                "Desc 3h%":       _gs_val(r, "Desc_3h_Pct"),
+                "Desc 6h%":       _gs_val(r, "Desc_6h_Pct"),
+                "Activo":         _gs_val(r, "Activo"),
             } for r in tfs_gs])
+            for _c in ["Empresa_Nombre","Descripción","Desc 3h%","Desc 6h%","Activo"]:
+                if _c in df_t.columns: df_t[_c] = df_t[_c].astype(str)
             st.dataframe(df_t, use_container_width=True, hide_index=True)
         else:
             st.info("No hay tarifas configuradas en Google Sheets.")
@@ -8545,10 +8568,13 @@ def _op_configuracion():
         st.markdown("#### Empresas con convenio")
         empresas_cfg2 = get_empresas_convenio()
         if empresas_cfg2:
-            st.dataframe(pd.DataFrame([{
-                "ID": e.get("Id_Empresa",""), "Empresa": e.get("Nombre_Empresa",""),
-                "NIT": e.get("Nit_Empresa",""), "Tipo Conv.": e.get("Tipo_Convenio",""),
-            } for e in empresas_cfg2]), use_container_width=True, hide_index=True)
+            _df_emp_cfg = pd.DataFrame([{
+                "ID":        str(e.get("Id_Empresa","")),
+                "Empresa":   str(e.get("Nombre_Empresa","")),
+                "NIT":       str(e.get("Nit_Empresa","")),
+                "Tipo Conv.":str(e.get("Tipo_Convenio","")),
+            } for e in empresas_cfg2])
+            st.dataframe(_df_emp_cfg, use_container_width=True, hide_index=True)
             col_de1c, col_de2c = st.columns([2,1])
             with col_de1c:
                 emp_del_opts2 = {f"{e.get('Nombre_Empresa','')} ({e.get('Nit_Empresa','')})": e.get("Id_Empresa","") for e in empresas_cfg2}
@@ -8703,8 +8729,10 @@ def _op_configuracion():
                         "Descuento %":  cfg_v["convenios_descuento_pct"],
                         "Max pendient": int(cfg_v["convenios_max_pendientes"]),
                     })
-                st.dataframe(pd.DataFrame(rows_ver),
-                             use_container_width=True, hide_index=True)
+                _df_rows_ver = pd.DataFrame(rows_ver)
+                for _c in ["Empresa","Horas min","Descuento %"]:
+                    if _c in _df_rows_ver.columns: _df_rows_ver[_c] = _df_rows_ver[_c].astype(str)
+                st.dataframe(_df_rows_ver, use_container_width=True, hide_index=True)
 
         st.divider()
         st.markdown("#### 🛏️ Tarifa especial para convenios")
@@ -8779,9 +8807,12 @@ def _op_configuracion():
         st.markdown("#### Operadores habilitados para convenios")
         ops_cv = _gs_read_sheet("Operadores")
         if ops_cv:
-            st.dataframe(pd.DataFrame([{"Nombre":_gs_val(r,"Nombre"),"Rol":_gs_val(r,"Rol"),
-                "Turno":_gs_val(r,"Turno")} for r in ops_cv if _gs_val(r,"Activo")=="1"]),
-                use_container_width=True, hide_index=True)
+            _df_ops_cv = pd.DataFrame([{
+                "Nombre": str(_gs_val(r,"Nombre")),
+                "Rol":    str(_gs_val(r,"Rol")),
+                "Turno":  str(_gs_val(r,"Turno")),
+            } for r in ops_cv if _gs_val(r,"Activo")=="1"])
+            st.dataframe(_df_ops_cv, use_container_width=True, hide_index=True)
         st.info("Para modificar operadores ve a la pestana Operadores.")
 
 def _tab_convenio_reserva():
@@ -9034,6 +9065,8 @@ def _op_convenios():
                 "Total COP": fmt_cop(_gs_float(r, "Total_COP")),
                 "Estado":    _gs_val(r, "Estado_Pago"),
             } for r in res_conv_hoy])
+            for _c in ["Reserva","Empresa","Cliente","Cubículo","Horas","Estado"]:
+                if _c in df_rch.columns: df_rch[_c] = df_rch[_c].astype(str)
             st.dataframe(df_rch, use_container_width=True, hide_index=True)
         else:
             st.info("No hay reservas de convenio registradas hoy.")
@@ -9052,8 +9085,10 @@ def _op_convenios():
                         "Dias credito": int(cfg_d["convenios_dias_credito"]),
                         "Max pend.":    int(cfg_d["convenios_max_pendientes"]),
                     })
-                st.dataframe(pd.DataFrame(rows_cfg_dash),
-                             use_container_width=True, hide_index=True)
+                _df_cfg_dash = pd.DataFrame(rows_cfg_dash)
+                for _c in ["Empresa","Descuento %","Horas min"]:
+                    if _c in _df_cfg_dash.columns: _df_cfg_dash[_c] = _df_cfg_dash[_c].astype(str)
+                st.dataframe(_df_cfg_dash, use_container_width=True, hide_index=True)
 
         st.divider()
         st.markdown("#### Estado en tiempo real (cubículos)")
@@ -9125,6 +9160,8 @@ def _op_convenios():
             df_rc = pd.DataFrame(rows_c)
             df_rc_disp = df_rc.copy()
             df_rc_disp["Total"] = df_rc_disp["Total"].apply(fmt_cop)
+            for _c in ["Reserva","Empresa","Cliente","Cubículo","Estado","Fecha"]:
+                if _c in df_rc_disp.columns: df_rc_disp[_c] = df_rc_disp[_c].astype(str)
             st.dataframe(df_rc_disp, use_container_width=True, hide_index=True)
             col_csv_c, col_xls_c = st.columns(2)
             with col_csv_c:
@@ -9185,11 +9222,14 @@ def _op_convenios():
             if not res_cv:
                 st.info("No hay reservas de convenio.")
             else:
-                st.dataframe(pd.DataFrame([{
-                    "Reserva": _gs_val(r,"Numero_Reserva"), "Empresa": _gs_val(r,"Nombre_Empresa","—"),
-                    "Cliente": _gs_val(r,"Cliente_Nombre"), "Estado": _gs_val(r,"Estado_Pago"),
+                _df_cv_res = pd.DataFrame([{
+                    "Reserva": str(_gs_val(r,"Numero_Reserva")),
+                    "Empresa": str(_gs_val(r,"Nombre_Empresa","—")),
+                    "Cliente": str(_gs_val(r,"Cliente_Nombre")),
+                    "Estado":  str(_gs_val(r,"Estado_Pago")),
                     "Total":   fmt_cop(_gs_float(r,"Total_COP")),
-                } for r in res_cv]), use_container_width=True, hide_index=True)
+                } for r in res_cv])
+                st.dataframe(_df_cv_res, use_container_width=True, hide_index=True)
                 col_d1,col_d2 = st.columns([2,1])
                 with col_d1:
                     opts = {f"{_gs_val(r,'Numero_Reserva')} — {_gs_val(r,'Nombre_Empresa','—')}":
@@ -9223,8 +9263,12 @@ def _op_convenios():
                     if not clientes_cv:
                         st.info("No hay clientes de convenio.")
                     else:
-                        st.dataframe(pd.DataFrame([{"Nombre":r.get("Nombre",""),"Doc":r.get("Num_Doc",""),"Empresa":r.get("Nombre_Empresa","—")} for r in clientes_cv]),
-                                     use_container_width=True, hide_index=True)
+                        _df_cv_cli = pd.DataFrame([{
+                            "Nombre":  str(r.get("Nombre","")),
+                            "Doc":     str(r.get("Num_Doc","")),
+                            "Empresa": str(r.get("Nombre_Empresa","—")),
+                        } for r in clientes_cv])
+                        st.dataframe(_df_cv_cli, use_container_width=True, hide_index=True)
                         col_cc1,col_cc2=st.columns([2,1])
                         with col_cc1:
                             opts_cc={f"{r.get('Nombre','')} — {r.get('Num_Doc','')}":r.get("Num_Doc","") for r in clientes_cv if r.get("Num_Doc")}
@@ -9254,9 +9298,14 @@ def _op_convenios():
             if not pag_cv:
                 st.info("No hay pagos de convenio.")
             else:
-                st.dataframe(pd.DataFrame([{"ID":_gs_val(r,"ID_Pago"),"Reserva":_gs_val(r,"Num_Reserva"),
-                    "Empresa":_gs_val(r,"Nombre_Empresa","—"),"Monto":fmt_cop(_gs_float(r,"Monto_COP")),"Estado":_gs_val(r,"Estado")} for r in pag_cv]),
-                    use_container_width=True, hide_index=True)
+                _df_cv_pag = pd.DataFrame([{
+                    "ID":      str(_gs_val(r,"ID_Pago")),
+                    "Reserva": str(_gs_val(r,"Num_Reserva")),
+                    "Empresa": str(_gs_val(r,"Nombre_Empresa","—")),
+                    "Monto":   fmt_cop(_gs_float(r,"Monto_COP")),
+                    "Estado":  str(_gs_val(r,"Estado")),
+                } for r in pag_cv])
+                st.dataframe(_df_cv_pag, use_container_width=True, hide_index=True)
                 col_p1,col_p2=st.columns([2,1])
                 with col_p1:
                     opts_p={f"#{_gs_val(r,'ID_Pago')}—{_gs_val(r,'Num_Reserva')}":_gs_val(r,"ID_Pago") for r in pag_cv if _gs_val(r,"ID_Pago")}
@@ -9298,9 +9347,13 @@ def _op_convenios():
             if not fact_cv:
                 st.info("No hay facturas de convenio en jjgt_convenios.")
             else:
-                st.dataframe(pd.DataFrame([{"Número":r.get("Num_Factura",""),"Empresa":r.get("Nombre_Empresa","—"),
-                    "Total":fmt_cop(float(r.get("Total_COP","0") or 0)),"Estado":r.get("Estado","")} for r in fact_cv]),
-                    use_container_width=True, hide_index=True)
+                _df_cv_fac = pd.DataFrame([{
+                    "Número":  str(r.get("Num_Factura","")),
+                    "Empresa": str(r.get("Nombre_Empresa","—")),
+                    "Total":   fmt_cop(float(r.get("Total_COP","0") or 0)),
+                    "Estado":  str(r.get("Estado","")),
+                } for r in fact_cv])
+                st.dataframe(_df_cv_fac, use_container_width=True, hide_index=True)
                 col_f1,col_f2=st.columns([2,1])
                 with col_f1:
                     opts_f={f"{r.get('Num_Factura','')}—{r.get('Nombre_Empresa','—')}":r.get("Num_Factura","") for r in fact_cv if r.get("Num_Factura")}
