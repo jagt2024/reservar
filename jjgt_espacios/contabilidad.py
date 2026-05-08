@@ -173,52 +173,103 @@ def _get_read_fn(origen: str):
 
 
 def _consecutivo(tipo: str, origen: str = ORIGEN_PAGOS) -> str:
-    """Genera el número correlativo leyendo del spreadsheet correcto."""
+    """Genera el número correlativo leyendo directamente del spreadsheet correcto."""
     prefijo = _PREFIJOS.get(tipo, "CO")
     n = 1
     try:
-        fn_read = _get_read_fn(origen)
-        fn_val  = _ctx.get("_gs_val")
-        if fn_read and fn_val:
-            rows = fn_read(GS_HOJA_COMP, force=True)
-            mismo_tipo = [r for r in rows if fn_val(r, "Tipo", "") == tipo]
-            n = len(mismo_tipo) + 1
+        sh_c = _get_spreadsheet(origen)
+        if sh_c:
+            ws_c = _get_or_fix_ws(sh_c)
+            if ws_c:
+                rows_raw = ws_c.get_all_values()
+                if rows_raw and len(rows_raw) >= 2:
+                    hdr = rows_raw[0]
+                    tipo_idx = hdr.index("Tipo") if "Tipo" in hdr else -1
+                    if tipo_idx >= 0:
+                        mismo_tipo = [
+                            r for r in rows_raw[1:]
+                            if len(r) > tipo_idx and r[tipo_idx] == tipo
+                        ]
+                        n = len(mismo_tipo) + 1
     except Exception:
         pass
     return f"{prefijo}-{n:04d}"
 
 
+def _get_or_fix_ws(sh):
+    """
+    Obtiene el worksheet Comprobantes_Contables del spreadsheet `sh`.
+    Si no existe lo crea. Si existe pero no tiene los headers correctos,
+    los escribe en la primera fila antes de retornar el worksheet.
+    """
+    ws = None
+    try:
+        meta = sh.fetch_sheet_metadata()
+        hoja_lower = GS_HOJA_COMP.lower()
+        for sheet in meta.get("sheets", []):
+            if sheet["properties"]["title"].lower() == hoja_lower:
+                ws = sh.worksheet(sheet["properties"]["title"])
+                break
+    except Exception as e:
+        print(f"[contabilidad] ERROR obteniendo metadata: {e}")
+        return None
+
+    if ws is None:
+        try:
+            ws = sh.add_worksheet(title=GS_HOJA_COMP, rows=5000, cols=len(_COLUMNAS))
+        except Exception as e:
+            print(f"[contabilidad] ERROR creando hoja: {e}")
+            return None
+
+    # Verificar / escribir headers
+    try:
+        vals = ws.get_all_values()
+        if not vals or vals[0] != _COLUMNAS:
+            if not vals:
+                ws.append_row(_COLUMNAS)
+            else:
+                ws.update(values=[_COLUMNAS], range_name="A1")
+    except Exception as e:
+        print(f"[contabilidad] WARN verificando headers: {e}")
+
+    return ws
+
+
 def _escribir_comprobante(fila: list, origen: str = ORIGEN_PAGOS) -> None:
     """
     Escribe una fila en Comprobantes_Contables del spreadsheet indicado.
+    Acceso directo al worksheet para garantizar headers correctos y
+    fila con los 15 campos alineados a _COLUMNAS.
     origen="pagos"     → jjgt_pagos
     origen="convenios" → jjgt_convenios
     """
     try:
-        fn_append = _ctx.get("_gs_append")
-        if not fn_append:
-            print(f"[contabilidad] WARN: _gs_append no está en contexto — comprobante no guardado.")
-            return
-
         sh = _get_spreadsheet(origen)
         if not sh:
             print(f"[contabilidad] WARN: sin spreadsheet ({origen}) — comprobante no guardado: {fila[1] if len(fila) > 1 else '?'}")
             return
 
-        fn_append(sh, GS_HOJA_COMP, fila)
+        ws = _get_or_fix_ws(sh)
+        if not ws:
+            print(f"[contabilidad] WARN: no se pudo obtener worksheet — comprobante no guardado.")
+            return
 
-        fn_inv = _ctx.get("_gs_invalidate_cache")
-        if fn_inv:
-            # Invalidar caché del spreadsheet correcto
+        # Asegurar exactamente 15 campos alineados con _COLUMNAS
+        fila_str = [str(v) if v is not None else "" for v in fila]
+        fila_str = (fila_str + [""] * len(_COLUMNAS))[: len(_COLUMNAS)]
+        ws.append_row(fila_str)
+
+        # Invalidar caché según origen
+        try:
+            import streamlit as st
             if origen == ORIGEN_CONVENIOS:
-                # _gs_invalidate_cache no distingue spreadsheet; invalidar manualmente
-                try:
-                    import streamlit as st
-                    st.session_state[f"_gs_conv_ts_{GS_HOJA_COMP}"] = 0
-                except Exception:
-                    pass
+                st.session_state[f"_gs_conv_ts_{GS_HOJA_COMP}"] = 0
             else:
-                fn_inv(GS_HOJA_COMP)
+                fn_inv = _ctx.get("_gs_invalidate_cache")
+                if fn_inv:
+                    fn_inv(GS_HOJA_COMP)
+        except Exception:
+            pass
 
     except Exception as e:
         print(f"[contabilidad] ERROR al escribir comprobante ({origen}): {e}")
@@ -555,34 +606,41 @@ def exportar_libro_contable(
 
     filas: list[list] = []
     try:
-        fn_read  = _get_read_fn(origen)
-        fn_val   = _ctx.get("_gs_val")
-        fn_float = _ctx.get("_gs_float")
-        if fn_read and fn_val:
-            rows = fn_read(GS_HOJA_COMP, force=True)
-            for r in rows:
-                fecha = fn_val(r, "Fecha", "")
-                if fecha_ini and fecha < fecha_ini:
-                    continue
-                if fecha_fin and fecha > fecha_fin:
-                    continue
-                filas.append([
-                    fecha,
-                    fn_val(r, "Numero", ""),
-                    fn_val(r, "Tipo", ""),
-                    fn_val(r, "Evento", ""),
-                    fn_val(r, "Tercero", ""),
-                    fn_val(r, "Descripcion", ""),
-                    fn_val(r, "Cuenta_Debito", ""),
-                    fn_val(r, "Nombre_Debito", ""),
-                    fn_val(r, "Cuenta_Credito", ""),
-                    fn_val(r, "Nombre_Credito", ""),
-                    fn_float(r, "Valor_COP", 0) if fn_float else float(fn_val(r, "Valor_COP", 0) or 0),
-                    fn_val(r, "Medio_Pago", ""),
-                    fn_val(r, "Soporte", ""),
-                    fn_val(r, "Operador", ""),
-                    fn_val(r, "Observaciones", ""),
-                ])
+        sh_exp = _get_spreadsheet(origen)
+        if sh_exp:
+            ws_exp = _get_or_fix_ws(sh_exp)
+            rows_raw = ws_exp.get_all_values() if ws_exp else []
+            if rows_raw and len(rows_raw) >= 2:
+                hdr = rows_raw[0]
+                for row in rows_raw[1:]:
+                    padded = (row + [""] * len(hdr))[: len(hdr)]
+                    r = dict(zip(hdr, padded))
+                    def _v(k): return r.get(k, "")
+                    def _f(k):
+                        try: return float(r.get(k, 0) or 0)
+                        except: return 0.0
+                    fecha = _v("Fecha")
+                    if fecha_ini and fecha < fecha_ini:
+                        continue
+                    if fecha_fin and fecha > fecha_fin:
+                        continue
+                    filas.append([
+                        fecha,
+                        _v("Numero"),
+                        _v("Tipo"),
+                        _v("Evento"),
+                        _v("Tercero"),
+                        _v("Descripcion"),
+                        _v("Cuenta_Debito"),
+                        _v("Nombre_Debito"),
+                        _v("Cuenta_Credito"),
+                        _v("Nombre_Credito"),
+                        _f("Valor_COP"),
+                        _v("Medio_Pago"),
+                        _v("Soporte"),
+                        _v("Operador"),
+                        _v("Observaciones"),
+                    ])
     except Exception as e:
         print(f"[contabilidad] ERROR leyendo comprobantes ({origen}): {e}")
 
@@ -882,28 +940,49 @@ def render_panel_contabilidad() -> None:
                 st.rerun()
 
         try:
-            if fn_read and fn_val and fn_float:
-                rows_comp = fn_read(GS_HOJA_COMP, force=True)
-                if not rows_comp:
+            sh_read = _get_spreadsheet(origen)
+            if not sh_read:
+                st.warning(
+                    f"No hay conexión con el spreadsheet de **{origen_label}**. "
+                    "Verifica que `contabilidad.set_context(globals())` esté activo."
+                )
+            else:
+                ws_read = _get_or_fix_ws(sh_read)
+                rows_raw = ws_read.get_all_values() if ws_read else []
+                if not rows_raw or len(rows_raw) < 2:
                     st.info(
                         f"No hay comprobantes registrados en **{origen_label}** aún. "
                         "Se generarán automáticamente al procesar reservas y pagos."
                     )
                 else:
                     import pandas as pd
+                    hdr = rows_raw[0]
+                    filas = rows_raw[1:]
+                    # Construir dicts usando la fila de headers real de la hoja
+                    records = []
+                    for row in filas:
+                        # Rellenar con "" si la fila tiene menos columnas que el header
+                        padded = (row + [""] * len(hdr))[: len(hdr)]
+                        records.append(dict(zip(hdr, padded)))
+
+                    def _v(r, k): return r.get(k, "")
+                    def _f(r, k):
+                        try: return float(r.get(k, 0) or 0)
+                        except: return 0.0
+
                     data = []
-                    for r in rows_comp:
+                    for r in records:
                         data.append({
-                            "Fecha":       fn_val(r, "Fecha", ""),
-                            "Número":      fn_val(r, "Numero", ""),
-                            "Tipo":        fn_val(r, "Tipo", ""),
-                            "Tercero":     fn_val(r, "Tercero", ""),
-                            "Descripción": fn_val(r, "Descripcion", ""),
-                            "Cta. Deb.":   fn_val(r, "Cuenta_Debito", ""),
-                            "Cta. Cred.":  fn_val(r, "Cuenta_Credito", ""),
-                            "Valor COP":   fn_float(r, "Valor_COP", 0),
-                            "Soporte":     fn_val(r, "Soporte", ""),
-                            "Operador":    fn_val(r, "Operador", ""),
+                            "Fecha":       _v(r, "Fecha"),
+                            "Número":      _v(r, "Numero"),
+                            "Tipo":        _v(r, "Tipo"),
+                            "Tercero":     _v(r, "Tercero"),
+                            "Descripción": _v(r, "Descripcion"),
+                            "Cta. Deb.":   _v(r, "Cuenta_Debito"),
+                            "Cta. Cred.":  _v(r, "Cuenta_Credito"),
+                            "Valor COP":   _f(r, "Valor_COP"),
+                            "Soporte":     _v(r, "Soporte"),
+                            "Operador":    _v(r, "Operador"),
                         })
                     df = pd.DataFrame(data)
                     st.dataframe(df, use_container_width=True, hide_index=True)
@@ -915,11 +994,6 @@ def render_panel_contabilidad() -> None:
                         f"{len(df)} comprobantes</div>",
                         unsafe_allow_html=True,
                     )
-            else:
-                st.warning(
-                    f"Función de lectura no disponible para **{origen_label}**. "
-                    "Verifica que `contabilidad.set_context(globals())` esté en `main()`."
-                )
         except Exception as e:
             st.error(f"Error al leer comprobantes ({origen}): {e}")
 

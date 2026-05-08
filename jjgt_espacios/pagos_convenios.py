@@ -204,7 +204,7 @@ CUENTA_BANCO = "Banco Caja Social · Cta Ahorros · 123-456789-12"
 MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573219714969"
 DRIVE_FILE   = "jjgt_pagos"
-DRIVE_FILE_CONVENIO = "jjgt_convenios"
+DRIVE_FILE_CONVENIOS = "jjgt_convenios"
 EMAIL        = "suitesalitre@gmail.com"
 
 # ID del Spreadsheet de Convenios (se configura igual que el principal)
@@ -1477,10 +1477,22 @@ def get_or_create_spreadsheet(client):
 def get_active_client():
     """
     Flujo completo: credenciales → cliente cacheado → spreadsheet.
+    Cachea el cliente y el spreadsheet en session_state para evitar
+    reconexiones en frío en cada rerun de Streamlit.
     Retorna (client, spreadsheet) o (None, None).
     """
     if not GSPREAD_AVAILABLE:
         return None, None
+
+    # Reusar cliente cacheado si ya existe en esta sesión
+    try:
+        cached_client = st.session_state.get("_gs_main_client")
+        cached_sh     = st.session_state.get("_gs_main_sh")
+        if cached_client is not None and cached_sh is not None:
+            return cached_client, cached_sh
+    except Exception:
+        pass
+
     creds, _ = load_credentials_from_toml()
     if not creds:
         return None, None
@@ -1488,6 +1500,15 @@ def get_active_client():
     if not client:
         return None, None
     sh = get_or_create_spreadsheet(client)
+
+    # Guardar en caché de sesión
+    if client and sh:
+        try:
+            st.session_state["_gs_main_client"] = client
+            st.session_state["_gs_main_sh"]     = sh
+        except Exception:
+            pass
+
     return client, sh
 
 
@@ -2160,9 +2181,14 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
 
     if CONT_AVAILABLE and _cont_mod is not None:
         try:
-            _cont_mod.on_reserva_convenio_creada(voucher, calc, cliente, metodo)
-        except Exception:
-            pass
+            _voucher_conv = {
+                "numero_reserva": num_res,
+                "numero_factura": num_fac,
+                "cubiculo":       cubiculo["numero"],
+            }
+            _cont_mod.on_reserva_convenio_creada(_voucher_conv, calc, cliente, "Convenio")
+        except Exception as e:
+            print(f"[contabilidad] ERROR on_reserva_convenio_creada: {e}")
 
     # ── Helper: actualizar Cubiculos_Estado en cualquier spreadsheet ──────────
     def _actualizar_cubiculos_estado(sh_target):
@@ -2210,12 +2236,15 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
             "email":            cliente.get("email", ""),
         }, id_empresa, nombre_empresa)
 
+        #today = ahora_col().strftime("%Y-%m-%d")
+        #today.strftime("%Y-%m-%d")
+
         gs_escribir_factura_convenio(sh_conv, {
             "id":               num_fac,
             "numero":           num_fac,
             "tipo":             "Factura de Venta Convenio",
             "fecha_emision":    now.strftime("%Y-%m-%d"),
-            "fecha_vencimiento":(hoy + timedelta(days=30)).strftime("%Y-%m-%d"),
+            "fecha_vencimiento": (now + timedelta(days=30)).strftime("%Y-%m-%d"),
             "cliente_nombre":   cliente["nombre"],
             "cliente_doc":      cliente.get("numero_documento", ""),
             "cliente_email":    cliente.get("email", ""),
@@ -2256,9 +2285,16 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
             _gs_sync_dashboard_convenios(sh_conv, nueva_reserva=reserva_data)
         except Exception:
             pass
+
         # Invalida caché de hojas escritas en esta operación
         _gs_invalidate_cache_conv("Reservas","Pagos","Clientes","Facturas",
                                    "Factura_items","Dashboard_Diario")
+
+    _, sh_pagos = get_active_client()
+    if sh_pagos:
+       _actualizar_cubiculos_estado(sh_pagos)   # marca ocupado en jjgt_pagos
+       _gs_invalidate_cache("Cubiculos_Estado") # fuerza recarga en el Dashboard
+
 
     # ── 2. jjgt_pagos: SOLO actualiza Cubiculos_Estado ───────────────────────
     # Los datos de la reserva NO se duplican en jjgt_pagos.
@@ -2731,27 +2767,43 @@ def _gs_with_retry(func, *args, operacion: str = "Google Sheets", **kwargs):
             return func(*args, **kwargs)
         except Exception as e:
             err_str = str(e)
-            # Detectar error 429 (quota) en gspread/APIError
+            err_low = err_str.lower()
+            # Detectar errores reintentables: cuota, red y desconexiones transitorias
             is_retryable = (
-                "429" in err_str
-                or "quota"               in err_str.lower()
-                or "rate"                in err_str.lower()
-                or "remoteDisconnected"  in err_str
-                or "RemoteDisconnected"  in err_str
-                or "remote end closed"   in err_str.lower()
-                or "connection aborted"  in err_str.lower()
-                or "connection reset"    in err_str.lower()
-                or "timed out"           in err_str.lower()
-                or "broken pipe"         in err_str.lower()
-                or "503"                 in err_str
-                or "502"                 in err_str
-                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) in (429, 500, 502, 503))
+                "429"                  in err_str
+                or "quota"             in err_low
+                or "rate"              in err_low
+                or "remoteDisconnected" in err_str
+                or "RemoteDisconnected" in err_str
+                or "remote end closed"  in err_low
+                or "connection aborted" in err_low
+                or "connection reset"   in err_low
+                or "connectionreset"    in err_low
+                or "timed out"          in err_low
+                or "timeout"            in err_low
+                or "broken pipe"        in err_low
+                or "brokenpipe"         in err_low
+                or "503"               in err_str
+                or "502"               in err_str
+                or "500"               in err_str
+                or (
+                    hasattr(e, "response")
+                    and getattr(e.response, "status_code", 0) in (429, 500, 502, 503)
+                )
             )
             if is_retryable and intento < MAX_RETRIES - 1:
                 delay = INITIAL_RETRY_DELAY * (2 ** intento)
-                st.toast(
+                es_red = any(k in err_low for k in (
+                    "remote end closed", "connection aborted", "connection reset",
+                    "timed out", "timeout", "broken pipe", "remoteDisconnected".lower()
+                ))
+                msg = (
+                    f"🔄 Error de red transitorio. Reintentando en {delay}s "
+                    if es_red else
                     f"⏳ Cuota de API excedida. Reintentando en {delay}s "
-                    f"({intento + 1}/{MAX_RETRIES - 1})…",
+                )
+                st.toast(
+                    f"{msg}({intento + 1}/{MAX_RETRIES - 1})…",
                     icon="⚠️"
                 )
                 time.sleep(delay)
@@ -3137,61 +3189,70 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
                     precio_override: Optional[float] = None) -> dict:
     """Calcula precio con tarifa vigente desde Google Sheets.
 
-    Para la tarifa especial 'Noche Completa' el precio es fijo (Precio_Hora_COP
-    representa el precio total de la noche) y las horas se calculan
-    automáticamente a partir de Hora_Ini_Espec → Hora_Fin_Espec.
-    El dict resultante incluye dos claves extra:
-      'hora_ini_espec' y 'hora_fin_espec'  (str "HH:MM" o "")
-      'es_noche_completa'                  (bool)
+    NUEVA LÓGICA:
+    - 1 hora = valor completo (ej: 15.000)
+    - 2 horas o más = 10.000 por cada hora
 
-    precio_override: si se suministra un valor > 0, reemplaza Precio_Hora_COP leído
-                     desde Sheets (usado por el operador en TAB Noche Completa para
-                     aplicar el precio de Tarifa Unica o uno ingresado manualmente).
+    Ejemplo:
+        1h = 15.000
+        2h = 20.000
+        3h = 30.000
+        4h = 40.000
+        ...
     """
+
     if tarifa_nombre is None:
         hora_actual = ahora_col().hour
         tarifa_nombre = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
 
     rows = _gs_read_sheet("Tarifas_Config")
-    precio_hora   = 15000
-    desc_3h       = 16.67
-    desc_6h       = (16.67 + 7.501)
+
+    # Valores por defecto
+    precio_hora = 15000
     hora_ini_espec = ""
     hora_fin_espec = ""
-    tarifa_row     = None
+    tarifa_row = None
 
     for r in rows:
-        if _gs_val(r, "Empresa_Nombre") == tarifa_nombre and _gs_val(r, "Activo", "1") in ("1", "True", "true"):
-            tarifa_row     = r
-            precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
-            desc_3h        = _gs_float(r, "Desc_3h_Pct", 16.67)
-            desc_6h        = _gs_float(r, "Desc_6h_Pct", 24.171)
+        if (
+            _gs_val(r, "Empresa_Nombre") == tarifa_nombre
+            and _gs_val(r, "Activo", "1") in ("1", "True", "true")
+        ):
+            tarifa_row = r
+
+            # Precio base primera hora
+            precio_hora = _gs_float(r, "Precio_Hora_COP", 15000)
+
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
             break
 
-    # Aplicar precio_override si fue suministrado y es válido
+    # Override manual
     if precio_override is not None and precio_override > 0:
         precio_hora = precio_override
 
-    # ── Lógica especial Noche Completa ────────────────────────────────────────
+    # ─────────────────────────────────────────────────────────────
+    # NOCHE COMPLETA
+    # ─────────────────────────────────────────────────────────────
     es_noche_completa = (tarifa_nombre == "Noche Completa")
 
-    if es_noche_completa and hora_ini_espec and hora_fin_espec:
-        # Calcular horas entre Hora_Ini_Espec y Hora_Fin_Espec
-        try:
-            now = ahora_col()
-            fmt = "%H:%M"
-            ini_t = datetime.strptime(hora_ini_espec, fmt)
-            fin_t = datetime.strptime(hora_fin_espec, fmt)
-            # Construir datetimes de hoy/mañana según corresponda
-            ini_dt = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
-            fin_dt = now.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
-            if fin_dt <= ini_dt:          # la noche cruza la medianoche
-                fin_dt += timedelta(days=1)
-            horas = round((fin_dt - ini_dt).total_seconds() / 3600, 2)
-        except Exception:
-            horas = horas  # conservar el valor que llegó como argumento
+    if es_noche_completa:
+        # Calcular horas entre Hora_Ini_Espec y Hora_Fin_Espec (si están configuradas)
+        if hora_ini_espec and hora_fin_espec:
+            try:
+                now = ahora_col()
+                fmt = "%H:%M"
+                ini_t = datetime.strptime(hora_ini_espec, fmt)
+                fin_t = datetime.strptime(hora_fin_espec, fmt)
+                # Construir datetimes de hoy/mañana según corresponda
+                ini_dt = now.replace(hour=ini_t.hour, minute=ini_t.minute, second=0, microsecond=0)
+                fin_dt = now.replace(hour=fin_t.hour, minute=fin_t.minute, second=0, microsecond=0)
+                if fin_dt <= ini_dt:          # la noche cruza la medianoche
+                    fin_dt += timedelta(days=1)
+                horas = round((fin_dt - ini_dt).total_seconds() / 3600, 2)
+            except Exception:
+                horas = horas  # conservar el valor que llegó como argumento
+        # Si no están configuradas las horas especiales, usar horas recibidas como argumento
 
         # Para Noche Completa, Precio_Hora_COP es el precio TOTAL de la noche,
         # no el precio por hora; no se aplican descuentos adicionales.
@@ -3203,53 +3264,60 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
         total          = round(subtotal + iva, 0)
 
         return {
-            "precio_hora":      precio_hora,
-            "horas":            horas,
-            "tarifa":           tarifa_nombre,
-            "descuento_pct":    descuento_pct,
-            "descuento_val":    descuento_val,
-            "subtotal":         subtotal,
-            "iva":              iva,
-            "total":            round(total, 0),
-            "hora_ini_espec":   hora_ini_espec,
-            "hora_fin_espec":   hora_fin_espec,
+            "precio_hora":       precio_hora,
+            "horas":             horas,
+            "tarifa":            tarifa_nombre,
+            "descuento_pct":     descuento_pct,
+            "descuento_val":     descuento_val,
+            "subtotal":          subtotal,
+            "iva":               iva,
+            "total":             round(total, 0),
+            "hora_ini_espec":    hora_ini_espec,
+            "hora_fin_espec":    hora_fin_espec,
             "es_noche_completa": True,
         }
 
-    # ── Lógica estándar ───────────────────────────────────────────────────────
-    descuento_pct = 0
-    if horas == 3:
-        descuento_pct = (desc_6h - 2.0)
-    elif horas == 4:
-        descuento_pct = (desc_6h + .783)
-    elif horas == 5:
-        descuento_pct = (desc_6h + 2.433)
-    elif horas == 6:
-        descuento_pct = (desc_6h + 3.555)
-    elif horas >= 7:
-        descuento_pct = (desc_6h + 9.150)
-    elif horas == 2:
-        descuento_pct = desc_3h
+    # ─────────────────────────────────────────────────────────────
+    # NUEVA LÓGICA ESTÁNDAR
+    # ─────────────────────────────────────────────────────────────
 
-    subtotal_bruto = round(precio_hora * horas, 0)
-    descuento_val  = round(subtotal_bruto * (descuento_pct / 100), 0)
-    subtotal       = round(subtotal_bruto - descuento_val, 0)
-    iva            = round(subtotal * IVA_PCT, 0)
-    total          = round(subtotal + iva, 0)
+    if not es_noche_completa:
 
-    return {
-        "precio_hora":       precio_hora,
-        "horas":             horas,
-        "tarifa":            tarifa_nombre,
-        "descuento_pct":     descuento_pct,
-        "descuento_val":     descuento_val,
-        "subtotal":          subtotal,
-        "iva":               iva,
-        "total":             round(total, 0),
-        "hora_ini_espec":    hora_ini_espec,
-        "hora_fin_espec":    hora_fin_espec,
-        "es_noche_completa": False,
-    }
+        horas = int(horas)
+
+        if horas <= 0:
+            subtotal = 0
+
+        elif horas == 1:
+            subtotal = precio_hora
+
+        else:
+            # Desde 2 horas en adelante:
+            # cada hora vale 10.000
+            subtotal = horas * 10000
+
+        subtotal = round(subtotal, 0)
+
+        # Ya NO se aplican descuentos porcentuales
+        descuento_pct = 0
+        descuento_val = 0
+
+        iva = round(subtotal * IVA_PCT, 0)
+        total = round(subtotal + iva, 0)
+
+        return {
+            "precio_hora": precio_hora,
+            "horas": horas,
+            "tarifa": tarifa_nombre,
+            "descuento_pct": descuento_pct,
+            "descuento_val": descuento_val,
+            "subtotal": subtotal,
+            "iva": iva,
+            "total": total,
+            "hora_ini_espec": hora_ini_espec,
+            "hora_fin_espec": hora_fin_espec,
+            "es_noche_completa": False,
+        }
 
 
 def calcular_precio_convenio(horas: float, cfg_empresa: dict,
@@ -3317,7 +3385,7 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     # ── Nivel 3: tarifa base Estándar/Madrugada de jjgt_pagos ────────────────
     if not tarifa_encontrada:
         for r in _gs_read_sheet("Tarifas_Config"):
-            if _gs_val(r,"Empresa_Nombre") == tarifa_base and                _gs_val(r,"Activo","1") in ("1","True","true"):
+            if _gs_val(r,"Empresa_Nombre") == tarifa_base and _gs_val(r,"Activo","1") in ("1","True","true"):
                 precio_hora       = _gs_float(r,"Precio_Hora_COP", 15000)
                 desc_3h           = _gs_float(r,"Desc_3h_Pct", 0 )#16.67)
                 desc_6h           = _gs_float(r,"Desc_6h_Pct", 0 )#16.67)
@@ -3876,14 +3944,8 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
     # 🔥 Comprobante contable automático
 
     if CONT_AVAILABLE and _cont_mod is not None:
-        #try:
-        #    _cont_mod.on_reserva_creada(voucher, calc, cliente, metodo)
-        #except Exception:
-        #    pass
-
         try:
-            import contabilidad
-            contabilidad.on_reserva_creada(
+            _cont_mod.on_reserva_creada(
                 voucher  = {
                     "numero_reserva": num_res,
                     "numero_factura": num_fact,
@@ -3897,20 +3959,20 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
             pass
 
     # ⚡ Factura electrónica DIAN — generación automática del XML
-    try:
-        if FE_AVAILABLE and _fe_mod is not None:
-            _fe_mod.generar_fe_desde_reserva(
-                voucher = {
-                    "numero_reserva": num_res,
-                    "numero_factura": num_fact,
-                    "cubiculo":       cubiculo["numero"],
-                },
-                calc    = calc,
-                cliente = cliente,
-                metodo  = metodo,
-            )
-    except Exception:
-        pass
+    #try:
+    #    if FE_AVAILABLE and _fe_mod is not None:
+    #        _fe_mod.generar_fe_desde_reserva(
+    #            voucher = {
+    #                "numero_reserva": num_res,
+    #                "numero_factura": num_fact,
+    #                "cubiculo":       cubiculo["numero"],
+    #            },
+    #            calc    = calc,
+    #            cliente = cliente,
+    #            metodo  = metodo,
+    #        )
+    #except Exception:
+    #    pass
 
     return {
         "numero_reserva": num_res,
@@ -4980,10 +5042,8 @@ def show_confirmacion():
     render_stepper(3)
 
     if CONT_AVAILABLE and _cont_mod is not None:
-
         try:
-            import contabilidad
-            contabilidad.on_pago_convenio(
+            _cont_mod.on_pago_convenio(
                 empresa    = nombre_empresa,
                 valor      = monto_total,
                 num_reserva= num_reserva,
@@ -5451,6 +5511,15 @@ def show_operador():
         ir_a("operador_login")
         return
 
+    # ── Inyectar contexto a módulos externos en cada render ───────────────────
+    if CONT_AVAILABLE and _cont_mod is not None:
+        _cont_mod.set_context(globals())
+    if FC_AVAILABLE and _fc_mod is not None:
+        _fc_mod.set_context(globals())
+    if FE_AVAILABLE and _fe_mod is not None:
+        _fe_mod.set_context(globals())
+    # ─────────────────────────────────────────────────────────────────────────
+
     op = st.session_state.get("operador_info", {})
     permisos = op.get("permisos", ["reservas","pagos","voucher"])
     es_admin = "admin" in permisos or op.get("rol") == "admin"
@@ -5640,7 +5709,7 @@ def _op_nueva_reserva():
     op = st.session_state.get("operador_info", {})
     st.caption(f"Operador: **{op.get('nombre','—')}** · Turno: {op.get('turno','—')}")
 
-    tab_rapido, tab_noche, tab_kiosk, tab_conv = st.tabs(["⚡ Formulario Rápido", "🌙 Noche Completa", "🖥️ Flujo Kiosco", "🤝 Convenio Empresarial"])
+    tab_rapido, tab_noche, tab_kiosk = st.tabs(["⚡ Formulario Rápido", "🌙 Noche Completa", "🖥️ Flujo Kiosco"]) # , "🤝 Convenio Empresarial"
 
     # ── TAB KIOSCO ────────────────────────────────────────────────────────────
     with tab_kiosk:
@@ -6341,8 +6410,8 @@ def _op_nueva_reserva():
                     st.rerun()
 
     # ── TAB CONVENIO ──────────────────────────────────────────────────────────
-    with tab_conv:
-        _tab_convenio_reserva()
+    #with tab_conv:
+    #    _tab_convenio_reserva()
 
 
 def _op_dashboard():
@@ -6739,25 +6808,22 @@ def _op_pagos_pendientes():
                                     _gs_sync_dashboard_convenios(sh_conv_conf)
                                 except Exception: pass
 
-                                try:
-                                    import contabilidad
-                                    contabilidad.on_pago_convenio(
-                                        empresa    = nombre_empresa,
-                                        valor      = monto_total,
-                                        num_reserva= num_reserva,
-                                        num_factura= num_factura,
-                                    )
-                                except Exception:
-                                    pass
-                        else:
+                                if CONT_AVAILABLE and _cont_mod is not None:
+                                    try:
+                                        _cont_mod.on_pago_convenio(
+                                            empresa    = nombre_empresa,
+                                            valor      = monto_total,
+                                            num_reserva= num_reserva,
+                                            num_factura= num_factura,
+                                        )
+                                    except Exception:
+                                        pass
                             # Pago normal: actualizar en jjgt_pagos
                             _confirmar_en_sh(sh_conf, pago_id, num_res)
 
                             if CONT_AVAILABLE and _cont_mod is not None:
-
                                 try:
-                                    import contabilidad
-                                    contabilidad.on_pago_convenio(
+                                    _cont_mod.on_pago_convenio(
                                         empresa    = nombre_empresa,
                                         valor      = monto_total,
                                         num_reserva= num_reserva,
@@ -6816,18 +6882,6 @@ def _op_pagos_pendientes():
                                         pass
                         st.success(f"✅ Pago {num_res} confirmado")
                         st.rerun()
-
-                        if CONT_AVAILABLE and _cont_mod is not None:
-                            try:
-                                import contabilidad
-                                contabilidad.on_pago_convenio(
-                                    empresa    = nombre_empresa,
-                                    valor      = monto_total,
-                                    num_reserva= num_reserva,
-                                    num_factura= num_factura,
-                                )
-                            except Exception:
-                                pass
 
                     else:
                         st.error("PIN incorrecto")
@@ -9295,7 +9349,6 @@ def main():
 
     init_state()
     # Verificar conexión a Google Sheets al arrancar
-
     if GSPREAD_AVAILABLE:
         try:
             _, sh_check = get_active_client()
@@ -9308,7 +9361,7 @@ def main():
         except Exception as _conn_err:
             # Error de red transitorio al arrancar — no bloquear la UI
             st.toast(
-                f"⚠️ Conexión a Google Sheets inestable al arrancar. "
+                "⚠️ Conexión a Google Sheets inestable al arrancar. "
                 "La app reintentará en la siguiente operación.",
                 icon="🔄"
             )

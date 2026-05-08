@@ -1265,10 +1265,22 @@ def get_or_create_spreadsheet(client):
 def get_active_client():
     """
     Flujo completo: credenciales → cliente cacheado → spreadsheet.
+    Cachea el cliente y el spreadsheet en session_state para evitar
+    reconexiones en frío en cada rerun de Streamlit.
     Retorna (client, spreadsheet) o (None, None).
     """
     if not GSPREAD_AVAILABLE:
         return None, None
+
+    # Reusar cliente cacheado si ya existe en esta sesión
+    try:
+        cached_client = st.session_state.get("_gs_main_client")
+        cached_sh     = st.session_state.get("_gs_main_sh")
+        if cached_client is not None and cached_sh is not None:
+            return cached_client, cached_sh
+    except Exception:
+        pass
+
     creds, _ = load_credentials_from_toml()
     if not creds:
         return None, None
@@ -1276,6 +1288,15 @@ def get_active_client():
     if not client:
         return None, None
     sh = get_or_create_spreadsheet(client)
+
+    # Guardar en caché de sesión
+    if client and sh:
+        try:
+            st.session_state["_gs_main_client"] = client
+            st.session_state["_gs_main_sh"]     = sh
+        except Exception:
+            pass
+
     return client, sh
 
 
