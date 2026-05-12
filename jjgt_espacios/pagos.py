@@ -1057,9 +1057,9 @@ def _read_pg_secrets():
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
 
-PG_HOST = "aws-1-sa-east-1.pooler.supabase.com"
+PG_HOST = "aws-1-us-west-1.pooler.supabase.com"
 PG_PORT = 5432
-PG_USER = "postgres.laqylybiaiuypscjrzuj"
+PG_USER = "postgres.rjskwwllgzgmiiqzjudb"
 PG_PASS = ""
 PG_DB   = "postgres"
 
@@ -1077,41 +1077,6 @@ except ImportError:
         PSYCOPG2_AVAILABLE = False
         # No llamar st.error() aquí — a nivel de módulo falla antes de que
         # Streamlit esté listo. El error se muestra en init_db().
-
-# ── TEST DIAGNÓSTICO ── borrar después ──
-import streamlit as st
-import urllib.parse
-
-raw_url = st.secrets["postgres"]["url"]
-
-# Parsear la URL para ver cada componente
-parsed = urllib.parse.urlparse(raw_url)
-st.write("**Host:**", parsed.hostname)
-st.write("**Puerto:**", parsed.port)
-st.write("**Usuario:**", parsed.username)
-st.write("**Password (primeros 4 chars):**", (parsed.password or "")[:4] + "****")
-st.write("**DB:**", parsed.path)
-st.write("**Password len:**", len(parsed.password or ""))
-
-# Intentar conexión
-try:
-    import psycopg2
-    conn = psycopg2.connect(
-        host=parsed.hostname,
-        port=parsed.port,
-        user=parsed.username,
-        password=parsed.password,
-        dbname=parsed.path.lstrip("/"),
-        sslmode="require",
-        connect_timeout=15
-    )
-    st.success("✅ Conexión exitosa")
-    conn.close()
-except Exception as e:
-    st.error(f"❌ {e}")
-
-st.stop()
-# ── FIN TEST ──
 
 def _resolve_ipv4(hostname: str) -> str:
     """
