@@ -1028,9 +1028,9 @@ def _read_pg_secrets():
         if _pg and _pg.get("host"):
             _host = str(_pg.get("host", "")).strip().lstrip("@")
             _port = int(_pg.get("port", 6543))
-            _user = str(_pg.get("user", "postgres"))
-            _pass = str(_pg.get("password", ""))
-            _db   = str(_pg.get("dbname", "postgres"))
+            _user = str(_pg.get("user", "postgres.laqylybiaiuypscjrzuj"))
+            _pass = str(_pg.get("password", "123456"))
+            _db   = str(_pg.get("dbname", "reservas"))
             return _build_url(_host, _port, _user, _pass, _db), True
     except Exception:
         pass
@@ -1041,9 +1041,9 @@ def _read_pg_secrets():
         return _build_url(
             _env_host,
             int(os.environ.get("PG_PORT", 6543)),
-            os.environ.get("PG_USER", "postgres"),
-            os.environ.get("PG_PASS", ""),
-            os.environ.get("PG_DB", "postgres"),
+            os.environ.get("PG_USER", "postgres.laqylybiaiuypscjrzuj"),
+            os.environ.get("PG_PASS", "123456"),
+            os.environ.get("PG_DB", "reservas"),
         ), True
 
     # 5. Fallback local (desarrollo)
@@ -1056,7 +1056,7 @@ import urllib.parse as _urlparse
 try:
     _pg_parsed = _urlparse.urlparse(_pg_conn_url)
     PG_HOST = _pg_parsed.hostname or "localhost"
-    PG_PORT = _pg_parsed.port or 5432
+    PG_PORT = _pg_parsed.port or 5433
     PG_USER = _pg_parsed.username or "postgres"
     PG_PASS = "***"
     PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
