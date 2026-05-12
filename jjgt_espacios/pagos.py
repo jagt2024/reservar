@@ -36,7 +36,6 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 import streamlit as st
-# sqlite3 importado solo como fallback en get_db() (stub de compatibilidad)
 import json
 import hashlib
 import io
@@ -50,10 +49,6 @@ from typing import Optional
 
 import pandas as pd
 import pytz
-
-# ── Reintentos para escrituras en Google Sheets ───────────────────────────────
-MAX_RETRIES         = 4          # intentos ante error 429
-INITIAL_RETRY_DELAY = 2         # segundos base del backoff exponencial
 
 # Imports opcionales — no bloquean si no están instalados
 try:
@@ -73,19 +68,6 @@ try:
     REPORTLAB_AVAILABLE = True
 except ImportError:
     REPORTLAB_AVAILABLE = False
-
-try:
-    import gspread
-    from google.oauth2.service_account import Credentials
-    GSPREAD_AVAILABLE = True
-except ImportError:
-    GSPREAD_AVAILABLE = False
-
-try:
-    import toml as toml_lib
-    TOML_AVAILABLE = True
-except ImportError:
-    TOML_AVAILABLE = False
 
 try:
     import openpyxl
@@ -977,158 +959,124 @@ def inject_live_clock():
 # Orden: PRIMERO insertar en Google Sheets, LUEGO en SQLite.
 # ══════════════════════════════════════════════════════════════════════════════
 
-SPREADSHEET_ID = "1JmKNZ4ld2u43EU_ymn8NhFtXti2mDcPLkM42ciMTLC4"
+# ══════════════════════════════════════════════════════════════════════════════
+# CAPA DE DATOS — PostgreSQL
+# Reemplaza completamente Google Sheets como fuente primaria.
+# Conexión: usuario=postgres, password=123456, base de datos=reservas
+# ══════════════════════════════════════════════════════════════════════════════
 
-# ── DRIVE_SHEETS: cabeceras alineadas EXACTAMENTE con el orden de inserción ───
-# Cada lista debe coincidir 1:1 con la fila que arman las funciones gs_escribir_*
-# y _gs_append correspondientes. Si cambia una función de escritura, cambiar aquí.
+# ── Dependencias eliminadas (Google Sheets) ───────────────────────────────────
+# Las siguientes variables se conservan como stubs para no romper referencias
+# residuales en el código de UI.
+GSPREAD_AVAILABLE  = False
+TOML_AVAILABLE     = False
+MAX_RETRIES        = 1
+INITIAL_RETRY_DELAY = 0
+
+# ── Conexión PostgreSQL ───────────────────────────────────────────────────────
+PG_HOST = "localhost"
+PG_PORT = 5433
+PG_USER = "postgres"
+PG_PASS = "123456"
+PG_DB   = "reservas"
+
+try:
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
+except ImportError:
+    PSYCOPG2_AVAILABLE = False
+    st.error("❌ psycopg2 no está instalado. Ejecuta: pip install psycopg2-binary")
+
+
+def get_pg_conn():
+    """Retorna una conexión nueva a PostgreSQL. Siempre usar en bloque with/try-finally."""
+    if not PSYCOPG2_AVAILABLE:
+        raise RuntimeError("psycopg2 no disponible")
+    return psycopg2.connect(
+        host=PG_HOST, port=PG_PORT,
+        user=PG_USER, password=PG_PASS,
+        dbname=PG_DB,
+    )
+
+
+def _pg_exec(sql: str, params=None, fetch: str = None):
+    """
+    Ejecuta una sentencia SQL.
+    fetch=None → solo ejecutar (INSERT/UPDATE/DELETE)
+    fetch='one' → fetchone() → dict o None
+    fetch='all' → fetchall() → list[dict]
+    """
+    conn = get_pg_conn()
+    try:
+        with conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql, params)
+                if fetch == "all":
+                    return [dict(r) for r in cur.fetchall()]
+                if fetch == "one":
+                    row = cur.fetchone()
+                    return dict(row) if row else None
+                return None
+    finally:
+        conn.close()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# CREACIÓN DE TABLAS
+# Mapeadas 1:1 desde DRIVE_SHEETS para mantener la misma estructura lógica.
+# ══════════════════════════════════════════════════════════════════════════════
+
 DRIVE_SHEETS = {
-    # gs_escribir_reserva → 26 campos en este orden exacto
     "Reservas": [
-        "ID_Reserva",       # datos["id"]
-        "Numero_Reserva",   # datos["numero_reserva"]
-        "Creado_En",        # datos["creado_en"]
-        "Cubiculo_Num",     # datos["cubiculo_num"]
-        "Cliente_Nombre",   # datos["cliente_nombre"]
-        "Documento",        # datos["cliente_doc"]
-        "Telefono",         # datos["cliente_tel"]
-        "Email",            # datos["cliente_email"]
-        "Horas_Contratadas",# datos["horas"]
-        "Hora_Inicio",      # datos["hora_inicio"]
-        "Hora_Fin_Prog",    # datos["hora_fin_prog"]
-        "Hora_Fin_Real",    # datos["hora_fin_real"]
-        "Precio_Hora",      # datos["precio_hora"]
-        "Subtotal",         # datos["subtotal"]
-        "IVA",              # datos["iva"]
-        "Total_COP",        # datos["total"]
-        "Metodo_Pago",      # datos["metodo_pago"]
-        "Estado_Pago",      # datos["estado_pago"]
-        "Codigo_Acceso",    # datos["codigo_acceso"]
-        "WiFi_SSID",        # datos["wifi_ssid"]
-        "WiFi_Pass",        # datos["wifi_pass"]
-        "Num_Factura",      # datos["num_factura"]
-        "Referencia_Pago",  # datos["referencia_pago"]
-        "Operador",         # datos["operador"]
-        "Notas",            # datos["notas"]
-        "Acepto_Datos",     # datos["acepto_datos"] — autorización Ley 1581
+        "ID_Reserva","Numero_Reserva","Creado_En","Cubiculo_Num",
+        "Cliente_Nombre","Documento","Telefono","Email",
+        "Horas_Contratadas","Hora_Inicio","Hora_Fin_Prog","Hora_Fin_Real",
+        "Precio_Hora","Subtotal","IVA","Total_COP",
+        "Metodo_Pago","Estado_Pago","Codigo_Acceso",
+        "WiFi_SSID","WiFi_Pass","Num_Factura","Referencia_Pago",
+        "Operador","Notas","Acepto_Datos",
     ],
-    # gs_escribir_pago → 10 campos en este orden exacto
     "Pagos": [
-        "ID_Pago",           # datos["id"]
-        "ID_Reserva",        # datos["reserva_id"]
-        "Num_Reserva",       # datos["num_reserva"]
-        "Fecha_Pago",        # datos["fecha_pago"]
-        "Monto_COP",         # datos["monto"]
-        "Metodo",            # datos["metodo"]
-        "Referencia_Externa",# datos["referencia_externa"]
-        "Estado",            # datos["estado"]
-        "Confirmado_Por",    # datos["confirmado_por"]
-        "Notas",             # datos["notas"]
+        "ID_Pago","ID_Reserva","Num_Reserva","Fecha_Pago",
+        "Monto_COP","Metodo","Referencia_Externa","Estado",
+        "Confirmado_Por","Notas",
     ],
-    # gs_escribir_cliente → 15 campos en este orden exacto
     "Clientes": [
-        "ID_Cliente",    # datos["id"]
-        "Nombre",        # datos["nombre"]
-        "Tipo_Doc",      # datos["tipo_documento"]
-        "Num_Doc",       # datos["numero_documento"]
-        "Telefono",      # datos["telefono"]
-        "Email",         # datos["email"]
-        "Ciudad",        # datos["ciudad"]
-        "Regimen",       # datos["regimen"]
-        "Tipo_Persona",  # datos["tipo_persona"]
-        "Razon_Social",  # datos["razon_social"]
-        "NIT_Empresa",   # datos["nit_empresa"]
-        "Activo",        # datos["activo"]
-        "Total_Reservas",# calculado desde Reservas
-        "Total_Gastado", # calculado desde Reservas
-        "Creado_En",     # datos["creado_en"]
+        "ID_Cliente","Nombre","Tipo_Doc","Num_Doc",
+        "Telefono","Email","Ciudad","Regimen","Tipo_Persona",
+        "Razon_Social","NIT_Empresa","Activo",
+        "Total_Reservas","Total_Gastado","Creado_En",
     ],
-    # gs_sync_cubiculos / liberar_cubiculo / crear_reserva_completa → 12 campos
     "Cubiculos_Estado": [
-        "Cubiculo_ID",    # id del cubículo
-        "Numero",         # número (ej: #01)
-        "Nombre",         # nombre descriptivo
-        "Estado",         # libre/ocupado/por_liberar/mantenimiento
-        "Cliente_Actual", # nombre del cliente con reserva activa
-        "Hora_Inicio",    # ISO del inicio de reserva activa
-        "Hora_Fin_Prog",  # ISO del fin programado
-        "Tiempo_Rest_Min",# minutos restantes calculados
-        "Codigo_Acceso",  # código de 4 dígitos
-        "WiFi_SSID",      # red wifi del cubículo
-        "WiFi_Pass",      # clave wifi
-        "Precio_Hora_Base",# tarifa base del cubículo
+        "Cubiculo_ID","Numero","Nombre","Estado",
+        "Cliente_Actual","Hora_Inicio","Hora_Fin_Prog",
+        "Tiempo_Rest_Min","Codigo_Acceso","WiFi_SSID","WiFi_Pass",
+        "Precio_Hora_Base",
     ],
-    # gs_escribir_factura → 24 campos en este orden exacto
     "Facturas": [
-        "ID_Factura",       # datos["id"]
-        "Num_Factura",      # datos["numero"]
-        "Tipo",             # datos["tipo"]
-        "Fecha_Emision",    # datos["fecha_emision"]
-        "Fecha_Vencimiento",# datos["fecha_vencimiento"]
-        "Cliente_Nombre",   # datos["cliente_nombre"]
-        "Cliente_Doc",      # datos["cliente_doc"]
-        "Cliente_Email",    # datos["cliente_email"]
-        "Razon_Social",     # datos["razon_social"]
-        "NIT_Empresa",      # datos["nit_empresa"]
-        "Descripcion",      # datos["descripcion"]
-        "Subtotal",         # calculado
-        "Descuento",        # datos["descuento"]
-        "Base_Gravable",    # subtotal - descuento
-        "IVA",              # datos["iva"]
-        "Retenciones",      # datos["retenciones"]
-        "Total_COP",        # datos["total"]
-        "Metodo_Pago",      # datos["metodo_pago"]
-        "Estado",           # datos["estado"]
-        "Moneda",           # datos["moneda"]
-        "Num_Reserva",      # datos["num_reserva"]
-        "Cubiculo",         # datos["cubiculo"]
-        "Creado_En",        # datos["creado_en"]
-        "Actualizado_En",   # datos["actualizado_en"]
+        "ID_Factura","Num_Factura","Tipo","Fecha_Emision","Fecha_Vencimiento",
+        "Cliente_Nombre","Cliente_Doc","Cliente_Email","Razon_Social","NIT_Empresa",
+        "Descripcion","Subtotal","Descuento","Base_Gravable","IVA","Retenciones",
+        "Total_COP","Metodo_Pago","Estado","Moneda",
+        "Num_Reserva","Cubiculo","Creado_En","Actualizado_En",
     ],
-    # _gs_append Factura_items → 10 campos en este orden exacto
     "Factura_items": [
-        "ID_Item",          # num_factura (como ID)
-        "ID_Factura",       # num_factura
-        "Codigo",           # "DESCANSO-H"
-        "Descripcion",      # descripcion_item
-        "Cantidad",         # horas
-        "Unidad",           # "hora"
-        "Precio_Unitario",  # precio_hora
-        "Descuento_Pct",    # 0
-        "IVA_Pct",          # 19.0
-        "Subtotal",         # subtotal del item
+        "ID_Item","ID_Factura","Codigo","Descripcion",
+        "Cantidad","Unidad","Precio_Unitario","Descuento_Pct","IVA_Pct","Subtotal",
     ],
-    # Operadores → 8 campos (ID generado por timestamp al crear)
     "Operadores": [
-        "ID_Operador",   # timestamp o id
-        "Nombre",        # nombre del operador
-        "Rol",           # admin/cajero/supervisor
-        "Turno",         # mañana/tarde/noche/diurno
-        "Hora_Ini_Turno",# "06:00"
-        "Hora_Fin_Turno",# "14:00"
-        "Permisos",      # "admin,reservas,pagos,voucher"
-        "Activo",        # "1" o "0"
+        "ID_Operador","Nombre","Rol","Turno",
+        "Hora_Ini_Turno","Hora_Fin_Turno","Permisos","Activo",
     ],
-    # set_config / _gs_upsert → 2 campos fijos
     "Configuracion_Pagos": [
-        "Clave",   # nombre de la configuración
-        "Valor",   # valor de la configuración
+        "Clave","Valor",
     ],
-    # Tarifas → 11 campos
     "Tarifas_Config": [
-        "ID",               # id de la tarifa
-        "Nombre",           # "Estándar", "Madrugada", "Festivo"
-        "Descripcion",      # descripción (ej. "Tarifa Unica")
-        "Precio_Hora_COP",  # precio por hora (o precio total para Noche Completa)
-        "Desc_3h_Pct",      # descuento a partir de 2h (%)
-        "Desc_6h_Pct",      # descuento a partir de 6h (%)
-        "Hora_Ini_Espec",   # hora inicio tarifa especial
-        "Hora_Fin_Espec",   # hora fin tarifa especial
-        "Aplica_Festivos",  # "0" o "1"
-        "Activo",           # "1" o "0"
-        "Horas_A_Reservar", # horas fijas a reservar (usado para Tarifa Unica / Noche Completa)
+        "ID","Nombre","Descripcion","Precio_Hora_COP",
+        "Desc_3h_Pct","Desc_6h_Pct","Hora_Ini_Espec","Hora_Fin_Espec",
+        "Aplica_Festivos","Activo","Horas_A_Reservar",
     ],
-    # gs_sync_dashboard → 21 campos calculados
     "Dashboard_Diario": [
         "Fecha","Total_Reservas","Completadas","Canceladas",
         "Ingresos_Brutos","IVA_Recaudado","Ingresos_Netos",
@@ -1137,303 +1085,652 @@ DRIVE_SHEETS = {
         "Tiempo_Prom_Min","Clientes_Nuevos","Clientes_Recur",
         "Fact_Min","Fact_Max","Ticket_Prom_COP",
     ],
-    # gs_escribir_log → 11 campos en este orden exacto
     "Log_Operaciones": [
-        "Timestamp",    # ahora_col().isoformat()
-        "Tipo_Op",      # tipo de operación
-        "Reserva_ID",   # número de reserva
-        "Cubiculo",     # número de cubículo
-        "Operador",     # nombre del operador
-        "Descripcion",  # descripción del evento
-        "Valor_Ant",    # valor anterior (para cambios)
-        "Valor_Nuevo",  # valor nuevo (para cambios)
-        "IP",           # IP del cliente (vacío)
-        "Estado",       # "exito" o "error"
-        "Notas",        # notas adicionales
+        "Timestamp","Tipo_Op","Reserva_ID","Cubiculo",
+        "Operador","Descripcion","Valor_Ant","Valor_Nuevo",
+        "IP","Estado","Notas",
     ],
 }
 
+# SQL de creación de tablas (nombres en minúsculas, columnas TEXT por simplicidad)
+_CREATE_TABLES_SQL = """
+CREATE TABLE IF NOT EXISTS reservas (
+    id_reserva          TEXT PRIMARY KEY,
+    numero_reserva      TEXT UNIQUE,
+    creado_en           TEXT,
+    cubiculo_num        TEXT,
+    cliente_nombre      TEXT,
+    documento           TEXT,
+    telefono            TEXT,
+    email               TEXT,
+    horas_contratadas   TEXT,
+    hora_inicio         TEXT,
+    hora_fin_prog       TEXT,
+    hora_fin_real       TEXT,
+    precio_hora         TEXT,
+    subtotal            TEXT,
+    iva                 TEXT,
+    total_cop           TEXT,
+    metodo_pago         TEXT,
+    estado_pago         TEXT DEFAULT 'confirmado',
+    codigo_acceso       TEXT,
+    wifi_ssid           TEXT,
+    wifi_pass           TEXT,
+    num_factura         TEXT,
+    referencia_pago     TEXT,
+    operador            TEXT,
+    notas               TEXT,
+    acepto_datos        TEXT
+);
 
-def load_credentials_from_toml():
+CREATE TABLE IF NOT EXISTS pagos (
+    id_pago             TEXT PRIMARY KEY,
+    id_reserva          TEXT,
+    num_reserva         TEXT,
+    fecha_pago          TEXT,
+    monto_cop           TEXT,
+    metodo              TEXT,
+    referencia_externa  TEXT,
+    estado              TEXT DEFAULT 'confirmado',
+    confirmado_por      TEXT,
+    notas               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS clientes (
+    id_cliente          TEXT,
+    nombre              TEXT,
+    tipo_doc            TEXT,
+    num_doc             TEXT PRIMARY KEY,
+    telefono            TEXT,
+    email               TEXT,
+    ciudad              TEXT,
+    regimen             TEXT,
+    tipo_persona        TEXT,
+    razon_social        TEXT,
+    nit_empresa         TEXT,
+    activo              TEXT DEFAULT '1',
+    total_reservas      TEXT,
+    total_gastado       TEXT,
+    creado_en           TEXT
+);
+
+CREATE TABLE IF NOT EXISTS cubiculos_estado (
+    cubiculo_id         TEXT PRIMARY KEY,
+    numero              TEXT UNIQUE,
+    nombre              TEXT,
+    estado              TEXT DEFAULT 'libre',
+    cliente_actual      TEXT,
+    hora_inicio         TEXT,
+    hora_fin_prog       TEXT,
+    tiempo_rest_min     TEXT,
+    codigo_acceso       TEXT,
+    wifi_ssid           TEXT,
+    wifi_pass           TEXT,
+    precio_hora_base    TEXT DEFAULT '15000'
+);
+
+CREATE TABLE IF NOT EXISTS facturas (
+    id_factura          TEXT,
+    num_factura         TEXT PRIMARY KEY,
+    tipo                TEXT,
+    fecha_emision       TEXT,
+    fecha_vencimiento   TEXT,
+    cliente_nombre      TEXT,
+    cliente_doc         TEXT,
+    cliente_email       TEXT,
+    razon_social        TEXT,
+    nit_empresa         TEXT,
+    descripcion         TEXT,
+    subtotal            TEXT,
+    descuento           TEXT,
+    base_gravable       TEXT,
+    iva                 TEXT,
+    retenciones         TEXT,
+    total_cop           TEXT,
+    metodo_pago         TEXT,
+    estado              TEXT DEFAULT 'pagada',
+    moneda              TEXT DEFAULT 'COP',
+    num_reserva         TEXT,
+    cubiculo            TEXT,
+    creado_en           TEXT,
+    actualizado_en      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS factura_items (
+    id_item             TEXT,
+    id_factura          TEXT,
+    codigo              TEXT,
+    descripcion         TEXT,
+    cantidad            TEXT,
+    unidad              TEXT,
+    precio_unitario     TEXT,
+    descuento_pct       TEXT,
+    iva_pct             TEXT,
+    subtotal            TEXT
+);
+
+CREATE TABLE IF NOT EXISTS operadores (
+    id_operador         TEXT PRIMARY KEY,
+    nombre              TEXT UNIQUE,
+    rol                 TEXT DEFAULT 'cajero',
+    turno               TEXT,
+    hora_ini_turno      TEXT,
+    hora_fin_turno      TEXT,
+    permisos            TEXT DEFAULT 'reservas,pagos,voucher',
+    activo              TEXT DEFAULT '1'
+);
+
+CREATE TABLE IF NOT EXISTS configuracion_pagos (
+    clave   TEXT PRIMARY KEY,
+    valor   TEXT
+);
+
+CREATE TABLE IF NOT EXISTS tarifas_config (
+    id                  TEXT PRIMARY KEY,
+    nombre              TEXT,
+    descripcion         TEXT,
+    precio_hora_cop     TEXT,
+    desc_3h_pct         TEXT,
+    desc_6h_pct         TEXT,
+    hora_ini_espec      TEXT,
+    hora_fin_espec      TEXT,
+    aplica_festivos     TEXT DEFAULT '0',
+    activo              TEXT DEFAULT '1',
+    horas_a_reservar    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS dashboard_diario (
+    fecha               TEXT PRIMARY KEY,
+    total_reservas      TEXT,
+    completadas         TEXT,
+    canceladas          TEXT,
+    ingresos_brutos     TEXT,
+    iva_recaudado       TEXT,
+    ingresos_netos      TEXT,
+    nequi_cop           TEXT,
+    daviplata_cop       TEXT,
+    efectivo_cop        TEXT,
+    pse_cop             TEXT,
+    mp_cop              TEXT,
+    otros_cop           TEXT,
+    ocupacion_pct       TEXT,
+    hora_pico           TEXT,
+    tiempo_prom_min     TEXT,
+    clientes_nuevos     TEXT,
+    clientes_recur      TEXT,
+    fact_min            TEXT,
+    fact_max            TEXT,
+    ticket_prom_cop     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS log_operaciones (
+    id                  SERIAL PRIMARY KEY,
+    timestamp           TEXT,
+    tipo_op             TEXT,
+    reserva_id          TEXT,
+    cubiculo            TEXT,
+    operador            TEXT,
+    descripcion         TEXT,
+    valor_ant           TEXT,
+    valor_nuevo         TEXT,
+    ip                  TEXT,
+    estado              TEXT,
+    notas               TEXT
+);
+"""
+
+# Datos iniciales para tarifas y configuración
+_SEED_SQL = """
+INSERT INTO tarifas_config (id, nombre, descripcion, precio_hora_cop, desc_3h_pct,
+    desc_6h_pct, hora_ini_espec, hora_fin_espec, aplica_festivos, activo, horas_a_reservar)
+VALUES
+    ('1','Estándar','Tarifa estándar diurna','15000','0','0','','','0','1',''),
+    ('2','Madrugada','Tarifa madrugada 00-06h','15000','0','0','00:00','06:00','0','1',''),
+    ('3','Noche Completa','Noche completa','40000','0','0','22:00','06:00','0','1','8')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO configuracion_pagos (clave, valor) VALUES
+    ('factura_prefijo','FACT'),
+    ('factura_contador','0'),
+    ('nequi_numero','3219714969'),
+    ('daviplata_numero','3219714969'),
+    ('mp_link','https://mpago.la/XXXXXXX'),
+    ('cuenta_bancaria','Bancolombia · Cta Ahorros · 123-456789-12'),
+    ('negocio_nit','902.047.871-3')
+ON CONFLICT (clave) DO NOTHING;
+"""
+
+
+def init_db():
     """
-    Carga credenciales de Google Service Account desde .streamlit/secrets.toml.
-    Patrón idéntico al ejemplo de referencia.
-    Retorna (dict_creds, config) o (None, None) si falla.
+    Crea todas las tablas en PostgreSQL si no existen y siembra datos iniciales.
+    Llamar una vez al inicio de la aplicación.
     """
+    if not PSYCOPG2_AVAILABLE:
+        return
     try:
-        with open('./.streamlit/secrets.toml', 'r', encoding='utf-8') as toml_file:
-            config = toml_lib.load(toml_file)
-            creds = config['sheetsemp']['credentials_sheet']
-            if isinstance(creds, str):
-                creds = json.loads(creds)
-            # Reparar saltos de línea en private_key si vienen como \n literal
-            pk = creds.get("private_key", "")
-            if pk and "\\n" in pk and "\n" not in pk:
-                creds["private_key"] = pk.replace("\\n", "\n")
-            return creds, config
-    except FileNotFoundError:
-        st.error("📁 Archivo secrets.toml no encontrado en .streamlit/")
-        st.info("Crea el archivo `.streamlit/secrets.toml` con tus credenciales de Google")
-        return None, None
-    except KeyError as e:
-        st.error(f"🔑 Clave faltante en secrets.toml: {str(e)}")
-        st.info("Verifica que exista la sección [sheetsemp] con la clave credentials_sheet")
-        return None, None
-    except json.JSONDecodeError as e:
-        st.error(f"📄 Error al parsear JSON en secrets.toml: {str(e)}")
-        return None, None
+        conn = get_pg_conn()
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(_CREATE_TABLES_SQL)
+                cur.execute(_SEED_SQL)
+        conn.close()
     except Exception as e:
-        st.error(f"❌ Error cargando credenciales: {str(e)}")
-        return None, None
+        st.error(f"❌ Error inicializando base de datos PostgreSQL: {e}")
 
 
-#@st.cache_resource(ttl=300)
-def get_google_sheets_connection(_creds):
+def get_db():
+    """Compatibilidad: retorna una conexión PostgreSQL."""
+    return get_pg_conn()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MAPEO DE NOMBRES: DRIVE_SHEETS → tablas PostgreSQL
+# Los nombres de hoja de Google Sheets se mapean a nombres de tabla PG.
+# ══════════════════════════════════════════════════════════════════════════════
+
+_TABLA_MAP = {
+    "Reservas":            "reservas",
+    "Pagos":               "pagos",
+    "Clientes":            "clientes",
+    "Cubiculos_Estado":    "cubiculos_estado",
+    "Facturas":            "facturas",
+    "Factura_items":       "factura_items",
+    "Operadores":          "operadores",
+    "Configuracion_Pagos": "configuracion_pagos",
+    "Tarifas_Config":      "tarifas_config",
+    "Dashboard_Diario":    "dashboard_diario",
+    "Log_Operaciones":     "log_operaciones",
+}
+
+# Columna PRIMARY KEY / UNIQUE de cada tabla (para upsert)
+_PK_MAP = {
+    "reservas":            "numero_reserva",
+    "pagos":               "id_pago",
+    "clientes":            "num_doc",
+    "cubiculos_estado":    "cubiculo_id",
+    "facturas":            "num_factura",
+    "factura_items":       None,   # append only
+    "operadores":          "nombre",
+    "configuracion_pagos": "clave",
+    "tarifas_config":      "id",
+    "dashboard_diario":    "fecha",
+    "log_operaciones":     None,   # append only (SERIAL PK)
+}
+
+# Columnas de cada tabla en el mismo orden que DRIVE_SHEETS
+_COL_MAP = {
+    "reservas": [
+        "id_reserva","numero_reserva","creado_en","cubiculo_num",
+        "cliente_nombre","documento","telefono","email",
+        "horas_contratadas","hora_inicio","hora_fin_prog","hora_fin_real",
+        "precio_hora","subtotal","iva","total_cop",
+        "metodo_pago","estado_pago","codigo_acceso",
+        "wifi_ssid","wifi_pass","num_factura","referencia_pago",
+        "operador","notas","acepto_datos",
+    ],
+    "pagos": [
+        "id_pago","id_reserva","num_reserva","fecha_pago",
+        "monto_cop","metodo","referencia_externa","estado",
+        "confirmado_por","notas",
+    ],
+    "clientes": [
+        "id_cliente","nombre","tipo_doc","num_doc",
+        "telefono","email","ciudad","regimen","tipo_persona",
+        "razon_social","nit_empresa","activo",
+        "total_reservas","total_gastado","creado_en",
+    ],
+    "cubiculos_estado": [
+        "cubiculo_id","numero","nombre","estado",
+        "cliente_actual","hora_inicio","hora_fin_prog",
+        "tiempo_rest_min","codigo_acceso","wifi_ssid","wifi_pass",
+        "precio_hora_base",
+    ],
+    "facturas": [
+        "id_factura","num_factura","tipo","fecha_emision","fecha_vencimiento",
+        "cliente_nombre","cliente_doc","cliente_email","razon_social","nit_empresa",
+        "descripcion","subtotal","descuento","base_gravable","iva","retenciones",
+        "total_cop","metodo_pago","estado","moneda",
+        "num_reserva","cubiculo","creado_en","actualizado_en",
+    ],
+    "factura_items": [
+        "id_item","id_factura","codigo","descripcion",
+        "cantidad","unidad","precio_unitario","descuento_pct","iva_pct","subtotal",
+    ],
+    "operadores": [
+        "id_operador","nombre","rol","turno",
+        "hora_ini_turno","hora_fin_turno","permisos","activo",
+    ],
+    "configuracion_pagos": ["clave","valor"],
+    "tarifas_config": [
+        "id","nombre","descripcion","precio_hora_cop",
+        "desc_3h_pct","desc_6h_pct","hora_ini_espec","hora_fin_espec",
+        "aplica_festivos","activo","horas_a_reservar",
+    ],
+    "dashboard_diario": [
+        "fecha","total_reservas","completadas","canceladas",
+        "ingresos_brutos","iva_recaudado","ingresos_netos",
+        "nequi_cop","daviplata_cop","efectivo_cop","pse_cop",
+        "mp_cop","otros_cop","ocupacion_pct","hora_pico",
+        "tiempo_prom_min","clientes_nuevos","clientes_recur",
+        "fact_min","fact_max","ticket_prom_cop",
+    ],
+    "log_operaciones": [
+        "timestamp","tipo_op","reserva_id","cubiculo",
+        "operador","descripcion","valor_ant","valor_nuevo",
+        "ip","estado","notas",
+    ],
+}
+
+# Mapa columna Sheets → columna PG por tabla
+def _col_pg(hoja_sheets: str, col_sheets: str) -> str:
+    """Convierte nombre de columna de Sheets a nombre de columna PG (lowercase)."""
+    return col_sheets.lower()
+
+
+def _tabla_pg(hoja: str) -> str:
+    return _TABLA_MAP.get(hoja, hoja.lower())
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FUNCIONES INTERNAS DE LECTURA / ESCRITURA (equivalentes a _gs_*)
+# Devuelven los mismos tipos que sus equivalentes de Google Sheets.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _pg_read_table(hoja: str) -> list:
     """
-    Establece conexión con Google Sheets y la cachea 5 minutos.
-    Patrón idéntico al ejemplo de referencia.
+    Lee todos los registros de una tabla PG y los retorna como lista de dicts
+    con claves en el mismo formato que Google Sheets usaba (UpperCamelCase).
+    Para mantener compatibilidad con _gs_val(), _gs_float(), etc.
     """
+    if not PSYCOPG2_AVAILABLE:
+        return []
+    tabla = _tabla_pg(hoja)
+    col_pg_list  = _COL_MAP.get(tabla, [])
+    col_sh_list  = DRIVE_SHEETS.get(hoja, [])
     try:
-        scope = [
-            'https://spreadsheets.google.com/feeds',
-            'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/spreadsheets',
-        ]
-        credentials = Credentials.from_service_account_info(_creds, scopes=scope)
-        client = gspread.authorize(credentials)
-        return client
-
+        rows = _pg_exec(f"SELECT * FROM {tabla} ORDER BY 1", fetch="all") or []
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.error("❌ Cuota de API de Google Sheets agotada. Intenta en unos minutos.")
-            return _gs_with_retry(_open_and_init, operacion="abrir spreadsheet")
-        else: st.error(f"❌ Error conectando a Google Sheets: {str(e)}")
+        st.warning(f"⚠️ Error leyendo tabla '{tabla}': {e}")
+        return []
+    # Convertir: PG usa minúsculas, Sheets usaba la capitalización original
+    result = []
+    for row in rows:
+        rec = {}
+        for pg_col, sh_col in zip(col_pg_list, col_sh_list):
+            # psycopg2 RealDictCursor devuelve claves en lowercase
+            val = row.get(pg_col, row.get(pg_col.lower(), ""))
+            rec[sh_col] = "" if val is None else str(val)
+        result.append(rec)
+    return result
 
-        return None
 
-
-def get_or_create_spreadsheet(client):
+def _pg_upsert(hoja: str, col_clave_sh: str, valor_clave: str, fila: list) -> bool:
     """
-    Abre jjgt_pagos por SPREADSHEET_ID.
-    - Reintentos con backoff ante error 429.
-    - Verifica/crea cada hoja con cabeceras alineadas a DRIVE_SHEETS.
+    INSERT ... ON CONFLICT (pk) DO UPDATE — equivalente a _gs_upsert.
+    col_clave_sh es el nombre en formato Sheets (ej: "Num_Doc").
+    fila es lista de valores en el orden de DRIVE_SHEETS[hoja].
     """
-    if not client:
-        return None
+    if not PSYCOPG2_AVAILABLE:
+        return False
+    tabla    = _tabla_pg(hoja)
+    cols_pg  = _COL_MAP.get(tabla, [])
+    if not cols_pg:
+        return False
+    # Ajustar longitud de fila
+    fila_str = [str(v) if v is not None else "" for v in fila]
+    fila_str = (fila_str + [""] * len(cols_pg))[:len(cols_pg)]
+
+    pk_col = _PK_MAP.get(tabla)
+    if not pk_col:
+        # Tabla sin PK definida → solo insert
+        return _pg_append(hoja, fila)
+
+    cols_sql    = ", ".join(f'"{c}"' for c in cols_pg)
+    placeholders = ", ".join(["%s"] * len(cols_pg))
+    update_sql  = ", ".join(
+        f'"{c}" = EXCLUDED."{c}"'
+        for c in cols_pg if c != pk_col
+    )
+    sql = (
+        f'INSERT INTO {tabla} ({cols_sql}) VALUES ({placeholders}) '
+        f'ON CONFLICT ("{pk_col}") DO UPDATE SET {update_sql}'
+    )
     try:
-        def _open_and_init():
-            try:
-                sh = client.open_by_key(SPREADSHEET_ID)
-            except gspread.SpreadsheetNotFound:
-                sh = client.create(DRIVE_FILE)
-                st.warning("⚠️ Archivo no encontrado con ese ID. Se creó uno nuevo.")
-
-            existing_titles = {ws.title for ws in sh.worksheets()}
-            for name, headers in DRIVE_SHEETS.items():
-                if name in existing_titles:
-                    continue
-                try:
-                    ws = sh.add_worksheet(title=name, rows=5000,
-                                          cols=max(len(headers), 26))
-                    ws.append_row(headers)
-                    time.sleep(0.3)
-                except gspread.exceptions.APIError as api_err:
-                    if "already exists" in str(api_err).lower():
-                        pass
-                    else:
-                        raise
-
-            for default_name in ["Sheet1", "Hoja 1", "Hoja1"]:
-                try:
-                    sh.del_worksheet(sh.worksheet(default_name))
-                except Exception:
-                    pass
-            return sh
-
-        return _gs_with_retry(_open_and_init, operacion="abrir spreadsheet")
-
+        _pg_exec(sql, fila_str)
+        return True
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.error("❌ Cuota de API de Google Sheets agotada. Intenta en unos minutos.")
-        else:
-            st.error(f"❌ Error abriendo spreadsheet: {err_str}")
-        return None
+        st.warning(f"⚠️ Error upsert '{tabla}': {e}")
+        return False
+
+
+def _pg_append(hoja: str, fila: list) -> bool:
+    """INSERT de una nueva fila — equivalente a _gs_append."""
+    if not PSYCOPG2_AVAILABLE:
+        return False
+    tabla   = _tabla_pg(hoja)
+    cols_pg = _COL_MAP.get(tabla, [])
+    if not cols_pg:
+        return False
+    fila_str = [str(v) if v is not None else "" for v in fila]
+    fila_str = (fila_str + [""] * len(cols_pg))[:len(cols_pg)]
+    cols_sql     = ", ".join(f'"{c}"' for c in cols_pg)
+    placeholders = ", ".join(["%s"] * len(cols_pg))
+    sql = f'INSERT INTO {tabla} ({cols_sql}) VALUES ({placeholders})'
+    try:
+        _pg_exec(sql, fila_str)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error insert '{tabla}': {e}")
+        return False
+
+
+def _pg_update_col(hoja: str, where_col_sh: str, where_val: str,
+                   set_col_sh: str, new_val: str) -> bool:
+    """UPDATE tabla SET set_col = new_val WHERE where_col = where_val."""
+    if not PSYCOPG2_AVAILABLE:
+        return False
+    tabla       = _tabla_pg(hoja)
+    where_col   = where_col_sh.lower()
+    set_col     = set_col_sh.lower()
+    sql = f'UPDATE {tabla} SET "{set_col}" = %s WHERE "{where_col}" = %s'
+    try:
+        _pg_exec(sql, [new_val, where_val])
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error update '{tabla}': {e}")
+        return False
+
+
+def _pg_delete_row(hoja: str, col_clave_sh: str, valor_clave: str) -> bool:
+    """DELETE FROM tabla WHERE col = valor."""
+    if not PSYCOPG2_AVAILABLE:
+        return False
+    tabla    = _tabla_pg(hoja)
+    col_pg   = col_clave_sh.lower()
+    sql      = f'DELETE FROM {tabla} WHERE "{col_pg}" = %s'
+    try:
+        _pg_exec(sql, [valor_clave])
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error delete '{tabla}': {e}")
+        return False
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# API PÚBLICA — mismas firmas que los _gs_* originales
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _gs_read_sheet(hoja: str, force: bool = False) -> list:
+    """Lee todos los registros de una tabla PG (reemplaza lectura de Google Sheets)."""
+    return _pg_read_table(hoja)
+
+
+def _gs_invalidate_cache(*hojas):
+    """No-op: PostgreSQL no tiene caché de sesión."""
+    pass
+
+
+def _gs_val(row: dict, key: str, default="") -> str:
+    v = row.get(key, default)
+    return str(v) if v != "" else str(default)
+
+
+def _gs_float(row: dict, key: str, default: float = 0.0) -> float:
+    try:
+        return float(_gs_val(row, key, default))
+    except Exception:
+        return float(default)
+
+
+def _gs_int(row: dict, key: str, default: int = 0) -> int:
+    try:
+        return int(float(_gs_val(row, key, default)))
+    except Exception:
+        return int(default)
+
+
+def _gs_fecha_ymd(row: dict, key: str) -> str:
+    raw = _gs_val(row, key, "").strip()
+    if not raw:
+        return ""
+    if len(raw) >= 10 and raw[4:5] == "-":
+        return raw[:10]
+    if "/" in raw:
+        parte  = raw.split(" ")[0]
+        partes = parte.split("/")
+        if len(partes) == 3:
+            a, b, c = partes
+            if len(c) == 4:
+                if int(a) > 12:
+                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
+                else:
+                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
+            elif len(a) == 4:
+                return f"{a}-{b.zfill(2)}-{c.zfill(2)}"
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y", "%d-%m-%Y %H:%M"):
+        try:
+            return datetime.strptime(raw[:len(fmt)], fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return raw[:10]
+
+
+def _gs_append(sh, hoja: str, fila: list) -> bool:
+    """Equivalente al _gs_append original: inserta fila en PG (sh ignorado)."""
+    return _pg_append(hoja, fila)
+
+
+def _gs_upsert(sh, hoja: str, col_clave: str, valor_clave: str, fila: list) -> bool:
+    """Equivalente al _gs_upsert original (sh ignorado)."""
+    return _pg_upsert(hoja, col_clave, valor_clave, fila)
+
+
+def _gs_with_retry(func, *args, operacion: str = "", **kwargs):
+    """Sin reintentos en PG — ejecuta directo."""
+    return func(*args, **kwargs)
+
+
+def _gs_get_or_create_ws(sh, hoja: str):
+    """Stub de compatibilidad — en PG no hay worksheets."""
+    return None
+
+
+def _gs_update_row(ws, row_num: int, padded: list):
+    """No-op: las actualizaciones en PG se hacen por clave."""
+    pass
+
+
+def _gs_update_range(ws, range_name: str, data: list):
+    """No-op."""
+    pass
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FUNCIONES DE CONEXIÓN (reemplazan get_active_client / load_credentials_from_toml)
+# Devuelven (None, stub) para mantener compatibilidad con el patrón `_, sh = get_active_client()`
+# ══════════════════════════════════════════════════════════════════════════════
+
+class _PGStub:
+    """Objeto stub que sustituye al spreadsheet de gspread en llamadas heredadas."""
+    title = f"PostgreSQL · {PG_DB}"
+
+    def worksheet(self, name):
+        return self
+
+    def get_all_values(self):
+        return []
+
+    def get_all_records(self, **kw):
+        return []
+
+    def append_row(self, row):
+        pass
+
+    def update_cell(self, row, col, val):
+        pass
+
+    def delete_rows(self, row):
+        pass
+
+    def update(self, values, range_name):
+        pass
+
+    def add_worksheet(self, title, rows, cols):
+        return self
+
+    def del_worksheet(self, ws):
+        pass
+
+    def worksheets(self):
+        return []
+
+    def fetch_sheet_metadata(self):
+        return {"sheets": []}
+
+
+_PG_STUB = _PGStub()
 
 
 def get_active_client():
     """
-    Flujo completo: credenciales → cliente cacheado → spreadsheet.
-    Cachea el cliente y el spreadsheet en session_state para evitar
-    reconexiones en frío en cada rerun de Streamlit.
-    Retorna (client, spreadsheet) o (None, None).
+    Reemplaza el flujo credenciales→cliente→spreadsheet.
+    Retorna (None, _PGStub) para mantener el patrón `_, sh = get_active_client()`.
     """
-    if not GSPREAD_AVAILABLE:
-        return None, None
+    init_db()  # garantiza que las tablas existen
+    return None, _PG_STUB
 
-    # Reusar cliente cacheado si ya existe en esta sesión
-    try:
-        cached_client = st.session_state.get("_gs_main_client")
-        cached_sh     = st.session_state.get("_gs_main_sh")
-        if cached_client is not None and cached_sh is not None:
-            return cached_client, cached_sh
-    except Exception:
-        pass
 
-    creds, _ = load_credentials_from_toml()
-    if not creds:
-        return None, None
-    client = get_google_sheets_connection(creds)
-    if not client:
-        return None, None
-    sh = get_or_create_spreadsheet(client)
-
-    # Guardar en caché de sesión
-    if client and sh:
-        try:
-            st.session_state["_gs_main_client"] = client
-            st.session_state["_gs_main_sh"]     = sh
-        except Exception:
-            pass
-
-    return client, sh
+def _get_module_level_client():
+    return get_active_client()
 
 
 def _reset_gs_cache():
-    """Limpia la caché de conexión para forzar reconexión."""
-    try:
-        get_google_sheets_connection.clear()
-    except Exception:
-        pass
+    pass
 
 
-# ── Funciones internas de escritura ──────────────────────────────────────────
-
-def _gs_get_or_create_ws(sh, hoja: str):
-    """
-    Devuelve el worksheet para `hoja`, creándola si no existe.
-    Con reintentos ante error 429.
-    """
-    def _fetch():
-        meta = sh.fetch_sheet_metadata()
-        hoja_lower = hoja.lower()
-        for sheet in meta.get('sheets', []):
-            titulo = sheet['properties']['title']
-            if titulo.lower() == hoja_lower:
-                return sh.worksheet(titulo)
-
-        # La hoja no existe → crearla con cabeceras alineadas
-        headers = DRIVE_SHEETS.get(hoja, [])
-        try:
-            new_ws = sh.add_worksheet(
-                title=hoja, rows=5000, cols=max(len(headers), 26)
-            )
-            if headers:
-                new_ws.append_row(headers)
-            return new_ws
-        except gspread.exceptions.APIError as e:
-            if "already exists" in str(e).lower():
-                meta2 = sh.fetch_sheet_metadata()
-                for sheet in meta2.get('sheets', []):
-                    if sheet['properties']['title'].lower() == hoja_lower:
-                        return sh.worksheet(sheet['properties']['title'])
-            raise
-
-    return _gs_with_retry(_fetch, operacion=f"acceder hoja '{hoja}'")
+def load_credentials_from_toml():
+    return None, None
 
 
-def _gs_update_row(ws, row_num: int, padded: list):
-    """Actualiza una fila completa con retry."""
-    _gs_with_retry(
-        ws.update, values=[padded], range_name=f"A{row_num}",
-        operacion=f"actualizar fila {row_num}"
-    )
+def get_google_sheets_connection(_creds):
+    return None
 
 
-def _gs_update_range(ws, range_name: str, data: list):
-    """Escribe un bloque de datos con retry."""
-    _gs_with_retry(
-        ws.update, values=data, range_name=range_name,
-        operacion=f"actualizar rango {range_name}"
-    )
+def get_or_create_spreadsheet(client):
+    return _PG_STUB
 
 
-def _gs_append(sh, hoja: str, fila: list) -> bool:
-    """
-    Agrega una fila a la hoja. Si está vacía, escribe primero los encabezados.
-    Con retry ante error 429.
-    """
-    try:
-        def _do_append():
-            ws = _gs_get_or_create_ws(sh, hoja)
-            vals = ws.get_all_values()
-            if not vals:
-                ws.append_row(DRIVE_SHEETS.get(hoja, []))
-            ws.append_row([str(v) if v is not None else "" for v in fila])
-
-        _gs_with_retry(_do_append, operacion=f"insertar en '{hoja}'")
-        return True
-    except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Cuota API agotada al escribir en '{hoja}'. El dato se perderá.")
-        else:
-            st.warning(f"⚠️ Error escribiendo en '{hoja}': {e}")
-        return False
-
-
-def _gs_upsert(sh, hoja: str, col_clave: str, valor_clave: str, fila: list) -> bool:
-    """
-    Busca col_clave == valor_clave y actualiza esa fila; si no existe la agrega.
-    Con retry ante error 429.
-    """
-    try:
-        def _do_upsert():
-            ws = _gs_get_or_create_ws(sh, hoja)
-            vals = ws.get_all_values()
-            fila_str = [str(v) if v is not None else "" for v in fila]
-
-            if not vals:
-                ws.append_row(DRIVE_SHEETS.get(hoja, []))
-                ws.append_row(fila_str)
-                return
-
-            hdr = vals[0]
-            col_idx = hdr.index(col_clave) if col_clave in hdr else -1
-            if col_idx >= 0:
-                for i, r in enumerate(vals[1:], start=2):
-                    if len(r) > col_idx and str(r[col_idx]) == str(valor_clave):
-                        padded = (fila_str + [""] * len(hdr))[:len(hdr)]
-                        ws.update(values=[padded], range_name=f"A{i}")
-                        return
-
-            ws.append_row(fila_str)
-
-        _gs_with_retry(_do_upsert, operacion=f"upsert en '{hoja}'")
-        return True
-    except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Cuota API agotada al hacer upsert en '{hoja}'.")
-        else:
-            st.warning(f"⚠️ Error upsert '{hoja}': {e}")
-        return False
-
-
-# ── Escritura por entidad ─────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════════
+# ESCRITURA POR ENTIDAD (equivalentes a gs_escribir_*)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def gs_escribir_cliente(sh, datos: dict) -> bool:
-    # Columnas (15) alineadas con DRIVE_SHEETS["Clientes"]:
-    # ID_Cliente, Nombre, Tipo_Doc, Num_Doc, Telefono, Email, Ciudad,
-    # Regimen, Tipo_Persona, Razon_Social, NIT_Empresa, Activo,
-    # Total_Reservas, Total_Gastado, Creado_En
     num_doc = str(datos.get("numero_documento", ""))
-    # Calcular totales desde hoja Reservas en Sheets
-    total_res = total_gas = ""
+    total_res = total_gas = "0"
     try:
-        reservas_gs = _gs_read_sheet("Reservas")
-        res_cliente = [r for r in reservas_gs
+        reservas_pg = _pg_read_table("Reservas")
+        res_cliente = [r for r in reservas_pg
                        if str(r.get("Documento", "")) == num_doc
                        and str(r.get("Estado_Pago", "")) == "confirmado"]
         total_res = str(len(res_cliente))
@@ -1457,17 +1754,12 @@ def gs_escribir_cliente(sh, datos: dict) -> bool:
         total_gas,
         str(datos.get("creado_en", "")),
     ]
-    return _gs_upsert(sh, "Clientes", "Num_Doc", num_doc, fila)
+    return _pg_upsert("Clientes", "Num_Doc", num_doc, fila)
 
 
 def gs_escribir_factura(sh, datos: dict) -> bool:
-    # Columnas (24) alineadas con DRIVE_SHEETS["Facturas"]:
-    # ID_Factura, Num_Factura, Tipo, Fecha_Emision, Fecha_Vencimiento,
-    # Cliente_Nombre, Cliente_Doc, Cliente_Email, Razon_Social, NIT_Empresa,
-    # Descripcion, Subtotal, Descuento, Base_Gravable, IVA, Retenciones, Total_COP,
-    # Metodo_Pago, Estado, Moneda, Num_Reserva, Cubiculo, Creado_En, Actualizado_En
-    subtotal = float(datos.get("subtotal", 0) or 0)
-    descuento = float(datos.get("descuento", 0) or 0)
+    subtotal      = float(datos.get("subtotal", 0) or 0)
+    descuento     = float(datos.get("descuento", 0) or 0)
     base_gravable = round(subtotal - descuento, 2)
     fila = [
         str(datos.get("id", "")),
@@ -1495,18 +1787,10 @@ def gs_escribir_factura(sh, datos: dict) -> bool:
         str(datos.get("creado_en", "")),
         str(datos.get("actualizado_en", "")),
     ]
-    return _gs_upsert(sh, "Facturas", "Num_Factura",
-                      str(datos.get("numero", "")), fila)
+    return _pg_upsert("Facturas", "Num_Factura", str(datos.get("numero", "")), fila)
 
 
 def gs_escribir_reserva(sh, datos: dict) -> bool:
-    # Columnas: ID_Reserva, Numero_Reserva, Creado_En, Cubiculo_Num,
-    #           Cliente_Nombre, Documento, Telefono, Email,
-    #           Horas_Contratadas, Hora_Inicio, Hora_Fin_Prog, Hora_Fin_Real,
-    #           Precio_Hora, Subtotal, IVA, Total_COP,
-    #           Metodo_Pago, Estado_Pago, Codigo_Acceso,
-    #           WiFi_SSID, WiFi_Pass, Num_Factura, Referencia_Pago, Operador, Notas,
-    #           Acepto_Datos
     fila = [
         str(datos.get("id", "")),
         str(datos.get("numero_reserva", "")),
@@ -1535,14 +1819,11 @@ def gs_escribir_reserva(sh, datos: dict) -> bool:
         str(datos.get("notas", "")),
         "Sí" if datos.get("acepto_datos") else "No",
     ]
-    return _gs_upsert(sh, "Reservas", "Numero_Reserva",
+    return _pg_upsert("Reservas", "Numero_Reserva",
                       str(datos.get("numero_reserva", "")), fila)
 
 
 def gs_escribir_pago(sh, datos: dict) -> bool:
-    # Columnas (10) alineadas con DRIVE_SHEETS["Pagos"]:
-    # ID_Pago, ID_Reserva, Num_Reserva, Fecha_Pago,
-    # Monto_COP, Metodo, Referencia_Externa, Estado, Confirmado_Por, Notas
     fila = [
         str(datos.get("id", "")),
         str(datos.get("reserva_id", "")),
@@ -1555,63 +1836,47 @@ def gs_escribir_pago(sh, datos: dict) -> bool:
         str(datos.get("confirmado_por", "sistema")),
         str(datos.get("notas", "")),
     ]
-    return _gs_upsert(sh, "Pagos", "Num_Reserva",
-                      str(datos.get("num_reserva", "")), fila)
+    return _pg_upsert("Pagos", "ID_Pago", str(datos.get("id", "")), fila)
 
 
 def gs_escribir_log(sh, tipo_op, reserva_id, cubiculo, operador, descripcion, estado="exito"):
-    if sh:
-        _gs_append(sh, "Log_Operaciones", [
-            ahora_col().isoformat(), tipo_op, str(reserva_id), str(cubiculo),
-            operador, descripcion, "", "", "", estado, ""
-        ])
+    _pg_append("Log_Operaciones", [
+        ahora_col().isoformat(), tipo_op, str(reserva_id), str(cubiculo),
+        operador, descripcion, "", "", "", estado, ""
+    ])
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# SINCRONIZACIÓN DE CUBÍCULOS (reemplaza gs_sync_cubiculos)
+# ══════════════════════════════════════════════════════════════════════════════
 
 def gs_sync_cubiculos(sh):
-    """Actualiza Cubiculos_Estado en Sheets desde los datos de Reservas (sin SQLite)."""
-    if not sh:
+    """Actualiza estado de cubículos en PG desde la tabla reservas."""
+    if not PSYCOPG2_AVAILABLE:
         return False
     try:
-        # Leer reservas activas desde Sheets
-        reservas_gs = _gs_read_sheet("Reservas")
-        cubiculos_gs = _gs_read_sheet("Cubiculos_Estado")
-
         now = ahora_col()
-        ws = _gs_get_or_create_ws(sh, "Cubiculos_Estado")
-        vals = ws.get_all_values()
-        if not vals:
-            return True
+        reservas_pg = _pg_read_table("Reservas")
+        cubiculos_pg = _pg_read_table("Cubiculos_Estado")
 
-        hdr = vals[0]
-        if "Estado" not in hdr or "Numero" not in hdr:
-            return True
-
-        ci_num = hdr.index("Numero")
-        ci_est = hdr.index("Estado")
-        ci_cli = hdr.index("Cliente_Actual") if "Cliente_Actual" in hdr else -1
-        ci_ini = hdr.index("Hora_Inicio") if "Hora_Inicio" in hdr else -1
-        ci_fin = hdr.index("Hora_Fin_Prog") if "Hora_Fin_Prog" in hdr else -1
-        ci_cod = hdr.index("Codigo_Acceso") if "Codigo_Acceso" in hdr else -1
-        ci_tr  = hdr.index("Tiempo_Rest_Min") if "Tiempo_Rest_Min" in hdr else -1
-
-        # Construir mapa número → reserva activa
+        # Mapa número → reserva activa
         res_activas = {}
-        for r in reservas_gs:
+        for r in reservas_pg:
             if (_gs_val(r, "Estado_Pago") == "confirmado" and
                     not _gs_val(r, "Hora_Fin_Real")):
                 cub_num = _gs_val(r, "Cubiculo_Num")
                 if cub_num:
                     res_activas[cub_num] = r
 
-        updates = []
-        for i, row in enumerate(vals[1:], start=2):
-            if len(row) <= ci_num:
+        for cub in cubiculos_pg:
+            num = _gs_val(cub, "Numero")
+            if not num:
                 continue
-            num = row[ci_num]
             if num in res_activas:
                 res = res_activas[num]
                 hora_fin = _gs_val(res, "Hora_Fin_Prog")
                 min_rest = ""
+                estado_calc = "ocupado"
                 try:
                     fin = datetime.fromisoformat(hora_fin)
                     if fin.tzinfo is None:
@@ -1620,39 +1885,95 @@ def gs_sync_cubiculos(sh):
                     min_rest = str(max(0, int(diff)))
                     estado_calc = "por_liberar" if 0 < diff <= 5 else ("libre" if diff <= 0 else "ocupado")
                 except Exception:
-                    estado_calc = "ocupado"
-
-                ws.update_cell(i, ci_est + 1, estado_calc)
-                if ci_cli >= 0: ws.update_cell(i, ci_cli + 1, _gs_val(res, "Cliente_Nombre"))
-                if ci_ini >= 0: ws.update_cell(i, ci_ini + 1, _gs_val(res, "Hora_Inicio"))
-                if ci_fin >= 0: ws.update_cell(i, ci_fin + 1, hora_fin)
-                if ci_cod >= 0: ws.update_cell(i, ci_cod + 1, _gs_val(res, "Codigo_Acceso"))
-                if ci_tr  >= 0: ws.update_cell(i, ci_tr  + 1, min_rest)
-            # Si no hay reserva activa y el estado era ocupado, no forzar libre
-            # (la función liberar_cubiculo ya lo gestiona)
-
-        _gs_invalidate_cache("Cubiculos_Estado")
+                    pass
+                conn = get_pg_conn()
+                with conn:
+                    with conn.cursor() as cur:
+                        cur.execute("""
+                            UPDATE cubiculos_estado
+                            SET estado=%s, cliente_actual=%s, hora_inicio=%s,
+                                hora_fin_prog=%s, codigo_acceso=%s, tiempo_rest_min=%s
+                            WHERE numero=%s
+                        """, [
+                            estado_calc,
+                            _gs_val(res, "Cliente_Nombre"),
+                            _gs_val(res, "Hora_Inicio"),
+                            hora_fin,
+                            _gs_val(res, "Codigo_Acceso"),
+                            min_rest,
+                            num,
+                        ])
+                conn.close()
         return True
     except Exception as e:
         st.warning(f"⚠️ Error sync cubículos: {e}")
         return False
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# LIBERAR CUBÍCULO (reemplaza liberar_cubiculo con escritura PG)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def liberar_cubiculo(cubiculo_id):
+    """Libera el cubículo actualizando PostgreSQL como fuente primaria."""
+    hora_fin_real = ahora_col().isoformat()
+
+    # Obtener número del cubículo
+    cubiculos_pg = _pg_read_table("Cubiculos_Estado")
+    num_cub = ""
+    for r in cubiculos_pg:
+        if _gs_val(r, "Cubiculo_ID") == str(cubiculo_id):
+            num_cub = _gs_val(r, "Numero")
+            break
+
+    # Buscar reserva activa
+    num_reserva = ""
+    reservas_pg = _pg_read_table("Reservas")
+    for r in reservas_pg:
+        if (_gs_val(r, "Cubiculo_Num") == num_cub and
+                _gs_val(r, "Estado_Pago") == "confirmado" and
+                not _gs_val(r, "Hora_Fin_Real")):
+            num_reserva = _gs_val(r, "Numero_Reserva")
+            break
+
+    try:
+        conn = get_pg_conn()
+        with conn:
+            with conn.cursor() as cur:
+                # Actualizar hora_fin_real en reservas
+                if num_reserva:
+                    cur.execute(
+                        'UPDATE reservas SET hora_fin_real=%s WHERE numero_reserva=%s',
+                        [hora_fin_real, num_reserva]
+                    )
+                # Liberar cubículo
+                if num_cub:
+                    cur.execute("""
+                        UPDATE cubiculos_estado
+                        SET estado='libre', cliente_actual='', hora_inicio='',
+                            hora_fin_prog='', codigo_acceso='', tiempo_rest_min=''
+                        WHERE numero=%s
+                    """, [num_cub])
+        conn.close()
+    except Exception as e:
+        st.warning(f"⚠️ Error liberando cubículo: {e}")
+
+    _, sh = get_active_client()
+    gs_sync_dashboard(sh)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# DASHBOARD DIARIO (reemplaza gs_sync_dashboard)
+# ══════════════════════════════════════════════════════════════════════════════
+
 def gs_sync_dashboard(sh):
-    """Actualiza la fila de hoy en Dashboard_Diario (datos calculados desde Sheets).
-    Usa force=True para siempre leer datos frescos al sincronizar el dashboard.
-    """
-    if not sh:
+    """Actualiza/inserta fila de hoy en dashboard_diario."""
+    if not PSYCOPG2_AVAILABLE:
         return False
     try:
         today = ahora_col().strftime("%Y-%m-%d")
-        # force=True: ignorar caché para tener datos recién escritos
-        reservas_gs = _gs_read_sheet("Reservas", force=True)
-
-        # Filtrar reservas de hoy confirmadas
-        # _gs_fecha_ymd normaliza ISO, DD/MM/YYYY y otros formatos que Sheets
-        # puede devolver al auto-convertir fechas, evitando falsos negativos.
-        hoy_res = [r for r in reservas_gs
+        reservas_pg  = _pg_read_table("Reservas")
+        hoy_res = [r for r in reservas_pg
                    if _gs_fecha_ymd(r, "Creado_En") == today
                    and _gs_val(r, "Estado_Pago") == "confirmado"]
 
@@ -1668,431 +1989,41 @@ def gs_sync_dashboard(sh):
         avg_horas = (sum(_gs_float(r, "Horas_Contratadas") for r in hoy_res) / total_res) if total_res > 0 else 0
         ticket    = round(brutos / total_res, 0) if total_res > 0 else 0
 
-        # 21 campos alineados con DRIVE_SHEETS["Dashboard_Diario"]
-        # Fecha,Total_Reservas,Completadas,Canceladas,
-        # Ingresos_Brutos,IVA_Recaudado,Ingresos_Netos,
-        # Nequi_COP,Daviplata_COP,Efectivo_COP,PSE_COP,
-        # MP_COP,Otros_COP,Ocupacion_Pct,Hora_Pico,
-        # Tiempo_Prom_Min,Clientes_Nuevos,Clientes_Recur,
-        # Fact_Min,Fact_Max,Ticket_Prom_COP
         fila = [
-            today,
-            str(total_res),          # Total_Reservas
-            str(total_res),          # Completadas (todas confirmadas)
-            "0",                     # Canceladas
-            str(round(brutos, 2)),   # Ingresos_Brutos
-            str(round(iva, 2)),      # IVA_Recaudado
-            str(round(brutos-iva,2)),# Ingresos_Netos
-            str(round(nequi, 2)),    # Nequi_COP
-            str(round(daviplata,2)), # Daviplata_COP
-            str(round(efectivo,2)),  # Efectivo_COP
-            str(round(pse, 2)),      # PSE_COP
-            str(round(mp, 2)),       # MP_COP
-            str(round(otros, 2)),    # Otros_COP
-            "0",                     # Ocupacion_Pct (calculado aparte)
-            "",                      # Hora_Pico
-            str(round(avg_horas*60)),# Tiempo_Prom_Min
-            "0",                     # Clientes_Nuevos
-            "0",                     # Clientes_Recur
-            "0",                     # Fact_Min
-            "0",                     # Fact_Max
-            str(round(ticket, 0)),   # Ticket_Prom_COP
+            today, str(total_res), str(total_res), "0",
+            str(round(brutos, 2)), str(round(iva, 2)), str(round(brutos - iva, 2)),
+            str(round(nequi, 2)), str(round(daviplata, 2)), str(round(efectivo, 2)),
+            str(round(pse, 2)), str(round(mp, 2)), str(round(otros, 2)),
+            "0", "", str(round(avg_horas * 60)), "0", "0", "0", "0",
+            str(round(ticket, 0)),
         ]
-        resultado = _gs_upsert(sh, "Dashboard_Diario", "Fecha", today, fila)
-        # Sync exitoso: limpiar flag de pendiente si existía
-        st.session_state.pop("_dashboard_sync_pendiente", None)
-        return resultado
+        return _pg_upsert("Dashboard_Diario", "Fecha", today, fila)
     except Exception as e:
-        err_str = str(e)
-        # No mostrar warning en pantalla del cliente (puede asustar); solo loguear
-        # y marcar como pendiente para reintento en el próximo render del operador
         st.session_state["_dashboard_sync_pendiente"] = True
-        st.session_state["_dashboard_sync_error"] = err_str
+        st.session_state["_dashboard_sync_error"] = str(e)
         return False
-
-
-def gs_sync_factura_items(sh):
-    """Verifica la hoja Factura_items — los ítems ya se escriben directamente al crear facturas."""
-    if not sh:
-        return False
-    # Los items ya se escriben en _gs_append al crear cada factura
-    # Esta función existe por compatibilidad y no necesita hacer nada extra
-    return True
-
-
-def gs_sync_operadores(sh):
-    """Actualiza el estado de la hoja Operadores — los cambios se hacen directamente en Sheets."""
-    if not sh:
-        return False
-    # Los operadores se gestionan directamente en la hoja Operadores
-    # Esta función existe por compatibilidad
-    _gs_invalidate_cache("Operadores")
-    return True
-
-
-def gs_sync_configuracion_pagos(sh):
-    """Invalida el caché de configuración para forzar recarga desde Sheets."""
-    if not sh:
-        return False
-    _gs_invalidate_cache("Configuracion_Pagos")
-    with _config_cache_lock:
-        _config_cache.clear()
-    return True
-
-
-
-def sincronizacion_completa() -> dict:
-    """
-    Invalida todos los cachés para forzar recarga desde Google Sheets.
-    Verifica la conexión y retorna un resumen de registros por hoja.
-    """
-    client, sh = get_active_client()
-    if not sh:
-        return {"error": "Sin conexión a Google Sheets. Verifica secrets.toml y credenciales."}
-
-    # Invalidar todo el caché
-    _gs_invalidate_cache(
-        "Cubiculos_Estado", "Reservas", "Pagos", "Clientes",
-        "Facturas", "Factura_items", "Operadores",
-        "Configuracion_Pagos", "Tarifas_Config", "Dashboard_Diario"
-    )
-    with _config_cache_lock:
-        _config_cache.clear()
-
-    # Forzar recarga y contar registros
-    conteos = {}
-    for hoja in ["Clientes", "Reservas", "Pagos", "Facturas",
-                 "Factura_items", "Cubiculos_Estado", "Tarifas_Config",
-                 "Operadores", "Configuracion_Pagos"]:
-        try:
-            data = _gs_read_sheet(hoja, force=True)
-            conteos[hoja] = len(data)
-        except Exception as e:
-            conteos[hoja] = f"Error: {e}"
-
-    # Actualizar dashboard del día
-    gs_sync_dashboard(sh)
-
-    gs_escribir_log(sh, "sync_completa", "", "", "sistema",
-                    f"Sync completa (caché invalidado): {conteos}", "exito")
-    return conteos
-
-
-
-
-# ── Stubs de compatibilidad ───────────────────────────────────────────────────
-
-def _get_module_level_client():
-    return get_active_client()
-
-def encolar_sync(event: dict):
-    pass  # Reemplazado por escritura directa síncrona
-
-def _ensure_sync_thread():
-    pass
-
-def _marcar_sync_pendiente(tabla: str, registro_id: int):
-    pass  # No-op: Google Sheets es la fuente primaria, no hay sync pendiente local
-
-def sheets_append_row(worksheet_name: str, row_data: list) -> bool:
-    _, sh = get_active_client()
-    if not sh:
-        return False
-    return _gs_append(sh, worksheet_name, row_data)
-
-def sheets_upsert_row(worksheet_name, col_key, key_value, row_data):
-    _, sh = get_active_client()
-    if not sh:
-        return False
-    return _gs_upsert(sh, worksheet_name, col_key, key_value, row_data)
-
-def sheets_update_row(worksheet_name, col_key, key_value, update_data):
-    _, sh = get_active_client()
-    if not sh:
-        return False
-    try:
-        ws = sh.worksheet(worksheet_name)
-        vals = ws.get_all_values()
-        if not vals:
-            return False
-        hdr = vals[0]
-        col_idx = hdr.index(col_key) if col_key in hdr else -1
-        if col_idx < 0:
-            return False
-        for i, r in enumerate(vals[1:], start=2):
-            if len(r) > col_idx and str(r[col_idx]) == str(key_value):
-                for col_name, new_val in update_data.items():
-                    if col_name in hdr:
-                        ws.update_cell(i, hdr.index(col_name) + 1, str(new_val))
-                return True
-        return False
-    except Exception:
-        return False
-
-def load_data_from_sheet(client, sheet_name: str, worksheet_name: str) -> pd.DataFrame:
-    """Carga una hoja como DataFrame. Si no existe la crea vacía con encabezados."""
-    try:
-        spreadsheet = client.open_by_key(SPREADSHEET_ID)
-        worksheet   = _gs_get_or_create_ws(spreadsheet, worksheet_name)
-        data        = worksheet.get_all_records()
-        return pd.DataFrame(data) if data else pd.DataFrame()
-    except Exception as e:
-        st.error(f"❌ Error cargando datos de '{worksheet_name}': {e}")
-        return pd.DataFrame()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# CAPA DE DATOS — GOOGLE SHEETS (fuente primaria)
-# SQLite se elimina como fuente de datos. Toda la información se lee y escribe
-# directamente en Google Sheets. Se usa caché en session_state con TTL para
-# evitar llamadas excesivas a la API.
+# CONFIGURACIÓN (reemplaza get_config / set_config con PG)
 # ══════════════════════════════════════════════════════════════════════════════
 
-# ── TTL diferenciado por tipo de dato ────────────────────────────────────────
-# Datos en tiempo real: caché corta. Datos históricos: caché larga.
-_GS_CACHE_TTL: dict = {
-    "Cubiculos_Estado":  20,   # estado de cubículos: 20s (tiempo real)
-    "Reservas":         120,   # historial de reservas: 2 min
-    "Pagos":            120,   # pagos: 2 min
-    "Clientes":         300,   # clientes: 5 min
-    "Facturas":         300,   # facturas: 5 min
-    "Factura_items":    300,
-    "Operadores":       300,   # operadores: 5 min
-    "Configuracion_Pagos": 600,# configuración: 10 min
-    "Tarifas_Config":   600,
-    "Dashboard_Diario": 60,
-    "Log_Operaciones":  300,
-    "_default":          60,   # cualquier otra hoja: 1 min
-}
-
-def _gs_ttl(hoja: str) -> int:
-    return _GS_CACHE_TTL.get(hoja, _GS_CACHE_TTL["_default"])
-
-def _gs_cache_key(hoja: str) -> str:
-    return f"_gs_cache_{hoja}"
-
-def _gs_cache_ts_key(hoja: str) -> str:
-    return f"_gs_cache_ts_{hoja}"
-
-
-def _gs_with_retry(func, *args, operacion: str = "Google Sheets", **kwargs):
-    """
-    Ejecuta `func(*args, **kwargs)` con reintentos ante error 429 (quota exceeded).
-    Implementa backoff exponencial: delay = INITIAL_RETRY_DELAY * 2^intento.
-    Muestra spinner con contador de intento en la UI.
-    """
-    last_exc = None
-    for intento in range(MAX_RETRIES):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            err_str = str(e)
-            # Detectar error 429 (quota) en gspread/APIError
-            is_retryable = (
-                "429" in err_str
-                or "quota"               in err_str.lower()
-                or "rate"                in err_str.lower()
-                or "remoteDisconnected"  in err_str
-                or "RemoteDisconnected"  in err_str
-                or "remote end closed"   in err_str.lower()
-                or "connection aborted"  in err_str.lower()
-                or "connection reset"    in err_str.lower()
-                or "timed out"           in err_str.lower()
-                or "broken pipe"         in err_str.lower()
-                or "503"                 in err_str
-                or "502"                 in err_str
-                or (hasattr(e, "response") and getattr(e.response, "status_code", 0) in (429, 500, 502, 503))
-            )
-            if is_429 and intento < MAX_RETRIES - 1:
-                delay = INITIAL_RETRY_DELAY * (2 ** intento)
-                st.toast(
-                    f"⏳ Cuota de API excedida. Reintentando en {delay}s "
-                    f"({intento + 1}/{MAX_RETRIES - 1})…",
-                    icon="⚠️"
-                )
-                time.sleep(delay)
-                last_exc = e
-                continue
-            # Otros errores o último intento agotado
-            last_exc = e
-            break
-
-    raise last_exc
-
-
-def _gs_read_sheet(hoja: str, force: bool = False) -> list:
-    """
-    Lee todos los registros de una hoja de Google Sheets.
-    - Caché en session_state con TTL diferenciado por hoja.
-    - Reintentos automáticos ante error 429 con backoff exponencial.
-    - Si falla, retorna caché aunque esté vencida (degradación suave).
-    """
-    now_ts = time.time()
-    cache_key = _gs_cache_key(hoja)
-    ts_key = _gs_cache_ts_key(hoja)
-    ttl = _gs_ttl(hoja)
-
-    # Verificar caché
-    if not force:
-        cached = st.session_state.get(cache_key)
-        cached_ts = st.session_state.get(ts_key, 0)
-        if cached is not None and (now_ts - cached_ts) < ttl:
-            return cached
-
-    _, sh = get_active_client()
-    if not sh:
-        return st.session_state.get(cache_key, [])
-
-    try:
-        def _fetch():
-            ws = _gs_get_or_create_ws(sh, hoja)
-            # default_blank="" garantiza que columnas vacías aparezcan en el dict
-            # (evita que Creado_En y otros campos vacíos se omitan del registro)
-            # numericise_ignore=[*] evita que gspread convierta fechas ISO a números
-            try:
-                return ws.get_all_records(default_blank="", numericise_ignore=["all"])
-            except TypeError:
-                # Versiones antiguas de gspread no soportan numericise_ignore
-                try:
-                    return ws.get_all_records(default_blank="")
-                except TypeError:
-                    return ws.get_all_records()
-
-        records = _gs_with_retry(_fetch, operacion=f"leer '{hoja}'")
-        st.session_state[cache_key] = records
-        st.session_state[ts_key] = now_ts
-        return records
-    except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Límite de API alcanzado leyendo '{hoja}'. Usando datos en caché.")
-        else:
-            st.warning(f"⚠️ Error leyendo '{hoja}': {e}. Usando datos en caché.")
-        return st.session_state.get(cache_key, [])
-
-
-def _gs_invalidate_cache(*hojas):
-    """Invalida el caché de las hojas indicadas para forzar recarga."""
-    for hoja in hojas:
-        ts_key = _gs_cache_ts_key(hoja)
-        if ts_key in st.session_state:
-            st.session_state[ts_key] = 0
-
-
-def _gs_val(row: dict, key: str, default="") -> str:
-    v = row.get(key, default)
-    return str(v) if v != "" else str(default)
-
-def _gs_float(row: dict, key: str, default: float = 0.0) -> float:
-    try:
-        return float(_gs_val(row, key, default))
-    except Exception:
-        return float(default)
-
-def _gs_int(row: dict, key: str, default: int = 0) -> int:
-    try:
-        return int(float(_gs_val(row, key, default)))
-    except Exception:
-        return int(default)
-
-
-def _gs_fecha_ymd(row: dict, key: str) -> str:
-    """
-    Extrae los primeros 10 caracteres (YYYY-MM-DD) de un campo de fecha en un
-    registro de Google Sheets, normalizando los formatos más comunes:
-      · ISO 8601:  "2025-04-07T14:32:11..."  → "2025-04-07"
-      · Con zona:  "2025-04-07T14:32:11-05:00" → "2025-04-07"
-      · Sheets DD/MM/YYYY: "07/04/2025 14:32" → "2025-04-07"
-      · Sheets MM/DD/YYYY: "04/07/2025"       → detectado y reordenado
-    Devuelve "" si el valor está vacío o no puede parsearse.
-    """
-    raw = _gs_val(row, key, "").strip()
-    if not raw:
-        return ""
-    # Formato ISO o con T: tomar los primeros 10 chars directamente
-    if len(raw) >= 10 and raw[4:5] == "-":
-        return raw[:10]
-    # Formato con barras (Sheets puede auto-formatear)
-    if "/" in raw:
-        parte = raw.split(" ")[0]   # quitar la parte de hora si la hay
-        partes = parte.split("/")
-        if len(partes) == 3:
-            a, b, c = partes
-            if len(c) == 4:                   # DD/MM/YYYY o MM/DD/YYYY
-                # Heurística: si a > 12 es día; si b > 12 es día
-                if int(a) > 12:               # DD/MM/YYYY
-                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
-                else:                         # asumir DD/MM/YYYY (Colombia)
-                    return f"{c}-{b.zfill(2)}-{a.zfill(2)}"
-            elif len(a) == 4:                 # YYYY/MM/DD
-                return f"{a}-{b.zfill(2)}-{c.zfill(2)}"
-    # Fallback: intentar parsear con datetime
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%d-%m-%Y", "%d-%m-%Y %H:%M"):
-        try:
-            return datetime.strptime(raw[:len(fmt)], fmt).strftime("%Y-%m-%d")
-        except ValueError:
-            continue
-    # Último recurso: los primeros 10 chars tal cual
-    return raw[:10]
-
-
-
-# ── Stub de SQLite para compatibilidad con escrituras heredadas ───────────────
-# Las lecturas ya NO usan SQLite. Se mantiene get_db() solo para compatibilidad
-# con funciones de escritura legacy que aún lo referencian. Las escrituras
-# también migrarán a Sheets-only en el futuro.
-
-def get_db():
-    """
-    DEPRECADO como fuente de datos. Se mantiene solo para escrituras legacy.
-    Toda la información se lee de Google Sheets.
-    """
-    import sqlite3 as _sqlite3
-    return _sqlite3.connect(DB_PATH, check_same_thread=False)
-
-
-def init_db():
-    """OBSOLETO — Google Sheets es la fuente de datos. Se mantiene por compatibilidad."""
-    pass
-
-
-def _restore_from_sheets() -> bool:
-    """OBSOLETO — Los datos se leen directamente desde Google Sheets."""
-    return True
-
-
-def _seed_data(cur):
-    """OBSOLETO — No se usa SQLite como almacenamiento primario."""
-    pass
-
-
-
-def _hash_pin(pin: str) -> str:
-    return hashlib.sha256(pin.encode()).hexdigest()
-
-
-# Caché en memoria para configuracion_pagos — evita round-trips innecesarios
 _config_cache: dict = {}
 _config_cache_lock = threading.Lock()
 
 
-
-
 def get_config(clave: str, default: str = "") -> str:
-    """
-    Lee configuración: caché → Google Sheets (fuente primaria).
-    """
     with _config_cache_lock:
         if clave in _config_cache:
             return _config_cache[clave]
     valor = None
-    # ── Leer desde Google Sheets ─────────────────────────────────────────────
     try:
-        rows_cfg = _gs_read_sheet("Configuracion_Pagos")
-        for r in rows_cfg:
-            if _gs_val(r, "Clave") == clave:
-                valor = _gs_val(r, "Valor", default)
-                break
+        row = _pg_exec(
+            'SELECT valor FROM configuracion_pagos WHERE clave = %s',
+            [clave], fetch="one"
+        )
+        if row:
+            valor = str(row.get("valor", default))
     except Exception:
         pass
     if valor is None:
@@ -2103,44 +2034,40 @@ def get_config(clave: str, default: str = "") -> str:
 
 
 def set_config(clave: str, valor: str):
-    """Guarda configuración en Google Sheets. Invalida caché."""
     try:
-        _, _sh = get_active_client()
-        if _sh:
-            _gs_upsert(_sh, "Configuracion_Pagos", "Clave", clave, [clave, valor])
-            _gs_invalidate_cache("Configuracion_Pagos")
+        _pg_upsert("Configuracion_Pagos", "Clave", clave, [clave, valor])
+        _gs_invalidate_cache("Configuracion_Pagos")
     except Exception:
         pass
     with _config_cache_lock:
         _config_cache[clave] = valor
 
 
+# ══════════════════════════════════════════════════════════════════════════════
+# OPERADORES (reemplaza lectura de Google Sheets)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _hash_pin(pin: str) -> str:
+    return hashlib.sha256(pin.encode()).hexdigest()
+
+
 def verificar_pin(pin: str, rol: str = None) -> bool:
-    """Verifica PIN y retorna True/False. Usa get_operador_por_pin para datos completos."""
     return get_operador_por_pin(pin, rol) is not None
 
 
 def get_operador_por_pin(pin: str, rol: str = None) -> dict:
     """
     Autentica un operador por PIN.
-
-    Orden de verificación:
-      1. Mapa de hashes en session_state  (PINs cambiados en esta sesión)
-      2. st.secrets["operadores_pins"]    (PINs configurados en secrets.toml)
-      3. PINs por defecto de seed         (bootstrap inicial: Admin=1234, etc.)
-      4. Si no hay operadores en Sheets   → acepta PIN "admin" como superusuario de emergencia
-
-    Los PINs NUNCA se almacenan en Google Sheets (seguridad).
+    PINs almacenados como hashes SHA-256 en session_state o secrets.
+    Si la tabla operadores está vacía, acepta PINs de bootstrap.
     """
     pin_hash = _hash_pin(pin)
 
-    # PINs por defecto de bootstrap (usados si Sheets aún no tiene ops configurados
-    # o si el operador no ha cambiado su PIN desde la instalación inicial)
     PINS_SEED = {
-        "Admin JJGT": "1234",
-        "Op. Mañana":  "1111",
-        "Op. Tarde":   "2222",
-        "Op. Noche":   "3333",
+        "Admin JJGT": "6789",
+        "Op. Mañana": "0001",
+        "Op. Tarde":  "0002",
+        "Op. Noche":  "0003",
     }
 
     def _build_result(r, nombre_op):
@@ -2157,12 +2084,10 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
             "permisos":          _gs_val(r, "Permisos", "reservas,pagos,voucher").split(","),
         }
 
-    # ── Leer operadores desde Google Sheets ──────────────────────────────────
-    rows = _gs_read_sheet("Operadores")
+    rows = _pg_read_table("Operadores")
     rows_activos = [r for r in rows
                     if _gs_val(r, "Activo", "1") in ("1", "True", "true", "1.0")]
 
-    # ── 1. Mapa de hashes en session_state (PINs cambiados en sesión) ─────────
     pin_hashes = st.session_state.get("_op_pin_hashes", {})
     for r in rows_activos:
         nombre = _gs_val(r, "Nombre")
@@ -2171,12 +2096,10 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
             if result:
                 return result
 
-    # ── 2. st.secrets["operadores_pins"] ─────────────────────────────────────
     try:
         pins_secrets = st.secrets.get("operadores_pins", {})
         for nombre_s, pin_s in pins_secrets.items():
             if _hash_pin(str(pin_s)) == pin_hash:
-                # Guardar en session_state para esta sesión
                 pin_hashes[nombre_s] = pin_hash
                 st.session_state["_op_pin_hashes"] = pin_hashes
                 for r in rows_activos:
@@ -2184,7 +2107,6 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                         result = _build_result(r, nombre_s)
                         if result:
                             return result
-                # Si el nombre de secrets no está en Sheets, crear entrada temporal
                 if not rol or rol == "admin":
                     return {
                         "id": "0", "nombre": nombre_s, "rol": "admin",
@@ -2195,20 +2117,15 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
     except Exception:
         pass
 
-    # ── 3. PINs de seed por defecto (bootstrap inicial) ───────────────────────
     for nombre_seed, pin_seed in PINS_SEED.items():
         if _hash_pin(pin_seed) == pin_hash:
-            # Buscar este operador en Sheets
             for r in rows_activos:
                 if _gs_val(r, "Nombre") == nombre_seed:
                     result = _build_result(r, nombre_seed)
                     if result:
-                        # Guardar hash en session_state
                         pin_hashes[nombre_seed] = pin_hash
                         st.session_state["_op_pin_hashes"] = pin_hashes
                         return result
-            # Si Sheets no tiene ese operador pero el PIN es correcto de seed,
-            # devolver datos mínimos para acceso inicial
             if nombre_seed == "Admin JJGT" and (not rol or rol == "admin"):
                 pin_hashes[nombre_seed] = pin_hash
                 st.session_state["_op_pin_hashes"] = pin_hashes
@@ -2219,11 +2136,8 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                     "permisos": ["admin","reservas","pagos","voucher","reportes","configuracion"],
                 }
 
-    # ── 4. Superusuario de emergencia si NO hay operadores en Sheets ──────────
-    # Permite acceso cuando Google Sheets aún no está configurado
     if not rows_activos:
-        # PIN de emergencia: "admin" (solo si Sheets está vacío/sin conexión)
-        if pin in ("admin", "1234", "0000"):
+        if pin in ("admin", "6789", "0000"):
             if not rol or rol == "admin":
                 return {
                     "id": "0", "nombre": "Admin (emergencia)", "rol": "admin",
@@ -2234,6 +2148,79 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
 
     return None
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STUBS DE COMPATIBILIDAD
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _restore_from_sheets() -> bool:
+    return True
+
+def _seed_data(cur):
+    pass
+
+def encolar_sync(event: dict):
+    pass
+
+def _ensure_sync_thread():
+    pass
+
+def _marcar_sync_pendiente(tabla: str, registro_id: int):
+    pass
+
+def sheets_append_row(worksheet_name: str, row_data: list) -> bool:
+    return _pg_append(worksheet_name, row_data)
+
+def sheets_upsert_row(worksheet_name, col_key, key_value, row_data):
+    return _pg_upsert(worksheet_name, col_key, key_value, row_data)
+
+def sheets_update_row(worksheet_name, col_key, key_value, update_data):
+    try:
+        for col_name, new_val in update_data.items():
+            _pg_update_col(worksheet_name, col_key, key_value, col_name, str(new_val))
+        return True
+    except Exception:
+        return False
+
+def load_data_from_sheet(client, sheet_name: str, worksheet_name: str) -> pd.DataFrame:
+    data = _pg_read_table(worksheet_name)
+    return pd.DataFrame(data) if data else pd.DataFrame()
+
+def gs_sync_factura_items(sh):
+    return True
+
+def gs_sync_operadores(sh):
+    return True
+
+def gs_sync_configuracion_pagos(sh):
+    with _config_cache_lock:
+        _config_cache.clear()
+    return True
+
+
+def sincronizacion_completa() -> dict:
+    """Verifica conexión PG y retorna conteo de registros por tabla."""
+    with _config_cache_lock:
+        _config_cache.clear()
+    conteos = {}
+    for hoja in ["Clientes", "Reservas", "Pagos", "Facturas",
+                 "Factura_items", "Cubiculos_Estado", "Tarifas_Config",
+                 "Operadores", "Configuracion_Pagos"]:
+        try:
+            data = _pg_read_table(hoja)
+            conteos[hoja] = len(data)
+        except Exception as e:
+            conteos[hoja] = f"Error: {e}"
+    _, sh = get_active_client()
+    gs_sync_dashboard(sh)
+    gs_escribir_log(sh, "sync_completa", "", "", "sistema",
+                    f"Sync completa PG: {conteos}", "exito")
+    return conteos
+
+# Variable global stub para compatibilidad con referencias residuales
+_gs_module_client      = None
+_gs_module_spreadsheet = None
+_gs_cached_creds       = None
 
 # ══════════════════════════════════════════════════════════════════════════════
 # FUNCIONES DE NEGOCIO
@@ -2254,19 +2241,19 @@ def calcular_valor(horas):
 
 def calcular_precio(horas: float, tarifa_nombre: str = None,
                     precio_override: Optional[float] = None) -> dict:
-    """Calcula precio con tarifa vigente desde Google Sheets.
+    #""" Calcula precio con tarifa vigente desde Google Sheets.
 
-    NUEVA LÓGICA:
-    - 1 hora = valor completo (ej: 15.000)
-    - 2 horas o más = 10.000 por cada hora
+    #NUEVA LÓGICA:
+    #- 1 hora = valor completo (ej: 15.000)
+    #- 2 horas o más = 10.000 por cada hora
 
-    Ejemplo:
-        1h = 15.000
-        2h = 20.000
-        3h = 30.000
-        4h = 40.000
-        ...
-    """
+    #Ejemplo:
+    #    1h = 15.000
+    #    2h = 20.000
+    #    3h = 30.000
+    #    4h = 40.000
+    #    ...
+    #"""
 
     if tarifa_nombre is None:
         hora_actual = ahora_col().hour
@@ -2389,7 +2376,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
 
 def get_cubiculos() -> list:
     """
-    Lee cubículos directamente desde Google Sheets (Cubiculos_Estado).
+    Lee cubículos directamente desde PostgreSQL (Cubiculos_Estado).
     Usa caché con TTL=30s para evitar llamadas excesivas.
     """
     rows = _gs_read_sheet("Cubiculos_Estado")
@@ -2501,7 +2488,7 @@ def generar_codigo_acceso() -> str:
 
 
 def activar_cubiculo(cubiculo_id, reserva_id, hora_fin: str):
-    """Activa cubículo actualizando estado en Google Sheets."""
+    """Activa cubículo actualizando estado en PostgreSQL."""
     try:
         _, _sh = get_active_client()
         if _sh:
@@ -2510,79 +2497,7 @@ def activar_cubiculo(cubiculo_id, reserva_id, hora_fin: str):
     except Exception:
         pass
 
-
-def liberar_cubiculo(cubiculo_id):
-    """
-    Libera el cubículo actualizando Google Sheets como fuente primaria.
-    """
-    hora_fin_real = ahora_col().isoformat()
-
-    # Obtener datos del cubículo desde Sheets
-    cubiculos_gs = _gs_read_sheet("Cubiculos_Estado")
-    num_cub = ""
-    for r in cubiculos_gs:
-        if _gs_val(r, "Cubiculo_ID") == str(cubiculo_id):
-            num_cub = _gs_val(r, "Numero")
-            break
-
-    # Buscar número de reserva activa en hoja Reservas
-    num_reserva = ""
-    reservas_gs = _gs_read_sheet("Reservas")
-    for r in reservas_gs:
-        if (_gs_val(r, "Cubiculo_Num") == num_cub and
-                _gs_val(r, "Estado_Pago") == "confirmado" and
-                not _gs_val(r, "Hora_Fin_Real")):
-            num_reserva = _gs_val(r, "Numero_Reserva")
-            break
-
-    _, sh = get_active_client()
-    if sh:
-        # Actualizar Hora_Fin_Real en hoja Reservas
-        if num_reserva:
-            try:
-                ws_r = _gs_get_or_create_ws(sh, "Reservas")
-                vals_r = ws_r.get_all_values()
-                if vals_r:
-                    hdr_r = vals_r[0]
-                    if "Hora_Fin_Real" in hdr_r and "Numero_Reserva" in hdr_r:
-                        ci_res = hdr_r.index("Numero_Reserva")
-                        ci_fin = hdr_r.index("Hora_Fin_Real")
-                        for i_r, row_r in enumerate(vals_r[1:], start=2):
-                            if len(row_r) > ci_res and str(row_r[ci_res]) == str(num_reserva):
-                                ws_r.update_cell(i_r, ci_fin + 1, hora_fin_real)
-                                break
-            except Exception:
-                pass
-        # Actualizar estado cubículo a libre en Cubiculos_Estado
-        try:
-            ws_c = _gs_get_or_create_ws(sh, "Cubiculos_Estado")
-            vals_c = ws_c.get_all_values()
-            if vals_c:
-                hdr_c = vals_c[0]
-                if "Numero" in hdr_c and "Estado" in hdr_c:
-                    ci_num = hdr_c.index("Numero")
-                    ci_est = hdr_c.index("Estado")
-                    ci_cli = hdr_c.index("Cliente_Actual") if "Cliente_Actual" in hdr_c else -1
-                    ci_ini = hdr_c.index("Hora_Inicio") if "Hora_Inicio" in hdr_c else -1
-                    ci_fin2 = hdr_c.index("Hora_Fin_Prog") if "Hora_Fin_Prog" in hdr_c else -1
-                    ci_cod = hdr_c.index("Codigo_Acceso") if "Codigo_Acceso" in hdr_c else -1
-                    ci_tr = hdr_c.index("Tiempo_Rest_Min") if "Tiempo_Rest_Min" in hdr_c else -1
-                    for i_c, row_c in enumerate(vals_c[1:], start=2):
-                        if len(row_c) > ci_num and str(row_c[ci_num]) == str(num_cub):
-                            ws_c.update_cell(i_c, ci_est + 1, "libre")
-                            if ci_cli >= 0: ws_c.update_cell(i_c, ci_cli + 1, "")
-                            if ci_ini >= 0: ws_c.update_cell(i_c, ci_ini + 1, "")
-                            if ci_fin2 >= 0: ws_c.update_cell(i_c, ci_fin2 + 1, "")
-                            if ci_cod >= 0: ws_c.update_cell(i_c, ci_cod + 1, "")
-                            if ci_tr >= 0: ws_c.update_cell(i_c, ci_tr + 1, "")
-                            break
-        except Exception:
-            pass
-        _gs_invalidate_cache("Reservas", "Cubiculos_Estado")
-
-    # gs_sync_dashboard con reconexión automática (fuera del if sh:)
-    gs_sync_dashboard(sh)
-
+# liberar_cubiculo definida en la capa PostgreSQL (ver arriba)
 
 def fmt_cop(valor: float) -> str:
     return f"${valor:,.0f}".replace(",", ".")
@@ -2683,7 +2598,7 @@ def mostrar_qr(metodo: str, monto: int, referencia: str, size: int = 300):
 
 def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
     """
-    Escribe cliente, factura e items directamente en Google Sheets.
+    Escribe cliente, factura e items directamente en PostgreSQL.
     Retorna (numero_factura, num_factura_str) — IDs son el propio número de factura.
     """
     now  = ahora_col()
@@ -2694,7 +2609,7 @@ def registrar_en_facturacion(reserva: dict, cliente: dict) -> tuple:
 
     _, sh = get_active_client()
     if not sh:
-        st.warning("⚠️ Sin conexión a Google Sheets — no se pudo registrar la factura")
+        st.warning("⚠️ Error de base de datos PostgreSQL — no se pudo registrar la factura")
         return numf, numf
 
     gs_escribir_cliente(sh, {
@@ -2758,7 +2673,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
                            acepto_datos: bool = False) -> dict:
     """
     Crea reserva, pago, factura y activa el cubículo.
-    Todo se escribe directamente en Google Sheets.
+    Todo se escribe directamente en PostgreSQL.
     """
     # Guard anti-duplicado en session_state (mismo objeto voucher)
     if (st.session_state.get("voucher") and
@@ -3137,7 +3052,7 @@ def _backup_cierre_turno(operador_info: dict):
             except Exception:
                 pass  # fallo de escritura no crítico — ya está en session_state
 
-        # Registrar en Google Sheets
+        # Registrar en PostgreSQL
         try:
             _, sh_cierre = get_active_client()
             if sh_cierre:
@@ -4005,7 +3920,7 @@ def show_confirmacion():
                 ir_a("datos")
             return
 
-        # Consulta de duplicado desde Google Sheets
+        # Consulta de duplicado desde PostgreSQL
         reserva_dup = None
         error_dup   = None
         try:
@@ -4365,38 +4280,35 @@ def show_operador_login():
 
     with st.expander("ℹ️ PINs de acceso inicial y configuración", expanded=not sh_status):
         if not sh_status:
-            st.error("⚠️ **Sin conexión a Google Sheets** — Revisa las credenciales en secrets.toml")
+            st.error("⚠️ **Sin conexión a PostgreSQL** — Verifica que el servidor esté corriendo")
             st.markdown("""
-**Para configurar la conexión:**
-1. Crea el archivo `.streamlit/secrets.toml` con:
-```toml
-[sheetsemp]
-credentials_sheet = '''{ ... JSON de tu Service Account ... }'''
-spreadsheet_id = "ID_DEL_SPREADSHEET"
-```
-2. O en Streamlit Cloud → **App Settings → Secrets**
+**Para configurar la conexión PostgreSQL:**
+1. Asegúrate de tener PostgreSQL corriendo en `localhost:5433`
+2. Crea la base de datos: `CREATE DATABASE reservas;`
+3. Edita las constantes `PG_HOST`, `PG_PORT`, `PG_USER`, `PG_PASS`, `PG_DB` al inicio del script
+4. Las tablas se crean automáticamente al iniciar la app
             """)
             st.divider()
 
-        st.markdown("**🔑 PINs por defecto (primer acceso):**")
-        st.markdown("""
-| Operador | PIN | Rol | Turno |
-|---|---|---|---|
-| **Admin JJGT** | `1234` | admin | Todos los módulos |
-| Op. Mañana | `1111` | cajero | 06:00–14:00 |
-| Op. Tarde | `2222` | cajero | 14:00–22:00 |
-| Op. Noche | `3333` | cajero | 22:00–06:00 |
-        """)
-        st.warning("⚠️ **Cambia estos PINs** en ⚙️ Configuración → Operadores tras el primer acceso.")
+#        st.markdown("**🔑 PINs por defecto (primer acceso):**")
+#        st.markdown("""
+#| Operador | PIN | Rol | Turno |
+#|---|---|---|---|
+#| **Admin JJGT** | `1234` | admin | Todos los módulos |
+#| Op. Mañana | `1111` | cajero | 06:00–14:00 |
+#| Op. Tarde | `2222` | cajero | 14:00–22:00 |
+#| Op. Noche | `3333` | cajero | 22:00–06:00 |
+#        """)
+#        st.warning("⚠️ **Cambia estos PINs** en ⚙️ Configuración → Operadores tras el primer acceso.")
 
         if not ops_gs:
             st.info(
-                "📋 **Hoja Operadores vacía** — Los PINs por defecto de arriba funcionarán "
+                "📋 **Tabla Operadores vacía** — Los PINs por defecto de arriba funcionarán "
                 "para el primer acceso. Después crea los operadores reales en ⚙️ Configuración."
             )
         else:
-            st.success(f"✅ {len(ops_gs)} operador(es) encontrado(s) en Google Sheets")
-            st.caption("Para operadores creados manualmente en Sheets, el PIN es el configurado al crearlos.")
+            st.success(f"✅ {len(ops_gs)} operador(es) encontrado(s) en PostgreSQL")
+            st.caption("Para operadores creados manualmente en PostgreSQL, el PIN es el configurado al crearlos.")
 
         if st.button("🔄 Reiniciar contador de intentos", key="btn_rst_global"):
             st.session_state.pin_intentos = 0
@@ -5164,7 +5076,7 @@ def _op_nueva_reserva():
                         "razon_social":     razon_social.strip(),
                         "nit_empresa":      nit_empresa.strip(),
                     }
-                    with st.spinner("Creando reserva y sincronizando con Google Sheets..."):
+                    with st.spinner("Creando reserva y guardando en PostgreSQL..."):
                         try:
                             voucher = crear_reserva_completa(
                                 cubiculo_sel, cliente_data, calc, metodo_pago,
@@ -5428,7 +5340,7 @@ def _op_cubiculos():
                 if estado != "mantenimiento":
                     if st.button(f"🔧 Mantenimiento {cub['numero']}",
                                  key=f"mant_{cub['id']}"):
-                        # ── 1. Google Sheets ──────────────────────────────────
+                        # ── 1. PostgreSQL ─────────────────────────────────────
                         _, sh_mant = get_active_client()
                         if sh_mant:
                             try:
@@ -5450,7 +5362,7 @@ def _op_cubiculos():
                         st.rerun()
                 else:
                     if st.button(f"✅ Listo {cub['numero']}", key=f"ok_{cub['id']}"):
-                        # ── Google Sheets ──────────────────────────────────
+                        # ── PostgreSQL ─────────────────────────────────────
                         _, sh_ok = get_active_client()
                         if sh_ok:
                             try:
@@ -5476,7 +5388,7 @@ def _op_cubiculos():
                                             key=f"wifi_{cub['id']}")
             with c4:
                 if st.button(f"💾 Guardar WiFi", key=f"swifi_{cub['id']}"):
-                    # ── Google Sheets ──────────────────────────────────────
+                    # ── PostgreSQL ─────────────────────────────────────────
                     _, sh_wifi = get_active_client()
                     if sh_wifi:
                         try:
@@ -5611,7 +5523,7 @@ def _op_pagos_pendientes():
 
 def generar_backup_diario():
     """
-    Genera un backup completo descargando todas las hojas desde Google Sheets.
+    Genera un backup completo exportando todas las tablas desde PostgreSQL.
     Retorna (bytes, filename, mimetype).
     """
     now_str = ahora_col().strftime("%Y-%m-%d_%H%M")
@@ -5942,9 +5854,9 @@ def _op_reportes():
     else:
         st.info("No hay reservas para el período seleccionado.")
 
-    # ── Descarga completa desde Google Sheets ─────────────────────────────────
+    # ── Descarga completa desde PostgreSQL ──────────────────────────────────────
     st.divider()
-    st.markdown("#### 💾 Exportar datos desde Google Sheets")
+    st.markdown("#### 💾 Exportar datos desde PostgreSQL")
     col_b1, col_b2 = st.columns(2)
     with col_b1:
         st.markdown("**Exportar todas las reservas** (histórico completo)")
@@ -5961,11 +5873,11 @@ def _op_reportes():
                     use_container_width=True
                 )
             else:
-                st.warning("No hay datos en Google Sheets para exportar.")
+                st.warning("No hay datos en PostgreSQL para exportar.")
     with col_b2:
         st.markdown("**Backup Excel** (todas las hojas desde Sheets)")
         if st.button("🗂️ Generar backup Excel ahora", use_container_width=True):
-            with st.spinner("Descargando datos desde Google Sheets..."):
+            with st.spinner("Exportando datos desde PostgreSQL..."):
                 if OPENPYXL_AVAILABLE:
                     buf = io.BytesIO()
                     hojas = ["Reservas","Pagos","Clientes","Facturas",
@@ -5995,7 +5907,7 @@ def _op_reportes():
 def _op_gestion_datos():
     """
     Módulo de gestión de datos — permite al admin eliminar registros
-    de reservas, pagos, clientes y facturas. Lee y escribe en Google Sheets.
+    de reservas, pagos, clientes y facturas. Lee y escribe en PostgreSQL.
     """
     st.markdown("### 🗑️ Gestión de Datos")
     st.warning("⚠️ **Zona de administración** — Las eliminaciones son permanentes e irreversibles.")
@@ -6009,40 +5921,19 @@ def _op_gestion_datos():
         "📋 Reservas", "👤 Clientes", "💰 Pagos", "🧾 Facturas"])
 
     def _gs_delete_row(sh, hoja, col_clave, valor_clave):
-        """Elimina una fila en Sheets buscando por col_clave == valor_clave."""
-        try:
-            ws = _gs_get_or_create_ws(sh, hoja)
-            vals = ws.get_all_values()
-            if vals and col_clave in vals[0]:
-                ci = vals[0].index(col_clave)
-                for i in range(len(vals)-1, 0, -1):
-                    if len(vals[i]) > ci and vals[i][ci] == str(valor_clave):
-                        ws.delete_rows(i + 1)
-                        break
-        except Exception:
-            pass
+        """Elimina una fila en PostgreSQL buscando por col_clave == valor_clave."""
+        _pg_delete_row(hoja, col_clave, valor_clave)
 
     def _gs_update_cell_by_key(sh, hoja, col_clave, valor_clave, col_dest, nuevo_valor):
-        """Actualiza col_dest donde col_clave == valor_clave."""
-        try:
-            ws = _gs_get_or_create_ws(sh, hoja)
-            vals = ws.get_all_values()
-            if vals and col_clave in vals[0] and col_dest in vals[0]:
-                ci = vals[0].index(col_clave)
-                cd = vals[0].index(col_dest)
-                for i, r in enumerate(vals[1:], start=2):
-                    if len(r) > ci and r[ci] == str(valor_clave):
-                        ws.update_cell(i, cd + 1, str(nuevo_valor))
-                        break
-        except Exception:
-            pass
+        """Actualiza col_dest donde col_clave == valor_clave en PostgreSQL."""
+        _pg_update_col(hoja, col_clave, valor_clave, col_dest, str(nuevo_valor))
 
     # ── RESERVAS ──────────────────────────────────────────────────────────────
     with tab_res:
         st.markdown("#### Eliminar reservas")
         reservas_gs = _gs_read_sheet("Reservas")
         if not reservas_gs:
-            st.info("No hay reservas registradas en Google Sheets.")
+            st.info("No hay reservas registradas en PostgreSQL.")
         else:
             df_r = pd.DataFrame([{
                 "Número":   _gs_val(r, "Numero_Reserva"),
@@ -6091,7 +5982,7 @@ def _op_gestion_datos():
         st.markdown("#### Eliminar clientes")
         clientes_gs = _gs_read_sheet("Clientes")
         if not clientes_gs:
-            st.info("No hay clientes registrados en Google Sheets.")
+            st.info("No hay clientes registrados en PostgreSQL.")
         else:
             df_c = pd.DataFrame([{
                 "Nombre":    _gs_val(r, "Nombre"),
@@ -6139,7 +6030,7 @@ def _op_gestion_datos():
         st.markdown("#### Eliminar / anular pagos")
         pagos_gs = _gs_read_sheet("Pagos")
         if not pagos_gs:
-            st.info("No hay pagos registrados en Google Sheets.")
+            st.info("No hay pagos registrados en PostgreSQL.")
         else:
             df_p = pd.DataFrame([{
                 "ID Pago":  _gs_val(r, "ID_Pago"),
@@ -6186,7 +6077,7 @@ def _op_gestion_datos():
         st.markdown("#### Eliminar / anular facturas")
         facturas_gs = _gs_read_sheet("Facturas")
         if not facturas_gs:
-            st.info("No hay facturas registradas en Google Sheets.")
+            st.info("No hay facturas registradas en PostgreSQL.")
         else:
             df_f = pd.DataFrame([{
                 "Número":  _gs_val(r, "Num_Factura"),
@@ -6227,173 +6118,92 @@ def _op_gestion_datos():
 
 
 def _op_google_drive():
-    """Panel de integración con Google Sheets — estado, diagnóstico y acciones."""
-    st.markdown("### ☁️ Google Drive / Google Sheets")
-    #st.markdown(f"**Archivo de datos:** `{DRIVE_FILE}`")
+    """Panel de estado de la base de datos PostgreSQL (reemplaza Google Sheets)."""
+    st.markdown("### 🐘 Base de Datos PostgreSQL")
 
     # ── Estado de la conexión ─────────────────────────────────────────────────
-    _, sh_now = _get_module_level_client()
-    sid_saved = get_config("drive_spreadsheet_id", "")
-    global _gs_cached_creds
-
-    if sh_now and sid_saved:
-        drive_url = f"https://docs.google.com/spreadsheets/d/{sid_saved}/edit"
-        st.success(f"✅ **Conectado** a `{sh_now.title}`")
-        #st.markdown(
-            #f'🔗 <a href="{drive_url}" target="_blank" style="color:#00d4ff">'
-            #f'Abrir {sh_now.title} en Google Sheets ↗</a>',
-            #unsafe_allow_html=True)
-        st.info("🔄 **Sincronización automática activa** — cada reserva, pago y "
-                "liberación se inserta en Google Sheets en tiempo real.")
-    else:
-        st.warning("⚠️ Sin conexión activa a Google Sheets.")
-
-        # Diagnóstico de credenciales
-        with st.expander("🔍 Diagnóstico de credenciales"):
-            st.markdown("**Verificando fuentes de credenciales:**")
-
-            # Test 1: st.secrets
-            try:
-                raw = st.secrets["sheetsemp"]["credentials_sheet"]
-                st.success("✅ `st.secrets['sheetsemp']['credentials_sheet']` — encontrado")
-                try:
-                    c = _normalize_creds(raw)
-                    if "private_key" in c and "client_email" in c:
-                        st.success(f"✅ Credenciales válidas — `{c.get('client_email','?')}`")
-                    else:
-                        st.error(f"❌ Credenciales incompletas — faltan campos: "
-                                 f"{'private_key ' if 'private_key' not in c else ''}"
-                                 f"{'client_email' if 'client_email' not in c else ''}")
-                except Exception as e:
-                    st.error(f"❌ Error parseando credenciales: {e}")
-            except Exception as e:
-                st.warning(f"⚠️ `st.secrets` no disponible o incompleto: {e}")
-
-            # Test 2: secrets.toml
-            toml_paths = [
-                ".streamlit/secrets.toml",
-                os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             ".streamlit", "secrets.toml"),
-            ]
-            for tp in toml_paths:
-                exists = os.path.isfile(tp)
-                icon = "✅" if exists else "❌"
-                st.markdown(f"{icon} `{tp}` — {'existe' if exists else 'NO existe'}")
-                if exists and TOML_AVAILABLE:
-                    try:
-                        with open(tp, "r", encoding="utf-8") as _tf:
-                            _cfg = toml_lib.load(_tf)
-                        _raw = _cfg.get("sheetsemp", {}).get("credentials_sheet")
-                        if _raw:
-                            _c = _normalize_creds(_raw)
-                            if "private_key" in _c and "client_email" in _c:
-                                st.success(f"  ✅ JSON válido en `{tp}` — `{_c.get('client_email','?')}`")
-                            else:
-                                st.warning(f"  ⚠️ `{tp}` encontrado pero credenciales incompletas")
-                        else:
-                            st.warning(f"  ⚠️ `{tp}` existe pero falta [sheetsemp].credentials_sheet")
-                    except KeyError as _e:
-                        st.error(f"  🔑 Clave faltante en `{tp}`: {_e}")
-                    except Exception as _e:
-                        st.error(f"  ❌ Error leyendo `{tp}`: {_e}")
-                elif exists and not TOML_AVAILABLE:
-                    st.info("  💡 Instala toml para validar el contenido: pip install toml")
-
-            # Test 3: Spreadsheet ID
-            sid_diag = get_config("drive_spreadsheet_id", "")
-            if sid_diag:
-                st.success(f"✅ Spreadsheet ID configurado: `{sid_diag}`")
-            else:
-                st.error("❌ Spreadsheet ID no configurado — ve a ⚙️ Configuración → Google Sheets")
-
-            # Botón para forzar re-intento
-            if st.button("🔄 Reintentar conexión ahora", key="retry_conn"):
-                _gs_cached_creds = None  # invalidar caché
-                global _gs_module_client, _gs_module_spreadsheet  # noqa
-                _gs_module_client = None
-                _gs_module_spreadsheet = None
-                st.rerun()
+    try:
+        conn = get_pg_conn()
+        conn.close()
+        st.success(
+            f"✅ **Conectado** a PostgreSQL · "
+            f"`{PG_USER}@{PG_HOST}:{PG_PORT}/{PG_DB}`"
+        )
+        st.info("🔄 **Escritura directa activa** — cada reserva, pago y "
+                "liberación se persiste en PostgreSQL en tiempo real.")
+    except Exception as e:
+        st.error(f"❌ Sin conexión a PostgreSQL: {e}")
+        st.markdown(f"""
+**Verifica:**
+- Host: `{PG_HOST}` · Puerto: `{PG_PORT}`
+- Usuario: `{PG_USER}` · Base de datos: `{PG_DB}`
+- Que el servidor PostgreSQL esté corriendo
+- Instala el driver: `pip install psycopg2-binary`
+        """)
 
     st.divider()
 
     # ── Acciones manuales ─────────────────────────────────────────────────────
     col_s1, col_s2 = st.columns(2)
     with col_s1:
-        if st.button("🔄 Recargar todos los datos desde Sheets", type="primary",
+        if st.button("🔄 Reinicializar tablas", type="primary",
                      use_container_width=True):
-            with st.spinner("Recargando datos desde Google Sheets..."):
-                _gs_invalidate_cache(
-                    "Cubiculos_Estado", "Reservas", "Pagos", "Clientes",
-                    "Facturas", "Factura_items", "Operadores",
-                    "Configuracion_Pagos", "Tarifas_Config", "Dashboard_Diario"
-                )
-                with _config_cache_lock:
-                    _config_cache.clear()
-                # Forzar precarga
-                cubiculos_now = get_cubiculos()
-                st.success(f"✅ Datos recargados — {len(cubiculos_now)} cubículos disponibles")
-                st.rerun()
+            with st.spinner("Verificando/creando tablas en PostgreSQL..."):
+                try:
+                    init_db()
+                    cubiculos_now = get_cubiculos()
+                    st.success(f"✅ Tablas listas — {len(cubiculos_now)} cubículos disponibles")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
     with col_s2:
         if st.button("🔍 Verificar conexión", use_container_width=True):
-            with st.spinner("Probando conexión..."):
-                _reset_gs_cache()
-                _, sh_test = _get_module_level_client()
-                if sh_test:
-                    st.success(f"✅ Conectado a **{sh_test.title}** — Sheets activo")
-                else:
-                    st.error("❌ Sin conexión — revisa las credenciales en Configuración")
+            with st.spinner("Probando conexión PostgreSQL..."):
+                try:
+                    conn = get_pg_conn()
+                    conn.close()
+                    st.success("✅ Conexión PostgreSQL activa")
+                except Exception as e:
+                    st.error(f"❌ Sin conexión: {e}")
 
-    # ── Estado actual de Google Sheets ────────────────────────────────────────
+    # ── Resumen de datos ──────────────────────────────────────────────────────
     st.divider()
-    st.markdown("#### 📊 Estado actual en Google Sheets")
-    if st.button("🔎 Ver resumen de datos en Sheets", use_container_width=True):
-        with st.spinner("Consultando Google Sheets..."):
+    st.markdown("#### 📊 Registros en PostgreSQL")
+    if st.button("🔎 Ver resumen de datos", use_container_width=True):
+        with st.spinner("Consultando PostgreSQL..."):
             resumen = {}
             for hoja in ["Cubiculos_Estado","Clientes","Reservas","Pagos","Facturas","Operadores"]:
                 try:
-                    data_h = _gs_read_sheet(hoja, force=True)
+                    data_h = _pg_read_table(hoja)
                     resumen[hoja] = len(data_h)
-                except Exception:
-                    resumen[hoja] = "Error"
+                except Exception as e:
+                    resumen[hoja] = f"Error: {e}"
             st.json(resumen)
-            n_ops = resumen.get("Operadores", 0)
-            if isinstance(n_ops, int) and n_ops > 0:
-                st.caption(
-                    "⚠️ Operadores creados desde Sheets tienen PIN `1234` por defecto. "
-                    "Cámbialo en ⚙️ → Operadores."
-                )
+
+    # ── Consultar tabla ───────────────────────────────────────────────────────
+    st.divider()
+    st.markdown("#### 📊 Consultar tabla")
+    hoja_sel = st.selectbox("Seleccionar tabla:", list(DRIVE_SHEETS.keys()),
+                            key="pg_tabla_sel")
+    if st.button("🔄 Cargar datos", use_container_width=True):
+        with st.spinner(f"Cargando '{hoja_sel}'..."):
+            data_pg = _pg_read_table(hoja_sel)
+            if not data_pg:
+                st.info(f"La tabla '{hoja_sel}' está vacía.")
+            else:
+                df_pg = pd.DataFrame(data_pg)
+                st.success(f"✅ {len(df_pg)} filas en '{hoja_sel}'")
+                st.dataframe(df_pg, use_container_width=True, hide_index=True)
+                csv_pg = df_pg.to_csv(index=False).encode()
+                st.download_button(
+                    f"📥 Descargar {hoja_sel}.csv",
+                    data=csv_pg,
+                    file_name=f"pg_{hoja_sel.lower()}_{ahora_col().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True)
 
     st.divider()
-
-    # ── Cargar datos desde Google Sheets ─────────────────────────────────────
-    st.markdown("#### 📊 Consultar datos en Google Sheets")
-    if sh_now:
-        hoja_sel = st.selectbox("Ver hoja:", list(DRIVE_SHEETS.keys()),
-                                key="gs_hoja_sel")
-        if st.button("🔄 Cargar datos", use_container_width=True):
-            with st.spinner(f"Cargando hoja '{hoja_sel}'..."):
-                client_gs, sh_gs = get_active_client()
-                if not client_gs:
-                    st.error("❌ Sin conexión a Google Sheets. Verifica las credenciales.")
-                else:
-                    df_gs = load_data_from_sheet(client_gs, DRIVE_FILE, hoja_sel)
-                    if df_gs.empty:
-                        st.info(f"La hoja '{hoja_sel}' está vacía.")
-                    else:
-                        st.success(f"✅ {len(df_gs)} filas cargadas desde '{hoja_sel}'")
-                        st.dataframe(df_gs, use_container_width=True, hide_index=True)
-                        csv_gs = df_gs.to_csv(index=False).encode()
-                        st.download_button(
-                            f"📥 Descargar {hoja_sel}.csv",
-                            data=csv_gs,
-                            file_name=f"jjgt_{hoja_sel.lower()}_{ahora_col().strftime('%Y%m%d')}.csv",
-                            mime="text/csv",
-                            use_container_width=True)
-    else:
-        st.info("Configura las credenciales primero para consultar los datos.")
-
-    st.divider()
-    st.markdown("**Hojas sincronizadas en `jjgt_pagos`:**")
+    st.markdown("**Tablas en la base de datos `reservas`:**")
     for nombre, cols in DRIVE_SHEETS.items():
         st.markdown(f"- **{nombre}** · {len(cols)} columnas: "
                     f"`{', '.join(cols[:5])}`{'...' if len(cols) > 5 else ''}")
@@ -6401,7 +6211,7 @@ def _op_google_drive():
 
 def _op_configuracion():
     st.markdown("### ⚙️ Configuración del Sistema")
-    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🔗 Google Sheets"])
+    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🐘 PostgreSQL"])
     # Constantes compartidas entre tabs
     _TURNOS            = ["mañana","tarde","noche","diurno","admin"]
     _TURNO_HORAS       = {
@@ -6477,7 +6287,7 @@ def _op_configuracion():
             } for r in tfs_gs])
             st.dataframe(df_t, use_container_width=True, hide_index=True)
         else:
-            st.info("No hay tarifas configuradas en Google Sheets.")
+            st.info("No hay tarifas configuradas en PostgreSQL.")
 
     with tabs[3]:
         st.markdown("#### 👥 Gestión de Operadores")
@@ -6636,99 +6446,47 @@ def _op_configuracion():
 
 
     with tabs[4]:
-        st.markdown("#### 🔗 Credenciales Google Sheets")
-        st.markdown("""
-        La aplicación se conecta al archivo correspondiente en Google Sheets para sincronización automática.
-        """)
+        st.markdown("#### 🐘 Configuración PostgreSQL")
+        st.markdown("La aplicación usa PostgreSQL como fuente primaria de datos.")
 
-        # ── Entorno de ejecución ───────────────────────────────────────────
-        # _IS_CLOUD se definió a nivel de módulo al inicio
-        entorno = "☁️ Streamlit Cloud" if _IS_CLOUD else "💻 Ejecución local"
-        st.info(f"**Entorno detectado:** {entorno}")
-
-        # ── Estado actual de la conexión ───────────────────────────────────
-        _, sh_status = _get_module_level_client()
-        if sh_status:
-            sid_actual = get_config("drive_spreadsheet_id","")
-            drive_url_conf = f"https://docs.google.com/spreadsheets/d/{sid_actual}/edit"
-            st.success(f"✅ Conectado a **{sh_status.title}**")
-            #st.markdown(f'🔗 <a href="{drive_url_conf}" target="_blank">Abrir {sh_status.title} en Google Sheets</a>',
-            #            unsafe_allow_html=True)
-        else:
-            st.warning("⚠️ Sin conexión activa a Google Sheets")
+        # ── Estado actual ───────────────────────────────────────────────────
+        try:
+            conn = get_pg_conn()
+            conn.close()
+            st.success(f"✅ Conectado a `{PG_USER}@{PG_HOST}:{PG_PORT}/{PG_DB}`")
+        except Exception as e:
+            st.error(f"❌ Sin conexión: {e}")
 
         st.divider()
+        st.markdown("**Parámetros de conexión actuales:**")
+        col_pg1, col_pg2 = st.columns(2)
+        with col_pg1:
+            st.code(f"Host:     {PG_HOST}\nPuerto:   {PG_PORT}\nUsuario:  {PG_USER}\nBase de datos: {PG_DB}", language="ini")
+        with col_pg2:
+            st.markdown("""
+**Para cambiar la conexión**, edita las constantes al inicio del script:
+```python
+PG_HOST = "localhost"
+PG_PORT = 5433
+PG_USER = "postgres"
+PG_PASS = "123456"
+PG_DB   = "reservas"
+```
+            """)
 
-        # ── Configurar Spreadsheet ID ──────────────────────────────────────
-        #st.markdown("**ID del Spreadsheet `jjgt_pagos`**")
-        #sid_input = st.text_input("Spreadsheet ID",
-        #                           value=get_config("drive_spreadsheet_id",""),
-        #                           placeholder="1abc...xyz",
-        #                           help="El ID aparece en la URL del archivo: docs.google.com/spreadsheets/d/**ID**/edit")
-        #if st.button("💾 Guardar Spreadsheet ID", use_container_width=True):
-        #    if sid_input.strip():
-        #        set_config("drive_spreadsheet_id", sid_input.strip())
-        #        global _gs_module_spreadsheet  # noqa
-        #        _gs_module_spreadsheet = None
-        #        st.success("✅ Spreadsheet ID guardado. Reconectando...")
-        #        st.rerun()
-        #    else:
-        #        st.error("El ID no puede estar vacío")
+        st.divider()
+        if st.button("🔄 Recrear tablas faltantes", type="primary", use_container_width=True):
+            with st.spinner("Inicializando tablas PostgreSQL..."):
+                try:
+                    init_db()
+                    st.success("✅ Todas las tablas verificadas/creadas en PostgreSQL")
+                except Exception as e:
+                    st.error(f"❌ Error: {e}")
 
-        #st.divider()
-
-        # ── Instrucciones según entorno ────────────────────────────────────
-        #if _IS_CLOUD:
-        #    st.markdown("""
-        #    **📋 Configuración para Streamlit Cloud:**
-
-        #    En la app de Streamlit Cloud → **Settings → Secrets**, agrega:
-        #    ```toml
-        #    [sheetsemp]
-        #    credentials_sheet = '''
-        #   {
-        #      "type": "service_account",
-        #      "project_id": "...",
-        #      "private_key_id": "...",
-        #      "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n",
-        #      "client_email": "...@....iam.gserviceaccount.com",
-        #      ...
-        #    }
-        #    '''
-        #    spreadsheet_id = "ID_DE_TU_SPREADSHEET"
-        #    ```
-        #    """)
-        #else:
-        #    st.markdown("""
-        #    **📋 Configuración para ejecución local:**
-
-        #    Crea el archivo `.streamlit/secrets.toml` con:
-        #    ```toml
-        #    [sheetsemp]
-        #    credentials_sheet = '''{ ... JSON de tu Service Account ... }'''
-        #    spreadsheet_id = "ID_DE_TU_SPREADSHEET"
-        #    ```
-
-        #    O simplemente coloca `credentials.json` en el directorio raíz del proyecto.
-        #    """)
-
-        #    # Subir credentials.json localmente
-        #    st.markdown("**O sube tu archivo credentials.json directamente:**")
-        #    creds_file = st.file_uploader("credentials.json", type=["json"])
-        #    if creds_file:
-        #        creds_path = "credentials.json"
-        #        with open(creds_path, "wb") as f:
-        #            f.write(creds_file.read())
-        #        set_config("drive_credentials_path", creds_path)
-        #        global _gs_module_client  # noqa
-        #        _gs_module_client = None
-        #        _gs_module_spreadsheet = None  # noqa
-        #        try:
-        #            st.session_state._gs_client = None
-        #        except Exception:
-        #            pass
-        #        st.success("✅ credentials.json guardado. Reconectando...")
-        #        st.rerun()
+        st.divider()
+        st.markdown("**Tablas en la base de datos `reservas`:**")
+        for nombre, cols in DRIVE_SHEETS.items():
+            st.markdown(f"- **{nombre}** · {len(cols)} columnas")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -6737,23 +6495,15 @@ def _op_configuracion():
 
 def main():
     init_state()
-    # Verificar conexión a Google Sheets al arrancar
-    if GSPREAD_AVAILABLE:
-        try:
-            _, sh_check = get_active_client()
-            if not sh_check:
-                st.warning(
-                    "⚠️ **Sin conexión a Google Sheets.** "
-                    "Configura las credenciales en ⚙️ Configuración → Google Sheets. "
-                    "Sin esta conexión la app no podrá mostrar ni guardar datos."
-                )
-        except Exception as _conn_err:
-            # Error de red transitorio al arrancar — no bloquear la UI
-            st.toast(
-                f"⚠️ Conexión a Google Sheets inestable al arrancar. "
-                "La app reintentará en la siguiente operación.",
-                icon="🔄"
-            )
+    # Verificar conexión a PostgreSQL al arrancar
+    try:
+        init_db()
+    except Exception as _pg_err:
+        st.warning(
+            f"⚠️ **Error conectando a PostgreSQL:** {_pg_err}. "
+            "Verifica que el servidor esté corriendo y las credenciales sean correctas. "
+            "Ve a ⚙️ Configuración → PostgreSQL para más información."
+        )
     _ensure_sync_thread()  # stub de compatibilidad
 
     pantalla = st.session_state.pantalla
