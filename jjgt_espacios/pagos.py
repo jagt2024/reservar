@@ -979,7 +979,7 @@ INITIAL_RETRY_DELAY = 0
 #
 #   [postgres]
 #   host     = "db.xxxxxxxxxxxx.supabase.co"
-#   port     = 5433
+#   port     = 5432
 #   user     = "postgres"
 #   password = "tu_password_supabase"
 #   dbname   = "postgres"
@@ -988,7 +988,7 @@ INITIAL_RETRY_DELAY = 0
 def _read_pg_secrets():
     """Lee credenciales PG desde st.secrets o variables de entorno."""
     _host = "localhost"
-    _port = 5433
+    _port = 5432
     _user = "postgres"
     _pass = "123456"
     _db   = "reservas"
@@ -1048,22 +1048,56 @@ except ImportError:
         # Streamlit esté listo. El error se muestra en init_db().
 
 
+def _resolve_ipv4(hostname: str) -> str:
+    """
+    Resuelve un hostname a su primera direccion IPv4.
+    Streamlit Cloud bloquea IPv6; Supabase a veces resuelve a IPv6 primero.
+    Si no hay IPv4 disponible, retorna el hostname original.
+    """
+    import socket
+    try:
+        results = socket.getaddrinfo(hostname, None, socket.AF_INET)
+        if results:
+            return results[0][4][0]  # primera IPv4
+    except Exception:
+        pass
+    return hostname
+
+
 def get_pg_conn():
     """Retorna una conexion nueva a PostgreSQL. Siempre usar en bloque with/try-finally."""
     if not PSYCOPG2_AVAILABLE:
         raise RuntimeError("psycopg2 no disponible")
-    # Re-lee secrets en cada llamada para soportar cambios en caliente y
-    # asegurarse de que st.secrets ya este inicializado por Streamlit.
     _dsn_or_host = _read_pg_secrets()
-    if _dsn_or_host[5]:   # DATABASE_URL
+
+    if _dsn_or_host[5]:   # DATABASE_URL completa
         return psycopg2.connect(_dsn_or_host[0], sslmode="require")
+
     _host, _port, _user, _pass, _db, _ = _dsn_or_host
+
+    # Supabase: si el puerto es 5432 (directo), preferir el pooler en 6543
+    # que garantiza IPv4. Si el usuario ya configuro 6543, se respeta.
+    # El pooler usa usuario con sufijo "#project_ref" — NO aplica aqui porque
+    # psycopg2 se conecta por host; el host del pooler es diferente:
+    #   db.xxxx.supabase.co        -> puerto 5432 (puede ser IPv6)
+    #   aws-0-us-east-1.pooler.supabase.com -> puerto 6543 (IPv4, Session mode)
+    # La forma mas simple y compatible es resolver el hostname a IPv4.
+    _host_resolved = _resolve_ipv4(_host)
+
+    # Puerto 6543 = Supavisor session pooler de Supabase (IPv4 garantizado).
+    # Si el usuario configuro explicitamente otro puerto, se respeta.
+    _port_final = _port
+    if _port == 5432 and "supabase" in _host.lower():
+        _port_final = 6543
+
     return psycopg2.connect(
-        host=_host, port=_port,
-        user=_user, password=_pass,
+        host=_host_resolved,
+        port=_port_final,
+        user=_user,
+        password=_pass,
         dbname=_db,
-        sslmode="require",        # Supabase requiere SSL
-        connect_timeout=10,
+        sslmode="require",
+        connect_timeout=15,
     )
 
 
