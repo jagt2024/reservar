@@ -1319,7 +1319,7 @@ def init_db():
             "Agrega esto a tu `requirements.txt`:\n```\npsycopg2-binary\n```\n"
             "O instala localmente: `pip install psycopg2-binary`"
         )
-    st.stop()   # ← detiene la app limpiamente con mensaje visible
+        st.stop()   # ← detiene la app limpiamente con mensaje visible
     try:
         conn = get_pg_conn()
         with conn:
@@ -3081,8 +3081,7 @@ def _backup_cierre_turno(operador_info: dict):
         pass
 
 
-init_state()
-
+#init_state()
 
 def ir_a(pantalla: str):
     # Al navegar fuera de confirmación, liberar el lock de procesamiento
