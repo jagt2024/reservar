@@ -6585,8 +6585,8 @@ def _op_configuracion():
             st.code(f"Host:     {PG_HOST}\nPuerto:   {PG_PORT}\nUsuario:  {PG_USER}\nBase de datos: {PG_DB}", language="ini")
         with col_pg2:
             #st.markdown("""
-**Para cambiar la conexión**, edita las constantes al inicio del script:
-```python
+#**Para cambiar la conexión**, edita las constantes al inicio del script:
+#```python
 #PG_HOST = "localhost"
 #PG_PORT = 5433
 #PG_USER = "postgres"
