@@ -1046,27 +1046,24 @@ def _read_pg_secrets():
     # 4. Fallback
     print("⚠️ Usando fallback localhost")
 
-    return _build_url(
-        "localhost",
-        5433,
-        "postgres",
-        "123456",
-        "reservas"
-    ), False
+    return "", False
+
+    #return _build_url(
+    #    "localhost",
+    #    5433,
+    #    "postgres",
+    #    "123456",
+    #    "reservas"
+    #), False
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
-# Exponer constantes de solo lectura para mostrar en UI (sin password)
-import urllib.parse as _urlparse
-try:
-    _pg_parsed = _urlparse.urlparse(_pg_conn_url)
-    PG_HOST = _pg_parsed.hostname or "localhost"
-    PG_PORT = _pg_parsed.port or 5432
-    PG_USER = _pg_parsed.username or "postgres"
-    PG_PASS = ""
-    PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
-except Exception:
-    PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB = "?", 0, "?", "?", "?"
+
+PG_HOST = "Supabase"
+PG_PORT = 5432
+PG_USER = "Supabase User"
+PG_PASS = ""
+PG_DB   = "postgres"
 
 try:
     import psycopg2
@@ -1102,10 +1099,14 @@ def _resolve_ipv4(hostname: str) -> str:
 
 @st.cache_resource
 def get_pg_conn():
-    dsn, _ = _read_pg_secrets()
+
+    DATABASE_URL = st.secrets["postgres"]["url"]
+
+    print("DATABASE_URL:", DATABASE_URL)
 
     return psycopg2.connect(
-        dsn,
+        DATABASE_URL,
+        sslmode="require",
         connect_timeout=15
     )
 
@@ -6583,16 +6584,16 @@ def _op_configuracion():
         with col_pg1:
             st.code(f"Host:     {PG_HOST}\nPuerto:   {PG_PORT}\nUsuario:  {PG_USER}\nBase de datos: {PG_DB}", language="ini")
         with col_pg2:
-            st.markdown("""
+            #st.markdown("""
 **Para cambiar la conexión**, edita las constantes al inicio del script:
 ```python
-PG_HOST = "localhost"
-PG_PORT = 5433
-PG_USER = "postgres"
-PG_PASS = "123456"
-PG_DB   = "reservas"
-```
-            """)
+#PG_HOST = "localhost"
+#PG_PORT = 5433
+#PG_USER = "postgres"
+#PG_PASS = "123456"
+#PG_DB   = "reservas"
+#```
+#            """)
 
         st.divider()
         if st.button("🔄 Recrear tablas faltantes", type="primary", use_container_width=True):
