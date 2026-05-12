@@ -1011,11 +1011,13 @@ def _read_pg_secrets():
 
     # 1. URL completa en secrets (mas simple, recomendado para Supabase)
     try:
-        _url = st.secrets.get("postgres", {}).get("url", "")
-        if _url:
-            return _url, True
-    except Exception:
-        pass
+        if "postgres" in st.secrets:
+            if "url" in st.secrets["postgres"]:
+                _url = str(st.secrets["postgres"]["url"]).strip()
+                if _url:
+                    return _url, True
+    except Exception as e:
+    print("Error leyendo secrets postgres:", e)
 
     # 2. DATABASE_URL como variable de entorno
     _env_url = os.environ.get("DATABASE_URL", "")
@@ -1047,7 +1049,9 @@ def _read_pg_secrets():
         ), True
 
     # 5. Fallback local (desarrollo)
+    print("SECRETS:", dict(st.secrets))
     return _build_url("localhost", 5433, "postgres", "123456", "reservas"), False
+    print("POSTGRES:", st.secrets.get("postgres"))
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
