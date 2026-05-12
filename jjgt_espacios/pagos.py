@@ -1034,7 +1034,7 @@ def _read_pg_secrets():
             if host:
                 return _build_url(
                     host,
-                    int(pg.get("port", 5433)),
+                    int(pg.get("port", 5432)),
                     pg.get("user"),
                     pg.get("password"),
                     pg.get("dbname", "postgres")
@@ -1050,7 +1050,7 @@ def _read_pg_secrets():
         "localhost",
         5433,
         "postgres",
-        "***",
+        "123456",
         "reservas"
     ), False
 
@@ -1061,7 +1061,7 @@ import urllib.parse as _urlparse
 try:
     _pg_parsed = _urlparse.urlparse(_pg_conn_url)
     PG_HOST = _pg_parsed.hostname or "localhost"
-    PG_PORT = _pg_parsed.port or 5433
+    PG_PORT = _pg_parsed.port or 5432
     PG_USER = _pg_parsed.username or "postgres"
     PG_PASS = ""
     PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
