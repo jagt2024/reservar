@@ -977,13 +977,13 @@ INITIAL_RETRY_DELAY = 0
 # Lee desde st.secrets["postgres"] si existe, con fallback a valores locales.
 # En Streamlit Cloud / Supabase configura el bloque [postgres] en Secrets:
 #
-#   [postgres]
-#   host     = "db.xxxxxxxxxxxx.supabase.co"
-#   port     = 5432
-#   user     = "postgres"
-#   password = "tu_password_supabase"
-#   dbname   = "postgres"
-#
+#[postgres]
+#host     = "localhost"
+#port     = 5433
+#user     = "postgres"
+#password = "123456"
+#dbname   = "reservas"
+
 # También acepta DATABASE_URL como variable de entorno (formato psycopg2).
 
 def _read_pg_secrets():
@@ -1046,15 +1046,13 @@ def _read_pg_secrets():
     # 4. Fallback
     print("⚠️ Usando fallback localhost")
 
-    return "", False
-
-    #return _build_url(
-    #    "localhost",
-    #    5433,
-    #    "postgres",
-    #    "123456",
-    #    "reservas"
-    #), False
+    return _build_url(
+        "localhost",
+        5433,
+        "postgres",
+        "123456",
+        "reservas"
+    ), False
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
@@ -1079,6 +1077,20 @@ except ImportError:
         PSYCOPG2_AVAILABLE = False
         # No llamar st.error() aquí — a nivel de módulo falla antes de que
         # Streamlit esté listo. El error se muestra en init_db().
+
+# ── TEST TEMPORAL DE CONEXIÓN ── borrar después ──
+import streamlit as st
+_test_url = st.secrets["postgres"]["url"]
+st.code(f"URL cargada: {_test_url[:30]}...{_test_url[-20:]}")
+try:
+    import psycopg2
+    _c = psycopg2.connect(_test_url)
+    st.success("✅ Conexión exitosa")
+    _c.close()
+except Exception as _e:
+    st.error(f"❌ Error: {_e}")
+st.stop()
+# ── FIN TEST ──
 
 
 def _resolve_ipv4(hostname: str) -> str:
