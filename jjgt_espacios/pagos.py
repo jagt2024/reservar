@@ -6584,7 +6584,7 @@ def _op_configuracion():
         with col_pg1:
             st.code(f"Host:     {PG_HOST}\nPuerto:   {PG_PORT}\nUsuario:  {PG_USER}\nBase de datos: {PG_DB}", language="ini")
         with col_pg2:
-            #st.markdown("""
+#            st.markdown("""
 #**Para cambiar la conexión**, edita las constantes al inicio del script:
 #```python
 #PG_HOST = "localhost"
@@ -6595,7 +6595,7 @@ def _op_configuracion():
 #```
 #            """)
 
-        st.divider()
+#        st.divider()
         if st.button("🔄 Recrear tablas faltantes", type="primary", use_container_width=True):
             with st.spinner("Inicializando tablas PostgreSQL..."):
                 try:
