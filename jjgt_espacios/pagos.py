@@ -985,6 +985,7 @@ INITIAL_RETRY_DELAY = 0
 #   dbname   = "postgres"
 #
 # También acepta DATABASE_URL como variable de entorno (formato psycopg2).
+
 def _read_pg_secrets():
     import urllib.parse
     import os
@@ -1099,17 +1100,20 @@ def _resolve_ipv4(hostname: str) -> str:
     return hostname
 
 
+@st.cache_resource
 def get_pg_conn():
-    """
-    Retorna una conexion nueva a PostgreSQL.
-    Siempre usar en bloque with/try-finally para cerrarla correctamente.
-    """
-    if not PSYCOPG2_AVAILABLE:
-        raise RuntimeError("psycopg2 no disponible")
-    # _read_pg_secrets() retorna (dsn_url, is_remote); la URL ya incluye
-    # sslmode y connect_timeout, y el host esta sanitizado (sin @).
     dsn, _ = _read_pg_secrets()
-    return psycopg2.connect(dsn)
+
+    return psycopg2.connect(
+        dsn,
+        connect_timeout=15
+    )
+
+try:
+    conn = get_pg_conn()
+    st.success("Conectado")
+except Exception as e:
+    st.error(str(e))
 
 
 def _pg_exec(sql: str, params=None, fetch: str = None):
