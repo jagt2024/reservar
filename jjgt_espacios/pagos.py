@@ -986,51 +986,82 @@ INITIAL_RETRY_DELAY = 0
 #
 # También acepta DATABASE_URL como variable de entorno (formato psycopg2).
 def _read_pg_secrets():
-    """Lee credenciales PG desde st.secrets o variables de entorno."""
-    _host = "localhost"
-    _port = 5432
-    _user = "postgres"
-    _pass = "123456"
-    _db   = "reservas"
+    """
+    Lee credenciales PG y retorna siempre una URL de conexion completa (DSN).
+    Orden de prioridad:
+      1. st.secrets["postgres"]["url"]  <- URL completa (recomendado Supabase)
+      2. DATABASE_URL env var
+      3. st.secrets["postgres"] con campos separados host/port/user/password/dbname
+      4. Variables de entorno PG_HOST / PG_PASS / etc.
+      5. Fallback local
+    Retorna: (dsn_url: str, is_remote: bool)
+    """
+    import urllib.parse
 
-    # 1. Variable de entorno DATABASE_URL (Railway, Render, etc.)
-    _db_url = os.environ.get("DATABASE_URL", "")
-    if _db_url:
-        # psycopg2 acepta la URL directamente; la retornamos como dsn especial
-        return _db_url, None, None, None, None, True  # (dsn, _, _, _, _, is_url)
+    def _build_url(host, port, user, password, dbname):
+        # urllib.parse.quote garantiza que caracteres especiales en password
+        # no rompan la URL y que el host nunca se trate como socket Unix.
+        safe_user = urllib.parse.quote(str(user), safe="")
+        safe_pass = urllib.parse.quote(str(password), safe="")
+        safe_host = str(host).strip().lstrip("@")
+        return (
+            f"postgresql://{safe_user}:{safe_pass}@{safe_host}:{port}/{dbname}"
+            f"?sslmode=require&connect_timeout=15"
+        )
 
-    # 2. st.secrets["postgres"] (Streamlit Cloud / Supabase vía Secrets)
+    # 1. URL completa en secrets (mas simple, recomendado para Supabase)
+    try:
+        _url = st.secrets.get("postgres", {}).get("url", "")
+        if _url:
+            return _url, True
+    except Exception:
+        pass
+
+    # 2. DATABASE_URL como variable de entorno
+    _env_url = os.environ.get("DATABASE_URL", "")
+    if _env_url:
+        return _env_url, True
+
+    # 3. Campos separados en st.secrets["postgres"]
     try:
         _pg = st.secrets.get("postgres", {})
-        if _pg:
-            _host = _pg.get("host", _host)
-            _port = int(_pg.get("port", _port))
-            _user = _pg.get("user", _user)
-            _pass = _pg.get("password", _pass)
-            _db   = _pg.get("dbname", _db)
+        if _pg and _pg.get("host"):
+            _host = str(_pg.get("host", "")).strip().lstrip("@")
+            _port = int(_pg.get("port", 6543))
+            _user = str(_pg.get("user", "postgres"))
+            _pass = str(_pg.get("password", ""))
+            _db   = str(_pg.get("dbname", "postgres"))
+            return _build_url(_host, _port, _user, _pass, _db), True
     except Exception:
-        pass  # st.secrets no disponible en ejecución local sin secrets.toml
+        pass
 
-    # 3. Variables de entorno individuales (override manual)
-    _host = os.environ.get("PG_HOST", _host)
-    _port = int(os.environ.get("PG_PORT", _port))
-    _user = os.environ.get("PG_USER", _user)
-    _pass = os.environ.get("PG_PASS", _pass)
-    _db   = os.environ.get("PG_DB",   _db)
+    # 4. Variables de entorno individuales
+    _env_host = os.environ.get("PG_HOST", "").strip()
+    if _env_host:
+        return _build_url(
+            _env_host,
+            int(os.environ.get("PG_PORT", 6543)),
+            os.environ.get("PG_USER", "postgres"),
+            os.environ.get("PG_PASS", ""),
+            os.environ.get("PG_DB", "postgres"),
+        ), True
 
-    return _host, _port, _user, _pass, _db, False
+    # 5. Fallback local (desarrollo)
+    return _build_url("localhost", 5432, "postgres", "123456", "reservas"), False
 
-_pg_dsn_or_host = _read_pg_secrets()
-if _pg_dsn_or_host[5]:          # es DATABASE_URL
-    PG_HOST = _pg_dsn_or_host[0]  # contiene la URL completa
-    PG_PORT = None
-    PG_USER = None
-    PG_PASS = None
-    PG_DB   = None
-    _PG_USE_DSN = True
-else:
-    PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB, _ = _pg_dsn_or_host
-    _PG_USE_DSN = False
+# _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
+_pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
+# Exponer constantes de solo lectura para mostrar en UI (sin password)
+import urllib.parse as _urlparse
+try:
+    _pg_parsed = _urlparse.urlparse(_pg_conn_url)
+    PG_HOST = _pg_parsed.hostname or "localhost"
+    PG_PORT = _pg_parsed.port or 5432
+    PG_USER = _pg_parsed.username or "postgres"
+    PG_PASS = "***"
+    PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
+except Exception:
+    PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB = "?", 0, "?", "?", "?"
 
 try:
     import psycopg2
@@ -1065,40 +1096,16 @@ def _resolve_ipv4(hostname: str) -> str:
 
 
 def get_pg_conn():
-    """Retorna una conexion nueva a PostgreSQL. Siempre usar en bloque with/try-finally."""
+    """
+    Retorna una conexion nueva a PostgreSQL.
+    Siempre usar en bloque with/try-finally para cerrarla correctamente.
+    """
     if not PSYCOPG2_AVAILABLE:
         raise RuntimeError("psycopg2 no disponible")
-    _dsn_or_host = _read_pg_secrets()
-
-    if _dsn_or_host[5]:   # DATABASE_URL completa
-        return psycopg2.connect(_dsn_or_host[0], sslmode="require")
-
-    _host, _port, _user, _pass, _db, _ = _dsn_or_host
-
-    # Supabase: si el puerto es 5432 (directo), preferir el pooler en 6543
-    # que garantiza IPv4. Si el usuario ya configuro 6543, se respeta.
-    # El pooler usa usuario con sufijo "#project_ref" — NO aplica aqui porque
-    # psycopg2 se conecta por host; el host del pooler es diferente:
-    #   db.xxxx.supabase.co        -> puerto 5432 (puede ser IPv6)
-    #   aws-0-us-east-1.pooler.supabase.com -> puerto 6543 (IPv4, Session mode)
-    # La forma mas simple y compatible es resolver el hostname a IPv4.
-    _host_resolved = _resolve_ipv4(_host)
-
-    # Puerto 6543 = Supavisor session pooler de Supabase (IPv4 garantizado).
-    # Si el usuario configuro explicitamente otro puerto, se respeta.
-    _port_final = _port
-    if _port == 5432 and "supabase" in _host.lower():
-        _port_final = 6543
-
-    return psycopg2.connect(
-        host=_host_resolved,
-        port=_port_final,
-        user=_user,
-        password=_pass,
-        dbname=_db,
-        sslmode="require",
-        connect_timeout=15,
-    )
+    # _read_pg_secrets() retorna (dsn_url, is_remote); la URL ya incluye
+    # sslmode y connect_timeout, y el host esta sanitizado (sin @).
+    dsn, _ = _read_pg_secrets()
+    return psycopg2.connect(dsn)
 
 
 def _pg_exec(sql: str, params=None, fetch: str = None):
