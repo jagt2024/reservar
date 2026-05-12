@@ -979,7 +979,7 @@ INITIAL_RETRY_DELAY = 0
 #
 #   [postgres]
 #   host     = "db.xxxxxxxxxxxx.supabase.co"
-#   port     = 5432
+#   port     = 5433
 #   user     = "postgres"
 #   password = "tu_password_supabase"
 #   dbname   = "postgres"
@@ -988,7 +988,7 @@ INITIAL_RETRY_DELAY = 0
 def _read_pg_secrets():
     """Lee credenciales PG desde st.secrets o variables de entorno."""
     _host = "localhost"
-    _port = 5432
+    _port = 5433
     _user = "postgres"
     _pass = "123456"
     _db   = "reservas"
