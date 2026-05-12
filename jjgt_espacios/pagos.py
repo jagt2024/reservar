@@ -975,7 +975,7 @@ INITIAL_RETRY_DELAY = 0
 
 # ── Conexión PostgreSQL ───────────────────────────────────────────────────────
 PG_HOST = "localhost"
-PG_PORT = 5433
+PG_PORT = 5432
 PG_USER = "postgres"
 PG_PASS = "123456"
 PG_DB   = "reservas"
