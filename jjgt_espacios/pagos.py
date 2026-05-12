@@ -986,72 +986,72 @@ INITIAL_RETRY_DELAY = 0
 #
 # También acepta DATABASE_URL como variable de entorno (formato psycopg2).
 def _read_pg_secrets():
-    """
-    Lee credenciales PG y retorna siempre una URL de conexion completa (DSN).
-    Orden de prioridad:
-      1. st.secrets["postgres"]["url"]  <- URL completa (recomendado Supabase)
-      2. DATABASE_URL env var
-      3. st.secrets["postgres"] con campos separados host/port/user/password/dbname
-      4. Variables de entorno PG_HOST / PG_PASS / etc.
-      5. Fallback local
-    Retorna: (dsn_url: str, is_remote: bool)
-    """
     import urllib.parse
+    import os
+    import streamlit as st
 
     def _build_url(host, port, user, password, dbname):
-        # urllib.parse.quote garantiza que caracteres especiales en password
-        # no rompan la URL y que el host nunca se trate como socket Unix.
         safe_user = urllib.parse.quote(str(user), safe="")
         safe_pass = urllib.parse.quote(str(password), safe="")
         safe_host = str(host).strip().lstrip("@")
+
         return (
-            f"postgresql://{safe_user}:{safe_pass}@{safe_host}:{port}/{dbname}"
+            f"postgresql://{safe_user}:{safe_pass}"
+            f"@{safe_host}:{port}/{dbname}"
             f"?sslmode=require&connect_timeout=15"
         )
 
-    # 1. URL completa en secrets (mas simple, recomendado para Supabase)
+    # 1. Streamlit secrets
     try:
         if "postgres" in st.secrets:
-            if "url" in st.secrets["postgres"]:
-                _url = str(st.secrets["postgres"]["url"]).strip()
-                if _url:
-                    return _url, True
+            pg = st.secrets["postgres"]
+
+            if "url" in pg:
+                url = str(pg["url"]).strip()
+
+                if url:
+                    print("Usando URL desde st.secrets")
+                    return url, True
+
     except Exception as e:
-        print("Error leyendo secrets postgres:", e)
+        print("Error leyendo st.secrets:", e)
 
-    # 2. DATABASE_URL como variable de entorno
-    _env_url = os.environ.get("DATABASE_URL", "")
-    if _env_url:
-        return _env_url, True
+    # 2. DATABASE_URL
+    env_url = os.environ.get("DATABASE_URL", "").strip()
 
-    # 3. Campos separados en st.secrets["postgres"]
+    if env_url:
+        print("Usando DATABASE_URL")
+        return env_url, True
+
+    # 3. Variables separadas
     try:
-        _pg = st.secrets.get("postgres", {})
-        if _pg and _pg.get("host"):
-            _host = str(_pg.get("host", "")).strip().lstrip("@")
-            _port = int(_pg.get("port", 6543))
-            _user = str(_pg.get("user", "postgres.laqylybiaiuypscjrzuj"))
-            _pass = str(_pg.get("password", ""))
-            _db   = str(_pg.get("dbname", "postgres"))
-            return _build_url(_host, _port, _user, _pass, _db), True
-    except Exception:
-        pass
+        if "postgres" in st.secrets:
+            pg = st.secrets["postgres"]
 
-    # 4. Variables de entorno individuales
-    _env_host = os.environ.get("PG_HOST", "").strip()
-    if _env_host:
-        return _build_url(
-            _env_host,
-            int(os.environ.get("PG_PORT", 6543)),
-            os.environ.get("PG_USER", "postgres.laqylybiaiuypscjrzuj"),
-            os.environ.get("PG_PASS", ""),
-            os.environ.get("PG_DB", "postgres"),
-        ), True
+            host = pg.get("host")
 
-    # 5. Fallback local (desarrollo)
-    print("SECRETS:", dict(st.secrets))
-    return _build_url("localhost", 5433, "postgres", "123456", "reservas"), False
-    print("POSTGRES:", st.secrets.get("postgres"))
+            if host:
+                return _build_url(
+                    host,
+                    int(pg.get("port", 5433)),
+                    pg.get("user"),
+                    pg.get("password"),
+                    pg.get("dbname", "postgres")
+                ), True
+
+    except Exception as e:
+        print("Error leyendo variables separadas:", e)
+
+    # 4. Fallback
+    print("⚠️ Usando fallback localhost")
+
+    return _build_url(
+        "localhost",
+        5433,
+        "postgres",
+        "***",
+        "reservas"
+    ), False
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
