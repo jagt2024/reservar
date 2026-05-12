@@ -1029,7 +1029,7 @@ def _read_pg_secrets():
             _host = str(_pg.get("host", "")).strip().lstrip("@")
             _port = int(_pg.get("port", 6543))
             _user = str(_pg.get("user", "postgres.laqylybiaiuypscjrzuj"))
-            _pass = str(_pg.get("password", "123456"))
+            _pass = str(_pg.get("password", ""))
             _db   = str(_pg.get("dbname", "reservas"))
             return _build_url(_host, _port, _user, _pass, _db), True
     except Exception:
@@ -1042,12 +1042,12 @@ def _read_pg_secrets():
             _env_host,
             int(os.environ.get("PG_PORT", 6543)),
             os.environ.get("PG_USER", "postgres.laqylybiaiuypscjrzuj"),
-            os.environ.get("PG_PASS", "123456"),
+            os.environ.get("PG_PASS", ""),
             os.environ.get("PG_DB", "reservas"),
         ), True
 
     # 5. Fallback local (desarrollo)
-    return _build_url("localhost", 5432, "postgres", "123456", "reservas"), False
+    return _build_url("localhost", 5433, "postgres", "123456", "reservas"), False
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
@@ -1058,7 +1058,7 @@ try:
     PG_HOST = _pg_parsed.hostname or "localhost"
     PG_PORT = _pg_parsed.port or 5433
     PG_USER = _pg_parsed.username or "postgres"
-    PG_PASS = "***"
+    PG_PASS = "123456"
     PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
 except Exception:
     PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB = "?", 0, "?", "?", "?"
