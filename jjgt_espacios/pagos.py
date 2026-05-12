@@ -974,11 +974,63 @@ MAX_RETRIES        = 1
 INITIAL_RETRY_DELAY = 0
 
 # ── Conexión PostgreSQL ───────────────────────────────────────────────────────
-PG_HOST = "localhost"
-PG_PORT = 5432
-PG_USER = "postgres"
-PG_PASS = "123456"
-PG_DB   = "reservas"
+# Lee desde st.secrets["postgres"] si existe, con fallback a valores locales.
+# En Streamlit Cloud / Supabase configura el bloque [postgres] en Secrets:
+#
+#   [postgres]
+#   host     = "db.xxxxxxxxxxxx.supabase.co"
+#   port     = 5432
+#   user     = "postgres"
+#   password = "tu_password_supabase"
+#   dbname   = "postgres"
+#
+# También acepta DATABASE_URL como variable de entorno (formato psycopg2).
+def _read_pg_secrets():
+    """Lee credenciales PG desde st.secrets o variables de entorno."""
+    _host = "localhost"
+    _port = 5432
+    _user = "postgres"
+    _pass = "123456"
+    _db   = "reservas"
+
+    # 1. Variable de entorno DATABASE_URL (Railway, Render, etc.)
+    _db_url = os.environ.get("DATABASE_URL", "")
+    if _db_url:
+        # psycopg2 acepta la URL directamente; la retornamos como dsn especial
+        return _db_url, None, None, None, None, True  # (dsn, _, _, _, _, is_url)
+
+    # 2. st.secrets["postgres"] (Streamlit Cloud / Supabase vía Secrets)
+    try:
+        _pg = st.secrets.get("postgres", {})
+        if _pg:
+            _host = _pg.get("host", _host)
+            _port = int(_pg.get("port", _port))
+            _user = _pg.get("user", _user)
+            _pass = _pg.get("password", _pass)
+            _db   = _pg.get("dbname", _db)
+    except Exception:
+        pass  # st.secrets no disponible en ejecución local sin secrets.toml
+
+    # 3. Variables de entorno individuales (override manual)
+    _host = os.environ.get("PG_HOST", _host)
+    _port = int(os.environ.get("PG_PORT", _port))
+    _user = os.environ.get("PG_USER", _user)
+    _pass = os.environ.get("PG_PASS", _pass)
+    _db   = os.environ.get("PG_DB",   _db)
+
+    return _host, _port, _user, _pass, _db, False
+
+_pg_dsn_or_host = _read_pg_secrets()
+if _pg_dsn_or_host[5]:          # es DATABASE_URL
+    PG_HOST = _pg_dsn_or_host[0]  # contiene la URL completa
+    PG_PORT = None
+    PG_USER = None
+    PG_PASS = None
+    PG_DB   = None
+    _PG_USE_DSN = True
+else:
+    PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB, _ = _pg_dsn_or_host
+    _PG_USE_DSN = False
 
 try:
     import psycopg2
@@ -997,13 +1049,21 @@ except ImportError:
 
 
 def get_pg_conn():
-    """Retorna una conexión nueva a PostgreSQL. Siempre usar en bloque with/try-finally."""
+    """Retorna una conexion nueva a PostgreSQL. Siempre usar en bloque with/try-finally."""
     if not PSYCOPG2_AVAILABLE:
         raise RuntimeError("psycopg2 no disponible")
+    # Re-lee secrets en cada llamada para soportar cambios en caliente y
+    # asegurarse de que st.secrets ya este inicializado por Streamlit.
+    _dsn_or_host = _read_pg_secrets()
+    if _dsn_or_host[5]:   # DATABASE_URL
+        return psycopg2.connect(_dsn_or_host[0], sslmode="require")
+    _host, _port, _user, _pass, _db, _ = _dsn_or_host
     return psycopg2.connect(
-        host=PG_HOST, port=PG_PORT,
-        user=PG_USER, password=PG_PASS,
-        dbname=PG_DB,
+        host=_host, port=_port,
+        user=_user, password=_pass,
+        dbname=_db,
+        sslmode="require",        # Supabase requiere SSL
+        connect_timeout=10,
     )
 
 
