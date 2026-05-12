@@ -1017,7 +1017,7 @@ def _read_pg_secrets():
                 if _url:
                     return _url, True
     except Exception as e:
-    print("Error leyendo secrets postgres:", e)
+        print("Error leyendo secrets postgres:", e)
 
     # 2. DATABASE_URL como variable de entorno
     _env_url = os.environ.get("DATABASE_URL", "")
