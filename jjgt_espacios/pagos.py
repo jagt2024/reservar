@@ -1030,7 +1030,7 @@ def _read_pg_secrets():
             _port = int(_pg.get("port", 6543))
             _user = str(_pg.get("user", "postgres.laqylybiaiuypscjrzuj"))
             _pass = str(_pg.get("password", ""))
-            _db   = str(_pg.get("dbname", "reservas"))
+            _db   = str(_pg.get("dbname", "postgres"))
             return _build_url(_host, _port, _user, _pass, _db), True
     except Exception:
         pass
@@ -1043,7 +1043,7 @@ def _read_pg_secrets():
             int(os.environ.get("PG_PORT", 6543)),
             os.environ.get("PG_USER", "postgres.laqylybiaiuypscjrzuj"),
             os.environ.get("PG_PASS", ""),
-            os.environ.get("PG_DB", "reservas"),
+            os.environ.get("PG_DB", "postgres"),
         ), True
 
     # 5. Fallback local (desarrollo)
@@ -1058,7 +1058,7 @@ try:
     PG_HOST = _pg_parsed.hostname or "localhost"
     PG_PORT = _pg_parsed.port or 5433
     PG_USER = _pg_parsed.username or "postgres"
-    PG_PASS = "123456"
+    PG_PASS = ""
     PG_DB   = (_pg_parsed.path or "/postgres").lstrip("/")
 except Exception:
     PG_HOST, PG_PORT, PG_USER, PG_PASS, PG_DB = "?", 0, "?", "?", "?"
