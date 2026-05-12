@@ -1078,20 +1078,40 @@ except ImportError:
         # No llamar st.error() aquí — a nivel de módulo falla antes de que
         # Streamlit esté listo. El error se muestra en init_db().
 
-# ── TEST TEMPORAL DE CONEXIÓN ── borrar después ──
+# ── TEST DIAGNÓSTICO ── borrar después ──
 import streamlit as st
-_test_url = st.secrets["postgres"]["url"]
-st.code(f"URL cargada: {_test_url[:30]}...{_test_url[-20:]}")
+import urllib.parse
+
+raw_url = st.secrets["postgres"]["url"]
+
+# Parsear la URL para ver cada componente
+parsed = urllib.parse.urlparse(raw_url)
+st.write("**Host:**", parsed.hostname)
+st.write("**Puerto:**", parsed.port)
+st.write("**Usuario:**", parsed.username)
+st.write("**Password (primeros 4 chars):**", (parsed.password or "")[:4] + "****")
+st.write("**DB:**", parsed.path)
+st.write("**Password len:**", len(parsed.password or ""))
+
+# Intentar conexión
 try:
     import psycopg2
-    _c = psycopg2.connect(_test_url)
+    conn = psycopg2.connect(
+        host=parsed.hostname,
+        port=parsed.port,
+        user=parsed.username,
+        password=parsed.password,
+        dbname=parsed.path.lstrip("/"),
+        sslmode="require",
+        connect_timeout=15
+    )
     st.success("✅ Conexión exitosa")
-    _c.close()
-except Exception as _e:
-    st.error(f"❌ Error: {_e}")
+    conn.close()
+except Exception as e:
+    st.error(f"❌ {e}")
+
 st.stop()
 # ── FIN TEST ──
-
 
 def _resolve_ipv4(hostname: str) -> str:
     """
