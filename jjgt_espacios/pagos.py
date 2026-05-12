@@ -985,8 +985,15 @@ try:
     import psycopg2.extras
     PSYCOPG2_AVAILABLE = True
 except ImportError:
-    PSYCOPG2_AVAILABLE = False
-    st.error("❌ psycopg2 no está instalado. Ejecuta: pip install psycopg2-binary")
+    try:
+        import psycopg2cffi as psycopg2          # type: ignore
+        import psycopg2cffi.extras as _extras    # type: ignore
+        psycopg2.extras = _extras
+        PSYCOPG2_AVAILABLE = True
+    except ImportError:
+        PSYCOPG2_AVAILABLE = False
+        # No llamar st.error() aquí — a nivel de módulo falla antes de que
+        # Streamlit esté listo. El error se muestra en init_db().
 
 
 def get_pg_conn():
@@ -1307,7 +1314,12 @@ def init_db():
     Llamar una vez al inicio de la aplicación.
     """
     if not PSYCOPG2_AVAILABLE:
-        return
+        st.error(
+            "❌ **psycopg2 no está instalado.**\n\n"
+            "Agrega esto a tu `requirements.txt`:\n```\npsycopg2-binary\n```\n"
+            "O instala localmente: `pip install psycopg2-binary`"
+        )
+    st.stop()   # ← detiene la app limpiamente con mensaje visible
     try:
         conn = get_pg_conn()
         with conn:
