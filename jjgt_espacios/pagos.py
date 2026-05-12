@@ -1059,9 +1059,9 @@ def _read_pg_secrets():
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
 _pg_conn_url, _PG_IS_REMOTE = _read_pg_secrets()
 
-PG_HOST = "Supabase"
+PG_HOST = "aws-1-sa-east-1.pooler.supabase.com"
 PG_PORT = 5432
-PG_USER = "Supabase User"
+PG_USER = "postgres.laqylybiaiuypscjrzuj"
 PG_PASS = ""
 PG_DB   = "postgres"
 
@@ -1099,45 +1099,29 @@ def _resolve_ipv4(hostname: str) -> str:
 
 @st.cache_resource
 def get_pg_conn():
-
     DATABASE_URL = st.secrets["postgres"]["url"]
-
-    print("DATABASE_URL:", DATABASE_URL)
-
-    return psycopg2.connect(
-        DATABASE_URL,
-        sslmode="require",
-        connect_timeout=15
-    )
-
-try:
-    conn = get_pg_conn()
-    st.success("Conectado")
-except Exception as e:
-    st.error(str(e))
+    # Limpiar parámetros duplicados de la URL antes de conectar
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    parsed = urlparse(DATABASE_URL)
+    # psycopg2 acepta la URL directamente; NO pasar sslmode como kwarg adicional
+    return psycopg2.connect(DATABASE_URL)
 
 
 def _pg_exec(sql: str, params=None, fetch: str = None):
-    """
-    Ejecuta una sentencia SQL.
-    fetch=None → solo ejecutar (INSERT/UPDATE/DELETE)
-    fetch='one' → fetchone() → dict o None
-    fetch='all' → fetchall() → list[dict]
-    """
     conn = get_pg_conn()
     try:
-        with conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(sql, params)
-                if fetch == "all":
-                    return [dict(r) for r in cur.fetchall()]
-                if fetch == "one":
-                    row = cur.fetchone()
-                    return dict(row) if row else None
-                return None
-    finally:
-        conn.close()
-
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            conn.commit()
+            if fetch == "all":
+                return [dict(r) for r in cur.fetchall()]
+            if fetch == "one":
+                row = cur.fetchone()
+                return dict(row) if row else None
+            return None
+    except Exception:
+        conn.rollback()
+        raise
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CREACIÓN DE TABLAS
