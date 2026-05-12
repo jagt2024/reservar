@@ -6532,5 +6532,5 @@ def main():
     router.get(pantalla, show_operador_login)()
 
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+main()
