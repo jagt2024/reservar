@@ -1095,13 +1095,28 @@ def _resolve_ipv4(hostname: str) -> str:
 
 
 @st.cache_resource
+def _get_pg_engine():
+    """Retorna la URL de conexión cacheada."""
+    return {"url": st.secrets["postgres"]["url"]}
+
 def get_pg_conn():
-    DATABASE_URL = st.secrets["postgres"]["url"]
-    # Limpiar parámetros duplicados de la URL antes de conectar
-    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-    parsed = urlparse(DATABASE_URL)
-    # psycopg2 acepta la URL directamente; NO pasar sslmode como kwarg adicional
-    return psycopg2.connect(DATABASE_URL)
+    """Retorna una conexión activa, reconectando si es necesario."""
+    engine = _get_pg_engine()
+    url = engine.get("url")
+    conn = engine.get("conn")
+    
+    # Verificar si la conexión existente está viva
+    if conn is not None:
+        try:
+            conn.cursor().execute("SELECT 1")
+            return conn
+        except Exception:
+            pass  # conexión muerta, crear una nueva
+    
+    # Crear nueva conexión
+    new_conn = psycopg2.connect(url)
+    engine["conn"] = new_conn
+    return new_conn
 
 
 def _pg_exec(sql: str, params=None, fetch: str = None):
