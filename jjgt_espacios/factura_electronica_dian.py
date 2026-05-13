@@ -14,8 +14,8 @@
 #   6. Registro de estado DIAN (enviada / aceptada / rechazada) por factura
 #
 #  Configuración necesaria en Configuracion_Pagos (Google Sheets):
-#   dian_nit_emisor         → NIT sin dígito verificación  ej: 9020478713
-#   dian_digito_verificador → Dígito verificador           ej: 7
+#   dian_nit_emisor         → NIT sin dígito verificación  ej: 902047871
+#   dian_digito_verificador → Dígito verificador           ej: 3
 #   dian_razon_social       → Razón social emisor          ej: JJGT S.A.S.
 #   dian_nombre_comercial   → Nombre comercial             ej: Suite Salitre
 #   dian_regimen            → O-13 (Simplificado) | O-48 (Común)
@@ -302,9 +302,9 @@ def generar_xml_factura(
         )
 
     # Datos del emisor desde configuración
-    nit_emisor      = _nit_limpio(_cfg("dian_nit_emisor", _nit_limpio("902.047.871-3")))
+    nit_emisor      = _nit_limpio(_cfg("dian_nit_emisor", _nit_limpio("902.047.871")))
     dv_emisor       = _cfg("dian_digito_verificador", _calcular_digito_verificacion(nit_emisor))
-    razon_emisor    = _cfg("dian_razon_social", "JJGT S.A.S.")
+    razon_emisor    = _cfg("dian_razon_social", "Suite Salitre S.A.S.")
     nombre_com      = _cfg("dian_nombre_comercial", "Suite Salitre")
     regimen_emisor  = _cfg("dian_regimen", "O-13")
     resolucion_num  = _cfg("dian_resolucion_num", "0")
@@ -316,7 +316,7 @@ def generar_xml_factura(
     ciudad_emisor   = _cfg("dian_ciudad_emisor", "Bogotá D.C.")
     dept_emisor     = _cfg("dian_dept_emisor", "Cundinamarca")
     cod_postal      = _cfg("dian_codigo_postal", "110221")
-    email_emisor    = _cfg("dian_email_emisor", "fe@suitesalitre.com.co")
+    email_emisor    = _cfg("dian_email_emisor", "suitesalitre@gmail.com")
     direccion       = _cfg("negocio_direccion", "Terminal de Transportes Módulo 3 Local 230")
     telefono        = _cfg("negocio_telefono", "3219714969")
 
@@ -668,7 +668,7 @@ def generar_fe_desde_reserva(
         f"WiFi · Baño · Carga · {horas}h"
     )
 
-    cufe = _cufe_simulado(numero_fe, _nit_limpio(_cfg("dian_nit_emisor", "9020478713")),
+    cufe = _cufe_simulado(numero_fe, _nit_limpio(_cfg("dian_nit_emisor", "902047871")),
                           total, fecha_str)
 
     # Generar XML
@@ -1116,16 +1116,16 @@ def render_panel_fe() -> None:
         with col1:
             nit_e  = st.text_input("NIT emisor (sin dígito verificador)",
                                    value=_cfg("dian_nit_emisor",
-                                              _nit_limpio("902.047.871-3")),
+                                              _nit_limpio("902.047.871")),
                                    key="cfg_nit_e")
             dv_e   = st.text_input("Dígito verificador NIT",
                                    value=_cfg("dian_digito_verificador",
                                               _calcular_digito_verificacion(
-                                                  _cfg("dian_nit_emisor","9020478713"))),
+                                                  _cfg("dian_nit_emisor","902047871"))),
                                    key="cfg_dv_e",
                                    max_chars=1)
             razon  = st.text_input("Razón social emisor",
-                                   value=_cfg("dian_razon_social", "JJGT S.A.S."),
+                                   value=_cfg("dian_razon_social", "Suite Salitre S.A.S."),
                                    key="cfg_razon")
             nombre_com_cfg = st.text_input("Nombre comercial",
                                            value=_cfg("dian_nombre_comercial", "Suite Salitre"),
@@ -1227,4 +1227,4 @@ def render_panel_fe() -> None:
         # Vista previa del DV calculado
         if nit_e:
             dv_calc = _calcular_digito_verificacion(nit_e)
-            st.caption(f"Dígito verificador calculado automáticamente para NIT **{nit_e}**: **{dv_calc}**")
+            st.caption(f"Dígito verificador calculado automáticamente para NIT **{nit_e}**: **{dv_calc}**")ss
