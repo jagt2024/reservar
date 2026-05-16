@@ -1,4 +1,4 @@
-═══════════════════════════
+#═══════════════════════════
 #  SUITE SALITRE S.A.S · Terminal de Transportes El Salitre — Bogotá
 #  MÓDULO: Repuestos · Escáner · Seguros · Convenios · Inventario
 #  FUENTE DE DATOS: PostgreSQL (única fuente de verdad)
