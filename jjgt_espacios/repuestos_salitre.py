@@ -1,20 +1,25 @@
-# ══════════════════════════════════════════════════════════════════════════════
+═══════════════════════════
 #  SUITE SALITRE S.A.S · Terminal de Transportes El Salitre — Bogotá
 #  MÓDULO: Repuestos · Escáner · Seguros · Convenios · Inventario
+#  FUENTE DE DATOS: PostgreSQL (única fuente de verdad)
 # ══════════════════════════════════════════════════════════════════════════════
 #
 #  Instalación:
-#    pip install streamlit pandas pytz gspread google-auth google-auth-oauthlib
-#               openpyxl plotly
+#    pip install streamlit pandas pytz psycopg2-binary openpyxl plotly
 #
-#  ── CONFIGURACIÓN ─────────────────────────────────────────────────────────
-#    Crea .streamlit/secrets.toml con:
+#  Configuración en .streamlit/secrets.toml:
 #
-#       [sheetsemp]
-#       credentials_sheet = '''{ ... JSON Service Account ... }'''
-#       spreadsheet_id2 = "ID_DEL_SPREADSHEET_jjgt_otros_convenios"
+#    [postgres]
+#    host     = "localhost"
+#    port     = 5433
+#    user     = "postgres"
+#    password = "123456"
+#    dbname   = "repuestos"
+#    sslmode  = "disable"
+#    # O bien:
+#    url = "postgresql://user:pass@host:5432/dbname?sslmode=require"
 #
-#  ── EJECUCIÓN ─────────────────────────────────────────────────────────────
+#  Ejecución:
 #    streamlit run repuestos_salitre.py
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -25,20 +30,14 @@ import io
 import os
 import time
 import uuid
+import urllib.parse
 from datetime import datetime, date
 from typing import Optional, List, Dict
 
 import pandas as pd
 import pytz
 
-# ── Imports opcionales ────────────────────────────────────────────────────────
-try:
-    import gspread
-    from google.oauth2.service_account import Credentials
-    GSPREAD_AVAILABLE = True
-except ImportError:
-    GSPREAD_AVAILABLE = False
-
+# ── Dependencias opcionales ───────────────────────────────────────────────────
 try:
     import plotly.express as px
     import plotly.graph_objects as go
@@ -46,341 +45,250 @@ try:
 except ImportError:
     PLOTLY_AVAILABLE = False
 
+PG_HOST = "aws-1-us-west-1.pooler.supabase.com"
+PG_PORT = 5432
+PG_USER = "postgres.nmfwunmluneqvzmhfagm"
+PG_PASS = "JbVHPer5dUblreff"
+PG_DB   = "postgres"
+
 try:
-    import toml as toml_lib
-    TOML_AVAILABLE = True
+    import psycopg2
+    import psycopg2.extras
+    PSYCOPG2_AVAILABLE = True
 except ImportError:
-    TOML_AVAILABLE = False
+    PSYCOPG2_AVAILABLE = False
 
 # ── Constantes ────────────────────────────────────────────────────────────────
-NEGOCIO     = "SUITE SALITRE S.A.S"
-TAGLINE     = "Repuestos · Escáner · Seguros para Flotas"
-DIRECCION   = "Terminal de Transportes El Salitre · Bogotá"
-NIT         = "902.047.871-3"
-TELEFONO    = "3219714969"
-EMAIL       = "suitesalitre@gmail.com"
-TZ_COL      = pytz.timezone("America/Bogota")
-DRIVE_FILE      = "jjgt_otros_convenios"
-SPREADSHEET_ID  = ""  # Cargado desde secrets.toml
+NEGOCIO   = "SUITE SALITRE S.A.S"
+TAGLINE   = "Repuestos · Escáner · Seguros para Flotas"
+DIRECCION = "Terminal de Transportes El Salitre · Bogotá"
+NIT       = "902.047.871-3"
+TELEFONO  = "3219714969"
+EMAIL     = "suitesalitre@gmail.com"
+TZ_COL    = pytz.timezone("America/Bogota")
 
-MAX_RETRIES         = 4
-INITIAL_RETRY_DELAY = 2
+TIPOS_VEHICULO  = ["Bus Intermunicipal","Buseta Urbana","Microbus","Van","Camioneta","Otro"]
+TIPOS_EMPRESA   = ["Empresa de Transporte Flota","Transporte Público","Privada","Mixta"]
+TIPOS_CONVENIO  = ["Descuento Repuestos","Descuento Escáner","Descuento Combo","Crédito","Prepago"]
+TIPOS_SEGURO    = ["SOAT","Todo Riesgo","Responsabilidad Civil","Amparo de Daños","Otro"]
+TIPOS_DOC       = ["NIT","CC","CE","Pasaporte"]
+ESTADOS_INV     = ["Disponible","Reservado","Agotado","Descontinuado"]
+CATEGORIAS_REP  = ["Motor","Frenos","Transmisión","Suspensión","Eléctrico","Carrocería",
+                   "Filtros","Correas","Refrigeración","Neumáticos","Otro"]
+TIPOS_ESCANER   = ["Diagnóstico OBD2","Escáner Avanzado","Revisión Técnico-Mecánica",
+                   "Lectura de Fallas","Calibración de Sensores","Otro"]
 
-TIPOS_VEHICULO   = ["Bus Intermunicipal", "Buseta Urbana", "Microbus", "Van", "Camioneta", "Otro"]
-TIPOS_EMPRESA    = ["Empresa de Transporte Flota", "Transporte Público", "Privada", "Mixta"]
-TIPOS_CONVENIO   = ["Descuento Repuestos", "Descuento Escáner", "Descuento Combo", "Crédito", "Prepago"]
-TIPOS_SEGURO     = ["SOAT", "Todo Riesgo", "Responsabilidad Civil", "Amparo de Daños", "Otro"]
-TIPOS_DOC        = ["NIT", "CC", "CE", "Pasaporte"]
-ESTADOS_INV      = ["Disponible", "Reservado", "Agotado", "Descontinuado"]
-CATEGORIAS_REP   = ["Motor", "Frenos", "Transmisión", "Suspensión", "Eléctrico", "Carrocería",
-                    "Filtros", "Correas", "Refrigeración", "Neumáticos", "Otro"]
-TIPOS_ESCANER    = ["Diagnóstico OBD2", "Escáner Avanzado", "Revisión Técnico-Mecánica",
-                    "Lectura de Fallas", "Calibración de Sensores", "Otro"]
-
-# ─── Estructura hojas de Google Sheets ───────────────────────────────────────
+# ── Estructura lógica de tablas (equivalente a DRIVE_SHEETS) ─────────────────
 DRIVE_SHEETS = {
     "Empresa": [
-        "Id_Empresa", "Nombre_Empresa", "Nit_Empresa", "Tipo_Empresa",
-        "Email_Empresa", "Telefono_Empresa", "Contacto_Nombre", "Contacto_Cargo",
-        "Tipo_Convenio", "Descuento_Repuestos_Pct", "Descuento_Escaner_Pct",
-        "Credito_Maximo_COP", "Observaciones", "Activo", "Creado_En",
+        "Id_Empresa","Nombre_Empresa","Nit_Empresa","Tipo_Empresa",
+        "Email_Empresa","Telefono_Empresa","Contacto_Nombre","Contacto_Cargo",
+        "Tipo_Convenio","Descuento_Repuestos_Pct","Descuento_Escaner_Pct",
+        "Credito_Maximo_COP","Observaciones","Activo","Creado_En",
     ],
     "Inventarios": [
-        "Id_Item", "Tipo", "Codigo_SKU", "Nombre", "Descripcion",
-        "Categoria", "Marca", "Referencia", "Cantidad_Stock", "Cantidad_Minima",
-        "Precio_Compra_COP", "Precio_Venta_COP", "Ubicacion", "Estado", "Creado_En", "Actualizado_En",
+        "Id_Item","Tipo","Codigo_SKU","Nombre","Descripcion",
+        "Categoria","Marca","Referencia","Cantidad_Stock","Cantidad_Minima",
+        "Precio_Compra_COP","Precio_Venta_COP","Ubicacion","Estado","Creado_En","Actualizado_En",
     ],
     "Repuestos": [
-        "Id_Repuesto", "Id_Empresa", "Nombre_Empresa", "Fecha_Solicitud",
-        "Codigo_SKU", "Nombre_Repuesto", "Categoria", "Cantidad", "Precio_Unitario_COP",
-        "Descuento_Pct", "Total_COP", "Estado_Pedido", "Placa_Vehiculo",
-        "Tipo_Vehiculo", "Mecanico", "Observaciones", "Creado_Por",
+        "Id_Repuesto","Id_Empresa","Nombre_Empresa","Fecha_Solicitud",
+        "Codigo_SKU","Nombre_Repuesto","Categoria","Cantidad","Precio_Unitario_COP",
+        "Descuento_Pct","Total_COP","Estado_Pedido","Placa_Vehiculo",
+        "Tipo_Vehiculo","Mecanico","Observaciones","Creado_Por",
     ],
     "Escaner": [
-        "Id_Escaner", "Id_Empresa", "Nombre_Empresa", "Fecha_Servicio",
-        "Placa_Vehiculo", "Tipo_Vehiculo", "Tipo_Escaner", "Tecnico",
-        "Precio_Base_COP", "Descuento_Pct", "Total_COP", "Resultado",
-        "Codigos_Falla", "Recomendaciones", "Estado", "Creado_Por",
+        "Id_Escaner","Id_Empresa","Nombre_Empresa","Fecha_Servicio",
+        "Placa_Vehiculo","Tipo_Vehiculo","Tipo_Escaner","Tecnico",
+        "Precio_Base_COP","Descuento_Pct","Total_COP","Resultado",
+        "Codigos_Falla","Recomendaciones","Estado","Creado_Por",
     ],
     "Seguros": [
-        "Id_Seguro", "Id_Empresa", "Nombre_Empresa", "Placa_Vehiculo",
-        "Tipo_Vehiculo", "Propietario", "Tipo_Seguro", "Aseguradora",
-        "Num_Poliza", "Fecha_Inicio", "Fecha_Vencimiento", "Prima_COP",
-        "Cobertura_COP", "Estado", "Observaciones", "Creado_Por", "Creado_En",
+        "Id_Seguro","Id_Empresa","Nombre_Empresa","Placa_Vehiculo",
+        "Tipo_Vehiculo","Propietario","Tipo_Seguro","Aseguradora",
+        "Num_Poliza","Fecha_Inicio","Fecha_Vencimiento","Prima_COP",
+        "Cobertura_COP","Estado","Observaciones","Creado_Por","Creado_En",
     ],
     "Pagos": [
-        "Id_Pago", "Id_Empresa", "Nombre_Empresa", "Fecha_Pago",
-        "Tipo_Servicio", "Referencia_Servicio", "Monto_COP", "Metodo_Pago",
-        "Estado", "Confirmado_Por", "Observaciones",
+        "Id_Pago","Id_Empresa","Nombre_Empresa","Fecha_Pago",
+        "Tipo_Servicio","Referencia_Servicio","Monto_COP","Metodo_Pago",
+        "Estado","Confirmado_Por","Observaciones",
     ],
     "Facturas": [
-        "Id_Factura", "Num_Factura", "Id_Empresa", "Nombre_Empresa",
-        "Fecha_Emision", "Fecha_Vencimiento", "Subtotal_COP", "Descuento_COP",
-        "IVA_COP", "Total_COP", "Estado", "Observaciones", "Creado_Por",
+        "Id_Factura","Num_Factura","Id_Empresa","Nombre_Empresa",
+        "Fecha_Emision","Fecha_Vencimiento","Subtotal_COP","Descuento_COP",
+        "IVA_COP","Total_COP","Estado","Observaciones","Creado_Por",
     ],
     "Facturas_Items": [
-        "Id_Item", "Id_Factura", "Num_Factura", "Tipo_Servicio",
-        "Descripcion", "Cantidad", "Precio_Unitario", "Descuento_Pct", "Subtotal",
+        "Id_Item","Id_Factura","Num_Factura","Tipo_Servicio",
+        "Descripcion","Cantidad","Precio_Unitario","Descuento_Pct","Subtotal",
     ],
     "Dashboard_Diario": [
-        "Fecha", "Total_Repuestos", "Total_Escaner", "Total_Seguros",
-        "Ingresos_Repuestos", "Ingresos_Escaner", "Ingresos_Seguros", "Total_Ingresos",
-        "Num_Empresas_Activas", "Nuevos_Convenios",
+        "Fecha","Total_Repuestos","Total_Escaner","Total_Seguros",
+        "Ingresos_Repuestos","Ingresos_Escaner","Ingresos_Seguros","Total_Ingresos",
+        "Num_Empresas_Activas","Nuevos_Convenios",
     ],
     "Tarifas_Config": [
-        "Id_Tarifa", "Tipo_Servicio", "Nombre_Tarifa", "Precio_COP",
-        "Unidad", "Descripcion", "Activo",
+        "Id_Tarifa","Tipo_Servicio","Nombre_Tarifa","Precio_COP",
+        "Unidad","Descripcion","Activo",
     ],
     "Operadores": [
-        "Id_Operador", "Nombre", "Usuario", "Password_Hash", "Rol",
-        "Permisos", "Activo", "Creado_En",
+        "Id_Operador","Nombre","Usuario","Password_Hash","Rol",
+        "Permisos","Activo","Creado_En",
     ],
     "Configuracion_Pagos": [
-        "Clave", "Valor", "Actualizado_En",
+        "Clave","Valor","Actualizado_En",
     ],
 }
+
+# DDL → mapeo hoja → nombre tabla PG
+_TABLA = {
+    "Empresa":            "rs_empresa",
+    "Inventarios":        "rs_inventarios",
+    "Repuestos":          "rs_repuestos",
+    "Escaner":            "rs_escaner",
+    "Seguros":            "rs_seguros",
+    "Pagos":              "rs_pagos",
+    "Facturas":           "rs_facturas",
+    "Facturas_Items":     "rs_facturas_items",
+    "Dashboard_Diario":   "rs_dashboard_diario",
+    "Tarifas_Config":     "rs_tarifas_config",
+    "Operadores":         "rs_operadores",
+    "Configuracion_Pagos":"rs_configuracion",
+}
+
+_DDL = """
+CREATE TABLE IF NOT EXISTS rs_empresa (
+    id_empresa TEXT PRIMARY KEY, nombre_empresa TEXT, nit_empresa TEXT UNIQUE,
+    tipo_empresa TEXT, email_empresa TEXT, telefono_empresa TEXT,
+    contacto_nombre TEXT, contacto_cargo TEXT, tipo_convenio TEXT,
+    descuento_repuestos_pct TEXT DEFAULT '0', descuento_escaner_pct TEXT DEFAULT '0',
+    credito_maximo_cop TEXT DEFAULT '0', observaciones TEXT,
+    activo TEXT DEFAULT '1', creado_en TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_inventarios (
+    id_item TEXT PRIMARY KEY, tipo TEXT, codigo_sku TEXT UNIQUE, nombre TEXT,
+    descripcion TEXT, categoria TEXT, marca TEXT, referencia TEXT,
+    cantidad_stock TEXT DEFAULT '0', cantidad_minima TEXT DEFAULT '0',
+    precio_compra_cop TEXT DEFAULT '0', precio_venta_cop TEXT DEFAULT '0',
+    ubicacion TEXT, estado TEXT DEFAULT 'Disponible',
+    creado_en TEXT, actualizado_en TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_repuestos (
+    id_repuesto TEXT PRIMARY KEY, id_empresa TEXT, nombre_empresa TEXT,
+    fecha_solicitud TEXT, codigo_sku TEXT, nombre_repuesto TEXT, categoria TEXT,
+    cantidad TEXT, precio_unitario_cop TEXT DEFAULT '0',
+    descuento_pct TEXT DEFAULT '0', total_cop TEXT DEFAULT '0',
+    estado_pedido TEXT DEFAULT 'Pendiente', placa_vehiculo TEXT,
+    tipo_vehiculo TEXT, mecanico TEXT, observaciones TEXT, creado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_escaner (
+    id_escaner TEXT PRIMARY KEY, id_empresa TEXT, nombre_empresa TEXT,
+    fecha_servicio TEXT, placa_vehiculo TEXT, tipo_vehiculo TEXT, tipo_escaner TEXT,
+    tecnico TEXT, precio_base_cop TEXT DEFAULT '0', descuento_pct TEXT DEFAULT '0',
+    total_cop TEXT DEFAULT '0', resultado TEXT, codigos_falla TEXT,
+    recomendaciones TEXT, estado TEXT DEFAULT 'Pendiente', creado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_seguros (
+    id_seguro TEXT PRIMARY KEY, id_empresa TEXT, nombre_empresa TEXT,
+    placa_vehiculo TEXT, tipo_vehiculo TEXT, propietario TEXT,
+    tipo_seguro TEXT, aseguradora TEXT, num_poliza TEXT UNIQUE,
+    fecha_inicio TEXT, fecha_vencimiento TEXT,
+    prima_cop TEXT DEFAULT '0', cobertura_cop TEXT DEFAULT '0',
+    estado TEXT DEFAULT 'Activo', observaciones TEXT,
+    creado_por TEXT, creado_en TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_pagos (
+    id_pago TEXT PRIMARY KEY, id_empresa TEXT, nombre_empresa TEXT,
+    fecha_pago TEXT, tipo_servicio TEXT, referencia_servicio TEXT,
+    monto_cop TEXT DEFAULT '0', metodo_pago TEXT,
+    estado TEXT DEFAULT 'Pendiente', confirmado_por TEXT, observaciones TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_facturas (
+    id_factura TEXT, num_factura TEXT PRIMARY KEY, id_empresa TEXT, nombre_empresa TEXT,
+    fecha_emision TEXT, fecha_vencimiento TEXT,
+    subtotal_cop TEXT DEFAULT '0', descuento_cop TEXT DEFAULT '0',
+    iva_cop TEXT DEFAULT '0', total_cop TEXT DEFAULT '0',
+    estado TEXT DEFAULT 'Emitida', observaciones TEXT, creado_por TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_facturas_items (
+    id SERIAL PRIMARY KEY, id_item TEXT, id_factura TEXT, num_factura TEXT,
+    tipo_servicio TEXT, descripcion TEXT, cantidad TEXT,
+    precio_unitario TEXT DEFAULT '0', descuento_pct TEXT DEFAULT '0', subtotal TEXT DEFAULT '0'
+);
+CREATE TABLE IF NOT EXISTS rs_dashboard_diario (
+    fecha TEXT PRIMARY KEY, total_repuestos TEXT, total_escaner TEXT, total_seguros TEXT,
+    ingresos_repuestos TEXT, ingresos_escaner TEXT, ingresos_seguros TEXT,
+    total_ingresos TEXT, num_empresas_activas TEXT, nuevos_convenios TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_tarifas_config (
+    id_tarifa TEXT PRIMARY KEY, tipo_servicio TEXT, nombre_tarifa TEXT,
+    precio_cop TEXT DEFAULT '0', unidad TEXT, descripcion TEXT, activo TEXT DEFAULT '1'
+);
+CREATE TABLE IF NOT EXISTS rs_operadores (
+    id_operador TEXT PRIMARY KEY, nombre TEXT, usuario TEXT UNIQUE,
+    password_hash TEXT, rol TEXT DEFAULT 'Operador',
+    permisos TEXT, activo TEXT DEFAULT '1', creado_en TEXT
+);
+CREATE TABLE IF NOT EXISTS rs_configuracion (
+    clave TEXT PRIMARY KEY, valor TEXT, actualizado_en TEXT
+);
+"""
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # PAGE CONFIG + CSS
 # ═══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
     page_title=f"{NEGOCIO} · Gestión",
-    page_icon="🔧",
-    layout="wide",
+    page_icon="🔧", layout="wide",
     initial_sidebar_state="expanded",
 )
-
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Inconsolata:wght@400;600;700&display=swap');
-
 :root {
-  --bg-deep:  #050b1a;
-  --bg-card:  #0d1f3c;
-  --bg-card2: #0a1628;
-  --cyan:     #00d4ff;
-  --green:    #00ff88;
-  --red:      #ff4757;
-  --yellow:   #ffd32a;
-  --orange:   #ff9f43;
-  --purple:   #a29bfe;
-  --text:     #e2e8f0;
-  --text-dim: #94a3b8;
-  --border:   rgba(0,212,255,0.2);
-  --radius:   16px;
+  --bg-deep:#050b1a;--bg-card:#0d1f3c;--bg-card2:#0a1628;
+  --cyan:#00d4ff;--green:#00ff88;--red:#ff4757;--yellow:#ffd32a;
+  --orange:#ff9f43;--purple:#a29bfe;--text:#e2e8f0;--text-dim:#94a3b8;
+  --border:rgba(0,212,255,0.2);--radius:16px;
 }
-
-html, body, .stApp {
-  background: linear-gradient(135deg, var(--bg-deep) 0%, #091428 60%, var(--bg-deep) 100%) !important;
-  color: var(--text) !important;
-  font-family: 'Syne', sans-serif !important;
-}
-
-#MainMenu { display: none !important; }
-footer    { display: none !important; }
-.stDeployButton { display: none !important; }
-
-header[data-testid="stHeader"] {
-  background: transparent !important;
-  border-bottom: none !important;
-}
-
-section[data-testid="stSidebar"] {
-  background: rgba(5,11,26,0.97) !important;
-  border-right: 1px solid var(--border);
-}
-
-section[data-testid="stSidebar"] *,
-section[data-testid="stSidebar"] p,
-section[data-testid="stSidebar"] span,
-section[data-testid="stSidebar"] label,
-section[data-testid="stSidebar"] div {
-  color: #e2e8f0 !important;
-}
-
-section[data-testid="stSidebar"] .stRadio label,
-section[data-testid="stSidebar"] .stRadio p {
-  font-size: 15px !important;
-  font-weight: 600 !important;
-}
-
-section[data-testid="stSidebar"] div.stButton > button {
-  color: #e2e8f0 !important;
-  border-color: rgba(226,232,240,0.25) !important;
-}
-
-.block-container { padding: 1.2rem 2rem !important; }
-
-div.stButton > button {
-  min-height: 48px !important;
-  border-radius: var(--radius) !important;
-  font-family: 'Syne', sans-serif !important;
-  font-weight: 700 !important;
-  font-size: 15px !important;
-  border: 1.5px solid var(--border) !important;
-  background: linear-gradient(135deg, var(--bg-card), var(--bg-card2)) !important;
-  color: var(--text) !important;
-  transition: all 0.2s ease !important;
-}
-div.stButton > button:hover {
-  border-color: var(--cyan) !important;
-  box-shadow: 0 0 20px rgba(0,212,255,0.3) !important;
-  color: var(--cyan) !important;
-}
-div.stButton > button[kind="primary"] {
-  background: linear-gradient(135deg, #0a3d62, #1a5276) !important;
-  border-color: var(--cyan) !important;
-  color: var(--cyan) !important;
-  min-height: 56px !important;
-  font-size: 16px !important;
-}
-div.stButton > button[kind="primary"]:hover {
-  box-shadow: 0 0 32px rgba(0,212,255,0.5) !important;
-}
-
-.stTextInput input, .stNumberInput input, .stTextArea textarea,
-.stSelectbox select {
-  background: rgba(13,31,60,0.8) !important;
-  border: 1.5px solid var(--border) !important;
-  border-radius: 10px !important;
-  color: var(--text) !important;
-  font-family: 'Syne', sans-serif !important;
-}
-.stTextInput input:focus, .stNumberInput input:focus {
-  border-color: var(--cyan) !important;
-  box-shadow: 0 0 12px rgba(0,212,255,0.2) !important;
-}
-
-.card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px 24px;
-  margin-bottom: 14px;
-}
-.card-title {
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--cyan);
-  margin-bottom: 12px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.card-stat {
-  font-family: 'Inconsolata', monospace;
-  font-size: 32px;
-  font-weight: 700;
-  color: var(--green);
-}
-.badge {
-  display: inline-block;
-  padding: 3px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-.badge-green  { background: rgba(0,255,136,0.15); color: var(--green);  border: 1px solid rgba(0,255,136,0.4); }
-.badge-red    { background: rgba(255,71,87,0.15);  color: var(--red);    border: 1px solid rgba(255,71,87,0.4);  }
-.badge-yellow { background: rgba(255,211,42,0.15); color: var(--yellow); border: 1px solid rgba(255,211,42,0.4); }
-.badge-cyan   { background: rgba(0,212,255,0.15);  color: var(--cyan);   border: 1px solid rgba(0,212,255,0.4);  }
-.badge-orange { background: rgba(255,159,67,0.15); color: var(--orange); border: 1px solid rgba(255,159,67,0.4); }
-
-.stTabs [data-baseweb="tab-list"] {
-  background: var(--bg-card) !important;
-  border-radius: 12px !important;
-  gap: 4px !important;
-  padding: 4px !important;
-}
-.stTabs [data-baseweb="tab"] {
-  background: transparent !important;
-  color: var(--text-dim) !important;
-  border-radius: 8px !important;
-  font-family: 'Syne', sans-serif !important;
-  font-weight: 600 !important;
-}
-.stTabs [aria-selected="true"] {
-  background: rgba(0,212,255,0.15) !important;
-  color: var(--cyan) !important;
-}
-
-[data-testid="stMetric"] {
-  background: var(--bg-card) !important;
-  border: 1px solid var(--border) !important;
-  border-top: 3px solid var(--cyan) !important;
-  border-radius: var(--radius) !important;
-  padding: 16px !important;
-}
-[data-testid="stMetricValue"] {
-  font-family: 'Inconsolata', monospace !important;
-  color: var(--cyan) !important;
-}
-
-[data-testid="stDataFrame"] {
-  border: 1px solid var(--border) !important;
-  border-radius: 12px !important;
-}
-
-hr { border-color: var(--border) !important; }
-
-.login-container {
-  max-width: 440px;
-  margin: 60px auto;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 24px;
-  padding: 48px 40px;
-  box-shadow: 0 0 60px rgba(0,212,255,0.12);
-}
-.login-title {
-  font-size: 26px;
-  font-weight: 800;
-  color: var(--cyan);
-  text-align: center;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.login-sub {
-  font-size: 14px;
-  color: var(--text-dim);
-  text-align: center;
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--cyan);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 4px;
-}
-.page-sub {
-  font-size: 14px;
-  color: var(--text-dim);
-  margin-bottom: 24px;
-}
-
-.alerta-stock {
-  background: rgba(255,71,87,0.12);
-  border: 2px solid var(--red);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--red);
-  font-weight: 700;
-  font-size: 14px;
-}
-.alerta-vencimiento {
-  background: rgba(255,211,42,0.12);
-  border: 2px solid var(--yellow);
-  border-radius: 12px;
-  padding: 12px 16px;
-  color: var(--yellow);
-  font-weight: 700;
-  font-size: 14px;
-}
+html,body,.stApp{background:linear-gradient(135deg,var(--bg-deep) 0%,#091428 60%,var(--bg-deep) 100%) !important;color:var(--text) !important;font-family:'Syne',sans-serif !important;}
+#MainMenu,footer,.stDeployButton{display:none !important;}
+header[data-testid="stHeader"]{background:transparent !important;border-bottom:none !important;}
+section[data-testid="stSidebar"]{background:rgba(5,11,26,0.97) !important;border-right:1px solid var(--border);}
+section[data-testid="stSidebar"] *{color:#e2e8f0 !important;}
+section[data-testid="stSidebar"] .stRadio label,section[data-testid="stSidebar"] .stRadio p{font-size:15px !important;font-weight:600 !important;}
+section[data-testid="stSidebar"] div.stButton>button{color:#e2e8f0 !important;border-color:rgba(226,232,240,0.25) !important;}
+.block-container{padding:1.2rem 2rem !important;}
+div.stButton>button{min-height:48px !important;border-radius:var(--radius) !important;font-family:'Syne',sans-serif !important;font-weight:700 !important;font-size:15px !important;border:1.5px solid var(--border) !important;background:linear-gradient(135deg,var(--bg-card),var(--bg-card2)) !important;color:var(--text) !important;transition:all 0.2s ease !important;}
+div.stButton>button:hover{border-color:var(--cyan) !important;box-shadow:0 0 20px rgba(0,212,255,0.3) !important;color:var(--cyan) !important;}
+div.stButton>button[kind="primary"]{background:linear-gradient(135deg,#0a3d62,#1a5276) !important;border-color:var(--cyan) !important;color:var(--cyan) !important;min-height:56px !important;font-size:16px !important;}
+div.stButton>button[kind="primary"]:hover{box-shadow:0 0 32px rgba(0,212,255,0.5) !important;}
+.stTextInput input,.stNumberInput input,.stTextArea textarea,.stSelectbox select{background:rgba(13,31,60,0.8) !important;border:1.5px solid var(--border) !important;border-radius:10px !important;color:var(--text) !important;font-family:'Syne',sans-serif !important;}
+.stTextInput input:focus,.stNumberInput input:focus{border-color:var(--cyan) !important;box-shadow:0 0 12px rgba(0,212,255,0.2) !important;}
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px;margin-bottom:14px;}
+.card-title{font-size:18px;font-weight:800;color:var(--cyan);margin-bottom:12px;letter-spacing:1px;text-transform:uppercase;}
+.card-stat{font-family:'Inconsolata',monospace;font-size:32px;font-weight:700;color:var(--green);}
+.badge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.badge-green{background:rgba(0,255,136,0.15);color:var(--green);border:1px solid rgba(0,255,136,0.4);}
+.badge-red{background:rgba(255,71,87,0.15);color:var(--red);border:1px solid rgba(255,71,87,0.4);}
+.badge-yellow{background:rgba(255,211,42,0.15);color:var(--yellow);border:1px solid rgba(255,211,42,0.4);}
+.badge-cyan{background:rgba(0,212,255,0.15);color:var(--cyan);border:1px solid rgba(0,212,255,0.4);}
+.badge-orange{background:rgba(255,159,67,0.15);color:var(--orange);border:1px solid rgba(255,159,67,0.4);}
+.stTabs [data-baseweb="tab-list"]{background:var(--bg-card) !important;border-radius:12px !important;gap:4px !important;padding:4px !important;}
+.stTabs [data-baseweb="tab"]{background:transparent !important;color:var(--text-dim) !important;border-radius:8px !important;font-family:'Syne',sans-serif !important;font-weight:600 !important;}
+.stTabs [aria-selected="true"]{background:rgba(0,212,255,0.15) !important;color:var(--cyan) !important;}
+[data-testid="stMetric"]{background:var(--bg-card) !important;border:1px solid var(--border) !important;border-top:3px solid var(--cyan) !important;border-radius:var(--radius) !important;padding:16px !important;}
+[data-testid="stMetricValue"]{font-family:'Inconsolata',monospace !important;color:var(--cyan) !important;}
+[data-testid="stDataFrame"]{border:1px solid var(--border) !important;border-radius:12px !important;}
+hr{border-color:var(--border) !important;}
+.login-container{max-width:440px;margin:60px auto;background:var(--bg-card);border:1px solid var(--border);border-radius:24px;padding:48px 40px;box-shadow:0 0 60px rgba(0,212,255,0.12);}
+.login-title{font-size:26px;font-weight:800;color:var(--cyan);text-align:center;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.login-sub{font-size:14px;color:var(--text-dim);text-align:center;margin-bottom:32px;}
+.page-title{font-size:24px;font-weight:800;color:var(--cyan);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
+.page-sub{font-size:14px;color:var(--text-dim);margin-bottom:24px;}
+.alerta-stock{background:rgba(255,71,87,0.12);border:2px solid var(--red);border-radius:12px;padding:12px 16px;color:var(--red);font-weight:700;font-size:14px;}
+.alerta-vencimiento{background:rgba(255,211,42,0.12);border:2px solid var(--yellow);border-radius:12px;padding:12px 16px;color:var(--yellow);font-weight:700;font-size:14px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -392,35 +300,11 @@ def ahora_col() -> datetime:
     return datetime.now(TZ_COL)
 
 def fmt_cop(v) -> str:
-    try:
-        return f"$ {float(v):,.0f}".replace(",", ".")
-    except:
-        return "$ 0"
+    try:    return f"$ {float(v):,.0f}".replace(",", ".")
+    except: return "$ 0"
 
 def gen_id(prefix: str = "") -> str:
-    ts = int(time.time() * 1000)
-    rnd = uuid.uuid4().hex[:6].upper()
-    return f"{prefix}{ts}-{rnd}"
-
-def hashpw(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
-
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# UTILIDADES GENERALES
-# ═══════════════════════════════════════════════════════════════════════════════
-
-def ahora_col() -> datetime:
-    return datetime.now(TZ_COL)
-
-def fmt_cop(v) -> str:
-    try:
-        return f"$ {float(v):,.0f}".replace(",", ".")
-    except:
-        return "$ 0"
-
-def gen_id(prefix: str = "") -> str:
-    ts = int(time.time() * 1000)
+    ts  = int(time.time() * 1000)
     rnd = uuid.uuid4().hex[:6].upper()
     return f"{prefix}{ts}-{rnd}"
 
@@ -428,284 +312,232 @@ def hashpw(pw: str) -> str:
     return hashlib.sha256(pw.encode()).hexdigest()
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# GOOGLE SHEETS — CAPA ÚNICA
-# SIN caché del spreadsheet. SIN variable sh circulando.
-# get_sh() es el único punto de entrada para obtener conexión.
-# gs_read / gs_append / gs_update_cell la llaman internamente.
+# CAPA POSTGRESQL — fuente única de datos
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def _gs_with_retry(func, operacion="operación"):
-    """Reintentos exponenciales ante error 429. Patrón del archivo de referencia."""
-    delay = INITIAL_RETRY_DELAY
-    for attempt in range(MAX_RETRIES):
+def _read_pg_url() -> str:
+    """Lee la URL de conexión desde secrets.toml o variable de entorno."""
+    def _build(host, port, user, password, dbname, sslmode="require"):
+        u = urllib.parse.quote(str(user), safe="")
+        p = urllib.parse.quote(str(password), safe="")
+        h = str(host).strip().lstrip("@")
+        return f"postgresql://{u}:{p}@{h}:{port}/{dbname}?sslmode={sslmode}&connect_timeout=15"
+
+    try:
+        if "postgres" in st.secrets:
+            pg = st.secrets["postgres"]
+            if "url" in pg and pg["url"]:
+                return str(pg["url"]).strip()
+            if pg.get("host"):
+                return _build(pg["host"], int(pg.get("port", 5432)),
+                               pg["user"], pg["password"],
+                               pg.get("dbname", "postgres"),
+                               pg.get("sslmode", "require"))
+    except Exception:
+        pass
+    import os
+    env = os.environ.get("DATABASE_URL", "").strip()
+    if env:
+        return env
+    return _build("localhost", 5433, "postgres", "123456", "repuestos", "disable")
+
+
+@st.cache_resource
+def _get_engine():
+    return {"url": _read_pg_url()}
+
+
+def get_pg_conn():
+    engine = _get_engine()
+    conn   = engine.get("conn")
+    if conn:
         try:
-            return func()
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower():
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(delay)
-                    delay *= 2
-                else:
-                    st.warning(f"⚠️ Cuota API agotada en '{operacion}'. El dato se perderá.")
-                    return None
-            else:
-                raise e
-    return None
+            conn.cursor().execute("SELECT 1")
+            return conn
+        except Exception:
+            pass
+    new_conn = psycopg2.connect(engine["url"])
+    engine["conn"] = new_conn
+    return new_conn
 
 
-def load_credentials_from_toml():
-    """
-    Carga credenciales desde .streamlit/secrets.toml.
-    Patrón idéntico al archivo de referencia pagos_convenios.py.
-    Retorna (creds_dict, config) o (None, None).
-    """
+def _pg_exec(sql: str, params=None, fetch: str = None):
+    conn = get_pg_conn()
     try:
-        with open('./.streamlit/secrets.toml', 'r', encoding='utf-8') as f:
-            config = toml_lib.load(f)
-        creds = config['sheetsemp']['credentials_sheet']
-        if isinstance(creds, str):
-            creds = json.loads(creds)
-        pk = creds.get("private_key", "")
-        if pk and "\\n" in pk and "\n" not in pk:
-            creds["private_key"] = pk.replace("\\n", "\n")
-        return creds, config
-    except FileNotFoundError:
-        st.error("📁 secrets.toml no encontrado en .streamlit/")
-        st.info("Crea `.streamlit/secrets.toml` con tus credenciales de Google.")
-        return None, None
-    except KeyError as e:
-        st.error(f"🔑 Clave faltante en secrets.toml: {e}")
-        st.info("Verifica [sheetsemp] con credentials_sheet y spreadsheet_id2.")
-        return None, None
-    except json.JSONDecodeError as e:
-        st.error(f"📄 Error JSON en secrets.toml: {e}")
-        return None, None
-    except Exception as e:
-        st.error(f"❌ Error cargando credenciales: {e}")
-        return None, None
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(sql, params)
+            conn.commit()
+            if fetch == "all":
+                return [dict(r) for r in cur.fetchall()]
+            if fetch == "one":
+                row = cur.fetchone()
+                return dict(row) if row else None
+    except Exception:
+        conn.rollback()
+        raise
 
 
-def get_google_sheets_connection(creds):
-    """
-    Autoriza cliente gspread con Service Account.
-    Patrón idéntico al archivo de referencia.
-    """
-    if not creds:
-        return None
+def init_db():
+    """Crea todas las tablas si no existen."""
+    if not PSYCOPG2_AVAILABLE:
+        st.error("❌ psycopg2 no instalado. Agrega `psycopg2-binary` a requirements.txt.")
+        st.stop()
     try:
-        scope = [
-            'https://spreadsheets.google.com/feeds',
-            'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/spreadsheets',
-        ]
-        credentials = Credentials.from_service_account_info(creds, scopes=scope)
-        return gspread.authorize(credentials)
+        conn = get_pg_conn()
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(_DDL)
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.error("❌ Cuota API agotada. Intenta en unos minutos.")
-        else:
-            st.error(f"❌ Error conectando a Google Sheets: {e}")
-        return None
+        st.error(f"❌ Error inicializando PostgreSQL: {e}")
 
+# ── Mapeo columnas Sheets → snake_case PG ────────────────────────────────────
+def _col_pg(c: str) -> str:
+    return c.lower()
 
-def get_or_create_spreadsheet(client, spreadsheet_id2):
+def _pg_read(hoja: str,
+             where_col: str = None,
+             where_val: str = None) -> list[dict]:
     """
-    Abre jjgt_otros_convenios por spreadsheet_id.
-    Verifica/crea cada hoja con cabeceras de DRIVE_SHEETS.
-    Patrón idéntico al archivo de referencia.
+    Lee todos los registros de una tabla.
+    Retorna lista de dicts con claves = columnas de DRIVE_SHEETS (TitleCase).
     """
-    if not client:
-        return None
-    try:
-        def _open_and_init():
-            try:
-                sh = client.open_by_key(spreadsheet_id2)
-            except gspread.SpreadsheetNotFound:
-                st.error(f"❌ Spreadsheet '{spreadsheet_id2}' no encontrado. "
-                         "Verifica spreadsheet_id2 en secrets.toml.")
-                return None
-
-            existing_titles = {ws.title for ws in sh.worksheets()}
-            for name, headers in DRIVE_SHEETS.items():
-                if name in existing_titles:
-                    continue
-                try:
-                    ws = sh.add_worksheet(title=name, rows=5000,
-                                          cols=max(len(headers), 26))
-                    ws.append_row(headers)
-                    time.sleep(0.3)
-                except gspread.exceptions.APIError as api_err:
-                    if "already exists" in str(api_err).lower():
-                        pass
-                    else:
-                        raise
-            return sh
-
-        return _gs_with_retry(_open_and_init, operacion="abrir spreadsheet")
-
-    except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.error("❌ Cuota API agotada. Intenta en unos minutos.")
-        else:
-            st.error(f"❌ Error abriendo spreadsheet: {err_str}")
-        return None
-
-
-def get_sh():
-    """
-    Punto de entrada único para Google Sheets.
-    Abre jjgt_otros_convenios FRESCO en cada llamada (sin cachear sh).
-    Datos siempre directos desde Google Sheets, nunca del caché.
-    """
-    if not GSPREAD_AVAILABLE:
-        return None
-    if not TOML_AVAILABLE:
-        st.error("❌ Instala 'toml': pip install toml")
-        return None
-    creds, config = load_credentials_from_toml()
-    if not creds or not config:
-        return None
-    spreadsheet_id2 = str(config.get("sheetsemp", {}).get("spreadsheet_id2", "") or "").strip()
-    if not spreadsheet_id2:
-        st.error("❌ 'spreadsheet_id2' no encontrado en secrets.toml → [sheetsemp]")
-        return None
-    client = get_google_sheets_connection(creds)
-    if not client:
-        return None
-    return get_or_create_spreadsheet(client, spreadsheet_id2)
-
-
-def _read_sheet(sh, hoja: str) -> list:
-    """Lee hoja directamente desde jjgt_otros_convenios. Sin caché."""
-    if not sh:
+    tabla  = _TABLA.get(hoja)
+    cols_s = DRIVE_SHEETS.get(hoja, [])
+    if not tabla or not cols_s:
         return []
+    where  = f'WHERE "{_col_pg(where_col)}" = %s' if where_col else ""
+    params = [where_val] if where_col else None
     try:
-        try:
-            ws = sh.worksheet(hoja)
-        except Exception as e:
-            err_msg = str(e).strip()
-            if err_msg == hoja or "not found" in err_msg.lower():
-                hdrs = DRIVE_SHEETS.get(hoja, [])
-                ws   = sh.add_worksheet(title=hoja, rows=5000,
-                                        cols=max(len(hdrs), 26))
-                if hdrs:
-                    ws.append_row(hdrs)
-                    time.sleep(0.3)
-                return []
-            raise
-        vals = ws.get_all_values()
-        if not vals or len(vals) < 2:
-            return []
-        headers = vals[0]
-        return [
-            {headers[i]: (row[i] if i < len(row) else "")
-             for i in range(len(headers))}
-            for row in vals[1:] if any(c.strip() for c in row)
-        ]
+        rows = _pg_exec(f"SELECT * FROM {tabla} {where} ORDER BY 1",
+                        params, fetch="all") or []
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Cuota API agotada al leer '{hoja}'. El dato se perderá.")
-        elif "10060" in err_str or "timed out" in err_str.lower() or "Connection aborted" in err_str:
-            st.warning(f"⚠️ Timeout al leer '{hoja}'. Verifica tu conexión a internet.")
-        else:
-            st.error(f"❌ Error leyendo '{hoja}': {e}")
+        st.warning(f"⚠️ Error leyendo {tabla}: {e}")
         return []
+    result = []
+    for row in rows:
+        rec = {}
+        for sh_col in cols_s:
+            val = row.get(_col_pg(sh_col), "")
+            rec[sh_col] = "" if val is None else str(val)
+        result.append(rec)
+    return result
 
 
-def _append_with_retry(sh, hoja: str, fila: list) -> bool:
-    """Escribe fila en hoja con retry 429. Crea hoja si no existe."""
-    if not sh:
+def _pg_insert(hoja: str, fila: list) -> bool:
+    """INSERT en la tabla PG correspondiente."""
+    tabla  = _TABLA.get(hoja)
+    cols_s = DRIVE_SHEETS.get(hoja, [])
+    if not tabla or not cols_s:
         return False
-    def _do():
-        try:
-            ws = sh.worksheet(hoja)
-        except Exception as e:
-            err_msg = str(e).strip()
-            if err_msg == hoja or "not found" in err_msg.lower():
-                hdrs = DRIVE_SHEETS.get(hoja, [])
-                ws   = sh.add_worksheet(title=hoja, rows=5000,
-                                        cols=max(len(hdrs), 26))
-                if hdrs:
-                    ws.append_row(hdrs)
-                    time.sleep(0.3)
-            else:
-                raise
-        ws.append_row(
-            [str(v) if v is not None else "" for v in fila],
-            value_input_option="USER_ENTERED"
+    # Descartar columna SERIAL si existe (facturas_items tiene id SERIAL)
+    cols_pg = [_col_pg(c) for c in cols_s]
+    fila_s  = [str(v) if v is not None else "" for v in fila]
+    fila_s  = (fila_s + [""] * len(cols_pg))[:len(cols_pg)]
+    cols_sql = ", ".join(f'"{c}"' for c in cols_pg)
+    ph       = ", ".join(["%s"] * len(cols_pg))
+    try:
+        _pg_exec(f"INSERT INTO {tabla} ({cols_sql}) VALUES ({ph})", fila_s)
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error insertando en {tabla}: {e}")
+        return False
+
+
+def _pg_upsert(hoja: str, pk_col: str, pk_val: str, fila: list) -> bool:
+    """INSERT … ON CONFLICT (pk_col) DO UPDATE SET …"""
+    tabla  = _TABLA.get(hoja)
+    cols_s = DRIVE_SHEETS.get(hoja, [])
+    if not tabla or not cols_s:
+        return False
+    cols_pg  = [_col_pg(c) for c in cols_s]
+    fila_s   = [str(v) if v is not None else "" for v in fila]
+    fila_s   = (fila_s + [""] * len(cols_pg))[:len(cols_pg)]
+    pk_pg    = _col_pg(pk_col)
+    cols_sql = ", ".join(f'"{c}"' for c in cols_pg)
+    ph       = ", ".join(["%s"] * len(cols_pg))
+    upd      = ", ".join(f'"{c}" = EXCLUDED."{c}"' for c in cols_pg if c != pk_pg)
+    try:
+        _pg_exec(
+            f'INSERT INTO {tabla} ({cols_sql}) VALUES ({ph}) '
+            f'ON CONFLICT ("{pk_pg}") DO UPDATE SET {upd}',
+            fila_s
         )
         return True
-    try:
-        result = _gs_with_retry(_do, operacion=hoja)
-        if result is None:
-            st.warning(f"⚠️ Cuota API agotada al escribir en '{hoja}'. El dato se perderá.")
-            return False
-        return True
     except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Cuota API agotada al escribir en '{hoja}'. El dato se perderá.")
-        else:
-            st.error(f"❌ Error escribiendo en '{hoja}': {e}")
+        st.warning(f"⚠️ Error upsert en {tabla}: {e}")
         return False
 
 
-# ── API pública ───────────────────────────────────────────────────────────────
+def _pg_update(hoja: str, pk_col: str, pk_val: str,
+               set_col: str, new_val: str) -> bool:
+    """UPDATE tabla SET set_col = new_val WHERE pk_col = pk_val."""
+    tabla = _TABLA.get(hoja)
+    if not tabla:
+        return False
+    try:
+        _pg_exec(
+            f'UPDATE {tabla} SET "{_col_pg(set_col)}" = %s WHERE "{_col_pg(pk_col)}" = %s',
+            [new_val, pk_val]
+        )
+        return True
+    except Exception as e:
+        st.warning(f"⚠️ Error update en {tabla}: {e}")
+        return False
+
+
+def _pg_dup(hoja: str, campo: str, valor: str) -> bool:
+    """True si ya existe campo == valor en la tabla."""
+    tabla = _TABLA.get(hoja)
+    if not tabla:
+        return False
+    try:
+        row = _pg_exec(
+            f'SELECT 1 FROM {tabla} WHERE LOWER("{_col_pg(campo)}") = LOWER(%s) LIMIT 1',
+            [str(valor).strip()], fetch="one"
+        )
+        return row is not None
+    except Exception:
+        return False
+
+
+def _pg_dup_multi(hoja: str, cv: dict) -> bool:
+    """True si existe registro donde TODOS los campos coinciden."""
+    tabla = _TABLA.get(hoja)
+    if not tabla:
+        return False
+    conds  = " AND ".join(f'LOWER("{_col_pg(c)}") = LOWER(%s)' for c in cv)
+    params = [str(v).strip() for v in cv.values()]
+    try:
+        row = _pg_exec(
+            f"SELECT 1 FROM {tabla} WHERE {conds} LIMIT 1",
+            params, fetch="one"
+        )
+        return row is not None
+    except Exception:
+        return False
+
+
+# ── API pública (mismo nombre que antes → cero cambios en UI) ─────────────────
 
 def gs_read(hoja: str) -> list:
-    """Lee directamente desde jjgt_otros_convenios. Sin caché."""
-    return _read_sheet(get_sh(), hoja)
-
+    return _pg_read(hoja)
 
 def gs_append(hoja: str, fila: list) -> bool:
-    """Escribe fila directamente en jjgt_otros_convenios."""
-    return _append_with_retry(get_sh(), hoja, fila)
+    return _pg_insert(hoja, fila)
 
-
-def gs_update_cell(hoja: str, row_idx: int, col_idx: int, value) -> bool:
-    """Actualiza celda directamente en jjgt_otros_convenios."""
-    sh = get_sh()
-    if not sh:
-        return False
-    def _do():
-        try:
-            ws = sh.worksheet(hoja)
-        except Exception as e:
-            err_msg = str(e).strip()
-            if err_msg == hoja or "not found" in err_msg.lower():
-                return False
-            raise
-        ws.update_cell(row_idx, col_idx, str(value))
-        return True
-    try:
-        result = _gs_with_retry(_do, operacion=hoja)
-        return bool(result)
-    except Exception as e:
-        err_str = str(e)
-        if "429" in err_str or "quota" in err_str.lower():
-            st.warning(f"⚠️ Cuota API agotada al actualizar '{hoja}'. El dato se perderá.")
-        else:
-            st.error(f"❌ Error actualizando '{hoja}': {e}")
-        return False
-
+def gs_update_cell(hoja: str, pk_col: str, pk_val: str, set_col: str, new_val) -> bool:
+    """
+    Firma adaptada a PG: en vez de (hoja, fila_idx, col_idx, valor)
+    usa (hoja, pk_col, pk_val, set_col, new_val).
+    Todas las actualizaciones van directo a PostgreSQL via _pg_update.
+    """
+    return _pg_update(hoja, pk_col, pk_val, set_col, str(new_val))
 
 def gs_dup(hoja: str, campo: str, valor: str) -> bool:
-    """True si ya existe campo==valor en la hoja."""
-    vn = str(valor).strip().lower()
-    return any(str(r.get(campo, "")).strip().lower() == vn for r in gs_read(hoja))
-
+    return _pg_dup(hoja, campo, valor)
 
 def gs_dup_multi(hoja: str, cv: dict) -> bool:
-    """True si existe registro donde TODOS los campos coinciden."""
-    return any(
-        all(str(r.get(c, "")).strip().lower() == str(v).strip().lower() for c, v in cv.items())
-        for r in gs_read(hoja)
-    )
-
+    return _pg_dup_multi(hoja, cv)
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ESTADO DE SESIÓN
@@ -729,9 +561,9 @@ def init_state():
 def verificar_login(usuario: str, password: str) -> Optional[dict]:
     try:
         for op in gs_read("Operadores"):
-            if op.get("Usuario", "").strip().lower() == usuario.strip().lower():
-                if op.get("Activo", "1") == "1" and op.get("Password_Hash", "") == hashpw(password):
-                    return {"nombre": op.get("Nombre", usuario), "rol": op.get("Rol", "Operador")}
+            if op.get("Usuario","").strip().lower() == usuario.strip().lower():
+                if op.get("Activo","1") == "1" and op.get("Password_Hash","") == hashpw(password):
+                    return {"nombre": op.get("Nombre", usuario), "rol": op.get("Rol","Operador")}
     except Exception:
         pass
     u = USUARIOS_DEFAULT.get(usuario.strip().lower())
@@ -791,25 +623,25 @@ def show_sidebar():
         st.caption(f"👤 {usuario}  ·  {rol}")
         st.divider()
 
-        menu_all = ["📊 Dashboard", "🏢 Convenios/Empresas", "📦 Inventario",
-                    "🔩 Repuestos", "🖥️ Escáner", "🛡️ Seguros",
-                    "💳 Pagos", "📄 Facturas", "⚙️ Configuración"]
-        menu_ro  = ["📊 Dashboard", "📦 Inventario", "🔩 Repuestos", "🖥️ Escáner", "🛡️ Seguros"]
+        menu_all = ["📊 Dashboard","🏢 Convenios/Empresas","📦 Inventario",
+                    "🔩 Repuestos","🖥️ Escáner","🛡️ Seguros",
+                    "💳 Pagos","📄 Facturas","⚙️ Configuración"]
+        menu_ro  = ["📊 Dashboard","📦 Inventario","🔩 Repuestos","🖥️ Escáner","🛡️ Seguros"]
         opciones = menu_ro if rol == "Consulta" else menu_all
 
         mapa = {
-            "📊 Dashboard":        "dashboard",
+            "📊 Dashboard":          "dashboard",
             "🏢 Convenios/Empresas": "empresas",
-            "📦 Inventario":       "inventario",
-            "🔩 Repuestos":        "repuestos",
-            "🖥️ Escáner":         "escaner",
-            "🛡️ Seguros":         "seguros",
-            "💳 Pagos":            "pagos",
-            "📄 Facturas":         "facturas",
-            "⚙️ Configuración":   "configuracion",
+            "📦 Inventario":         "inventario",
+            "🔩 Repuestos":          "repuestos",
+            "🖥️ Escáner":           "escaner",
+            "🛡️ Seguros":           "seguros",
+            "💳 Pagos":              "pagos",
+            "📄 Facturas":           "facturas",
+            "⚙️ Configuración":     "configuracion",
         }
         mapa_inv = {v: k for k, v in mapa.items()}
-        actual   = mapa_inv.get(st.session_state.get("pantalla", "dashboard"), opciones[0])
+        actual   = mapa_inv.get(st.session_state.get("pantalla","dashboard"), opciones[0])
         if actual not in opciones:
             actual = opciones[0]
 
@@ -817,19 +649,19 @@ def show_sidebar():
         st.session_state.pantalla = mapa.get(sel, "dashboard")
 
         st.divider()
-        creds_ok, config_ok = load_credentials_from_toml()
-        cr_ok  = bool(creds_ok)
-        sid_ok = bool(config_ok and config_ok.get("sheetsemp",{}).get("spreadsheet_id2",""))
-        if GSPREAD_AVAILABLE and cr_ok and sid_ok:
-            st.success("☁️ Google Sheets configurado")
-        elif not GSPREAD_AVAILABLE:
-            st.warning("⚠️ gspread no instalado")
+        # Estado de conexión PostgreSQL
+        if PSYCOPG2_AVAILABLE:
+            try:
+                get_pg_conn().cursor().execute("SELECT 1")
+                st.success("🐘 PostgreSQL conectado")
+            except Exception:
+                st.error("❌ PostgreSQL sin conexión")
         else:
-            st.error("❌ Revisar secrets.toml → [sheetsemp]")
+            st.warning("⚠️ psycopg2 no instalado")
 
         st.divider()
         if st.button("🚪 Cerrar Sesión", use_container_width=True):
-            for k in ["autenticado", "usuario", "rol", "pantalla"]:
+            for k in ["autenticado","usuario","rol","pantalla"]:
                 st.session_state[k] = False if k == "autenticado" else None
             st.session_state.pantalla = "login"
             st.rerun()
@@ -842,7 +674,7 @@ def get_empresas() -> list:
     return gs_read("Empresa")
 
 def get_empresas_activas() -> list:
-    return [e for e in get_empresas() if e.get("Activo", "1") == "1"]
+    return [e for e in get_empresas() if e.get("Activo","1") == "1"]
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DASHBOARD
@@ -853,7 +685,7 @@ def show_dashboard():
     st.markdown(f'<div class="page-sub">Resumen general · {ahora_col().strftime("%d/%m/%Y %H:%M")}</div>',
                 unsafe_allow_html=True)
 
-    with st.spinner("Cargando datos desde Google Sheets..."):
+    with st.spinner("Cargando datos desde PostgreSQL..."):
         repuestos  = gs_read("Repuestos")
         escaner    = gs_read("Escaner")
         seguros    = gs_read("Seguros")
@@ -861,21 +693,21 @@ def show_dashboard():
         inventario = gs_read("Inventarios")
         empresas   = gs_read("Empresa")
 
-    total_ingresos = sum(float(p.get("Monto_COP", 0) or 0) for p in pagos)
-    ing_rep = sum(float(r.get("Total_COP", 0) or 0) for r in repuestos)
-    ing_esc = sum(float(e.get("Total_COP", 0) or 0) for e in escaner)
-    ing_seg = sum(float(s.get("Prima_COP", 0) or 0) for s in seguros)
+    total_ingresos = sum(float(p.get("Monto_COP",0) or 0) for p in pagos)
+    ing_rep = sum(float(r.get("Total_COP",0) or 0) for r in repuestos)
+    ing_esc = sum(float(e.get("Total_COP",0) or 0) for e in escaner)
+    ing_seg = sum(float(s.get("Prima_COP",0) or 0) for s in seguros)
 
     bajo_stock = [i for i in inventario
-                  if float(i.get("Cantidad_Stock", 0) or 0) <= float(i.get("Cantidad_Minima", 0) or 0)
-                  and float(i.get("Cantidad_Minima", 0) or 0) > 0]
+                  if float(i.get("Cantidad_Stock",0) or 0) <= float(i.get("Cantidad_Minima",0) or 0)
+                  and float(i.get("Cantidad_Minima",0) or 0) > 0]
     hoy = ahora_col().date()
     seg_vencer = []
     for s in seguros:
-        fv = s.get("Fecha_Vencimiento", "")
+        fv = s.get("Fecha_Vencimiento","")
         if fv:
             try:
-                fd = datetime.strptime(fv[:10], "%Y-%m-%d").date()
+                fd = datetime.strptime(fv[:10],"%Y-%m-%d").date()
                 if 0 <= (fd - hoy).days <= 30:
                     seg_vencer.append(s)
             except Exception:
@@ -889,11 +721,11 @@ def show_dashboard():
                     unsafe_allow_html=True)
 
     st.markdown("---")
-    c1, c2, c3, c4, c5 = st.columns(5)
+    c1,c2,c3,c4,c5 = st.columns(5)
     c1.metric("💰 Total Ingresos",    fmt_cop(total_ingresos))
     c2.metric("🔩 Órdenes Repuestos", len(repuestos))
     c3.metric("🖥️ Servicios Escáner", len(escaner))
-    c4.metric("🛡️ Seguros Activos",  len([s for s in seguros if s.get("Estado", "") == "Activo"]))
+    c4.metric("🛡️ Seguros Activos",  len([s for s in seguros if s.get("Estado","") == "Activo"]))
     c5.metric("🏢 Empresas Convenio", len(empresas))
 
     st.markdown("---")
@@ -901,13 +733,13 @@ def show_dashboard():
     with col_a:
         st.markdown('<div class="card-title">💰 Ingresos por servicio</div>', unsafe_allow_html=True)
         if PLOTLY_AVAILABLE:
-            df_ing = pd.DataFrame({"Servicio": ["Repuestos", "Escáner", "Seguros"],
-                                   "Total": [ing_rep, ing_esc, ing_seg]})
+            df_ing = pd.DataFrame({"Servicio":["Repuestos","Escáner","Seguros"],
+                                   "Total":   [ing_rep, ing_esc, ing_seg]})
             fig = px.bar(df_ing, x="Servicio", y="Total", color="Servicio",
                          template="plotly_dark",
-                         color_discrete_sequence=["#00d4ff", "#00ff88", "#ffd32a"])
+                         color_discrete_sequence=["#00d4ff","#00ff88","#ffd32a"])
             fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                              showlegend=False, margin=dict(t=20, b=20, l=10, r=10))
+                              showlegend=False, margin=dict(t=20,b=20,l=10,r=10))
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("pip install plotly para ver gráficas")
@@ -916,24 +748,23 @@ def show_dashboard():
         st.markdown('<div class="card-title">📦 Estado Inventario</div>', unsafe_allow_html=True)
         if inventario and PLOTLY_AVAILABLE:
             from collections import Counter
-            est = Counter(i.get("Estado", "Disponible") for i in inventario)
-            cm = {"Disponible": "#00ff88", "Reservado": "#00d4ff",
-                  "Agotado": "#ff4757", "Descontinuado": "#94a3b8"}
+            est = Counter(i.get("Estado","Disponible") for i in inventario)
+            cm  = {"Disponible":"#00ff88","Reservado":"#00d4ff","Agotado":"#ff4757","Descontinuado":"#94a3b8"}
             fig2 = px.pie(names=list(est.keys()), values=list(est.values()),
                           template="plotly_dark", color=list(est.keys()), color_discrete_map=cm)
-            fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=20, b=20, l=10, r=10))
+            fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", margin=dict(t=20,b=20,l=10,r=10))
             st.plotly_chart(fig2, use_container_width=True)
         else:
             st.info("Sin datos de inventario")
 
     st.markdown("---")
     st.markdown('<div class="card-title">📋 Últimas 10 transacciones</div>', unsafe_allow_html=True)
-    ultimas = sorted(pagos, key=lambda x: x.get("Fecha_Pago", ""), reverse=True)[:10]
+    ultimas = sorted(pagos, key=lambda x: x.get("Fecha_Pago",""), reverse=True)[:10]
     if ultimas:
         st.dataframe(pd.DataFrame([{
-            "Fecha": p.get("Fecha_Pago", ""), "Empresa": p.get("Nombre_Empresa", "—"),
-            "Servicio": p.get("Tipo_Servicio", ""), "Monto": fmt_cop(p.get("Monto_COP", 0)),
-            "Estado": p.get("Estado", ""),
+            "Fecha":p.get("Fecha_Pago",""), "Empresa":p.get("Nombre_Empresa","—"),
+            "Servicio":p.get("Tipo_Servicio",""), "Monto":fmt_cop(p.get("Monto_COP",0)),
+            "Estado":p.get("Estado",""),
         } for p in ultimas]), use_container_width=True, hide_index=True)
     else:
         st.info("Sin transacciones registradas.")
@@ -946,7 +777,7 @@ def show_empresas():
     st.markdown('<div class="page-title">🏢 Convenios y Empresas</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Registro y gestión de empresas de transporte con convenio</div>',
                 unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📋 Listado", "➕ Nueva Empresa", "✏️ Editar/Inactivar"])
+    tab1, tab2, tab3 = st.tabs(["📋 Listado","➕ Nueva Empresa","✏️ Editar/Inactivar"])
 
     with tab1:
         empresas = gs_read("Empresa")
@@ -954,12 +785,12 @@ def show_empresas():
             st.info("Sin empresas registradas.")
         else:
             st.dataframe(pd.DataFrame([{
-                "ID": e.get("Id_Empresa", ""), "Nombre": e.get("Nombre_Empresa", ""),
-                "NIT": e.get("Nit_Empresa", ""), "Tipo": e.get("Tipo_Empresa", ""),
-                "Convenio": e.get("Tipo_Convenio", ""),
-                "Dto. Rep. %": e.get("Descuento_Repuestos_Pct", "0"),
-                "Dto. Esc. %": e.get("Descuento_Escaner_Pct", "0"),
-                "Activo": "✅" if e.get("Activo", "1") == "1" else "❌",
+                "ID":e.get("Id_Empresa",""), "Nombre":e.get("Nombre_Empresa",""),
+                "NIT":e.get("Nit_Empresa",""), "Tipo":e.get("Tipo_Empresa",""),
+                "Convenio":e.get("Tipo_Convenio",""),
+                "Dto. Rep. %":e.get("Descuento_Repuestos_Pct","0"),
+                "Dto. Esc. %":e.get("Descuento_Escaner_Pct","0"),
+                "Activo":"✅" if e.get("Activo","1") == "1" else "❌",
             } for e in empresas]), use_container_width=True, hide_index=True)
 
     with tab2:
@@ -985,9 +816,9 @@ def show_empresas():
                 nv = nombre.strip(); nitv = nit.strip()
                 if not nv or not nitv:
                     st.error("❌ Nombre y NIT son obligatorios.")
-                elif gs_dup("Empresa", "Nit_Empresa", nitv):
+                elif gs_dup("Empresa","Nit_Empresa", nitv):
                     st.warning(f"⚠️ Ya existe una empresa con NIT {nitv}.")
-                elif gs_dup("Empresa", "Nombre_Empresa", nv):
+                elif gs_dup("Empresa","Nombre_Empresa", nv):
                     st.warning(f"⚠️ Ya existe una empresa llamada {nv}.")
                 else:
                     fila = [gen_id("EMP-"), nv, nitv, tipo, email.strip(), tel.strip(),
@@ -995,56 +826,37 @@ def show_empresas():
                             str(dto_rep), str(dto_esc), str(cred_max),
                             obs.strip(), "1", ahora_col().isoformat()]
                     if gs_append("Empresa", fila):
-                        st.success(f"✅ Empresa **{nv}** registrada correctamente.")
-                        #st.rerun()
-                    else:
-                        st.error("❌ No se pudo guardar. Revisa la conexión y secrets.toml.")
+                        st.success(f"✅ Empresa **{nv}** registrada en PostgreSQL.")
 
     with tab3:
         empresas = gs_read("Empresa")
         if not empresas:
             st.info("Sin empresas para editar.")
         else:
-            opc = {f"{e['Nombre_Empresa']} ({e.get('Nit_Empresa','')})": (i, e)
-                   for i, e in enumerate(empresas)}
+            opc = {f"{e['Nombre_Empresa']} ({e.get('Nit_Empresa','')})": e for e in empresas}
             sel = st.selectbox("Seleccionar empresa", list(opc.keys()))
-            _, emp = opc[sel]
+            emp = opc[sel]
             c1, c2 = st.columns(2)
             with c1:
                 nd_rep = st.number_input("Dto. Repuestos %", 0.0, 100.0,
-                                         float(emp.get("Descuento_Repuestos_Pct", 0) or 0), 0.5)
+                                         float(emp.get("Descuento_Repuestos_Pct",0) or 0), 0.5)
                 nd_esc = st.number_input("Dto. Escáner %", 0.0, 100.0,
-                                         float(emp.get("Descuento_Escaner_Pct", 0) or 0), 0.5)
+                                         float(emp.get("Descuento_Escaner_Pct",0) or 0), 0.5)
             with c2:
                 nd_cred = st.number_input("Crédito máximo COP", 0, 100_000_000,
-                                          int(float(emp.get("Credito_Maximo_COP", 0) or 0)), 100_000)
-                nd_act  = st.checkbox("Empresa activa", value=emp.get("Activo", "1") == "1")
+                                          int(float(emp.get("Credito_Maximo_COP",0) or 0)), 100_000)
+                nd_act  = st.checkbox("Empresa activa", value=emp.get("Activo","1") == "1")
             if st.button("💾 Actualizar", type="primary", use_container_width=True, key="btn_upd_emp"):
-                sh_u = get_sh()
-                if not sh_u:
-                    st.error("❌ Sin conexión a Google Sheets.")
-                else:
-                    try:
-                        ws  = sh_u.worksheet("Empresa")
-                        vs  = ws.get_all_values()
-                        eid = emp.get("Id_Empresa", "")
-                        if vs and "Id_Empresa" in vs[0]:
-                            h = vs[0]
-                            for ri, row in enumerate(vs[1:], start=2):
-                                if row[h.index("Id_Empresa")] == eid:
-                                    for col_n, val in [
-                                        ("Descuento_Repuestos_Pct", str(nd_rep)),
-                                        ("Descuento_Escaner_Pct",   str(nd_esc)),
-                                        ("Credito_Maximo_COP",      str(nd_cred)),
-                                        ("Activo",                  "1" if nd_act else "0"),
-                                    ]:
-                                        if col_n in h:
-                                            gs_update_cell("Empresa", ri, h.index(col_n) + 1, val)
-                                    break
-                        st.success("✅ Empresa actualizada.")
-                        st.rerun()
-                    except Exception as ex:
-                        st.error(f"❌ Error: {ex}")
+                eid = emp.get("Id_Empresa","")
+                for col_n, val in [
+                    ("Descuento_Repuestos_Pct", str(nd_rep)),
+                    ("Descuento_Escaner_Pct",   str(nd_esc)),
+                    ("Credito_Maximo_COP",      str(nd_cred)),
+                    ("Activo",                  "1" if nd_act else "0"),
+                ]:
+                    _pg_update("Empresa", "Id_Empresa", eid, col_n, val)
+                st.success("✅ Empresa actualizada en PostgreSQL.")
+                st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO: INVENTARIO
@@ -1054,12 +866,12 @@ def show_inventario():
     st.markdown('<div class="page-title">📦 Inventario</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Control de stock de Repuestos y Equipos de Escáner</div>',
                 unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📋 Stock Actual", "➕ Agregar Ítem", "⚙️ Ajustar Stock"])
+    tab1, tab2, tab3 = st.tabs(["📋 Stock Actual","➕ Agregar Ítem","⚙️ Ajustar Stock"])
 
     with tab1:
         inventario = gs_read("Inventarios")
-        c1, c2, c3 = st.columns(3)
-        ft = c1.selectbox("Tipo",      ["Todos", "Repuesto", "Escáner", "Otro"])
+        c1,c2,c3 = st.columns(3)
+        ft = c1.selectbox("Tipo",      ["Todos","Repuesto","Escáner","Otro"])
         fc = c2.selectbox("Categoría", ["Todas"] + CATEGORIAS_REP)
         fe = c3.selectbox("Estado",    ["Todos"] + ESTADOS_INV)
         items = [i for i in inventario
@@ -1067,48 +879,47 @@ def show_inventario():
                  and (fc == "Todas" or i.get("Categoria") == fc)
                  and (fe == "Todos" or i.get("Estado") == fe)]
         bajo = [i for i in items
-                if float(i.get("Cantidad_Stock", 0) or 0) <= float(i.get("Cantidad_Minima", 0) or 0)
-                and float(i.get("Cantidad_Minima", 0) or 0) > 0]
+                if float(i.get("Cantidad_Stock",0) or 0) <= float(i.get("Cantidad_Minima",0) or 0)
+                and float(i.get("Cantidad_Minima",0) or 0) > 0]
         if bajo:
             st.markdown(f'<div class="alerta-stock">⚠️ {len(bajo)} ítem(s) bajo stock mínimo: '
-                        + ", ".join(i.get("Nombre", "?") for i in bajo[:5]) + "</div>",
+                        + ", ".join(i.get("Nombre","?") for i in bajo[:5]) + "</div>",
                         unsafe_allow_html=True)
         if not items:
             st.info("Sin ítems con esos filtros.")
         else:
             st.dataframe(pd.DataFrame([{
-                "SKU": i.get("Codigo_SKU", ""), "Nombre": i.get("Nombre", ""),
-                "Tipo": i.get("Tipo", ""), "Categoría": i.get("Categoria", ""),
-                "Marca": i.get("Marca", ""), "Stock": i.get("Cantidad_Stock", "0"),
-                "Mín.": i.get("Cantidad_Minima", "0"),
-                "P. Venta": fmt_cop(i.get("Precio_Venta_COP", 0)),
-                "Estado": i.get("Estado", ""),
+                "SKU":i.get("Codigo_SKU",""), "Nombre":i.get("Nombre",""),
+                "Tipo":i.get("Tipo",""), "Categoría":i.get("Categoria",""),
+                "Marca":i.get("Marca",""), "Stock":i.get("Cantidad_Stock","0"),
+                "Mín.":i.get("Cantidad_Minima","0"),
+                "P. Venta":fmt_cop(i.get("Precio_Venta_COP",0)), "Estado":i.get("Estado",""),
             } for i in items]), use_container_width=True, hide_index=True)
 
     with tab2:
         with st.form("form_inventario"):
             c1, c2 = st.columns(2)
             with c1:
-                tipo_item   = st.selectbox("Tipo de ítem", ["Repuesto", "Escáner", "Herramienta", "Otro"])
+                tipo_item   = st.selectbox("Tipo de ítem", ["Repuesto","Escáner","Herramienta","Otro"])
                 sku         = st.text_input("Código SKU *")
                 nombre_item = st.text_input("Nombre del ítem *")
                 descripcion = st.text_area("Descripción", height=80)
                 categoria   = st.selectbox("Categoría", CATEGORIAS_REP)
             with c2:
-                marca       = st.text_input("Marca")
-                referencia  = st.text_input("Referencia / Número de parte")
-                qty         = st.number_input("Cantidad en stock *", 0, 100000, 0)
-                qty_min     = st.number_input("Cantidad mínima (alerta)", 0, 100000, 5)
-                p_compra    = st.number_input("Precio de compra COP", 0, 500_000_000, 0, 1000)
-                p_venta     = st.number_input("Precio de venta COP",  0, 500_000_000, 0, 1000)
-                ubicacion   = st.text_input("Ubicación en bodega")
-                estado_item = st.selectbox("Estado", ESTADOS_INV)
+                marca      = st.text_input("Marca")
+                referencia = st.text_input("Referencia / Número de parte")
+                qty        = st.number_input("Cantidad en stock *", 0, 100000, 0)
+                qty_min    = st.number_input("Cantidad mínima (alerta)", 0, 100000, 5)
+                p_compra   = st.number_input("Precio de compra COP", 0, 500_000_000, 0, 1000)
+                p_venta    = st.number_input("Precio de venta COP",  0, 500_000_000, 0, 1000)
+                ubicacion  = st.text_input("Ubicación en bodega")
+                estado_item= st.selectbox("Estado", ESTADOS_INV)
             guardar_inv = st.form_submit_button("💾 Registrar Ítem", type="primary", use_container_width=True)
             if guardar_inv:
                 skuv = sku.strip(); nomv = nombre_item.strip()
                 if not skuv or not nomv:
                     st.error("❌ SKU y Nombre son obligatorios.")
-                elif gs_dup("Inventarios", "Codigo_SKU", skuv):
+                elif gs_dup("Inventarios","Codigo_SKU", skuv):
                     st.warning(f"⚠️ Ya existe un ítem con SKU {skuv}.")
                 else:
                     ahora = ahora_col().isoformat()
@@ -1116,8 +927,7 @@ def show_inventario():
                              categoria, marca, referencia, str(qty), str(qty_min),
                              str(p_compra), str(p_venta), ubicacion, estado_item, ahora, ahora]
                     if gs_append("Inventarios", fila):
-                        st.success(f"✅ Ítem **{nomv}** (SKU: {skuv}) registrado.")
-                        #st.rerun()
+                        st.success(f"✅ Ítem **{nomv}** (SKU: {skuv}) registrado en PostgreSQL.")
 
     with tab3:
         inventario = gs_read("Inventarios")
@@ -1128,47 +938,47 @@ def show_inventario():
             sel_inv = st.selectbox("Seleccionar ítem", list(opc_inv.keys()))
             item_s  = opc_inv[sel_inv]
             c1, c2  = st.columns(2)
-            stock_act = int(float(item_s.get("Cantidad_Stock", 0) or 0))
+            stock_act = int(float(item_s.get("Cantidad_Stock",0) or 0))
             c1.metric("Stock actual", stock_act)
-            nuevo_stock     = c1.number_input("Nuevo stock", 0, 1_000_000, stock_act)
-            nuevo_est_item  = c2.selectbox("Estado", ESTADOS_INV,
-                                           index=ESTADOS_INV.index(item_s.get("Estado", "Disponible"))
-                                           if item_s.get("Estado", "") in ESTADOS_INV else 0)
+            nuevo_stock    = c1.number_input("Nuevo stock", 0, 1_000_000, stock_act)
+            nuevo_est_item = c2.selectbox("Estado", ESTADOS_INV,
+                                          index=ESTADOS_INV.index(item_s.get("Estado","Disponible"))
+                                          if item_s.get("Estado","") in ESTADOS_INV else 0)
             if st.button("💾 Actualizar Stock", type="primary", use_container_width=True):
-                sh_u = get_sh()
-                if not sh_u:
-                    st.error("❌ Sin conexión.")
-                else:
-                    try:
-                        ws  = sh_u.worksheet("Inventarios")
-                        vs  = ws.get_all_values()
-                        iid = item_s.get("Id_Item", "")
-                        if vs and "Id_Item" in vs[0]:
-                            h = vs[0]
-                            for ri, row in enumerate(vs[1:], start=2):
-                                if row[h.index("Id_Item")] == iid:
-                                    for cn, cv2 in [
-                                        ("Cantidad_Stock",  str(nuevo_stock)),
-                                        ("Estado",          nuevo_est_item),
-                                        ("Actualizado_En",  ahora_col().isoformat()),
-                                    ]:
-                                        if cn in h:
-                                            gs_update_cell("Inventarios", ri, h.index(cn) + 1, cv2)
-                                    break
-                        st.success("✅ Stock actualizado.")
-                        st.rerun()
-                    except Exception as ex:
-                        st.error(f"❌ Error: {ex}")
+                iid = item_s.get("Id_Item","")
+                _pg_update("Inventarios","Id_Item", iid, "Cantidad_Stock",  str(nuevo_stock))
+                _pg_update("Inventarios","Id_Item", iid, "Estado",          nuevo_est_item)
+                _pg_update("Inventarios","Id_Item", iid, "Actualizado_En",  ahora_col().isoformat())
+                st.success("✅ Stock actualizado en PostgreSQL.")
+                st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO: REPUESTOS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _descontar_inventario(id_item: str, qty: int):
+    """Descuenta qty unidades del item en rs_inventarios."""
+    try:
+        row = _pg_exec(
+            'SELECT cantidad_stock FROM rs_inventarios WHERE id_item = %s',
+            [id_item], fetch="one"
+        )
+        if row:
+            stock_prev = int(float(row.get("cantidad_stock") or 0))
+            nuevo_stk  = max(0, stock_prev - qty)
+            _pg_update("Inventarios","Id_Item", id_item, "Cantidad_Stock",  str(nuevo_stk))
+            _pg_update("Inventarios","Id_Item", id_item, "Actualizado_En",  ahora_col().isoformat())
+            if nuevo_stk == 0:
+                _pg_update("Inventarios","Id_Item", id_item, "Estado", "Agotado")
+    except Exception as ex:
+        st.warning(f"⚠️ No se pudo descontar inventario: {ex}")
+
+
 def show_repuestos():
     st.markdown('<div class="page-title">🔩 Repuestos</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Solicitudes y despacho de repuestos para flotas</div>',
                 unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["📋 Historial", "➕ Nueva Solicitud"])
+    tab1, tab2 = st.tabs(["📋 Historial","➕ Nueva Solicitud"])
 
     with tab1:
         repuestos = gs_read("Repuestos")
@@ -1182,10 +992,10 @@ def show_repuestos():
             st.info("Sin solicitudes.")
         else:
             st.dataframe(pd.DataFrame([{
-                "ID": r.get("Id_Repuesto",""), "Fecha": r.get("Fecha_Solicitud",""),
-                "Empresa": r.get("Nombre_Empresa",""), "Repuesto": r.get("Nombre_Repuesto",""),
-                "Qty": r.get("Cantidad",""), "Total": fmt_cop(r.get("Total_COP",0)),
-                "Placa": r.get("Placa_Vehiculo",""), "Estado": r.get("Estado_Pedido",""),
+                "ID":r.get("Id_Repuesto",""), "Fecha":r.get("Fecha_Solicitud",""),
+                "Empresa":r.get("Nombre_Empresa",""), "Repuesto":r.get("Nombre_Repuesto",""),
+                "Qty":r.get("Cantidad",""), "Total":fmt_cop(r.get("Total_COP",0)),
+                "Placa":r.get("Placa_Vehiculo",""), "Estado":r.get("Estado_Pedido",""),
             } for r in items]), use_container_width=True, hide_index=True)
 
     with tab2:
@@ -1206,14 +1016,14 @@ def show_repuestos():
                 emp_r   = opc_emp[sel_emp]
                 placa   = st.text_input("Placa del vehículo *")
                 tipo_v  = st.selectbox("Tipo de vehículo", TIPOS_VEHICULO)
-                mecanico = st.text_input("Mecánico responsable")
+                mecanico= st.text_input("Mecánico responsable")
             with c2:
                 if items_disp:
                     opc_it  = {f"{i.get('Codigo_SKU','')} — {i.get('Nombre','')}": i for i in items_disp}
                     sel_it  = st.selectbox("Repuesto (inventario) *", list(opc_it.keys()))
                     item_r  = opc_it[sel_it]
-                    p_base  = float(item_r.get("Precio_Venta_COP", 0) or 0)
-                    dto_def = float(emp_r.get("Descuento_Repuestos_Pct", 0) or 0)
+                    p_base  = float(item_r.get("Precio_Venta_COP",0) or 0)
+                    dto_def = float(emp_r.get("Descuento_Repuestos_Pct",0) or 0)
                     qty_r   = st.number_input("Cantidad *", 1,
                                               int(float(item_r.get("Cantidad_Stock",999) or 999)), 1)
                     dto_r   = st.number_input("Descuento %", 0.0, 100.0, dto_def, 0.5)
@@ -1227,17 +1037,18 @@ def show_repuestos():
                                               float(emp_r.get("Descuento_Repuestos_Pct",0) or 0), 0.5)
                     p_unit  = st.number_input("Precio unitario COP", 0, 500_000_000, 0, 100)
                     item_r  = {"Nombre": nom_lib, "Codigo_SKU": "", "Categoria": cat_lib}
-            obs_r    = st.text_area("Observaciones")
-            est_rep  = st.selectbox("Estado del pedido", ["Pendiente","Aprobado","Despachado","Entregado","Cancelado"])
-            total_r  = qty_r * p_unit * (1 - dto_r / 100)
+            obs_r   = st.text_area("Observaciones")
+            est_rep = st.selectbox("Estado del pedido",
+                                   ["Pendiente","Aprobado","Despachado","Entregado","Cancelado"])
+            total_r = qty_r * p_unit * (1 - dto_r / 100)
             guardar_rep = st.form_submit_button("💾 Registrar Solicitud", type="primary", use_container_width=True)
             if guardar_rep:
                 if not placa.strip():
                     st.error("❌ La placa es obligatoria.")
-                elif gs_dup_multi("Repuestos", {
-                    "Placa_Vehiculo": placa.strip(),
-                    "Codigo_SKU":     item_r.get("Codigo_SKU",""),
-                    "Nombre_Empresa": emp_r.get("Nombre_Empresa",""),
+                elif gs_dup_multi("Repuestos",{
+                    "Placa_Vehiculo":placa.strip(),
+                    "Codigo_SKU":item_r.get("Codigo_SKU",""),
+                    "Nombre_Empresa":emp_r.get("Nombre_Empresa",""),
                 }):
                     st.warning("⚠️ Ya existe una solicitud para esta placa, empresa y repuesto.")
                 else:
@@ -1249,7 +1060,6 @@ def show_repuestos():
                               est_rep, placa.strip(), tipo_v, mecanico, obs_r,
                               st.session_state.usuario or "Sistema"]
                     if gs_append("Repuestos", fila_r):
-                        # ── Auto-registro en Facturas ──────────────────────────
                         num_fac = f"FAC-{ahora_col().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
                         iva_val = round(total_r * 0.19, 2)
                         fila_fac = [gen_id("FAC-"), num_fac,
@@ -1261,29 +1071,12 @@ def show_repuestos():
                                     f"Repuesto: {item_r.get('Nombre','')} · Placa: {placa.strip()}",
                                     st.session_state.usuario or "Sistema"]
                         gs_append("Facturas", fila_fac)
-                        gs_append("Facturas_Items", [gen_id("FI-"), num_fac, num_fac,
-                                                     "Repuesto", item_r.get("Nombre",""), str(qty_r),
-                                                     str(p_unit), str(dto_r), str(round(total_r,2))])
-                        # ── Descontar del Inventario si Despachado o Entregado ─
-                        if est_rep in ("Despachado", "Entregado") and item_r.get("Id_Item",""):
-                            sh_inv = get_sh()
-                            if sh_inv:
-                                try:
-                                    ws_inv = sh_inv.worksheet("Inventarios")
-                                    vs_inv = ws_inv.get_all_values()
-                                    if vs_inv and "Id_Item" in vs_inv[0]:
-                                        h = vs_inv[0]
-                                        for ri, row in enumerate(vs_inv[1:], start=2):
-                                            if row[h.index("Id_Item")] == item_r.get("Id_Item",""):
-                                                stock_prev = int(float(row[h.index("Cantidad_Stock")] or 0))
-                                                nuevo_stk  = max(0, stock_prev - qty_r)
-                                                gs_update_cell("Inventarios", ri, h.index("Cantidad_Stock")+1, str(nuevo_stk))
-                                                gs_update_cell("Inventarios", ri, h.index("Actualizado_En")+1, ahora_col().isoformat())
-                                                if nuevo_stk == 0 and "Estado" in h:
-                                                    gs_update_cell("Inventarios", ri, h.index("Estado")+1, "Agotado")
-                                                break
-                                except Exception as ex_inv:
-                                    st.warning(f"⚠️ No se pudo descontar inventario: {ex_inv}")
+                        gs_append("Facturas_Items",
+                                  [gen_id("FI-"), num_fac, num_fac,
+                                   "Repuesto", item_r.get("Nombre",""), str(qty_r),
+                                   str(p_unit), str(dto_r), str(round(total_r,2))])
+                        if est_rep in ("Despachado","Entregado") and item_r.get("Id_Item",""):
+                            _descontar_inventario(item_r["Id_Item"], qty_r)
                         st.success(f"✅ Solicitud registrada · Total: {fmt_cop(total_r)} · Factura: {num_fac}")
                         st.rerun()
 
@@ -1295,7 +1088,7 @@ def show_escaner():
     st.markdown('<div class="page-title">🖥️ Escáner Vehicular</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Diagnóstico y servicios de escáner para flotas</div>',
                 unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["📋 Historial", "➕ Nuevo Servicio"])
+    tab1, tab2 = st.tabs(["📋 Historial","➕ Nuevo Servicio"])
 
     with tab1:
         sv = gs_read("Escaner")
@@ -1303,10 +1096,10 @@ def show_escaner():
             st.info("Sin servicios registrados.")
         else:
             st.dataframe(pd.DataFrame([{
-                "ID": s.get("Id_Escaner",""), "Fecha": s.get("Fecha_Servicio",""),
-                "Empresa": s.get("Nombre_Empresa",""), "Placa": s.get("Placa_Vehiculo",""),
-                "Tipo Escáner": s.get("Tipo_Escaner",""), "Técnico": s.get("Tecnico",""),
-                "Total": fmt_cop(s.get("Total_COP",0)), "Estado": s.get("Estado",""),
+                "ID":s.get("Id_Escaner",""), "Fecha":s.get("Fecha_Servicio",""),
+                "Empresa":s.get("Nombre_Empresa",""), "Placa":s.get("Placa_Vehiculo",""),
+                "Tipo Escáner":s.get("Tipo_Escaner",""), "Técnico":s.get("Tecnico",""),
+                "Total":fmt_cop(s.get("Total_COP",0)), "Estado":s.get("Estado",""),
             } for s in sv]), use_container_width=True, hide_index=True)
 
     with tab2:
@@ -1329,27 +1122,28 @@ def show_escaner():
             with c2:
                 tipo_esc = st.selectbox("Tipo de escáner *", TIPOS_ESCANER)
                 if tarifas:
-                    opc_tar   = {f"{t.get('Nombre_Tarifa','')} — {fmt_cop(t.get('Precio_COP',0))}": t for t in tarifas}
-                    sel_tar   = st.selectbox("Tarifa", list(opc_tar.keys()))
-                    p_base_e  = float(opc_tar[sel_tar].get("Precio_COP", 0) or 0)
+                    opc_tar  = {f"{t.get('Nombre_Tarifa','')} — {fmt_cop(t.get('Precio_COP',0))}": t for t in tarifas}
+                    sel_tar  = st.selectbox("Tarifa", list(opc_tar.keys()))
+                    p_base_e = float(opc_tar[sel_tar].get("Precio_COP",0) or 0)
                 else:
-                    p_base_e  = st.number_input("Precio base COP", 0, 5_000_000, 80000, 5000)
-                dto_e    = st.number_input("Descuento %", 0.0, 100.0,
-                                           float(emp_e.get("Descuento_Escaner_Pct",0) or 0), 0.5)
-                total_e  = p_base_e * (1 - dto_e / 100)
+                    p_base_e = st.number_input("Precio base COP", 0, 5_000_000, 80000, 5000)
+                dto_e   = st.number_input("Descuento %", 0.0, 100.0,
+                                          float(emp_e.get("Descuento_Escaner_Pct",0) or 0), 0.5)
+                total_e = p_base_e * (1 - dto_e / 100)
                 st.info(f"Total a cobrar: **{fmt_cop(total_e)}**")
             codigos = st.text_area("Códigos de falla encontrados", height=80)
             result  = st.text_area("Resultado del diagnóstico",   height=80)
             recom   = st.text_area("Recomendaciones",             height=80)
-            est_esc = st.selectbox("Estado del servicio", ["Completado","En proceso","Pendiente","Cancelado"])
+            est_esc = st.selectbox("Estado del servicio",
+                                   ["Completado","En proceso","Pendiente","Cancelado"])
             guardar_esc = st.form_submit_button("💾 Registrar Servicio", type="primary", use_container_width=True)
             if guardar_esc:
                 if not placa_e.strip():
                     st.error("❌ La placa es obligatoria.")
-                elif gs_dup_multi("Escaner", {
-                    "Placa_Vehiculo": placa_e.strip(),
-                    "Tipo_Escaner":   tipo_esc,
-                    "Nombre_Empresa": emp_e.get("Nombre_Empresa",""),
+                elif gs_dup_multi("Escaner",{
+                    "Placa_Vehiculo":placa_e.strip(),
+                    "Tipo_Escaner":tipo_esc,
+                    "Nombre_Empresa":emp_e.get("Nombre_Empresa",""),
                 }):
                     st.warning("⚠️ Ya existe un servicio de escáner para esta placa, tipo y empresa.")
                 else:
@@ -1360,7 +1154,6 @@ def show_escaner():
                               result, codigos, recom, est_esc,
                               st.session_state.usuario or "Sistema"]
                     if gs_append("Escaner", fila_e):
-                        # ── Auto-registro en Facturas ──────────────────────────
                         num_fac_e = f"FAC-{ahora_col().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
                         iva_e     = round(total_e * 0.19, 2)
                         fila_fac_e = [gen_id("FAC-"), num_fac_e,
@@ -1372,32 +1165,17 @@ def show_escaner():
                                       f"Escáner: {tipo_esc} · Placa: {placa_e.strip()}",
                                       st.session_state.usuario or "Sistema"]
                         gs_append("Facturas", fila_fac_e)
-                        gs_append("Facturas_Items", [gen_id("FI-"), num_fac_e, num_fac_e,
-                                                     "Escaner", f"{tipo_esc} — {placa_e.strip()}", "1",
-                                                     str(round(p_base_e,2)), str(dto_e), str(round(total_e,2))])
-                        # ── Descontar del Inventario si Despachado o Entregado ─
-                        if est_esc in ("Despachado", "Entregado", "Completado"):
+                        gs_append("Facturas_Items",
+                                  [gen_id("FI-"), num_fac_e, num_fac_e,
+                                   "Escaner", f"{tipo_esc} — {placa_e.strip()}", "1",
+                                   str(round(p_base_e,2)), str(dto_e), str(round(total_e,2))])
+                        if est_esc in ("Despachado","Entregado","Completado"):
                             inv_esc = [i for i in gs_read("Inventarios")
                                        if i.get("Tipo","") == "Escáner"
                                        and i.get("Estado","") == "Disponible"
                                        and float(i.get("Cantidad_Stock",0) or 0) > 0]
                             if inv_esc:
-                                it_esc = inv_esc[0]
-                                sh_inv2 = get_sh()
-                                if sh_inv2:
-                                    try:
-                                        ws_inv2 = sh_inv2.worksheet("Inventarios")
-                                        vs_inv2 = ws_inv2.get_all_values()
-                                        if vs_inv2 and "Id_Item" in vs_inv2[0]:
-                                            h2 = vs_inv2[0]
-                                            for ri2, row2 in enumerate(vs_inv2[1:], start=2):
-                                                if row2[h2.index("Id_Item")] == it_esc.get("Id_Item",""):
-                                                    stk2 = int(float(row2[h2.index("Cantidad_Stock")] or 0))
-                                                    gs_update_cell("Inventarios", ri2, h2.index("Cantidad_Stock")+1, str(max(0, stk2-1)))
-                                                    gs_update_cell("Inventarios", ri2, h2.index("Actualizado_En")+1, ahora_col().isoformat())
-                                                    break
-                                    except Exception as ex_inv2:
-                                        st.warning(f"⚠️ No se pudo descontar inventario escáner: {ex_inv2}")
+                                _descontar_inventario(inv_esc[0].get("Id_Item",""), 1)
                         st.success(f"✅ Servicio registrado · Total: {fmt_cop(total_e)} · Factura: {num_fac_e}")
                         st.rerun()
 
@@ -1409,7 +1187,7 @@ def show_seguros():
     st.markdown('<div class="page-title">🛡️ Seguros de Vehículos</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Control de pólizas para la flota</div>',
                 unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📋 Pólizas Activas", "➕ Registrar Seguro", "⏰ Por Vencer"])
+    tab1, tab2, tab3 = st.tabs(["📋 Pólizas Activas","➕ Registrar Seguro","⏰ Por Vencer"])
 
     with tab1:
         seguros = gs_read("Seguros")
@@ -1418,11 +1196,11 @@ def show_seguros():
             st.info("Sin pólizas activas.")
         else:
             st.dataframe(pd.DataFrame([{
-                "Placa": s.get("Placa_Vehiculo",""), "Tipo Vehículo": s.get("Tipo_Vehiculo",""),
-                "Empresa": s.get("Nombre_Empresa",""), "Tipo Seguro": s.get("Tipo_Seguro",""),
-                "Aseguradora": s.get("Aseguradora",""), "N° Póliza": s.get("Num_Poliza",""),
-                "Inicio": s.get("Fecha_Inicio",""), "Vencimiento": s.get("Fecha_Vencimiento",""),
-                "Prima": fmt_cop(s.get("Prima_COP",0)), "Estado": s.get("Estado",""),
+                "Placa":s.get("Placa_Vehiculo",""), "Tipo Vehículo":s.get("Tipo_Vehiculo",""),
+                "Empresa":s.get("Nombre_Empresa",""), "Tipo Seguro":s.get("Tipo_Seguro",""),
+                "Aseguradora":s.get("Aseguradora",""), "N° Póliza":s.get("Num_Poliza",""),
+                "Inicio":s.get("Fecha_Inicio",""), "Vencimiento":s.get("Fecha_Vencimiento",""),
+                "Prima":fmt_cop(s.get("Prima_COP",0)), "Estado":s.get("Estado",""),
             } for s in activos]), use_container_width=True, hide_index=True)
 
     with tab2:
@@ -1438,24 +1216,25 @@ def show_seguros():
                     emp_s = {}
                 placa_s    = st.text_input("Placa del vehículo *")
                 tipo_v_s   = st.selectbox("Tipo de vehículo", TIPOS_VEHICULO)
-                propietario = st.text_input("Propietario / Conductor")
+                propietario= st.text_input("Propietario / Conductor")
                 tipo_seg   = st.selectbox("Tipo de seguro *", TIPOS_SEGURO)
             with c2:
-                aseguradora = st.text_input("Aseguradora *")
-                num_poliza  = st.text_input("Número de póliza *")
-                f_inicio    = st.date_input("Fecha inicio *", value=date.today())
-                f_venc      = st.date_input("Fecha vencimiento *", value=date.today())
-                prima       = st.number_input("Prima COP", 0, 500_000_000, 0, 10000)
-                cobertura   = st.number_input("Cobertura máxima COP", 0, 5_000_000_000, 0, 1_000_000)
+                aseguradora= st.text_input("Aseguradora *")
+                num_poliza = st.text_input("Número de póliza *")
+                f_inicio   = st.date_input("Fecha inicio *", value=date.today())
+                f_venc     = st.date_input("Fecha vencimiento *", value=date.today())
+                prima      = st.number_input("Prima COP", 0, 500_000_000, 0, 10000)
+                cobertura  = st.number_input("Cobertura máxima COP", 0, 5_000_000_000, 0, 1_000_000)
             obs_s       = st.text_area("Observaciones")
-            est_seg     = st.selectbox("Estado de la póliza", ["Activo","Vigente","Vencido","Cancelado","Suspendido"])
+            est_seg     = st.selectbox("Estado de la póliza",
+                                       ["Activo","Vigente","Vencido","Cancelado","Suspendido"])
             guardar_seg = st.form_submit_button("💾 Registrar Póliza", type="primary", use_container_width=True)
             if guardar_seg:
                 if not placa_s.strip() or not aseguradora.strip() or not num_poliza.strip():
                     st.error("❌ Placa, aseguradora y número de póliza son obligatorios.")
                 elif f_venc < f_inicio:
                     st.error("❌ La fecha de vencimiento debe ser posterior al inicio.")
-                elif gs_dup("Seguros", "Num_Poliza", num_poliza.strip()):
+                elif gs_dup("Seguros","Num_Poliza", num_poliza.strip()):
                     st.warning(f"⚠️ La póliza {num_poliza} ya está registrada.")
                 else:
                     fila_s = [gen_id("SEG-"), emp_s.get("Id_Empresa",""), emp_s.get("Nombre_Empresa",""),
@@ -1476,7 +1255,7 @@ def show_seguros():
             fv = s.get("Fecha_Vencimiento","")
             if fv:
                 try:
-                    fd  = datetime.strptime(fv[:10],"%Y-%m-%d").date()
+                    fd   = datetime.strptime(fv[:10],"%Y-%m-%d").date()
                     dias = (fd - hoy).days
                     if 0 <= dias <= 60:
                         proximos.append({**s, "_dias": dias})
@@ -1487,7 +1266,7 @@ def show_seguros():
             st.success("✅ Sin seguros venciendo en los próximos 60 días.")
         else:
             for s in proximos:
-                dias = s["_dias"]
+                dias  = s["_dias"]
                 color = "red" if dias <= 15 else ("yellow" if dias <= 30 else "cyan")
                 badge = f'<span class="badge badge-{color}">Vence en {dias} días</span>'
                 st.markdown(
@@ -1504,7 +1283,7 @@ def show_pagos():
     st.markdown('<div class="page-title">💳 Pagos</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Registro y control de pagos por servicios</div>',
                 unsafe_allow_html=True)
-    tab1, tab2 = st.tabs(["📋 Historial de Pagos", "➕ Registrar Pago"])
+    tab1, tab2 = st.tabs(["📋 Historial de Pagos","➕ Registrar Pago"])
 
     with tab1:
         pagos = gs_read("Pagos")
@@ -1515,10 +1294,10 @@ def show_pagos():
                              for p in pagos if p.get("Estado","") == "Confirmado")
             st.metric("💰 Total Cobrado (confirmados)", fmt_cop(total_conf))
             st.dataframe(pd.DataFrame([{
-                "Fecha": p.get("Fecha_Pago",""), "Empresa": p.get("Nombre_Empresa",""),
-                "Servicio": p.get("Tipo_Servicio",""), "Referencia": p.get("Referencia_Servicio",""),
-                "Monto": fmt_cop(p.get("Monto_COP",0)), "Método": p.get("Metodo_Pago",""),
-                "Estado": p.get("Estado",""), "Confirmado por": p.get("Confirmado_Por",""),
+                "Fecha":p.get("Fecha_Pago",""), "Empresa":p.get("Nombre_Empresa",""),
+                "Servicio":p.get("Tipo_Servicio",""), "Referencia":p.get("Referencia_Servicio",""),
+                "Monto":fmt_cop(p.get("Monto_COP",0)), "Método":p.get("Metodo_Pago",""),
+                "Estado":p.get("Estado",""), "Confirmado por":p.get("Confirmado_Por",""),
             } for p in pagos]), use_container_width=True, hide_index=True)
 
     with tab2:
@@ -1550,7 +1329,7 @@ def show_pagos():
                               tipo_svc, ref_svc, str(monto_p), metodo_p, estado_p,
                               st.session_state.usuario or "Sistema", obs_p]
                     if gs_append("Pagos", fila_p):
-                        st.success(f"✅ Pago de {fmt_cop(monto_p)} registrado.")
+                        st.success(f"✅ Pago de {fmt_cop(monto_p)} registrado en PostgreSQL.")
                         st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1558,124 +1337,91 @@ def show_pagos():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _html_factura(fac: dict, items: list, empresa_info: dict) -> str:
-    """Genera HTML imprimible de una factura."""
-    num      = fac.get("Num_Factura", "—")
-    emp_nom  = fac.get("Nombre_Empresa", "—")
-    emp_nit  = empresa_info.get("Nit_Empresa", "—")
-    emp_tel  = empresa_info.get("Telefono_Empresa", "—")
-    emp_email= empresa_info.get("Email_Empresa", "—")
-    f_emis   = fac.get("Fecha_Emision", "—")
-    f_venc   = fac.get("Fecha_Vencimiento", "—")
-    subtotal = float(fac.get("Subtotal_COP", 0) or 0)
-    dto      = float(fac.get("Descuento_COP", 0) or 0)
-    iva      = float(fac.get("IVA_COP", 0) or 0)
-    total    = float(fac.get("Total_COP", 0) or 0)
-    estado   = fac.get("Estado", "Emitida")
-    obs      = fac.get("Observaciones", "")
-    creado   = fac.get("Creado_Por", "Sistema")
-
-    badge_color = {"Pagada": "#00c853", "Emitida": "#0288d1",
-                   "Vencida": "#e53935", "Anulada": "#757575"}.get(estado, "#0288d1")
-
+    num      = fac.get("Num_Factura","—")
+    emp_nom  = fac.get("Nombre_Empresa","—")
+    emp_nit  = empresa_info.get("Nit_Empresa","—")
+    emp_tel  = empresa_info.get("Telefono_Empresa","—")
+    emp_email= empresa_info.get("Email_Empresa","—")
+    f_emis   = fac.get("Fecha_Emision","—")
+    f_venc   = fac.get("Fecha_Vencimiento","—")
+    subtotal = float(fac.get("Subtotal_COP",0) or 0)
+    dto      = float(fac.get("Descuento_COP",0) or 0)
+    iva      = float(fac.get("IVA_COP",0) or 0)
+    total    = float(fac.get("Total_COP",0) or 0)
+    estado   = fac.get("Estado","Emitida")
+    obs      = fac.get("Observaciones","")
+    creado   = fac.get("Creado_Por","Sistema")
+    badge_color = {"Pagada":"#00c853","Emitida":"#0288d1",
+                   "Vencida":"#e53935","Anulada":"#757575"}.get(estado,"#0288d1")
     filas_items = ""
     if items:
         for it in items:
-            desc  = it.get("Descripcion", it.get("Tipo_Servicio", ""))
-            qty   = it.get("Cantidad", "1")
-            p_u   = float(it.get("Precio_Unitario", 0) or 0)
-            dto_i = float(it.get("Descuento_Pct", 0) or 0)
-            sub_i = float(it.get("Subtotal", 0) or 0)
+            desc  = it.get("Descripcion", it.get("Tipo_Servicio",""))
+            qty   = it.get("Cantidad","1")
+            p_u   = float(it.get("Precio_Unitario",0) or 0)
+            dto_i = float(it.get("Descuento_Pct",0) or 0)
+            sub_i = float(it.get("Subtotal",0) or 0)
             filas_items += f"""
             <tr>
-              <td>{desc}</td>
-              <td style="text-align:center">{qty}</td>
+              <td>{desc}</td><td style="text-align:center">{qty}</td>
               <td style="text-align:right">$ {p_u:,.0f}</td>
               <td style="text-align:center">{dto_i}%</td>
               <td style="text-align:right">$ {sub_i:,.0f}</td>
             </tr>"""
     else:
-        filas_items = f"""
-        <tr>
-          <td colspan="5" style="text-align:center;color:#888">
-            {obs or "Sin ítems detallados"}
-          </td>
-        </tr>"""
+        filas_items = f"""<tr><td colspan="5" style="text-align:center;color:#888">
+            {obs or "Sin ítems detallados"}</td></tr>"""
 
     return f"""<!DOCTYPE html>
 <html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Factura {num}</title>
+<head><meta charset="UTF-8"><title>Factura {num}</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-  * {{ box-sizing:border-box; margin:0; padding:0; }}
-  body {{ font-family:'Inter',sans-serif; background:#f4f6f9; color:#1a1a2e; padding:20px; }}
-  .page {{ max-width:860px; margin:0 auto; background:#fff; border-radius:12px;
-           box-shadow:0 4px 24px rgba(0,0,0,.12); overflow:hidden; }}
-  /* Header */
-  .header {{ background:linear-gradient(135deg,#0d1f3c,#1a3a6c); color:#fff; padding:32px 40px; }}
-  .header-top {{ display:flex; justify-content:space-between; align-items:flex-start; }}
-  .brand {{ font-size:22px; font-weight:700; letter-spacing:1px; color:#00d4ff; }}
-  .brand-sub {{ font-size:12px; color:#94a3b8; margin-top:4px; }}
-  .fac-num {{ text-align:right; }}
-  .fac-num .label {{ font-size:11px; color:#94a3b8; text-transform:uppercase; letter-spacing:1px; }}
-  .fac-num .num {{ font-size:20px; font-weight:700; color:#fff; margin-top:4px; }}
-  .badge {{ display:inline-block; padding:4px 14px; border-radius:20px; font-size:12px;
-            font-weight:700; color:#fff; background:{badge_color}; margin-top:8px; }}
-  /* Info grid */
-  .info-grid {{ display:grid; grid-template-columns:1fr 1fr; gap:0; }}
-  .info-box {{ padding:24px 40px; border-bottom:1px solid #e8edf5; }}
-  .info-box:nth-child(odd) {{ border-right:1px solid #e8edf5; }}
-  .info-title {{ font-size:11px; text-transform:uppercase; letter-spacing:1px;
-                 color:#64748b; font-weight:600; margin-bottom:10px; }}
-  .info-line {{ font-size:13px; color:#1e293b; margin-bottom:4px; }}
-  .info-line strong {{ color:#0d1f3c; }}
-  /* Table */
-  .table-wrap {{ padding:0 40px 24px; }}
-  table {{ width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }}
-  thead tr {{ background:#f1f5fb; }}
-  thead th {{ padding:10px 12px; text-align:left; font-size:11px; text-transform:uppercase;
-              letter-spacing:.8px; color:#64748b; font-weight:600; }}
-  tbody tr {{ border-bottom:1px solid #f1f5fb; }}
-  tbody tr:hover {{ background:#f8fafc; }}
-  tbody td {{ padding:10px 12px; color:#334155; }}
-  /* Totals */
-  .totals {{ padding:0 40px 32px; display:flex; justify-content:flex-end; }}
-  .totals-box {{ width:300px; }}
-  .totals-row {{ display:flex; justify-content:space-between; padding:6px 0;
-                 font-size:13px; color:#64748b; border-bottom:1px solid #f1f5fb; }}
-  .totals-row.total {{ font-size:16px; font-weight:700; color:#0d1f3c; border:none;
-                       padding-top:12px; }}
-  /* Footer */
-  .footer {{ background:#f8fafc; border-top:1px solid #e8edf5; padding:18px 40px;
-             display:flex; justify-content:space-between; font-size:11px; color:#94a3b8; }}
-  .obs {{ padding:0 40px 20px; font-size:12px; color:#64748b;
-          background:#fffbeb; border-left:3px solid #f59e0b; margin:0 40px 20px;
-          padding:12px 16px; border-radius:0 6px 6px 0; }}
-  @media print {{
-    body {{ background:#fff; padding:0; }}
-    .page {{ box-shadow:none; border-radius:0; }}
-    .no-print {{ display:none !important; }}
-  }}
-</style>
-</head>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+*{{box-sizing:border-box;margin:0;padding:0;}}
+body{{font-family:'Inter',sans-serif;background:#f4f6f9;color:#1a1a2e;padding:20px;}}
+.page{{max-width:860px;margin:0 auto;background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.12);overflow:hidden;}}
+.header{{background:linear-gradient(135deg,#0d1f3c,#1a3a6c);color:#fff;padding:32px 40px;}}
+.header-top{{display:flex;justify-content:space-between;align-items:flex-start;}}
+.brand{{font-size:22px;font-weight:700;letter-spacing:1px;color:#00d4ff;}}
+.brand-sub{{font-size:12px;color:#94a3b8;margin-top:4px;}}
+.fac-num{{text-align:right;}}.fac-num .label{{font-size:11px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;}}
+.fac-num .num{{font-size:20px;font-weight:700;color:#fff;margin-top:4px;}}
+.badge{{display:inline-block;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:700;color:#fff;background:{badge_color};margin-top:8px;}}
+.info-grid{{display:grid;grid-template-columns:1fr 1fr;gap:0;}}
+.info-box{{padding:24px 40px;border-bottom:1px solid #e8edf5;}}
+.info-box:nth-child(odd){{border-right:1px solid #e8edf5;}}
+.info-title{{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#64748b;font-weight:600;margin-bottom:10px;}}
+.info-line{{font-size:13px;color:#1e293b;margin-bottom:4px;}}
+.info-line strong{{color:#0d1f3c;}}
+.table-wrap{{padding:0 40px 24px;}}
+table{{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px;}}
+thead tr{{background:#f1f5fb;}}
+thead th{{padding:10px 12px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:#64748b;font-weight:600;}}
+tbody tr{{border-bottom:1px solid #f1f5fb;}}tbody tr:hover{{background:#f8fafc;}}
+tbody td{{padding:10px 12px;color:#334155;}}
+.totals{{padding:0 40px 32px;display:flex;justify-content:flex-end;}}
+.totals-box{{width:300px;}}
+.totals-row{{display:flex;justify-content:space-between;padding:6px 0;font-size:13px;color:#64748b;border-bottom:1px solid #f1f5fb;}}
+.totals-row.total{{font-size:16px;font-weight:700;color:#0d1f3c;border:none;padding-top:12px;}}
+.footer{{background:#f8fafc;border-top:1px solid #e8edf5;padding:18px 40px;display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;}}
+.obs{{padding:12px 16px;background:#fffbeb;border-left:3px solid #f59e0b;margin:0 40px 20px;border-radius:0 6px 6px 0;font-size:12px;color:#64748b;}}
+@media print{{body{{background:#fff;padding:0;}}.page{{box-shadow:none;border-radius:0;}}.no-print{{display:none !important;}}}}
+</style></head>
 <body>
 <div class="no-print" style="text-align:center;margin-bottom:20px">
   <button onclick="window.print()"
-    style="background:#0d1f3c;color:#00d4ff;border:1.5px solid #00d4ff;
-           padding:10px 32px;border-radius:8px;font-size:15px;font-weight:700;
-           cursor:pointer;letter-spacing:1px">
+    style="background:#0d1f3c;color:#00d4ff;border:1.5px solid #00d4ff;padding:10px 32px;
+           border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px">
     🖨️ IMPRIMIR / GUARDAR PDF
   </button>
 </div>
 <div class="page">
-  <!-- HEADER -->
   <div class="header">
     <div class="header-top">
       <div>
         <div class="brand">🔧 {NEGOCIO}</div>
         <div class="brand-sub">{TAGLINE}</div>
-        <div class="brand-sub" style="margin-top:2px">{DIRECCION}</div>
+        <div class="brand-sub">{DIRECCION}</div>
         <div class="brand-sub">NIT {NIT} · {TELEFONO} · {EMAIL}</div>
       </div>
       <div class="fac-num">
@@ -1685,8 +1431,6 @@ def _html_factura(fac: dict, items: list, empresa_info: dict) -> str:
       </div>
     </div>
   </div>
-
-  <!-- INFO GRID -->
   <div class="info-grid">
     <div class="info-box">
       <div class="info-title">📋 Datos del Cliente</div>
@@ -1703,29 +1447,19 @@ def _html_factura(fac: dict, items: list, empresa_info: dict) -> str:
       <div class="info-line">Generado: {ahora_col().strftime("%d/%m/%Y %H:%M")}</div>
     </div>
   </div>
-
-  <!-- ITEMS TABLE -->
   <div class="table-wrap">
     <div class="info-title" style="padding-top:20px;margin-bottom:4px">📦 Detalle de Servicios</div>
     <table>
-      <thead>
-        <tr>
-          <th>Descripción</th>
-          <th style="text-align:center">Cant.</th>
-          <th style="text-align:right">P. Unitario</th>
-          <th style="text-align:center">Dto.</th>
-          <th style="text-align:right">Subtotal</th>
-        </tr>
-      </thead>
-      <tbody>
-        {filas_items}
-      </tbody>
+      <thead><tr>
+        <th>Descripción</th><th style="text-align:center">Cant.</th>
+        <th style="text-align:right">P. Unitario</th>
+        <th style="text-align:center">Dto.</th>
+        <th style="text-align:right">Subtotal</th>
+      </tr></thead>
+      <tbody>{filas_items}</tbody>
     </table>
   </div>
-
   {"<div class='obs'>📝 " + obs + "</div>" if obs else ""}
-
-  <!-- TOTALS -->
   <div class="totals">
     <div class="totals-box">
       <div class="totals-row"><span>Subtotal</span><span>$ {subtotal:,.0f}</span></div>
@@ -1734,34 +1468,30 @@ def _html_factura(fac: dict, items: list, empresa_info: dict) -> str:
       <div class="totals-row total"><span>TOTAL A PAGAR</span><span>$ {total:,.0f}</span></div>
     </div>
   </div>
-
-  <!-- FOOTER -->
   <div class="footer">
     <span>Suite Salitre S.A.S · NIT {NIT}</span>
     <span>{TELEFONO} · {EMAIL}</span>
     <span>Factura #{num}</span>
   </div>
-</div>
-</body>
-</html>"""
+</div></body></html>"""
 
 
 def show_facturas():
     st.markdown('<div class="page-title">📄 Facturas</div>', unsafe_allow_html=True)
-    st.markdown('<div class="page-sub">Consulta, impresión y generación de facturas</div>', unsafe_allow_html=True)
-    tab1, tab2, tab3 = st.tabs(["📋 Listado de Facturas", "🖨️ Ver / Imprimir Factura", "➕ Generar Nueva Factura"])
+    st.markdown('<div class="page-sub">Consulta, impresión y generación de facturas</div>',
+                unsafe_allow_html=True)
+    tab1, tab2, tab3 = st.tabs(["📋 Listado de Facturas","🖨️ Ver / Imprimir Factura","➕ Generar Nueva Factura"])
 
-    # ── TAB 1: LISTADO ────────────────────────────────────────────────────────
     with tab1:
         facturas = gs_read("Facturas")
         if not facturas:
             st.info("Sin facturas generadas.")
         else:
             c1, c2, c3 = st.columns(3)
-            empresas_nombres = sorted({f.get("Nombre_Empresa","") for f in facturas if f.get("Nombre_Empresa","")})
-            f_emp_l  = c1.selectbox("Filtrar empresa",  ["Todas"] + empresas_nombres, key="list_emp")
-            f_est_l  = c2.selectbox("Filtrar estado",   ["Todos","Emitida","Pagada","Vencida","Anulada"], key="list_est")
-            f_num_l  = c3.text_input("Buscar N° factura", key="list_num")
+            emp_nombres = sorted({f.get("Nombre_Empresa","") for f in facturas if f.get("Nombre_Empresa","")})
+            f_emp_l = c1.selectbox("Filtrar empresa",  ["Todas"] + emp_nombres, key="list_emp")
+            f_est_l = c2.selectbox("Filtrar estado",   ["Todos","Emitida","Pagada","Vencida","Anulada"], key="list_est")
+            f_num_l = c3.text_input("Buscar N° factura", key="list_num")
             filtradas = [f for f in facturas
                          if (f_emp_l == "Todas" or f.get("Nombre_Empresa","") == f_emp_l)
                          and (f_est_l == "Todos" or f.get("Estado","") == f_est_l)
@@ -1771,22 +1501,15 @@ def show_facturas():
                 st.info("Sin resultados para el filtro aplicado.")
             else:
                 st.dataframe(pd.DataFrame([{
-                    "N° Factura":  f.get("Num_Factura",""),
-                    "Empresa":     f.get("Nombre_Empresa",""),
-                    "Emisión":     f.get("Fecha_Emision",""),
-                    "Vencimiento": f.get("Fecha_Vencimiento",""),
-                    "Subtotal":    fmt_cop(f.get("Subtotal_COP",0)),
-                    "IVA":         fmt_cop(f.get("IVA_COP",0)),
-                    "Total":       fmt_cop(f.get("Total_COP",0)),
-                    "Estado":      f.get("Estado",""),
-                    "Creado por":  f.get("Creado_Por",""),
+                    "N° Factura":f.get("Num_Factura",""), "Empresa":f.get("Nombre_Empresa",""),
+                    "Emisión":f.get("Fecha_Emision",""), "Vencimiento":f.get("Fecha_Vencimiento",""),
+                    "Subtotal":fmt_cop(f.get("Subtotal_COP",0)), "IVA":fmt_cop(f.get("IVA_COP",0)),
+                    "Total":fmt_cop(f.get("Total_COP",0)), "Estado":f.get("Estado",""),
+                    "Creado por":f.get("Creado_Por",""),
                 } for f in filtradas]), use_container_width=True, hide_index=True)
-
-            # Totales del filtro
             tot_fil = sum(float(f.get("Total_COP",0) or 0) for f in filtradas)
             st.markdown(f"**Total filtrado:** {fmt_cop(tot_fil)}")
 
-    # ── TAB 2: VER / IMPRIMIR ─────────────────────────────────────────────────
     with tab2:
         st.markdown("#### 🔍 Buscar factura existente")
         facturas_all = gs_read("Facturas")
@@ -1795,115 +1518,70 @@ def show_facturas():
         if not facturas_all:
             st.info("No hay facturas registradas aún.")
         else:
-            # Filtro por empresa
-            empresas_con_fac = sorted({f.get("Nombre_Empresa","") for f in facturas_all if f.get("Nombre_Empresa","")})
+            emp_con_fac = sorted({f.get("Nombre_Empresa","") for f in facturas_all if f.get("Nombre_Empresa","")})
             col_f1, col_f2 = st.columns([2, 2])
-            sel_emp_imp = col_f1.selectbox(
-                "1. Seleccionar empresa",
-                ["— Todas —"] + empresas_con_fac,
-                key="imp_emp"
-            )
-
-            # Filtrar facturas por empresa
+            sel_emp_imp = col_f1.selectbox("1. Seleccionar empresa",
+                                           ["— Todas —"] + emp_con_fac, key="imp_emp")
             facs_empresa = [f for f in facturas_all
                             if sel_emp_imp == "— Todas —"
                             or f.get("Nombre_Empresa","") == sel_emp_imp]
-
             opc_fac = {
                 f"{f.get('Num_Factura','?')}  ·  {f.get('Fecha_Emision','—')}  ·  {fmt_cop(f.get('Total_COP',0))}  ·  [{f.get('Estado','')}]": f
                 for f in sorted(facs_empresa, key=lambda x: x.get("Fecha_Emision",""), reverse=True)
             }
-
             if not opc_fac:
                 st.warning("No hay facturas para la empresa seleccionada.")
             else:
-                sel_fac_key = col_f2.selectbox(
-                    "2. Seleccionar factura",
-                    list(opc_fac.keys()),
-                    key="imp_fac"
-                )
-                fac_sel = opc_fac[sel_fac_key]
-
-                # Cargar ítems de la factura
-                items_all  = gs_read("Facturas_Items")
-                num_sel    = fac_sel.get("Num_Factura","")
-                items_fac  = [i for i in items_all if i.get("Num_Factura","") == num_sel or i.get("Id_Factura","") == num_sel]
-
-                # Buscar datos completos de la empresa
-                emp_info = next(
-                    (e for e in empresas_all if e.get("Nombre_Empresa","") == fac_sel.get("Nombre_Empresa","")),
-                    {}
-                )
-
+                sel_fac_key = col_f2.selectbox("2. Seleccionar factura", list(opc_fac.keys()), key="imp_fac")
+                fac_sel     = opc_fac[sel_fac_key]
+                items_all   = gs_read("Facturas_Items")
+                num_sel     = fac_sel.get("Num_Factura","")
+                items_fac   = [i for i in items_all
+                               if i.get("Num_Factura","") == num_sel
+                               or i.get("Id_Factura","") == num_sel]
+                emp_info    = next((e for e in empresas_all
+                                    if e.get("Nombre_Empresa","") == fac_sel.get("Nombre_Empresa","")), {})
                 st.markdown("---")
-
-                # Vista previa de campos cargados
-                st.markdown("##### 📋 Datos de la factura cargada")
-                p1, p2, p3, p4 = st.columns(4)
+                p1,p2,p3,p4 = st.columns(4)
                 p1.metric("N° Factura",  fac_sel.get("Num_Factura","—"))
                 p2.metric("Estado",      fac_sel.get("Estado","—"))
                 p3.metric("Total",       fmt_cop(fac_sel.get("Total_COP",0)))
                 p4.metric("Vencimiento", fac_sel.get("Fecha_Vencimiento","—"))
-
-                # Información completa en expander
-                with st.expander("📄 Ver todos los campos de la factura", expanded=False):
+                with st.expander("📄 Ver todos los campos", expanded=False):
                     d1, d2 = st.columns(2)
                     with d1:
                         st.markdown("**Cliente**")
                         st.write(f"Empresa: {fac_sel.get('Nombre_Empresa','—')}")
                         st.write(f"NIT: {emp_info.get('Nit_Empresa','—')}")
-                        st.write(f"Teléfono: {emp_info.get('Telefono_Empresa','—')}")
+                        st.write(f"Tel: {emp_info.get('Telefono_Empresa','—')}")
                         st.write(f"Email: {emp_info.get('Email_Empresa','—')}")
-                        st.write(f"Contacto: {emp_info.get('Contacto_Nombre','—')}")
                     with d2:
                         st.markdown("**Factura**")
                         st.write(f"Emisión: {fac_sel.get('Fecha_Emision','—')}")
                         st.write(f"Vencimiento: {fac_sel.get('Fecha_Vencimiento','—')}")
                         st.write(f"Subtotal: {fmt_cop(fac_sel.get('Subtotal_COP',0))}")
-                        st.write(f"Descuento: {fmt_cop(fac_sel.get('Descuento_COP',0))}")
                         st.write(f"IVA: {fmt_cop(fac_sel.get('IVA_COP',0))}")
                         st.write(f"Total: {fmt_cop(fac_sel.get('Total_COP',0))}")
-                        st.write(f"Creado por: {fac_sel.get('Creado_Por','—')}")
-                    if fac_sel.get("Observaciones",""):
-                        st.markdown(f"**Observaciones:** {fac_sel.get('Observaciones','')}")
-
-                # Ítems de la factura
                 if items_fac:
-                    st.markdown("##### 📦 Ítems de la factura")
+                    st.markdown("##### 📦 Ítems")
                     st.dataframe(pd.DataFrame([{
-                        "Tipo":         i.get("Tipo_Servicio",""),
-                        "Descripción":  i.get("Descripcion",""),
-                        "Cant.":        i.get("Cantidad","1"),
-                        "P. Unitario":  fmt_cop(i.get("Precio_Unitario",0)),
-                        "Dto. %":       i.get("Descuento_Pct","0"),
-                        "Subtotal":     fmt_cop(i.get("Subtotal",0)),
+                        "Tipo":i.get("Tipo_Servicio",""), "Descripción":i.get("Descripcion",""),
+                        "Cant.":i.get("Cantidad","1"), "P. Unitario":fmt_cop(i.get("Precio_Unitario",0)),
+                        "Dto. %":i.get("Descuento_Pct","0"), "Subtotal":fmt_cop(i.get("Subtotal",0)),
                     } for i in items_fac]), use_container_width=True, hide_index=True)
-
                 st.markdown("---")
-
-                # Generar HTML imprimible
                 html_fac = _html_factura(fac_sel, items_fac, emp_info)
-
-                col_btn1, col_btn2 = st.columns([1, 1])
-                with col_btn1:
-                    st.download_button(
-                        label="⬇️ Descargar Factura HTML",
-                        data=html_fac.encode("utf-8"),
-                        file_name=f"Factura_{num_sel}.html",
-                        mime="text/html",
-                        use_container_width=True,
-                    )
-                with col_btn2:
+                col_b1, col_b2 = st.columns(2)
+                with col_b1:
+                    st.download_button("⬇️ Descargar Factura HTML", html_fac.encode("utf-8"),
+                                       f"Factura_{num_sel}.html", "text/html", use_container_width=True)
+                with col_b2:
                     if st.button("🖨️ Abrir Vista de Impresión", use_container_width=True, key="btn_print"):
                         st.session_state["html_preview"] = html_fac
                         st.session_state["preview_num"]  = num_sel
-
-                # Mostrar preview inline si se solicitó
                 if st.session_state.get("preview_num","") == num_sel and "html_preview" in st.session_state:
-                    st.markdown("##### 👁️ Vista previa de impresión")
                     st.components.v1.html(st.session_state["html_preview"], height=900, scrolling=True)
 
-    # ── TAB 3: GENERAR NUEVA FACTURA ──────────────────────────────────────────
     with tab3:
         empresas = get_empresas_activas()
         with st.form("form_factura"):
@@ -1934,7 +1612,7 @@ def show_facturas():
                 if subtotal_fac <= 0:
                     st.error("❌ El subtotal debe ser mayor a 0.")
                 else:
-                    num_fac = f"FAC-{ahora_col().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+                    num_fac  = f"FAC-{ahora_col().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
                     fila_fac = [gen_id("FAC-"), num_fac, emp_f.get("Id_Empresa",""), emp_f.get("Nombre_Empresa",""),
                                 f_emision.isoformat(), f_venc_fac.isoformat(),
                                 str(subtotal_fac), str(dto_fac), str(iva_val), str(round(total_fac,2)),
@@ -1946,7 +1624,7 @@ def show_facturas():
                                 if desc:
                                     gs_append("Facturas_Items",
                                               [gen_id("FI-"), num_fac, num_fac, "General", desc, "1","0","0","0"])
-                        st.success(f"✅ Factura {num_fac} generada · Total: {fmt_cop(total_fac)}")
+                        st.success(f"✅ Factura {num_fac} generada en PostgreSQL · Total: {fmt_cop(total_fac)}")
                         st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1960,31 +1638,49 @@ def show_configuracion():
     st.markdown('<div class="page-title">⚙️ Configuración</div>', unsafe_allow_html=True)
     st.markdown('<div class="page-sub">Tarifas, operadores y parámetros del sistema</div>',
                 unsafe_allow_html=True)
-    tab1, tab2, tab3, tab4 = st.tabs(["🔗 Google Sheets", "💲 Tarifas", "👤 Operadores", "🔑 Parámetros"])
+    tab1, tab2, tab3, tab4 = st.tabs(["🐘 PostgreSQL","💲 Tarifas","👤 Operadores","🔑 Parámetros"])
 
+    # ── TAB 1: Estado PostgreSQL ──────────────────────────────────────────────
     with tab1:
-        creds_ok, config_ok = load_credentials_from_toml()
-        cr_ok   = bool(creds_ok)
-        sid_str = str(config_ok.get("sheetsemp", {}).get("spreadsheet_id2", "") or "") if config_ok else ""
-        sid_ok  = bool(sid_str)
-        if cr_ok and sid_ok:
-            st.success(f"✅ Conectado · Archivo: {DRIVE_FILE} · Spreadsheet ID: {sid_str[:20]}…")
-            st.info(f"Hojas configuradas: {', '.join(DRIVE_SHEETS.keys())}")
+        st.markdown("#### Estado de la conexión PostgreSQL")
+        if not PSYCOPG2_AVAILABLE:
+            st.error("❌ psycopg2 no instalado. Agrega `psycopg2-binary` a requirements.txt.")
         else:
-            st.error("❌ Sin conexión.")
-            st.code("""
-[sheetsemp]
-credentials_sheet = '''{ ... JSON Service Account ... }'''
-spreadsheet_id2 = "ID_DEL_SPREADSHEET"
+            try:
+                get_pg_conn().cursor().execute("SELECT version()")
+                st.success("✅ Conexión activa con PostgreSQL")
+            except Exception as e:
+                st.error(f"❌ Error de conexión: {e}")
+
+        st.markdown("---")
+        st.markdown("#### Tablas gestionadas (PostgreSQL)")
+        st.info(", ".join(_TABLA.values()))
+
+        st.markdown("---")
+        st.markdown("#### Configuración en `.streamlit/secrets.toml`")
+        st.code("""[postgres]
+host     = "localhost"
+port     = 5433
+user     = "postgres"
+password = "123456"
+dbname   = "repuestos"
+sslmode  = "disable"
+# O bien usa URL directa:
+# url = "postgresql://user:pass@host:5432/dbname?sslmode=require"
 """, language="toml")
 
+        if st.button("🔄 Reiniciar tablas (crear si no existen)", key="btn_init_db"):
+            init_db()
+            st.success("✅ Tablas verificadas / creadas en PostgreSQL.")
+
+    # ── TAB 2: Tarifas ────────────────────────────────────────────────────────
     with tab2:
         tarifas = gs_read("Tarifas_Config")
         if tarifas:
             st.dataframe(pd.DataFrame([{
-                "Servicio": t.get("Tipo_Servicio",""), "Tarifa": t.get("Nombre_Tarifa",""),
-                "Precio": fmt_cop(t.get("Precio_COP",0)), "Unidad": t.get("Unidad",""),
-                "Activo": "✅" if t.get("Activo","1") == "1" else "❌",
+                "Servicio":t.get("Tipo_Servicio",""), "Tarifa":t.get("Nombre_Tarifa",""),
+                "Precio":fmt_cop(t.get("Precio_COP",0)), "Unidad":t.get("Unidad",""),
+                "Activo":"✅" if t.get("Activo","1") == "1" else "❌",
             } for t in tarifas]), use_container_width=True, hide_index=True)
         st.markdown("---")
         with st.form("form_tarifa"):
@@ -2000,20 +1696,22 @@ spreadsheet_id2 = "ID_DEL_SPREADSHEET"
             if guardar_tar:
                 if not nombre_tar.strip() or precio_tar <= 0:
                     st.error("❌ Nombre y precio son obligatorios.")
-                elif gs_dup_multi("Tarifas_Config", {"Tipo_Servicio": tipo_svc_t, "Nombre_Tarifa": nombre_tar.strip()}):
+                elif gs_dup_multi("Tarifas_Config",{"Tipo_Servicio":tipo_svc_t,"Nombre_Tarifa":nombre_tar.strip()}):
                     st.warning(f"⚠️ La tarifa {nombre_tar} para {tipo_svc_t} ya existe.")
                 else:
-                    if gs_append("Tarifas_Config", [gen_id("TAR-"), tipo_svc_t, nombre_tar.strip(),
-                                                    str(precio_tar), unidad_tar, desc_tar, "1"]):
-                        st.success(f"✅ Tarifa '{nombre_tar}' guardada.")
+                    if gs_append("Tarifas_Config",
+                                 [gen_id("TAR-"), tipo_svc_t, nombre_tar.strip(),
+                                  str(precio_tar), unidad_tar, desc_tar, "1"]):
+                        st.success(f"✅ Tarifa '{nombre_tar}' guardada en PostgreSQL.")
                         st.rerun()
 
+    # ── TAB 3: Operadores ─────────────────────────────────────────────────────
     with tab3:
         operadores = gs_read("Operadores")
         if operadores:
             st.dataframe(pd.DataFrame([{
-                "Nombre": o.get("Nombre",""), "Usuario": o.get("Usuario",""),
-                "Rol": o.get("Rol",""), "Activo": "✅" if o.get("Activo","1") == "1" else "❌",
+                "Nombre":o.get("Nombre",""), "Usuario":o.get("Usuario",""),
+                "Rol":o.get("Rol",""), "Activo":"✅" if o.get("Activo","1") == "1" else "❌",
             } for o in operadores]), use_container_width=True, hide_index=True)
         st.markdown("---")
         with st.form("form_operador"):
@@ -2023,29 +1721,30 @@ spreadsheet_id2 = "ID_DEL_SPREADSHEET"
                 usuario_op = st.text_input("Usuario (login) *")
                 pw_op      = st.text_input("Contraseña *", type="password")
             with c2:
-                rol_op     = st.selectbox("Rol", ["Admin","Operador","Consulta"])
-                perms_op   = st.multiselect("Permisos",
+                rol_op   = st.selectbox("Rol", ["Admin","Operador","Consulta"])
+                perms_op = st.multiselect("Permisos",
                     ["inventario","repuestos","escaner","seguros","pagos","facturas","empresas","configuracion"],
                     default=["inventario","repuestos","escaner"])
             guardar_op = st.form_submit_button("💾 Crear Operador", type="primary", use_container_width=True)
             if guardar_op:
                 if not nombre_op.strip() or not usuario_op.strip() or not pw_op:
                     st.error("❌ Nombre, usuario y contraseña son obligatorios.")
-                elif gs_dup("Operadores", "Usuario", usuario_op.strip()):
+                elif gs_dup("Operadores","Usuario", usuario_op.strip()):
                     st.warning(f"⚠️ El usuario {usuario_op} ya existe.")
                 else:
                     if gs_append("Operadores",
                                  [gen_id("OP-"), nombre_op.strip(), usuario_op.strip(),
                                   hashpw(pw_op), rol_op, ",".join(perms_op), "1", ahora_col().isoformat()]):
-                        st.success(f"✅ Operador '{nombre_op}' creado.")
+                        st.success(f"✅ Operador '{nombre_op}' creado en PostgreSQL.")
                         st.rerun()
 
+    # ── TAB 4: Parámetros ─────────────────────────────────────────────────────
     with tab4:
         cfg = gs_read("Configuracion_Pagos")
         if cfg:
             st.dataframe(pd.DataFrame([{
-                "Clave": c.get("Clave",""), "Valor": c.get("Valor",""),
-                "Actualizado": c.get("Actualizado_En",""),
+                "Clave":c.get("Clave",""), "Valor":c.get("Valor",""),
+                "Actualizado":c.get("Actualizado_En",""),
             } for c in cfg]), use_container_width=True, hide_index=True)
         st.markdown("---")
         with st.form("form_cfg"):
@@ -2057,28 +1756,11 @@ spreadsheet_id2 = "ID_DEL_SPREADSHEET"
                 if not clave_cfg.strip():
                     st.error("❌ La clave es obligatoria.")
                 else:
-                    sh_c = get_sh()
-                    if not sh_c:
-                        st.error("❌ Sin conexión.")
-                    else:
-                        try:
-                            ws_c = sh_c.worksheet("Configuracion_Pagos")
-                            vs_c = ws_c.get_all_values()
-                            updated = False
-                            if vs_c and "Clave" in vs_c[0]:
-                                h = vs_c[0]; ci = h.index("Clave")
-                                for ri, row in enumerate(vs_c[1:], start=2):
-                                    if len(row) > ci and row[ci] == clave_cfg.strip():
-                                        if "Valor"         in h: gs_update_cell("Configuracion_Pagos", ri, h.index("Valor")+1, valor_cfg)
-                                        if "Actualizado_En" in h: gs_update_cell("Configuracion_Pagos", ri, h.index("Actualizado_En")+1, ahora_col().isoformat())
-                                        updated = True; break
-                            if not updated:
-                                gs_append("Configuracion_Pagos",
-                                          [clave_cfg.strip(), valor_cfg, ahora_col().isoformat()])
-                            st.success(f"✅ Parámetro '{clave_cfg}' guardado.")
-                            st.rerun()
-                        except Exception as ex:
-                            st.error(f"❌ Error: {ex}")
+                    # Upsert en configuracion_pagos
+                    _pg_upsert("Configuracion_Pagos", "Clave", clave_cfg.strip(),
+                               [clave_cfg.strip(), valor_cfg, ahora_col().isoformat()])
+                    st.success(f"✅ Parámetro '{clave_cfg}' guardado en PostgreSQL.")
+                    st.rerun()
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MAIN
@@ -2086,6 +1768,7 @@ spreadsheet_id2 = "ID_DEL_SPREADSHEET"
 
 def main():
     init_state()
+    init_db()          # Crea tablas si no existen
     if not st.session_state.autenticado:
         show_login()
         return
@@ -2101,7 +1784,7 @@ def main():
         "facturas":      show_facturas,
         "configuracion": show_configuracion,
     }
-    router.get(st.session_state.get("pantalla", "dashboard"), show_dashboard)()
+    router.get(st.session_state.get("pantalla","dashboard"), show_dashboard)()
 
 
 if __name__ == "__main__":
