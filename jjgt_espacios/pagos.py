@@ -991,15 +991,14 @@ def _read_pg_secrets():
     import os
     import streamlit as st
 
-    def _build_url(host, port, user, password, dbname):
+    def _build_url(host, port, user, password, dbname, sslmode="require"):
         safe_user = urllib.parse.quote(str(user), safe="")
         safe_pass = urllib.parse.quote(str(password), safe="")
         safe_host = str(host).strip().lstrip("@")
-
         return (
             f"postgresql://{safe_user}:{safe_pass}"
             f"@{safe_host}:{port}/{dbname}"
-            f"?sslmode=require&connect_timeout=15"
+            f"?sslmode={sslmode}&connect_timeout=15"
         )
 
     # 1. Streamlit secrets
@@ -1037,7 +1036,8 @@ def _read_pg_secrets():
                     int(pg.get("port", 5432)),
                     pg.get("user"),
                     pg.get("password"),
-                    pg.get("dbname", "postgres")
+                    pg.get("dbname", "postgres"),
+                    pg.get("sslmode", "require")   # ← lee del secrets.toml
                 ), True
 
     except Exception as e:
@@ -1051,7 +1051,8 @@ def _read_pg_secrets():
         5433,
         "postgres",
         "123456",
-        "reservas"
+        "reservas",
+        "disable"   # ← local no usa SSL
     ), False
 
 # _read_pg_secrets() ahora retorna siempre (dsn_url, is_remote)
@@ -1097,7 +1098,7 @@ def _resolve_ipv4(hostname: str) -> str:
 @st.cache_resource
 def _get_pg_engine():
     """Retorna la URL de conexión cacheada."""
-    return {"url": st.secrets["postgres"]["url"]}
+    return {"url": _pg_conn_url}
 
 def get_pg_conn():
     """Retorna una conexión activa, reconectando si es necesario."""
@@ -5640,36 +5641,153 @@ def _op_pagos_pendientes():
 
 def generar_backup_diario():
     """
-    Genera un backup completo exportando todas las tablas desde PostgreSQL.
+    Genera un backup completo de TODAS las tablas PostgreSQL.
+    - Con openpyxl: un .xlsx con una pestana por tabla + hoja de resumen inicial.
+    - Sin openpyxl: un .zip con un .csv por tabla.
     Retorna (bytes, filename, mimetype).
     """
-    now_str = ahora_col().strftime("%Y-%m-%d_%H%M")
-    hojas = ["Reservas","Pagos","Clientes","Facturas","Factura_items",
-             "Cubiculos_Estado","Tarifas_Config","Operadores","Configuracion_Pagos"]
+    # Todas las tablas definidas en el modelo, en orden logico
+    TODAS_LAS_HOJAS = [
+        "Reservas",
+        "Pagos",
+        "Clientes",
+        "Facturas",
+        "Factura_items",
+        "Cubiculos_Estado",
+        "Tarifas_Config",
+        "Operadores",
+        "Configuracion_Pagos",
+        "Dashboard_Diario",
+        "Log_Operaciones",
+    ]
 
+    ahora      = ahora_col()
+    now_str    = ahora.strftime("%Y-%m-%d_%H%M")
+    now_human  = ahora.strftime("%d/%m/%Y %H:%M")
+
+    # ── Leer todas las tablas directo desde PostgreSQL ────────────────────────
+    resultados: dict = {}   # hoja -> DataFrame
+    errores:    list = []
+
+    for hoja in TODAS_LAS_HOJAS:
+        try:
+            filas = _pg_read_table(hoja)
+            if filas:
+                resultados[hoja] = pd.DataFrame(filas)
+            else:
+                # Tabla vacia: DataFrame con columnas pero sin filas
+                cols = DRIVE_SHEETS.get(hoja, [])
+                resultados[hoja] = pd.DataFrame(columns=cols) if cols else pd.DataFrame()
+        except Exception as exc:
+            errores.append(f"{hoja}: {exc}")
+            cols = DRIVE_SHEETS.get(hoja, [])
+            resultados[hoja] = pd.DataFrame(columns=cols) if cols else pd.DataFrame()
+
+    # ── Construccion del backup ───────────────────────────────────────────────
     if OPENPYXL_AVAILABLE:
+        from openpyxl.styles import Font, PatternFill, Alignment
+        from openpyxl.utils import get_column_letter
+
         buf = io.BytesIO()
         with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-            for hoja in hojas:
-                try:
-                    data_h = _gs_read_sheet(hoja)
-                    if data_h:
-                        pd.DataFrame(data_h).to_excel(writer, sheet_name=hoja[:31], index=False)
-                except Exception:
-                    pass
-        return buf.getvalue(), f"backup_jjgt_{now_str}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+            # -- Hoja de resumen (primera pestana) ----------------------------
+            resumen_rows = []
+            for hoja in TODAS_LAS_HOJAS:
+                df_h = resultados.get(hoja, pd.DataFrame())
+                resumen_rows.append({
+                    "Tabla":     hoja,
+                    "Registros": len(df_h),
+                    "Columnas":  len(df_h.columns),
+                    "Estado":    "OK" if hoja not in [e.split(":")[0] for e in errores]
+                                      else "ERROR",
+                })
+            df_resumen = pd.DataFrame(resumen_rows)
+            # Fila de totales
+            total_row = pd.DataFrame([{
+                "Tabla":     "TOTAL",
+                "Registros": df_resumen["Registros"].sum(),
+                "Columnas":  "",
+                "Estado":    f"Backup: {now_human}",
+            }])
+            df_resumen = pd.concat([df_resumen, total_row], ignore_index=True)
+            df_resumen.to_excel(writer, sheet_name="RESUMEN", index=False)
+
+            # -- Dar formato a la hoja RESUMEN --------------------------------
+            ws_res = writer.sheets["RESUMEN"]
+            # Encabezados en negrita con fondo azul oscuro
+            hdr_fill = PatternFill("solid", fgColor="1E3A5F")
+            hdr_font = Font(bold=True, color="FFFFFF")
+            for cell in ws_res[1]:
+                cell.fill = hdr_fill
+                cell.font = hdr_font
+                cell.alignment = Alignment(horizontal="center")
+            # Fila de totales en negrita
+            last_row = ws_res.max_row
+            for cell in ws_res[last_row]:
+                cell.font = Font(bold=True)
+            # Ajustar ancho de columnas
+            for col_idx, col in enumerate(df_resumen.columns, 1):
+                max_len = max(len(str(col)),
+                              df_resumen[col].astype(str).str.len().max())
+                ws_res.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 4, 40)
+
+            # -- Una pestana por tabla ----------------------------------------
+            for hoja in TODAS_LAS_HOJAS:
+                df_h = resultados.get(hoja, pd.DataFrame())
+                sheet_name = hoja[:31]   # Excel limita a 31 caracteres
+                df_h.to_excel(writer, sheet_name=sheet_name, index=False)
+
+                # Formato: encabezados en negrita
+                ws = writer.sheets[sheet_name]
+                for cell in ws[1]:
+                    cell.font = Font(bold=True)
+                    cell.fill = PatternFill("solid", fgColor="D9E1F2")
+                    cell.alignment = Alignment(horizontal="center")
+                # Ajuste basico de ancho de columnas
+                for col_idx, col in enumerate(df_h.columns, 1):
+                    max_len = max(
+                        len(str(col)),
+                        df_h[col].astype(str).str.len().max() if len(df_h) else 0,
+                    )
+                    ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 3, 45)
+
+        return (
+            buf.getvalue(),
+            f"backup_jjgt_{now_str}.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+
     else:
-        import zipfile
+        # ── Fallback: ZIP con CSVs + resumen.txt ─────────────────────────────
+        import zipfile, csv
+
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-            for hoja in hojas:
-                try:
-                    data_h = _gs_read_sheet(hoja)
-                    if data_h:
-                        zf.writestr(f"{hoja}.csv", pd.DataFrame(data_h).to_csv(index=False))
-                except Exception:
-                    pass
-        return buf.getvalue(), f"backup_jjgt_{now_str}.zip", "application/zip"
+            # Resumen de texto
+            lineas = [
+                f"BACKUP JJGT ESPACIOS — {now_human}",
+                "=" * 50,
+            ]
+            total_reg = 0
+            for hoja in TODAS_LAS_HOJAS:
+                df_h = resultados.get(hoja, pd.DataFrame())
+                n    = len(df_h)
+                total_reg += n
+                lineas.append(f"  {hoja:<25} {n:>6} registros")
+                # Escribir CSV de la tabla
+                zf.writestr(f"{hoja}.csv", df_h.to_csv(index=False, encoding="utf-8"))
+
+            lineas += ["=" * 50, f"  TOTAL REGISTROS:         {total_reg:>6}"]
+            if errores:
+                lineas += ["", "ERRORES:"] + [f"  {e}" for e in errores]
+            zf.writestr("RESUMEN.txt", "\n".join(lineas))
+
+        return (
+            buf.getvalue(),
+            f"backup_jjgt_{now_str}.zip",
+            "application/zip",
+        )
 
 
 def generar_reporte_pdf(rows: list, desde: str, hasta: str,

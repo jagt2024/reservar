@@ -157,26 +157,12 @@ def _fld(row: dict, *keys, default=""):
 def actualizar_estado_reserva(sh, numero_reserva: str, nuevo_estado: str) -> bool:
     """Actualiza Estado_Pago de una reserva en la hoja Reservas de jjgt_convenios."""
     try:
-        _gs_get_or_create_ws = _g("_gs_get_or_create_ws")
-        _gs_with_retry       = _g("_gs_with_retry")
-
-        def _do():
-            ws   = _gs_get_or_create_ws(sh, "Reservas")
-            vals = ws.get_all_values()
-            if not vals or len(vals) < 2:
-                return False
-            hdr = vals[0]
-            if "Numero_Reserva" not in hdr or "Estado_Pago" not in hdr:
-                return False
-            ci_nr = hdr.index("Numero_Reserva")
-            ci_ep = hdr.index("Estado_Pago")
-            for i, row in enumerate(vals[1:], start=2):
-                if len(row) > ci_nr and str(row[ci_nr]).strip() == str(numero_reserva).strip():
-                    ws.update_cell(i, ci_ep + 1, nuevo_estado)
-                    return True
-            return False
-
-        return bool(_gs_with_retry(_do, operacion=f"actualizar estado reserva {numero_reserva}"))
+        _pg_update_col_conv = _g("_pg_update_col_conv")
+        return _pg_update_col_conv(
+            "Reservas",
+            "Numero_Reserva", str(numero_reserva).strip(),
+            "Estado_Pago",    nuevo_estado,
+        )
     except Exception as e:
         st.warning(f"⚠️ Error actualizando reserva {numero_reserva}: {e}")
         return False
@@ -184,18 +170,13 @@ def actualizar_estado_reserva(sh, numero_reserva: str, nuevo_estado: str) -> boo
 
 def _leer_facturas_convenio() -> list:
     """
-    Lee de jjgt_convenios solo las facturas generadas por Facturación Mensual
+    Lee de jjgt_convenios solo las facturas generadas por Facturacion Mensual
     (Num_Factura con prefijo 'FAC-'). Las facturas individuales de reservas
     tienen otro formato y no se muestran en Ver & Imprimir.
     """
     try:
-        get_active_client_convenios = _g("get_active_client_convenios")
-        _gs_get_or_create_ws        = _g("_gs_get_or_create_ws")
-        _, sh = get_active_client_convenios()
-        if not sh:
-            return []
-        ws    = _gs_get_or_create_ws(sh, "Facturas")
-        todas = ws.get_all_records()
+        _pg_read_table_conv = _g("_pg_read_table_conv")
+        todas = _pg_read_table_conv("Facturas")
         return [
             f for f in todas
             if str(_fld(f, "Num_Factura", "numero", default=""))
@@ -309,46 +290,37 @@ def generar_factura_pdf(factura: dict, reservas_detalle: list = None) -> bytes:
     # Se busca por Id_Empresa (más preciso) o Nombre_Empresa / Cliente_Nombre.
     if not nit_emp or not cli_email or not id_emp:
         try:
-            _gac = _g("get_active_client_convenios")
-            _gwc = _g("_gs_get_or_create_ws")
-            _, _sh_c = _gac()
-            if _sh_c:
-                _ws_c    = _gwc(_sh_c, "Clientes")
-                _cli_all = _ws_c.get_all_records()
-                # Claves de búsqueda desde la factura
+            _pg_rtc  = _g("_pg_read_table_conv")
+            _cli_all = _pg_rtc("Clientes")
+            if _cli_all:
+                # Claves de busqueda desde la factura
                 _id_bus  = id_emp.lower()
                 _nom_bus = empresa.lower()
-                for _cr in _cli_all:
-                    # Id_Empresa e Id_empresa son posibles nombres de columna
+            for _cr in _cli_all:
                     _id_c  = str(_fld(_cr, "Id_Empresa",  "id_empresa",  default="")).strip().lower()
-                    # Nombre_Empresa o Nombre son posibles columnas en Clientes
                     _nom_c = str(_fld(_cr, "Nombre_Empresa", "nombre_empresa",
                                       "Nombre", "nombre", default="")).strip().lower()
-                    if (_id_bus  and _id_c  and _id_bus  == _id_c) or                        (_nom_bus and _nom_c and _nom_bus == _nom_c):
-                        # NIT: columna Nit_Empresa en Clientes
+                    if (_id_bus and _id_c and _id_bus == _id_c) or                        (_nom_bus and _nom_c and _nom_bus == _nom_c):
                         if not nit_emp:
                             nit_emp = str(_fld(_cr,
                                 "Nit_Empresa", "nit_empresa", "NIT", "nit",
                                 default="")).strip()
-                        # Email: columna Email en Clientes (no Cliente_Email)
                         if not cli_email:
                             cli_email = str(_fld(_cr,
                                 "Email", "email",
                                 "Cliente_Email", "cliente_email",
                                 default="")).strip()
-                        # Id_Empresa si estaba vacío
                         if not id_emp:
                             id_emp = str(_fld(_cr,
                                 "Id_Empresa", "id_empresa",
                                 default="")).strip()
-                        # Nombre_Empresa como nombre de empresa si empresa era "—"
                         if empresa in ("—", ""):
                             empresa = str(_fld(_cr,
                                 "Nombre_Empresa", "nombre_empresa",
                                 "Nombre", "nombre", default=empresa)).strip()
                         break
         except Exception:
-            pass  # No bloquear generación del PDF si falla la consulta
+            pass  # No bloquear generacion del PDF si falla la consulta
 
     estado_color = ROJO if estado.lower() in ("pendiente", "vencida") else VERDE
 
@@ -550,12 +522,11 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
     """
     Genera una factura consolidada mensual por empresa con todas las reservas
     a crédito (Metodo_Pago='Convenio', Estado_Pago='pendiente') del mes/año
-    indicado.  Retorna dict con resumen de la operación.
+    indicado.  Retorna dict con resumen de la operacion.
     """
-    get_active_client_convenios     = _g("get_active_client_convenios")
-    _gs_get_or_create_ws            = _g("_gs_get_or_create_ws")
     gs_escribir_factura_convenio    = _g("gs_escribir_factura_convenio")
     _gs_invalidate_cache_conv       = _g("_gs_invalidate_cache_conv")
+    _pg_read_table_conv             = _g("_pg_read_table_conv")
     ahora_col                       = _g("ahora_col")
 
     resumen = {
@@ -565,18 +536,12 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
         "errores":            [],
     }
 
-    _, sh = get_active_client_convenios()
-    if not sh:
-        resumen["errores"].append("Sin conexión a jjgt_convenios.")
-        return resumen
-
     hoy      = ahora_col()
     mes_obj  = mes  if mes  else hoy.month
     anio_obj = anio if anio else hoy.year
 
     try:
-        ws_res   = _gs_get_or_create_ws(sh, "Reservas")
-        reservas = ws_res.get_all_records()
+        reservas = _pg_read_table_conv("Reservas")
     except Exception as e:
         resumen["errores"].append(f"Error leyendo Reservas: {e}")
         return resumen
@@ -639,10 +604,10 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
         return resumen
 
     # Cargar hoja Clientes para obtener Nit_Empresa y Email de cada empresa
+    _pg_read_table_conv_local = _g("_pg_read_table_conv")
     _cli_map: dict = {}   # clave: id_empresa.lower() o nombre.lower() → fila cliente
     try:
-        _ws_cli_men = _gs_get_or_create_ws(sh, "Clientes")
-        for _cr in _ws_cli_men.get_all_records():
+        for _cr in _pg_read_table_conv_local("Clientes"):
             _id_k  = str(_fld(_cr, "Id_Empresa",  "id_empresa",  default="")).strip().lower()
             _nom_k = str(_fld(_cr, "Nombre_Empresa", "nombre_empresa",
                               "Nombre", "nombre", default="")).strip().lower()
@@ -693,7 +658,7 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
         try:
             # gs_escribir_factura_convenio escribe las 26 columnas incluyendo
             # Id_Empresa y Nombre_Empresa en jjgt_convenios
-            gs_escribir_factura_convenio(sh, datos_factura, emp_id, data["nombre"])
+            gs_escribir_factura_convenio(None, datos_factura, emp_id, data["nombre"])
             resumen["facturas_generadas"] += 1
             resumen["empresas"].append({
                 "nombre":     data["nombre"],
@@ -753,7 +718,7 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
 
         for num_res in data["reservas"]:
             if num_res:
-                ok = actualizar_estado_reserva(sh, num_res, "facturado")
+                ok = actualizar_estado_reserva(None, num_res, "facturado")
                 if ok:
                     resumen["reservas_marcadas"] += 1
                 else:
@@ -776,17 +741,11 @@ def calcular_cartera() -> dict:
     Calcula el estado de cartera (cuentas por cobrar) de cada empresa
     con facturas de convenio pendientes en jjgt_convenios.
     """
-    get_active_client_convenios = _g("get_active_client_convenios")
-    _gs_get_or_create_ws        = _g("_gs_get_or_create_ws")
-    ahora_col                   = _g("ahora_col")
-
-    _, sh = get_active_client_convenios()
-    if not sh:
-        return {}
+    _pg_read_table_conv = _g("_pg_read_table_conv")
+    ahora_col           = _g("ahora_col")
 
     try:
-        ws       = _gs_get_or_create_ws(sh, "Facturas")
-        facturas = ws.get_all_records()
+        facturas = _pg_read_table_conv("Facturas")
     except Exception as e:
         st.warning(f"⚠️ Error leyendo Facturas: {e}")
         return {}
@@ -1035,23 +994,17 @@ def show_facturacion_cartera():
         # Buscar reservas de esta factura (para incluir detalle en PDF)
         reservas_de_fac = []
         try:
-            get_active_client_convenios = _g("get_active_client_convenios")
-            _gs_get_or_create_ws        = _g("_gs_get_or_create_ws")
-            _, sh_r = get_active_client_convenios()
-            if sh_r:
-                ws_r      = _gs_get_or_create_ws(sh_r, "Reservas")
-                todas_res = ws_r.get_all_records()
-                for r in todas_res:
-                    num_fac_r = str(_fld(r, "Num_Factura", "num_factura", default="")).strip()
-                    emp_res_r = str(_fld(r, "Nombre_Empresa", "nombre_empresa", default="")).strip()
-                    est_res_r = str(_fld(r, "Estado_Pago", "estado_pago", default="")).strip().lower()
-                    # Incluir reservas de esta empresa que estén facturadas
-                    if emp_res_r == emp_sel and est_res_r in ("facturado", "facturada"):
+            _pg_read_table_conv = _g("_pg_read_table_conv")
+            todas_res = _pg_read_table_conv("Reservas")
+            for r in todas_res:
+                num_fac_r = str(_fld(r, "Num_Factura", "num_factura", default="")).strip()
+                emp_res_r = str(_fld(r, "Nombre_Empresa", "nombre_empresa", default="")).strip()
+                est_res_r = str(_fld(r, "Estado_Pago", "estado_pago", default="")).strip().lower()
+                if emp_res_r == emp_sel and est_res_r in ("facturado", "facturada"):
+                    reservas_de_fac.append(r)
+                elif num_fac_r == num_sel:
+                    if r not in reservas_de_fac:
                         reservas_de_fac.append(r)
-                    # O que tengan el Num_Factura coincidente
-                    elif num_fac_r == num_sel:
-                        if r not in reservas_de_fac:
-                            reservas_de_fac.append(r)
         except Exception:
             pass
 
