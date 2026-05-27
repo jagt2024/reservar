@@ -26,8 +26,6 @@ import streamlit as st
 EMAIL_SENDER = st.secrets['emails']['smtp_user']   # 🔧 Reemplazar con el correo remitente
 EMAIL_PASS   = st.secrets['emails']['smtp_password']    # 🔧 Reemplazar con la contraseña de app Gmail
 
-
-
 # ══════════════════════════════════════════════════════════════════════════════
 # ENVÍO DE FACTURA POR EMAIL
 # ══════════════════════════════════════════════════════════════════════════════
@@ -622,7 +620,7 @@ def generar_facturacion_mensual(mes: int = None, anio: int = None) -> dict:
         factura_id = f"FAC-{emp_id}-{anio_obj}{mes_obj:02d}"
 
         # Buscar datos de empresa en Clientes
-        _cr_emp   = _cli_map.get(emp_id.lower()) or                     _cli_map.get(data["nombre"].lower()) or {}
+        _cr_emp   = _cli_map.get(emp_id.lower()) or _cli_map.get(data["nombre"].lower()) or {}
         _nit_men  = str(_fld(_cr_emp, "Nit_Empresa", "nit_empresa",
                              "NIT", "nit", default="")).strip()
         _email_men= str(_fld(_cr_emp, "Email", "email",

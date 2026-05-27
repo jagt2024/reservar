@@ -60,7 +60,19 @@ def fmt_cop(valor) -> str:
         return f"$ {valor:,}".replace(",", ".")
     except (TypeError, ValueError):
         return "$ 0"
-        
+
+def fmt_tiempo(mins) -> str:
+    """Formatea minutos restantes como string legible, ej: 45m o 1h 30m."""
+    if mins is None:
+        return "--"
+    mins = int(mins)
+    if mins <= 0:
+        return "0m"
+    if mins < 60:
+        return f"{mins}m"
+    horas, minutos = divmod(mins, 60)
+    return f"{horas}h {minutos}m" if minutos else f"{horas}h"
+
 # ── Logo de la empresa ────────────────────────────────────────────────────────
 def _cargar_logo_b64() -> str:
     """
@@ -1769,11 +1781,10 @@ def init_db():
         st.stop()
     try:
         conn = get_pg_conn()
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute(_CREATE_TABLES_SQL)
-                cur.execute(_SEED_SQL)
-        conn.close()
+        with conn.cursor() as cur:
+            cur.execute(_CREATE_TABLES_SQL)
+            cur.execute(_SEED_SQL)
+        conn.commit()
     except Exception as e:
         st.error(f"❌ Error inicializando base de datos PostgreSQL: {e}")
 
@@ -2661,23 +2672,22 @@ def gs_sync_cubiculos(sh):
                 except Exception:
                     pass
                 conn = get_pg_conn()
-                with conn:
-                    with conn.cursor() as cur:
-                        cur.execute("""
-                            UPDATE cubiculos_estado
-                            SET estado=%s, cliente_actual=%s, hora_inicio=%s,
-                                hora_fin_prog=%s, codigo_acceso=%s, tiempo_rest_min=%s
-                            WHERE numero=%s
-                        """, [
-                            estado_calc,
-                            _gs_val(res, "Cliente_Nombre"),
-                            _gs_val(res, "Hora_Inicio"),
-                            hora_fin,
-                            _gs_val(res, "Codigo_Acceso"),
-                            min_rest,
-                            num,
-                        ])
-                conn.close()
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        UPDATE cubiculos_estado
+                        SET estado=%s, cliente_actual=%s, hora_inicio=%s,
+                            hora_fin_prog=%s, codigo_acceso=%s, tiempo_rest_min=%s
+                        WHERE numero=%s
+                    """, [
+                        estado_calc,
+                        _gs_val(res, "Cliente_Nombre"),
+                        _gs_val(res, "Hora_Inicio"),
+                        hora_fin,
+                        _gs_val(res, "Codigo_Acceso"),
+                        min_rest,
+                        num,
+                    ])
+                conn.commit()
         return True
     except Exception as e:
         st.warning(f"⚠️ Error sync cubículos: {e}")
@@ -3478,26 +3488,25 @@ def liberar_cubiculo(cubiculo_id):
 
     try:
         conn = get_pg_conn()
-        with conn:
-            with conn.cursor() as cur:
-                if num_reserva:
-                    cur.execute(
-                        'UPDATE reservas SET hora_fin_real=%s WHERE numero_reserva=%s',
-                        [hora_fin_real, num_reserva]
-                    )
-                if num_reserva_conv:
-                    cur.execute(
-                        'UPDATE reservas_convenio SET hora_fin_real=%s WHERE numero_reserva=%s',
-                        [hora_fin_real, num_reserva_conv]
-                    )
-                if num_cub:
-                    cur.execute("""
-                        UPDATE cubiculos_estado
-                        SET estado='libre', cliente_actual='', hora_inicio='',
-                            hora_fin_prog='', codigo_acceso='', tiempo_rest_min=''
-                        WHERE numero=%s
-                    """, [num_cub])
-        conn.close()
+        with conn.cursor() as cur:
+            if num_reserva:
+                cur.execute(
+                    'UPDATE reservas SET hora_fin_real=%s WHERE numero_reserva=%s',
+                    [hora_fin_real, num_reserva]
+                )
+            if num_reserva_conv:
+                cur.execute(
+                    'UPDATE reservas_convenio SET hora_fin_real=%s WHERE numero_reserva=%s',
+                    [hora_fin_real, num_reserva_conv]
+                )
+            if num_cub:
+                cur.execute("""
+                    UPDATE cubiculos_estado
+                    SET estado='libre', cliente_actual='', hora_inicio='',
+                        hora_fin_prog='', codigo_acceso='', tiempo_rest_min=''
+                    WHERE numero=%s
+                """, [num_cub])
+        conn.commit()
     except Exception as e:
         st.warning(f"⚠️ Error liberando cubículo: {e}")
 
@@ -3687,21 +3696,20 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
     # Actualizar estado del cubículo a ocupado en PG
     try:
         conn = get_pg_conn()
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    UPDATE cubiculos_estado
-                    SET estado='ocupado', cliente_actual=%s,
-                        hora_inicio=%s, hora_fin_prog=%s, codigo_acceso=%s
-                    WHERE numero=%s
-                """, [
-                    cliente["nombre"],
-                    now.isoformat(),
-                    hora_fin.isoformat(),
-                    codigo,
-                    cubiculo["numero"],
-                ])
-        conn.close()
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE cubiculos_estado
+                SET estado='ocupado', cliente_actual=%s,
+                    hora_inicio=%s, hora_fin_prog=%s, codigo_acceso=%s
+                WHERE numero=%s
+            """, [
+                cliente["nombre"],
+                now.isoformat(),
+                hora_fin.isoformat(),
+                codigo,
+                cubiculo["numero"],
+            ])
+        conn.commit()
     except Exception as e:
         st.warning(f"⚠️ Error actualizando cubículo: {e}")
 
@@ -3871,23 +3879,22 @@ def crear_reserva_convenio(cubiculo: dict, cliente: dict, calc: dict,
     # ── 2. Actualizar cubiculos_estado (tabla compartida) ─────────────────────
     try:
         conn = get_pg_conn()
-        with conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    UPDATE cubiculos_estado
-                    SET estado='ocupado', cliente_actual=%s,
-                        hora_inicio=%s, hora_fin_prog=%s,
-                        codigo_acceso=%s, tiempo_rest_min=%s
-                    WHERE numero=%s
-                """, [
-                    cliente["nombre"],
-                    hora_inicio.isoformat(),
-                    hora_fin.isoformat(),
-                    cod_acc,
-                    str(diff_min),
-                    cubiculo["numero"],
-                ])
-        conn.close()
+        with conn.cursor() as cur:
+            cur.execute("""
+                UPDATE cubiculos_estado
+                SET estado='ocupado', cliente_actual=%s,
+                    hora_inicio=%s, hora_fin_prog=%s,
+                    codigo_acceso=%s, tiempo_rest_min=%s
+                WHERE numero=%s
+            """, [
+                cliente["nombre"],
+                hora_inicio.isoformat(),
+                hora_fin.isoformat(),
+                cod_acc,
+                str(diff_min),
+                cubiculo["numero"],
+            ])
+        conn.commit()
     except Exception as e:
         st.warning(f"⚠️ Error actualizando cubículo (convenio): {e}")
 
@@ -7411,7 +7418,8 @@ def _op_reportes_convenio():
         df_rc = pd.DataFrame(rows_c)
         df_rc_disp = df_rc.copy()
         df_rc_disp["Total"]    = df_rc_disp["Total"].apply(fmt_cop)
-        df_rc_disp["Descuento"]= df_rc_disp["Descuento"].apply(fmt_cop)
+        if "Descuento" in df_rc_disp.columns:
+            df_rc_disp["Descuento"] = df_rc_disp["Descuento"].apply(fmt_cop)
         for _c in ["Reserva","Empresa","Id_Empresa","Cliente","Cubículo","Estado","Fecha"]:
             if _c in df_rc_disp.columns: df_rc_disp[_c] = df_rc_disp[_c].astype(str)
         st.dataframe(df_rc_disp, use_container_width=True, hide_index=True)
@@ -9246,12 +9254,6 @@ def _op_configuracion():
 def _tab_convenio_reserva():
     """Tab de formulario rápido para reservas bajo convenio empresarial."""
     st.markdown("**Formulario de asignación para convenio empresarial:**")
-    sid_conv = get_config("convenios_spreadsheet_id", "")
-    #if not sid_conv:
-    #    st.warning("El ID del spreadsheet `jjgt_convenios` no está configurado. "
-    #               "Ve a ⚙️ Configuración → Convenios.")
-    #    return
-
     _, sh_conv = get_active_client_convenios()
     empresas = get_empresas_convenio()
     if not empresas:
@@ -9409,52 +9411,55 @@ def _tab_convenio_reserva():
                                 empresa_sel.get("Nombre_Empresa", ""),
                                 operador=op.get("nombre", "sistema"),
                             )
-                        st.markdown(f"""
-                        <div style="background:rgba(162,155,254,0.15);border:2px solid #a29bfe;
-                                    border-radius:14px;padding:24px;text-align:center;margin-top:12px">
-                          <div style="font-size:50px">🤝</div>
-                          <div style="font-size:22px;font-weight:800;color:#a29bfe;margin:8px 0">
-                            ¡RESERVA CONVENIO CREADA!
-                          </div>
-                          <div style="font-family:'Inconsolata';font-size:40px;
-                                      font-weight:700;color:#00d4ff">{voucher_conv['cubiculo']}</div>
-                          <div style="color:#e2e8f0;margin-top:8px;font-size:15px">
-                            Reserva: <b>{voucher_conv['numero_reserva']}</b><br>
-                            Empresa: <b>{voucher_conv['nombre_empresa']}</b><br>
-                            Horario: <b>{voucher_conv['hora_inicio']} → {voucher_conv['hora_fin']}</b>
-                              ({voucher_conv['horas']}h)<br>
-                            Total: <b style="color:#a29bfe">{fmt_cop(voucher_conv['total'])} COP</b>
-                            {"· Desc: " + str(round(voucher_conv.get("descuento_pct",0),1)) + "%" if voucher_conv.get("descuento_val",0)>0 else ""}
-                          </div>
-                          <div style="margin-top:12px">
-                            <span style="font-size:13px;color:#94a3b8">Código de acceso</span><br>
-                            <span style="font-family:'Inconsolata';font-size:44px;
-                                         font-weight:700;color:#00ff88;letter-spacing:12px">
-                              {voucher_conv['codigo_acceso']}
-                            </span>
-                          </div>
-                          <div style="margin-top:8px;color:#ffd32a;font-size:13px">
-                            ⚠️ Pago PENDIENTE — se cobra a la empresa
-                          </div>
-                          <div style="color:#94a3b8;font-size:11px;margin-top:4px">
-                            Registrado en jjgt_convenios · Cubículo marcado como OCUPADO
-                          </div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        st.balloons()
                         _gs_invalidate_cache("Cubiculos_Estado")
+                        # Guardar voucher y hacer rerun para que el dashboard
+                        # recargue los datos frescos de PostgreSQL
+                        st.session_state["_conv_voucher_ultimo"] = voucher_conv
+                        st.rerun()
                     except Exception as ex:
                         st.error(f"❌ Error al crear reserva de convenio: {ex}")
+
+    # ── Mostrar voucher si acaba de crearse una reserva (post-rerun) ──────────
+    voucher_conv = st.session_state.pop("_conv_voucher_ultimo", None)
+    if voucher_conv:
+        st.balloons()
+        vc = voucher_conv
+        desc_str = ("· Desc: " + str(round(vc.get("descuento_pct", 0), 1)) + "%"
+                    if vc.get("descuento_val", 0) > 0 else "")
+        st.markdown(
+            f'''<div style="background:rgba(162,155,254,0.15);border:2px solid #a29bfe;
+                        border-radius:14px;padding:24px;text-align:center;margin-top:12px">
+              <div style="font-size:50px">🤝</div>
+              <div style="font-size:22px;font-weight:800;color:#a29bfe;margin:8px 0">
+                ¡RESERVA CONVENIO CREADA!
+              </div>
+              <div style="font-family:'Inconsolata';font-size:40px;font-weight:700;color:#00d4ff">
+                {vc["cubiculo"]}</div>
+              <div style="color:#e2e8f0;margin-top:8px;font-size:15px">
+                Reserva: <b>{vc["numero_reserva"]}</b><br>
+                Empresa: <b>{vc["nombre_empresa"]}</b><br>
+                Horario: <b>{vc["hora_inicio"]} → {vc["hora_fin"]}</b> ({vc["horas"]}h)<br>
+                Total: <b style="color:#a29bfe">{fmt_cop(vc["total"])} COP</b> {desc_str}
+              </div>
+              <div style="margin-top:12px">
+                <span style="font-size:13px;color:#94a3b8">Código de acceso</span><br>
+                <span style="font-family:'Inconsolata';font-size:44px;font-weight:700;
+                             color:#00ff88;letter-spacing:12px">{vc["codigo_acceso"]}</span>
+              </div>
+              <div style="margin-top:8px;color:#ffd32a;font-size:13px">
+                ⚠️ Pago PENDIENTE — se cobra a la empresa
+              </div>
+              <div style="color:#94a3b8;font-size:11px;margin-top:4px">
+                Registrado en jjgt_convenios · Cubículo marcado como OCUPADO
+              </div>
+            </div>''',
+            unsafe_allow_html=True,
+        )
 
 
 def _op_convenios():
     """Módulo completo de gestión de convenios con empresas."""
     st.markdown("### 🤝 Módulo de Convenios Empresariales")
-    sid_conv = get_config("convenios_spreadsheet_id", "")
-    #if not sid_conv:
-    #    st.warning("El archivo `jjgt_convenios` no está configurado. "
-    #               "Ve a Configuración → Convenios.")
-
     tab_dash, tab_reserva, tab_reporte, tab_gestion = st.tabs([
         "📊 Dashboard Convenios", "➕ Nueva Reserva Convenio",
         "📋 Reporte Convenios",   "🗑️ Gestión Datos Convenios",
@@ -9466,12 +9471,13 @@ def _op_convenios():
         inject_live_clock()
         today = ahora_col().strftime("%Y-%m-%d")
         empresas = get_empresas_convenio()
-        # Leer de jjgt_convenios (fuente correcta — todas las filas son de convenio)
-        sid_dash_c = get_config("convenios_spreadsheet_id","")
-        #if not sid_dash_c:
-        #    st.warning("⚠️ jjgt_convenios no configurado. Ve a ⚙️ Configuración → Convenios.")
-        reservas_gs  = _gs_read_sheet_conv("Reservas", force=False) if sid_dash_c else []
-        pagos_gs     = _gs_read_sheet_conv("Pagos",    force=False) if sid_dash_c else []
+        # Leer directamente desde PostgreSQL — sin depender de convenios_spreadsheet_id
+        col_ref, _ = st.columns([1, 5])
+        with col_ref:
+            if st.button("🔄 Actualizar", key="btn_refresh_conv_dash"):
+                st.rerun()
+        reservas_gs  = _pg_read_table_conv("Reservas")
+        pagos_gs     = _pg_read_table_conv("Pagos")
         res_conv     = reservas_gs
         res_conv_hoy = [r for r in res_conv if _gs_fecha_ymd(r, "Creado_En") == today]
         pend_conv    = [r for r in pagos_gs if _gs_val(r, "Estado") == "pendiente"]
