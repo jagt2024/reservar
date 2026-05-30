@@ -319,25 +319,47 @@ div[data-testid="stDataFrameContainer"] table {
 # ─── DATABASE ────────────────────────────────────────────────────────────────
 import pathlib
 import os
+import tempfile
 
 # ─── RUTA PERSISTENTE DE LA BASE DE DATOS ────────────────────────────────────
-# 1. Si existe st.secrets["db_path"] (Streamlit Cloud / servidor), úsalo.
-# 2. Si existe variable de entorno SOLARCALC_DB_PATH, úsalo.
-# 3. Por defecto: misma carpeta que solar_app.py (funciona en local y en servidor
-#    siempre que el sistema de archivos sea persistente).
+# Prioridad:
+#   1. st.secrets["db_path"]       → Streamlit Cloud con storage externo / servidor
+#   2. SOLARCALC_DB_PATH env var   → Docker / systemd / CI
+#   3. Misma carpeta que el script → Local Windows/Mac/Linux (si es escribible)
+#   4. /tmp                        → Fallback Streamlit Cloud (efímero pero funcional)
 def _resolve_db_path() -> str:
+    # 1. Streamlit secrets
     try:
         import streamlit as _st
         if "db_path" in _st.secrets:
-            return _st.secrets["db_path"]
+            p = _st.secrets["db_path"]
+            # Asegurar que el directorio padre exista
+            pathlib.Path(p).parent.mkdir(parents=True, exist_ok=True)
+            return p
     except Exception:
         pass
+
+    # 2. Variable de entorno
     env_path = os.environ.get("SOLARCALC_DB_PATH")
     if env_path:
+        pathlib.Path(env_path).parent.mkdir(parents=True, exist_ok=True)
         return env_path
-    # Carpeta del propio archivo solar_app.py → persistente mientras el disco lo sea
-    base = pathlib.Path(__file__).parent.resolve()
-    return str(base / "solar_calc.db")
+
+    # 3. Misma carpeta del script — solo si es escribible
+    script_dir = pathlib.Path(__file__).parent.resolve()
+    candidate  = script_dir / "solar_calc.db"
+    try:
+        # Prueba de escritura sin crear el archivo
+        test_file = script_dir / ".write_test"
+        test_file.touch()
+        test_file.unlink()
+        return str(candidate)
+    except (OSError, PermissionError):
+        pass
+
+    # 4. /tmp — siempre escribible (Streamlit Cloud, contenedores sin volumen)
+    tmp_path = pathlib.Path(tempfile.gettempdir()) / "solar_calc.db"
+    return str(tmp_path)
 
 DB_PATH = _resolve_db_path()
 
