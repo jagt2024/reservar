@@ -2997,51 +2997,142 @@ with tab9:
     <div class='sol-card-title'><span class='step-badge'>9</span> PLANO DE INSTALACIÓN DE PANELES SOLARES</div>
     """, unsafe_allow_html=True)
 
-    # Leer datos del proyecto
+    # ── Leer datos del proyecto ───────────────────────────────────────────────
     conn = get_conn()
-    p9    = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
-    pan9  = conn.execute("SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
-                          (proyecto_id,)).fetchone()
-    conn.close()
-
-    # ── Leer resultados calculados en Módulos 6 y 7 (session_state) ───────
-    # Si el usuario ya pasó por Tab 6 y Tab 7, usamos esos valores exactos.
-    # Si no, recalculamos como fallback.
-    conn = get_conn()
+    p9   = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+    pan9 = conn.execute("SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+                         (proyecto_id,)).fetchone()
     cargas9 = pd.read_sql("SELECT cantidad,potencia_w,horas_dia FROM cargas WHERE proyecto_id=?",
                            conn, params=(proyecto_id,))
+    recibos9 = pd.read_sql(
+        "SELECT kwh_periodo,dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+        conn, params=(proyecto_id,))
     conn.close()
 
-    consumo_inv9 = (cargas9["cantidad"]*cargas9["potencia_w"]*cargas9["horas_dia"]).sum() if not cargas9.empty else 0.0
-    consumo_rec9 = st.session_state.get("consumo_recibo_wh", 0.0)
-    consumo9     = max(consumo_inv9, consumo_rec9) if consumo_rec9 > 0 else consumo_inv9
-    consumo9_fs  = consumo9 * 1.25
-
-    # Valores desde Tab 6 (Potencia Instalada)
-    n_paneles9  = int(st.session_state.get("calc_num_paneles",
-                    num_paneles(consumo9_fs / (p9[4] if p9 and p9[4] else 4.2),
-                                pan9[3] if pan9 else 550) if consumo9_fs > 0 else 1))
-    pot_panel9  = st.session_state.get("calc_pot_panel_wp",  pan9[3] if pan9 else 550)
-    hsp9        = st.session_state.get("calc_hsp",           p9[4] if p9 and p9[4] else 4.2)
-    consumo9_fs = st.session_state.get("calc_consumo_fs_wh", consumo9_fs)
-
-    # Valores desde Tab 7 (Baterías) — para serie/paralelo
-    vdc9        = int(st.session_state.get("calc_vdc",        p9[3] if p9 and p9[3] else 48))
-
-    # Parámetros eléctricos del panel
+    # ── Calcular consumos de cada fuente ──────────────────────────────────────
+    _hsp9_base  = p9[4] if p9 and p9[4] else 4.2
+    _vdc9_base  = p9[3] if p9 and p9[3] else 48
+    _pp9        = pan9[3] if pan9 else 550
     voc9        = pan9[4] if pan9 else 49.9
     isc9        = pan9[5] if pan9 else 14.0
     modelo9     = pan9[2] if pan9 else "Panel 550Wp"
 
-    # Indicador de origen de los datos
-    from_calc = "calc_num_paneles" in st.session_state
+    consumo_inv9 = (cargas9["cantidad"]*cargas9["potencia_w"]*cargas9["horas_dia"]).sum() \
+                   if not cargas9.empty else 0.0
+    if not recibos9.empty:
+        r9 = recibos9.iloc[0]
+        consumo_rec9 = r9["kwh_periodo"] / r9["dias_periodo"] * 1000
+    else:
+        consumo_rec9 = st.session_state.get("consumo_recibo_wh", 0.0)
+
+    consumo_mayor9 = max(consumo_inv9, consumo_rec9)
+
+    # Valores guardados por Tab 6 (pueden estar o no)
+    calc_n_pan9  = st.session_state.get("calc_num_paneles")
+    calc_pp9     = st.session_state.get("calc_pot_panel_wp",  _pp9)
+    calc_hsp9    = st.session_state.get("calc_hsp",           _hsp9_base)
+    calc_vdc9    = int(st.session_state.get("calc_vdc",       _vdc9_base))
+    calc_fs9     = st.session_state.get("calc_consumo_fs_wh", 0.0)
+
+    # ── Selector de fuente para el plano ──────────────────────────────────────
+    st.markdown("""
+    <div style='font-family:Rajdhani,sans-serif;font-size:1rem;font-weight:600;
+                color:#FFB300;letter-spacing:1px;margin-bottom:0.5rem;'>
+        📐 BASE DE CÁLCULO PARA EL PLANO
+    </div>""", unsafe_allow_html=True)
+
+    fuentes9 = ["⚡ Inventario de cargas (Módulo 1)"]
+    if consumo_rec9 > 0:
+        fuentes9.append("🧾 Recibo de energía (Módulo 2)")
+        fuentes9.append("📊 Mayor de los dos (recomendado)")
+    if calc_n_pan9:
+        fuentes9.append(f"🔆 Módulo 6 — Potencia ({calc_n_pan9} paneles ya calculados)")
+
+    fuente9_sel = st.radio("Fuente:", fuentes9, horizontal=True, key="p9_fuente")
+
+    # Calcular consumo y paneles según fuente seleccionada
+    if "Módulo 6" in fuente9_sel and calc_n_pan9:
+        consumo_base9 = calc_fs9 / 1.30 if calc_fs9 > 0 else consumo_mayor9
+        consumo_fs9   = calc_fs9 if calc_fs9 > 0 else consumo_base9 * 1.30
+        hsp9          = calc_hsp9
+        vdc9          = calc_vdc9
+        pot_panel9    = calc_pp9
+        n_paneles9    = calc_n_pan9
+        fuente_label9 = f"Módulo 6 · {calc_n_pan9} paneles de {int(calc_pp9)}Wp"
+        fuente_color9 = "#00E676"
+    elif "Recibo" in fuente9_sel and consumo_rec9 > 0:
+        consumo_base9 = consumo_rec9
+        consumo_fs9   = consumo_rec9 * 1.30
+        hsp9          = calc_hsp9
+        vdc9          = tension_dc(consumo_fs9)
+        pot_panel9    = calc_pp9
+        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        fuente_label9 = f"Recibo · {consumo_rec9:,.0f} Wh/día → {n_paneles9} paneles"
+        fuente_color9 = "#00BCD4"
+    elif "Mayor" in fuente9_sel:
+        consumo_base9 = consumo_mayor9
+        consumo_fs9   = consumo_mayor9 * 1.30
+        hsp9          = calc_hsp9
+        vdc9          = tension_dc(consumo_fs9)
+        pot_panel9    = calc_pp9
+        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        fuente_label9 = f"Mayor de los dos · {consumo_mayor9:,.0f} Wh/día → {n_paneles9} paneles"
+        fuente_color9 = "#FFB300"
+    else:  # Inventario
+        consumo_base9 = consumo_inv9
+        consumo_fs9   = consumo_inv9 * 1.30
+        hsp9          = calc_hsp9
+        vdc9          = tension_dc(consumo_fs9)
+        pot_panel9    = calc_pp9
+        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        fuente_label9 = f"Inventario · {consumo_inv9:,.0f} Wh/día → {n_paneles9} paneles"
+        fuente_color9 = "#FFB300"
+
+    # Banner de fuente activa
     st.markdown(f"""
-    <div class='{"result-ok" if from_calc else "warn-box"}' style='margin-bottom:1rem;'>
-        {"✓ <b>Datos sincronizados con Módulo 6 (Potencia)</b> — usando " + str(n_paneles9) + " paneles de " + str(int(pot_panel9)) + "Wp calculados."
-         if from_calc else
-         "⚠ Aún no has calculado en el Módulo 6 (Potencia). El plano usa valores estimados. Ve al Módulo 6 primero para obtener el plano exacto."}
+    <div style='background:rgba(0,0,0,0.2);border:1px solid {fuente_color9}55;
+                border-left:4px solid {fuente_color9};border-radius:8px;
+                padding:0.7rem 1rem;margin-bottom:1rem;
+                display:flex;gap:2rem;flex-wrap:wrap;align-items:center;'>
+        <span style='color:{fuente_color9};font-family:Rajdhani,sans-serif;
+                     font-weight:700;font-size:0.95rem;'>{fuente_label9}</span>
+        <span style='font-size:0.8rem;color:#8A9BBD;'>
+            Consumo base: <b style='color:#FFD54F;'>{consumo_base9:,.0f} Wh/día</b>
+            → con FS 30%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
+            | HSP: <b style='color:#00BCD4;'>{hsp9} h</b>
+            | VDC: <b style='color:#00BCD4;'>{vdc9} V</b>
+        </span>
     </div>
     """, unsafe_allow_html=True)
+
+    # Comparativa de fuentes disponibles
+    with st.expander("📊 Ver comparativa de fuentes disponibles"):
+        src_cols = st.columns(3)
+        fuentes_comp = [
+            ("⚡ Inventario", consumo_inv9,  "#FFB300"),
+            ("🧾 Recibo",     consumo_rec9,  "#00BCD4"),
+            ("📊 Mayor",      consumo_mayor9,"#00E676"),
+        ]
+        for col_c, (lbl_c, cons_c, clr_c) in zip(src_cols, fuentes_comp):
+            if cons_c > 0:
+                n_c = num_paneles(cons_c * 1.30 / hsp9, pot_panel9) if hsp9 > 0 else 0
+                col_c.markdown(f"""
+                <div style='background:#1A2235;border:1px solid {clr_c}44;
+                            border-radius:8px;padding:0.8rem;text-align:center;'>
+                    <div style='font-size:0.75rem;color:#8A9BBD;'>{lbl_c}</div>
+                    <div style='font-family:Share Tech Mono,monospace;
+                                font-size:1.3rem;color:{clr_c};'>{cons_c:,.0f}</div>
+                    <div style='font-size:0.7rem;color:#8A9BBD;'>Wh/día</div>
+                    <div style='font-family:Share Tech Mono,monospace;
+                                font-size:1rem;color:#FFD54F;margin-top:0.3rem;'>
+                        {n_c} paneles</div>
+                </div>""", unsafe_allow_html=True)
+            else:
+                col_c.markdown(f"""
+                <div style='background:#161D30;border:1px dashed #2A3A55;
+                            border-radius:8px;padding:0.8rem;text-align:center;
+                            color:#2A3A55;font-size:0.8rem;'>{lbl_c}<br>Sin datos</div>""",
+                    unsafe_allow_html=True)
 
     st.markdown("""
     <div class='info-note' style='margin-bottom:1.2rem;'>
@@ -3066,18 +3157,14 @@ with tab9:
         st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
         st.markdown("**⚡ Serie / Paralelo**")
 
-        # Cálculo automático serie/paralelo desde n_paneles9 (sincronizado con Tab 6)
-        v_sistema  = vdc9
         vmp_aprox  = voc9 * 0.80
-        serie_auto = max(1, round(v_sistema / vmp_aprox)) if vmp_aprox > 0 else 1
+        serie_auto = max(1, round(vdc9 / vmp_aprox)) if vmp_aprox > 0 else 1
         paralelo_auto = math.ceil(n_paneles9 / serie_auto) if serie_auto > 0 else 1
-        total_auto = serie_auto * paralelo_auto
 
-        # Info del origen de n_paneles9
         st.markdown(f"""
         <div style='background:#161D30; border:1px solid rgba(255,179,0,0.3); border-radius:6px;
                     padding:0.5rem 0.8rem; margin-bottom:0.8rem; font-size:0.8rem;'>
-            <span style='color:#8A9BBD;'>Paneles calculados (Módulo 6): </span>
+            <span style='color:#8A9BBD;'>Paneles requeridos: </span>
             <b style='color:#FFB300; font-family:Share Tech Mono,monospace;'>{n_paneles9} × {int(pot_panel9)}Wp</b>
             <span style='color:#8A9BBD;'> | Vdc: </span>
             <b style='color:#00BCD4; font-family:Share Tech Mono,monospace;'>{vdc9}V</b>
@@ -3094,7 +3181,6 @@ with tab9:
         i_array   = round(isc9 * paralelo_sel, 1)
         pot_array = round(pot_panel9 * total_array / 1000, 2)
 
-        # Alerta si total_array difiere de n_paneles9
         if total_array != n_paneles9:
             diff = total_array - n_paneles9
             diff_label = f"+{diff}" if diff > 0 else str(diff)
@@ -3103,7 +3189,7 @@ with tab9:
             <div style='background:rgba(255,179,0,0.06); border:1px dashed rgba(255,179,0,0.3);
                         border-radius:6px; padding:0.4rem 0.8rem; font-size:0.78rem; color:#8A9BBD;'>
                 Array: <b style='color:{diff_color};'>{total_array} paneles</b>
-                vs calculados: <b style='color:#FFB300;'>{n_paneles9}</b>
+                vs requeridos: <b style='color:#FFB300;'>{n_paneles9}</b>
                 (<span style='color:{diff_color};'>{diff_label}</span>)
             </div>
             """, unsafe_allow_html=True)
@@ -3428,76 +3514,180 @@ with tab10:
     </div>
     """, unsafe_allow_html=True)
 
-    # Leer todos los datos del proyecto
+    # ── Leer datos del proyecto ───────────────────────────────────────────────
     conn = get_conn()
     p10   = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
     pan10 = conn.execute("SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
                           (proyecto_id,)).fetchone()
-    conn.close()
-    conn = get_conn()
     cargas10 = pd.read_sql(
-                            "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
-                            conn, params=(proyecto_id,))
+        "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
+        conn, params=(proyecto_id,))
+    recibos10 = pd.read_sql(
+        "SELECT kwh_periodo,dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+        conn, params=(proyecto_id,))
     conn.close()
 
-    # ── Valores EXACTOS desde session_state (Módulos 6 y 7) ───────────────
-    consumo_inv10 = (cargas10["cantidad"]*cargas10["potencia_w"]*cargas10["horas_dia"]).sum() if not cargas10.empty else 0.0
-    consumo_rec10 = st.session_state.get("consumo_recibo_wh", 0.0)
-    consumo10_raw = max(consumo_inv10, consumo_rec10) if consumo_rec10 > 0 else consumo_inv10
+    # ── Calcular consumos de cada fuente ──────────────────────────────────────
+    _hsp10_base = p10[4] if p10 and p10[4] else 4.2
+    _vdc10_base = p10[3] if p10 and p10[3] else 48
+    _pp10       = pan10[3] if pan10 else 550
+    voc10       = pan10[4] if pan10 else 49.9
+    isc10       = pan10[5] if pan10 else 14.0
+    modelo10    = pan10[2] if pan10 else "Panel 550Wp"
+    bat_cap10   = int(st.session_state.get("calc_bat_cap_ah", 100))
 
-    # Paneles — desde Tab 6
-    consumo10_fs  = st.session_state.get("calc_consumo_fs_wh",  consumo10_raw * 1.25)
-    n_pan10       = int(st.session_state.get("calc_num_paneles",
-                        num_paneles(consumo10_fs / (p10[4] if p10 and p10[4] else 4.2),
-                                    pan10[3] if pan10 else 550) if consumo10_fs > 0 else 1))
-    pot_panel10   = st.session_state.get("calc_pot_panel_wp",   pan10[3] if pan10 else 550)
-    hsp10         = st.session_state.get("calc_hsp",            p10[4] if p10 and p10[4] else 4.2)
-    pot_inst10    = st.session_state.get("calc_potencia_inst_wp", consumo10_fs / hsp10 if hsp10 > 0 else 0)
+    consumo_inv10 = (cargas10["cantidad"]*cargas10["potencia_w"]*cargas10["horas_dia"]).sum() \
+                    if not cargas10.empty else 0.0
+    if not recibos10.empty:
+        r10 = recibos10.iloc[0]
+        consumo_rec10 = r10["kwh_periodo"] / r10["dias_periodo"] * 1000
+    else:
+        consumo_rec10 = st.session_state.get("consumo_recibo_wh", 0.0)
 
-    # Baterías — desde Tab 7
-    vdc10         = int(st.session_state.get("calc_vdc",         p10[3] if p10 and p10[3] else 48))
-    n_bat10       = int(st.session_state.get("calc_num_baterias", calcular_baterias(consumo10_fs, vdc10)["num_baterias"]))
-    bat_cap10     = int(st.session_state.get("calc_bat_cap_ah",  100))
-    ah_banco10    = n_bat10 * bat_cap10
+    consumo_mayor10 = max(consumo_inv10, consumo_rec10)
 
-    # Eléctricos del panel
-    voc10         = pan10[4] if pan10 else 49.9
-    isc10         = pan10[5] if pan10 else 14.0
-    modelo10      = pan10[2] if pan10 else "Panel 550Wp"
+    # Valores guardados por módulos 6 y 7
+    calc_n_pan10  = st.session_state.get("calc_num_paneles")
+    calc_pp10     = st.session_state.get("calc_pot_panel_wp",  _pp10)
+    calc_hsp10    = st.session_state.get("calc_hsp",           _hsp10_base)
+    calc_vdc10    = int(st.session_state.get("calc_vdc",       _vdc10_base))
+    calc_fs10     = st.session_state.get("calc_consumo_fs_wh", 0.0)
+    calc_n_bat10  = st.session_state.get("calc_num_baterias")
 
-    # Derivados
-    corr_mppt10   = ah_banco10 * 0.25
+    # ── Selector de fuente ────────────────────────────────────────────────────
+    st.markdown("""
+    <div style='font-family:Rajdhani,sans-serif;font-size:1rem;font-weight:600;
+                color:#FFB300;letter-spacing:1px;margin-bottom:0.5rem;'>
+        📐 BASE DE CÁLCULO PARA EL PLANO GENERAL
+    </div>""", unsafe_allow_html=True)
+
+    fuentes10 = ["⚡ Inventario de cargas (Módulo 1)"]
+    if consumo_rec10 > 0:
+        fuentes10.append("🧾 Recibo de energía (Módulo 2)")
+        fuentes10.append("📊 Mayor de los dos (recomendado)")
+    if calc_n_pan10:
+        fuentes10.append(f"🔆 Módulos 6+7 — ya calculados ({calc_n_pan10} paneles)")
+
+    fuente10_sel = st.radio("Fuente:", fuentes10, horizontal=True, key="p10_fuente")
+
+    # Resolver valores según fuente
+    if "Módulos 6" in fuente10_sel and calc_n_pan10:
+        consumo_base10 = calc_fs10 / 1.30 if calc_fs10 > 0 else consumo_mayor10
+        consumo10_fs   = calc_fs10 if calc_fs10 > 0 else consumo_base10 * 1.30
+        hsp10          = calc_hsp10
+        vdc10          = calc_vdc10
+        pot_panel10    = calc_pp10
+        n_pan10        = calc_n_pan10
+        n_bat10        = calc_n_bat10 if calc_n_bat10 else calcular_baterias(consumo10_fs, vdc10)["num_baterias"]
+        fuente_label10 = f"Módulos 6+7 · {n_pan10} paneles · {n_bat10} baterías"
+        fuente_color10 = "#00E676"
+    elif "Recibo" in fuente10_sel and consumo_rec10 > 0:
+        consumo_base10 = consumo_rec10
+        consumo10_fs   = consumo_rec10 * 1.30
+        hsp10          = calc_hsp10
+        vdc10          = tension_dc(consumo10_fs)
+        pot_panel10    = calc_pp10
+        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        bats_r10       = calcular_baterias(consumo10_fs, vdc10)
+        n_bat10        = bats_r10["num_baterias"]
+        fuente_label10 = f"Recibo · {consumo_rec10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
+        fuente_color10 = "#00BCD4"
+    elif "Mayor" in fuente10_sel:
+        consumo_base10 = consumo_mayor10
+        consumo10_fs   = consumo_mayor10 * 1.30
+        hsp10          = calc_hsp10
+        vdc10          = tension_dc(consumo10_fs)
+        pot_panel10    = calc_pp10
+        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        bats_m10       = calcular_baterias(consumo10_fs, vdc10)
+        n_bat10        = bats_m10["num_baterias"]
+        fuente_label10 = f"Mayor de los dos · {consumo_mayor10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
+        fuente_color10 = "#FFB300"
+    else:  # Inventario
+        consumo_base10 = consumo_inv10
+        consumo10_fs   = consumo_inv10 * 1.30
+        hsp10          = calc_hsp10
+        vdc10          = tension_dc(consumo10_fs)
+        pot_panel10    = calc_pp10
+        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        bats_i10       = calcular_baterias(consumo10_fs, vdc10)
+        n_bat10        = bats_i10["num_baterias"]
+        fuente_label10 = f"Inventario · {consumo_inv10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
+        fuente_color10 = "#FFB300"
+
+    n_bat10 = int(n_bat10)
+    ah_banco10 = n_bat10 * bat_cap10
+
+    # Banner de fuente activa
+    st.markdown(f"""
+    <div style='background:rgba(0,0,0,0.2);border:1px solid {fuente_color10}55;
+                border-left:4px solid {fuente_color10};border-radius:8px;
+                padding:0.7rem 1rem;margin-bottom:1rem;
+                display:flex;gap:2rem;flex-wrap:wrap;align-items:center;'>
+        <span style='color:{fuente_color10};font-family:Rajdhani,sans-serif;
+                     font-weight:700;font-size:0.95rem;'>{fuente_label10}</span>
+        <span style='font-size:0.8rem;color:#8A9BBD;'>
+            Consumo: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b>
+            → FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b>
+            | HSP: <b style='color:#00BCD4;'>{hsp10} h</b>
+            | VDC: <b style='color:#00BCD4;'>{vdc10} V</b>
+            | Banco: <b style='color:#00BCD4;'>{ah_banco10} Ah</b>
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Comparativa de fuentes
+    with st.expander("📊 Ver comparativa de fuentes disponibles"):
+        src10_cols = st.columns(3)
+        fuentes10_comp = [
+            ("⚡ Inventario", consumo_inv10,   "#FFB300"),
+            ("🧾 Recibo",     consumo_rec10,   "#00BCD4"),
+            ("📊 Mayor",      consumo_mayor10, "#00E676"),
+        ]
+        for col_c10, (lbl_c10, cons_c10, clr_c10) in zip(src10_cols, fuentes10_comp):
+            if cons_c10 > 0:
+                fs_c10  = cons_c10 * 1.30
+                vdc_c10 = tension_dc(fs_c10)
+                n_c10   = num_paneles(fs_c10 / hsp10, pot_panel10) if hsp10 > 0 else 0
+                nb_c10  = calcular_baterias(fs_c10, vdc_c10)["num_baterias"]
+                col_c10.markdown(f"""
+                <div style='background:#1A2235;border:1px solid {clr_c10}44;
+                            border-radius:8px;padding:0.8rem;text-align:center;'>
+                    <div style='font-size:0.75rem;color:#8A9BBD;'>{lbl_c10}</div>
+                    <div style='font-family:Share Tech Mono,monospace;
+                                font-size:1.1rem;color:{clr_c10};'>{cons_c10:,.0f}</div>
+                    <div style='font-size:0.7rem;color:#8A9BBD;'>Wh/día</div>
+                    <div style='font-size:0.78rem;color:#FFD54F;margin-top:0.3rem;'>
+                        {n_c10} paneles · {nb_c10} bat. · {vdc_c10}V
+                    </div>
+                </div>""", unsafe_allow_html=True)
+            else:
+                col_c10.markdown(f"""
+                <div style='background:#161D30;border:1px dashed #2A3A55;
+                            border-radius:8px;padding:0.8rem;text-align:center;
+                            color:#2A3A55;font-size:0.8rem;'>{lbl_c10}<br>Sin datos</div>""",
+                    unsafe_allow_html=True)
+
+    # ── Derivados para el SVG ─────────────────────────────────────────────────
+    pot_inst10    = consumo10_fs / hsp10 if hsp10 > 0 else 0
+    corr_mppt10   = ah_banco10 * 0.30
     if not cargas10.empty:
         def _inv_pot(row):
             pot = row["cantidad"] * row["potencia_w"]
             return pot * 4 if int(row["es_motor"]) else pot
-        pot_inv10_w = cargas10.apply(_inv_pot, axis=1).sum() * 1.25
+        pot_inv10_w = cargas10.apply(_inv_pot, axis=1).sum() * 1.30
     else:
         pot_inv10_w = consumo10_fs
-    vmp10         = round(voc10 * 0.80, 1)
-    serie10       = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
-    par10         = math.ceil(n_pan10 / serie10)
-    v_array10     = round(voc10 * serie10, 1)
-    i_array10     = round(isc10 * par10, 1)
+    vmp10    = round(voc10 * 0.80, 1)
+    serie10  = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
+    par10    = math.ceil(n_pan10 / serie10)
+    v_array10  = round(voc10 * serie10, 1)
+    i_array10  = round(isc10 * par10, 1)
 
     if corr_mppt10 <= 40:   mppt_label10 = "MPPT 40A"
     elif corr_mppt10 <= 60: mppt_label10 = "MPPT 60A"
     elif corr_mppt10 <=100: mppt_label10 = "MPPT 100A"
     else: mppt_label10 = f"MPPT {math.ceil(corr_mppt10/50)*50}A"
-
-    # Indicador de sincronización
-    from_calc10 = "calc_num_paneles" in st.session_state and "calc_num_baterias" in st.session_state
-    st.markdown(f"""
-    <div class='{"result-ok" if from_calc10 else "warn-box"}' style='margin-bottom:1rem;'>
-        {"✓ <b>Plano sincronizado</b> — " + str(n_pan10) + " paneles de " + str(int(pot_panel10)) +
-         "Wp (Módulo 6) + " + str(n_bat10) + "×" + str(bat_cap10) +
-         "Ah@" + str(vdc10) + "V (Módulo 7)"
-         if from_calc10 else
-         "⚠ Para obtener el plano exacto, completa primero los Módulos 6 (Potencia) y 7 (Baterías)."}
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── SVG Plano General (diagrama unifilar) ─────────────────────────────
     W10 = 1100; H10 = 720
 
     C_BG10   = "#0A0E1A"
