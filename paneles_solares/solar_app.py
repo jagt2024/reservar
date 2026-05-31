@@ -1997,8 +1997,17 @@ with tab2:
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
         st.markdown(f"""
         <div style='font-family:Rajdhani,sans-serif; font-size:1.1rem; font-weight:600;
-                    color:#FFB300; letter-spacing:1px; margin-bottom:0.8rem;'>
-            ⚖ COMPARATIVA: RECIBO REAL vs INVENTARIO DE CARGAS
+                    color:#FFB300; letter-spacing:1px; margin-bottom:0.5rem;'>
+            📊 REFERENCIA: RECIBO REAL vs INVENTARIO DE CARGAS
+        </div>
+        <div style='background:rgba(0,188,212,0.08);border:1px solid rgba(0,188,212,0.25);
+                    border-radius:8px;padding:0.7rem 1rem;font-size:0.82rem;
+                    color:#8A9BBD;margin-bottom:1rem;'>
+            ℹ El recibo de energía refleja el <b style='color:#E8EDF5;'>consumo real total</b>
+            del inmueble — incluye pérdidas, equipos en standby y cargas pasivas.
+            Es la fuente más confiable para dimensionar.
+            El inventario de cargas se muestra solo como referencia.
+            <b style='color:#FFD54F;'>El dimensionamiento se basa en el valor que selecciones abajo.</b>
         </div>
         <div style='font-size:0.8rem; color:#8A9BBD; margin-bottom:1rem;'>
             Período de referencia: <b style='color:#FFD54F;'>{recibo_ref['periodo']}</b>
@@ -2017,11 +2026,11 @@ with tab2:
             </div>""", unsafe_allow_html=True)
         with col_cmp2:
             st.markdown(f"""
-            <div class='metric-box' style='border-color:#00BCD4;'>
+            <div class='metric-box' style='border-color:#00E676;'>
                 <div style='font-size:1.2rem; margin-bottom:0.3rem;'>🧾</div>
-                <div class='metric-val' style='color:#00BCD4;'>{wh_dia_fs_ref:,.0f}</div>
+                <div class='metric-val' style='color:#00E676;'>{wh_dia_fs_ref:,.0f}</div>
                 <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>RECIBO + 25% FS</div>
+                <div class='metric-label'>RECIBO + 30% FS</div>
             </div>""", unsafe_allow_html=True)
         with col_cmp3:
             st.markdown(f"""
@@ -2032,33 +2041,46 @@ with tab2:
                 <div class='metric-label'>INVENTARIO CARGAS</div>
             </div>""", unsafe_allow_html=True)
         with col_cmp4:
-            color_dif = "#FF5252" if diferencia > 0 else "#00E676"
-            signo     = "+" if diferencia > 0 else ""
-            label_dif = "NO INVENTARIADO" if diferencia > 0 else "MARGEN SOBREDIMENSIONADO"
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:{color_dif};'>
-                <div style='font-size:1.2rem; margin-bottom:0.3rem;'>{'⚠' if diferencia > 0 else '✓'}</div>
-                <div class='metric-val' style='color:{color_dif};'>{signo}{diferencia:,.0f}</div>
-                <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>{label_dif}</div>
-            </div>""", unsafe_allow_html=True)
-
-        # Alerta de brecha
-        if abs(pct_dif) > 5:
-            if diferencia > 0:
+            # Cobertura informativa — nunca un error
+            if consumo_inv > 0 and wh_dia_ref > 0:
+                pct_cob   = consumo_inv / wh_dia_ref * 100
+                cob_color = "#00E676" if pct_cob >= 80 else "#FFD54F"
                 st.markdown(f"""
-                <div class='warn-box' style='margin-top:1rem;'>
-                    ⚠ <b>Brecha del {abs(pct_dif):.1f}% detectada</b> — El recibo registra
-                    {diferencia:,.0f} Wh/día más que el inventario de cargas. Existen equipos no
-                    registrados o con mayor consumo real. Se recomienda revisar el Módulo 1 y agregar
-                    las cargas faltantes antes de dimensionar el sistema.
-                </div>
-                """, unsafe_allow_html=True)
+                <div class='metric-box' style='border-color:{cob_color};'>
+                    <div style='font-size:1.2rem; margin-bottom:0.3rem;'>📋</div>
+                    <div class='metric-val' style='color:{cob_color};'>{pct_cob:.0f}%</div>
+                    <div class='metric-unit'>del recibo</div>
+                    <div class='metric-label'>COBERTURA INVENTARIO</div>
+                </div>""", unsafe_allow_html=True)
             else:
                 st.markdown(f"""
-                <div class='result-ok' style='margin-top:1rem;'>
-                    ✓ <b>Inventario sobredimensionado en {abs(pct_dif):.1f}%</b> — El inventario de cargas
-                    supera el consumo real del recibo. El dimensionamiento final será conservador.
+                <div class='metric-box' style='border-color:#2A3A55;'>
+                    <div style='font-size:1.2rem; margin-bottom:0.3rem;'>📋</div>
+                    <div class='metric-val' style='color:#8A9BBD;'>—</div>
+                    <div class='metric-unit'>sin inventario</div>
+                    <div class='metric-label'>INVENTARIO VACÍO</div>
+                </div>""", unsafe_allow_html=True)
+
+        # Nota suave solo si el inventario cubre muy poco del recibo
+        if consumo_inv > 0 and wh_dia_ref > 0:
+            pct_cob2 = consumo_inv / wh_dia_ref * 100
+            if pct_cob2 < 85:
+                st.markdown(f"""
+                <div style='background:rgba(255,211,78,0.07);border:1px solid rgba(255,211,78,0.2);
+                            border-radius:8px;padding:0.6rem 1rem;margin-top:0.8rem;
+                            font-size:0.8rem;color:#8A9BBD;'>
+                    💡 El inventario cubre el {pct_cob2:.0f}% del recibo — es normal,
+                    ya que el recibo incluye pérdidas eléctricas, equipos en standby
+                    y consumos que no siempre se registran en el inventario.
+                    <b style='color:#00BCD4;'>El recibo es la base recomendada para dimensionar.</b>
+                </div>
+                """, unsafe_allow_html=True)
+            elif consumo_inv > wh_dia_ref:
+                st.markdown(f"""
+                <div class='result-ok' style='margin-top:0.8rem;'>
+                    ✓ El inventario ({consumo_inv:,.0f} Wh/día) supera el recibo
+                    ({wh_dia_ref:,.0f} Wh/día). Dimensionar desde el inventario
+                    será conservador.
                 </div>
                 """, unsafe_allow_html=True)
 
