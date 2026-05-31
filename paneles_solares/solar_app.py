@@ -3052,8 +3052,8 @@ with tab9:
 
     # Calcular consumo y paneles según fuente seleccionada
     if "Módulo 6" in fuente9_sel and calc_n_pan9:
-        consumo_base9 = calc_fs9 / 1.30 if calc_fs9 > 0 else consumo_mayor9
-        consumo_fs9   = calc_fs9 if calc_fs9 > 0 else consumo_base9 * 1.30
+        consumo_base9 = calc_fs9 / 1.25 if calc_fs9 > 0 else consumo_mayor9
+        consumo_fs9   = calc_fs9 if calc_fs9 > 0 else consumo_base9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = calc_vdc9
         pot_panel9    = calc_pp9
@@ -3062,7 +3062,7 @@ with tab9:
         fuente_color9 = "#00E676"
     elif "Recibo" in fuente9_sel and consumo_rec9 > 0:
         consumo_base9 = consumo_rec9
-        consumo_fs9   = consumo_rec9 * 1.30
+        consumo_fs9   = consumo_rec9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3071,7 +3071,7 @@ with tab9:
         fuente_color9 = "#00BCD4"
     elif "Mayor" in fuente9_sel:
         consumo_base9 = consumo_mayor9
-        consumo_fs9   = consumo_mayor9 * 1.30
+        consumo_fs9   = consumo_mayor9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3080,7 +3080,7 @@ with tab9:
         fuente_color9 = "#FFB300"
     else:  # Inventario
         consumo_base9 = consumo_inv9
-        consumo_fs9   = consumo_inv9 * 1.30
+        consumo_fs9   = consumo_inv9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3098,7 +3098,7 @@ with tab9:
                      font-weight:700;font-size:0.95rem;'>{fuente_label9}</span>
         <span style='font-size:0.8rem;color:#8A9BBD;'>
             Consumo base: <b style='color:#FFD54F;'>{consumo_base9:,.0f} Wh/día</b>
-            → con FS 30%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
+            → con FS 25%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
             | HSP: <b style='color:#00BCD4;'>{hsp9} h</b>
             | VDC: <b style='color:#00BCD4;'>{vdc9} V</b>
         </span>
@@ -3115,7 +3115,7 @@ with tab9:
         ]
         for col_c, (lbl_c, cons_c, clr_c) in zip(src_cols, fuentes_comp):
             if cons_c > 0:
-                n_c = num_paneles(cons_c * 1.30 / hsp9, pot_panel9) if hsp9 > 0 else 0
+                n_c = num_paneles(cons_c * 1.25 / hsp9, pot_panel9) if hsp9 > 0 else 0
                 col_c.markdown(f"""
                 <div style='background:#1A2235;border:1px solid {clr_c}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
@@ -3572,8 +3572,8 @@ with tab10:
 
     # Resolver valores según fuente
     if "Módulos 6" in fuente10_sel and calc_n_pan10:
-        consumo_base10 = calc_fs10 / 1.30 if calc_fs10 > 0 else consumo_mayor10
-        consumo10_fs   = calc_fs10 if calc_fs10 > 0 else consumo_base10 * 1.30
+        consumo_base10 = calc_fs10 / 1.25 if calc_fs10 > 0 else consumo_mayor10
+        consumo10_fs   = calc_fs10 if calc_fs10 > 0 else consumo_base10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = calc_vdc10
         pot_panel10    = calc_pp10
@@ -3583,7 +3583,7 @@ with tab10:
         fuente_color10 = "#00E676"
     elif "Recibo" in fuente10_sel and consumo_rec10 > 0:
         consumo_base10 = consumo_rec10
-        consumo10_fs   = consumo_rec10 * 1.30
+        consumo10_fs   = consumo_rec10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3594,7 +3594,7 @@ with tab10:
         fuente_color10 = "#00BCD4"
     elif "Mayor" in fuente10_sel:
         consumo_base10 = consumo_mayor10
-        consumo10_fs   = consumo_mayor10 * 1.30
+        consumo10_fs   = consumo_mayor10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3605,7 +3605,7 @@ with tab10:
         fuente_color10 = "#FFB300"
     else:  # Inventario
         consumo_base10 = consumo_inv10
-        consumo10_fs   = consumo_inv10 * 1.30
+        consumo10_fs   = consumo_inv10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3646,7 +3646,7 @@ with tab10:
         ]
         for col_c10, (lbl_c10, cons_c10, clr_c10) in zip(src10_cols, fuentes10_comp):
             if cons_c10 > 0:
-                fs_c10  = cons_c10 * 1.30
+                fs_c10  = cons_c10 * 1.25
                 vdc_c10 = tension_dc(fs_c10)
                 n_c10   = num_paneles(fs_c10 / hsp10, pot_panel10) if hsp10 > 0 else 0
                 nb_c10  = calcular_baterias(fs_c10, vdc_c10)["num_baterias"]
@@ -3670,12 +3670,12 @@ with tab10:
 
     # ── Derivados para el SVG ─────────────────────────────────────────────────
     pot_inst10    = consumo10_fs / hsp10 if hsp10 > 0 else 0
-    corr_mppt10   = ah_banco10 * 0.30
+    corr_mppt10   = ah_banco10 * 0.25
     if not cargas10.empty:
         def _inv_pot(row):
             pot = row["cantidad"] * row["potencia_w"]
             return pot * 4 if int(row["es_motor"]) else pot
-        pot_inv10_w = cargas10.apply(_inv_pot, axis=1).sum() * 1.30
+        pot_inv10_w = cargas10.apply(_inv_pot, axis=1).sum() * 1.25
     else:
         pot_inv10_w = consumo10_fs
     vmp10    = round(voc10 * 0.80, 1)
