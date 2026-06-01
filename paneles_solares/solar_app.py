@@ -1,3 +1,4 @@
+# SolarCalc Pro v1.1 — build 202606010310
 import streamlit as st
 import sqlite3
 import pandas as pd
@@ -4023,7 +4024,7 @@ with tab10:
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
             <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
-                Consumo base: <b style='color:#FFD54F;'>{consumo10_raw:,.0f} Wh/día</b><br>
+                Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
                 Consumo + 25%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
                 Potencia instalada: <b style='color:#FFD54F;'>{pot_inst10:,.0f} Wp</b><br>
