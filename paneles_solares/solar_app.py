@@ -364,6 +364,9 @@ def _resolve_db_path() -> str:
 
 DB_PATH = _resolve_db_path()
 
+# ── CRÍTICO: fijar env var ANTES de importar módulos externos ─────────────────
+os.environ["SOLARCALC_DB_PATH"] = DB_PATH
+
 def get_conn():
     return sqlite3.connect(DB_PATH, check_same_thread=False)
 
