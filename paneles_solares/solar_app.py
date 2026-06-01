@@ -3088,6 +3088,12 @@ with tab9:
         fuente_label9 = f"Inventario · {consumo_inv9:,.0f} Wh/día → {n_paneles9} paneles"
         fuente_color9 = "#FFB300"
 
+    # Garantizar valores mínimos válidos para widgets
+    n_paneles9 = max(1, int(n_paneles9))
+    hsp9       = max(0.5, float(hsp9))
+    vdc9       = int(vdc9) if vdc9 in (12, 24, 48) else 48
+    pot_panel9 = max(10, float(pot_panel9))
+
     # Banner de fuente activa
     st.markdown(f"""
     <div style='background:rgba(0,0,0,0.2);border:1px solid {fuente_color9}55;
@@ -3159,7 +3165,9 @@ with tab9:
 
         vmp_aprox  = voc9 * 0.80
         serie_auto = max(1, round(vdc9 / vmp_aprox)) if vmp_aprox > 0 else 1
-        paralelo_auto = math.ceil(n_paneles9 / serie_auto) if serie_auto > 0 else 1
+        serie_auto = max(1, min(int(serie_auto), 20))   # clamp dentro de [1, 20]
+        paralelo_auto = math.ceil(n_paneles9 / serie_auto) if n_paneles9 > 0 else 1
+        paralelo_auto = max(1, min(int(paralelo_auto), 50))  # clamp dentro de [1, 50]
 
         st.markdown(f"""
         <div style='background:#161D30; border:1px solid rgba(255,179,0,0.3); border-radius:6px;
@@ -3615,7 +3623,12 @@ with tab10:
         fuente_label10 = f"Inventario · {consumo_inv10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
         fuente_color10 = "#FFB300"
 
-    n_bat10 = int(n_bat10)
+    # Garantizar valores mínimos válidos
+    n_pan10    = max(1, int(n_pan10))
+    n_bat10    = max(1, int(n_bat10))
+    hsp10      = max(0.5, float(hsp10))
+    vdc10      = int(vdc10) if vdc10 in (12, 24, 48) else 48
+    pot_panel10 = max(10, float(pot_panel10))
     ah_banco10 = n_bat10 * bat_cap10
 
     # Banner de fuente activa
