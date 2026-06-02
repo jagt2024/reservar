@@ -1052,6 +1052,49 @@ with st.sidebar:
     <hr style='border-color:#2A3A55; margin:0.6rem 0;'>
     """, unsafe_allow_html=True)
 
+    # ── 0. Selector de TIPO DE SISTEMA ───────────────────────────────────────
+    st.markdown("""
+    <div style='font-size:0.65rem;color:#8A9BBD;letter-spacing:2px;
+     text-transform:uppercase;margin-bottom:0.5rem;'>⚙ TIPO DE SISTEMA</div>
+    """, unsafe_allow_html=True)
+
+    if "tipo_sistema" not in st.session_state:
+        st.session_state["tipo_sistema"] = "OFF-GRID"
+
+    _SISTEMAS = [
+        ("OFF-GRID", "🔋", "Aislado",        "#FFB300", "rgba(255,179,0,0.15)",  "dimensionamiento"),
+        ("ON-GRID",  "🔌", "Interconectado", "#FF6B35", "rgba(255,107,53,0.15)","ongrid"),
+        ("HIBRIDO",  "⚡", "ON + Baterías",  "#F59E0B", "rgba(245,158,11,0.15)","hibrido"),
+    ]
+    for _tipo, _icon, _sub, _col, _bg, _mod in _SISTEMAS:
+        _activo = st.session_state["tipo_sistema"] == _tipo
+        _bord   = f"1px solid {_col}" if _activo else "1px solid #2A3A55"
+        _bg_val = _bg if _activo else "#0F1525"
+        _fw     = "700" if _activo else "400"
+        _tcol   = _col if _activo else "#8A9BBD"
+        st.markdown(
+            f"<div style='background:{_bg_val};border:{_bord};border-radius:8px;"
+            f"padding:0.4rem 0.5rem;text-align:center;font-family:Rajdhani,sans-serif;"
+            f"font-size:0.83rem;color:{_tcol};font-weight:{_fw};margin-bottom:3px;'>"
+            f"{_icon} {_tipo}<br>"
+            f"<span style='font-size:0.62rem;font-weight:400;color:#8A9BBD;'>{_sub}</span></div>",
+            unsafe_allow_html=True)
+        if _activo:
+            st.markdown(
+                f"<div style='text-align:center;font-size:0.63rem;color:{_col};"
+                f"margin-bottom:3px;letter-spacing:1px;'>▶ ACTIVO</div>",
+                unsafe_allow_html=True)
+        else:
+            if st.button(f"Usar {_tipo}", key=f"btn_{_tipo.lower().replace('-','_')}",
+                         use_container_width=True):
+                st.session_state["tipo_sistema"]  = _tipo
+                st.session_state["modulo_activo"] = _mod
+                st.rerun()
+
+    tipo_sistema_activo = st.session_state["tipo_sistema"]
+
+    st.markdown("<hr style='border-color:#2A3A55;margin:0.7rem 0;'>", unsafe_allow_html=True)
+
     # ── 1. Selector de proyecto activo ────────────────────────────────────────
     st.markdown("""
     <div style='font-size:0.65rem;color:#8A9BBD;letter-spacing:2px;
@@ -1132,20 +1175,38 @@ with st.sidebar:
     if "modulo_activo" not in st.session_state:
         st.session_state["modulo_activo"] = "dimensionamiento"
 
-    # Grupos de módulos con separadores visuales
-    GRUPOS_MODULOS = [
-        ("PROYECTO", [
-            ("⚡  Dimensionamiento",  "dimensionamiento"),
-            ("🔬  Simulador",         "simulador"),
-            ("💰  Presupuesto",       "presupuesto"),
-        ]),
-        ("CATÁLOGOS", [
-            ("🏪  Proveedores",       "proveedores"),
-            ("🔩  Materiales",        "materiales"),
-            ("🔧  Equipos",           "equipos"),
-            ("👷  Personal",          "personal"),
-        ]),
+    # Grupos de módulos — dependen del tipo de sistema activo
+    _CATALOGOS = [
+        ("🏪  Proveedores", "proveedores"),
+        ("🔩  Materiales",  "materiales"),
+        ("🔧  Equipos",     "equipos"),
+        ("👷  Personal",    "personal"),
     ]
+    if tipo_sistema_activo == "ON-GRID":
+        GRUPOS_MODULOS = [
+            ("PROYECTO ON-GRID", [
+                ("🔌  Dimensionamiento ON-GRID", "ongrid"),
+                ("💰  Presupuesto",              "presupuesto"),
+            ]),
+            ("CATÁLOGOS", _CATALOGOS),
+        ]
+    elif tipo_sistema_activo == "HIBRIDO":
+        GRUPOS_MODULOS = [
+            ("PROYECTO HÍBRIDO", [
+                ("⚡  Dimensionamiento HÍBRIDO", "hibrido"),
+                ("💰  Presupuesto",              "presupuesto"),
+            ]),
+            ("CATÁLOGOS", _CATALOGOS),
+        ]
+    else:
+        GRUPOS_MODULOS = [
+            ("PROYECTO OFF-GRID", [
+                ("🔋  Dimensionamiento OFF-GRID", "dimensionamiento"),
+                ("🔬  Simulador",                 "simulador"),
+                ("💰  Presupuesto",               "presupuesto"),
+            ]),
+            ("CATÁLOGOS", _CATALOGOS),
+        ]
 
     for grupo_label, modulos in GRUPOS_MODULOS:
         st.markdown(f"""
@@ -1178,12 +1239,15 @@ with st.sidebar:
     st.markdown("<hr style='border-color:#2A3A55;margin:0.6rem 0;'>", unsafe_allow_html=True)
 
     # ── 4. Footer del sidebar ─────────────────────────────────────────────────
+    _col_ts = {"ON-GRID":"#FF6B35","HIBRIDO":"#F59E0B"}.get(tipo_sistema_activo,"#FFB300")
     st.markdown(f"""
     <div style='text-align:center;padding:0.3rem 0;'>
         <div style='font-size:0.62rem;color:#2A3A55;letter-spacing:1px;'>
-            SolarCalc Pro v1.0<br>
+            SolarCalc Pro v1.2<br>
             SQLite3 + Streamlit<br>
-            Módulo activo: <span style='color:#8A9BBD;'>
+            Sistema: <span style='color:{_col_ts};'>
+                {tipo_sistema_activo}</span><br>
+            Módulo: <span style='color:#8A9BBD;'>
                 {st.session_state.get("modulo_activo","—")}</span>
         </div>
     </div>
@@ -1191,6 +1255,7 @@ with st.sidebar:
 
 # ─── MAIN CONTENT ────────────────────────────────────────────────────────────
 modulo_activo = st.session_state.get("modulo_activo", "dimensionamiento")
+tipo_sistema_activo = st.session_state.get("tipo_sistema", "OFF-GRID")
 
 # ── Guard: project required for most modules ─────────────────────────────────
 if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal"):
@@ -1263,16 +1328,33 @@ if modulo_activo == "presupuesto":
     mostrar_presupuesto(proyecto_id, st.session_state)
     st.stop()
 
-# ── Módulo principal: Dimensionamiento ───────────────────────────────────────
+# ── Módulo ON-GRID ────────────────────────────────────────────────────────────
+if modulo_activo == "ongrid" or tipo_sistema_activo == "ON-GRID":
+    from modulo_ongrid import mostrar_ongrid
+    mostrar_ongrid(proyecto_id, st.session_state)
+    st.stop()
+
+# ── Módulo HÍBRIDO ────────────────────────────────────────────────────────────
+if modulo_activo == "hibrido" or tipo_sistema_activo == "HIBRIDO":
+    from modulo_hibrido import mostrar_hibrido
+    mostrar_hibrido(proyecto_id, st.session_state)
+    st.stop()
+
+# ── Módulo principal: Dimensionamiento OFF-GRID ───────────────────────────────
 st.markdown("""
 <div class='hero-header'>
-    <div class='hero-title'>☀ SOLARCALC PRO</div>
-    <div class='hero-sub'>Sistema de Dimensionamiento de Paneles Fotovoltaicos</div>
+    <div class='hero-title'>☀ SOLARCALC PRO
+        <span style='display:inline-block;background:#FFB300;color:#0A0E1A;
+            font-family:Rajdhani,sans-serif;font-weight:700;font-size:0.75rem;
+            padding:2px 10px;border-radius:20px;letter-spacing:1px;margin-left:8px;
+            vertical-align:middle;'>OFF-GRID</span>
+    </div>
+    <div class='hero-sub'>DIMENSIONAMIENTO — SISTEMA FOTOVOLTAICO AISLADO (OFF-GRID)</div>
 </div>
 """, unsafe_allow_html=True)
 
 # Tabs principales
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "⚡ 1 · Cargas",
     "🧾 2 · Recibo Luz",
     "🔋 3 · Tensión DC",
@@ -1283,6 +1365,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10 = st.tabs([
     "🎛 8 · Controlador",
     "🔲 9 · Plano Paneles",
     "📐 10 · Plano General",
+    "💹 11 · Económico",
 ])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -2471,8 +2554,12 @@ with tab6:
 
     st.markdown("""
     <div class='formula-box'>
-        Potencia Instalada (Wp) = Consumo día con FS 25% (Wh) ÷ HSP (h)<br>
-        Número de paneles = Potencia Instalada ÷ Potencia del panel (Wp)
+        Potencia Instalada (Wp) = Consumo día con FS 25% (Wh) ÷ (HSP × PR)<br>
+        Número de paneles = Potencia Instalada ÷ Potencia del panel (Wp)<br>
+        <span style='font-size:0.85em;color:#8A9BBD;'>
+        PR (Performance Ratio): pérdidas reales del sistema
+        (temperatura ~5%, inversor ~3%, sombreado ~2%, suciedad ~2%, cableado ~2%)
+        </span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -2530,6 +2617,11 @@ with tab6:
                                           min_value=0.5, max_value=12.0,
                                           value=float(hsp5) if hsp5 else 4.2, step=0.01,
                                           help="Horas Solar Pico del Módulo 4")
+            pr_input5 = st.slider(
+                "Performance Ratio — PR (%)", 65, 90, 75,
+                help="PR típico OFF-GRID: 70–80%. Incluye pérdidas de temperatura, "
+                     "inversor, sombreado, suciedad y cableado.",
+                key="pr_offgrid")
             pot_panel_input5 = st.number_input("Potencia panel (Wp)",
                                                 min_value=10, max_value=1000,
                                                 value=int(pot_panel5) if pot_panel5 else 550,
@@ -2542,22 +2634,28 @@ with tab6:
                 st.markdown("<div class='warn-box'>⚠ Panel no configurado. Usa el valor arriba o guarda desde Módulo 5</div>",
                             unsafe_allow_html=True)
 
-            potencia_instalada5 = consumo5_fs / hsp_input5
-            num_pan5 = num_paneles(potencia_instalada5, pot_panel_input5)
-            pot_real5 = num_pan5 * pot_panel_input5
+            pr_dec5             = pr_input5 / 100.0
+            hsp_ef5             = hsp_input5 * pr_dec5
+            potencia_instalada5 = consumo5_fs / hsp_ef5 if hsp_ef5 > 0 else 0
+            num_pan5            = num_paneles(potencia_instalada5, pot_panel_input5)
+            pot_real5           = num_pan5 * pot_panel_input5
+            gen_dia5_kwh        = (pot_real5 / 1000) * hsp_input5 * pr_dec5
 
-            # ── Guardar en session_state para Tabs 9 y 10 ──────────────────
+            # ── Guardar en session_state para Tabs 9, 10 y 11 ─────────────
             st.session_state["calc_num_paneles"]       = num_pan5
             st.session_state["calc_pot_panel_wp"]      = pot_panel_input5
             st.session_state["calc_hsp"]               = hsp_input5
+            st.session_state["calc_pr"]                = pr_dec5
             st.session_state["calc_consumo_fs_wh"]     = consumo5_fs
             st.session_state["calc_potencia_inst_wp"]  = potencia_instalada5
             st.session_state["calc_pot_real_wp"]       = pot_real5
+            st.session_state["calc_gen_dia_kwh"]       = gen_dia5_kwh
 
             st.markdown(f"""
             <hr class='sep'>
             <div style='color:#8A9BBD; font-size:0.8rem; margin-bottom:0.5rem;'>
-                {consumo5_fs:,.0f} Wh ÷ {hsp_input5} h =
+                {consumo5_fs:,.0f} Wh ÷ ({hsp_input5} h × {pr_input5}%) =
+                <b style='color:#FFD54F;'>{hsp_ef5:.2f} h efectivas</b>
             </div>
             """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -2565,7 +2663,8 @@ with tab6:
         with col5b:
             st.markdown(f"""
             <div class='result-highlight'>
-                <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Potencia Mínima Instalada</div>
+                <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
+                    Potencia Mínima Instalada (con PR {pr_input5}%)</div>
                 <div class='val'>{potencia_instalada5:,.0f} Wp</div>
             </div>
             <div class='metric-grid'>
@@ -2584,11 +2683,37 @@ with tab6:
                     <div class='metric-unit'>Wp</div>
                     <div class='metric-label'>POTENCIA REAL INSTALADA</div>
                 </div>
-                <div class='metric-box'>
-                    <div class='metric-val'>{consumo5_fs:,.0f}</div>
-                    <div class='metric-unit'>Wh/día</div>
-                    <div class='metric-label'>CONSUMO CON FS 25%</div>
+                <div class='metric-box' style='border-color:rgba(0,188,212,0.4);'>
+                    <div class='metric-val' style='color:#00BCD4;'>{gen_dia5_kwh:.2f}</div>
+                    <div class='metric-unit'>kWh/día</div>
+                    <div class='metric-label'>GENERACIÓN ESTIMADA</div>
                 </div>
+            </div>
+            <div class='sol-card' style='margin-top:0.8rem;'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                            margin-bottom:0.5rem;font-size:0.9rem;'>DESGLOSE DE PÉRDIDAS (PR {pr_input5}%)</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>HSP bruta (PVGIS)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{hsp_input5:.2f} h/día</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Performance Ratio</td>
+                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>{pr_input5}%</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>HSP efectiva</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{hsp_ef5:.2f} h/día</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo con FS 25%</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo5_fs:,.0f} Wh/día</td>
+                    </tr>
+                    <tr>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Generación anual est.</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia5_kwh*365:,.0f} kWh/año</td>
+                    </tr>
+                </table>
             </div>
             """, unsafe_allow_html=True)
 
@@ -4044,9 +4169,279 @@ with tab10:
                        use_container_width=True, key="dl_svg_general")
 
 
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 11 — ANÁLISIS ECONÓMICO Y AMBIENTAL (OFF-GRID)
+# ════════════════════════════════════════════════════════════════════════════
+with tab11:
+    st.markdown("""
+    <div class='sol-card-title'><span class='step-badge'>11</span>
+    ANÁLISIS ECONÓMICO Y AMBIENTAL — SISTEMA OFF-GRID</div>
+    """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class='formula-box'>
+        Ahorro mensual = Consumo cubierto (kWh/mes) × Tarifa ($/kWh)<br>
+        Payback simple = Inversión total ÷ Ahorro anual<br>
+        CO₂ evitado = Generación anual (kWh) × 0.126 kgCO₂/kWh (factor Colombia)
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Leer datos del proyecto desde BD ─────────────────────────────────────
+    conn = get_conn()
+    p_eco = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+    cargas_eco = pd.read_sql(
+        "SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
+        conn, params=(proyecto_id,))
+    panel_eco = conn.execute(
+        "SELECT potencia_wp, voc, isc FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+        (proyecto_id,)).fetchone()
+    conn.close()
+
+    consumo_inv_eco = (cargas_eco["cantidad"] * cargas_eco["potencia_w"] * cargas_eco["horas_dia"]).sum()                       if not cargas_eco.empty else 0.0
+    consumo_rec_eco = st.session_state.get("consumo_recibo_wh", 0.0)
+    hsp_eco         = p_eco[4] if p_eco and p_eco[4] else None
+    # Forzar tipos correctos desde SQLite (puede venir None, str o int)
+    try:
+        vdc_eco_bd = int(p_eco[5]) if p_eco and len(p_eco) > 5 and p_eco[5] not in (None, "") else None
+    except (ValueError, TypeError):
+        vdc_eco_bd = None
+    pot_panel_eco   = int(panel_eco[0]) if panel_eco else 550
+
+    consumo_base_eco = max(float(consumo_inv_eco), float(consumo_rec_eco))                        if consumo_rec_eco > 0 else float(consumo_inv_eco)
+    consumo_fs_eco   = consumo_base_eco * 1.25
+
+    if consumo_base_eco == 0:
+        st.markdown("""
+        <div class='warn-box'>⚠ No hay consumo registrado. Ingresa las cargas en el Tab 1
+        o un recibo en el Tab 2 para habilitar el análisis económico.</div>
+        """, unsafe_allow_html=True)
+    elif not hsp_eco:
+        st.markdown("""
+        <div class='warn-box'>⚠ No hay HSP guardada. Completa el Tab 4 (Hora Solar) y
+        guarda el valor para habilitar el análisis económico.</div>
+        """, unsafe_allow_html=True)
+    else:
+        # ── Derivar VDC: BD → auto-detectar si falta ─────────────────────────
+        if vdc_eco_bd and int(vdc_eco_bd) in (12, 24, 48):
+            vdc_eco = int(vdc_eco_bd)
+        else:
+            vdc_eco = int(tension_dc(consumo_fs_eco))   # fallback automático
+
+        # ── Derivar dimensionamiento actual ───────────────────────────────────
+        # Leer PR guardado desde Tab 6; si no existe usar 0.75 como fallback OFF-GRID
+        pr_eco      = float(st.session_state.get("calc_pr", 0.75))
+        hsp_ef_eco  = float(hsp_eco) * pr_eco
+        n_pan_eco   = num_paneles(consumo_fs_eco / hsp_ef_eco, pot_panel_eco)                       if hsp_ef_eco > 0 else 1
+        n_pan_eco   = max(1, int(n_pan_eco))
+        bats_eco    = calcular_baterias(float(consumo_fs_eco), int(vdc_eco))
+        n_bat_eco   = int(bats_eco["num_baterias"])
+        bat_cap_eco = 100   # capacidad estándar por batería (Ah)
+        ah_eco      = n_bat_eco * bat_cap_eco
+        gen_dia_eco = (pot_panel_eco * n_pan_eco / 1000) * float(hsp_eco) * pr_eco
+        gen_mes_eco = gen_dia_eco * 30
+        gen_anio_eco= gen_dia_eco * 365
+        co2_eco     = gen_anio_eco * 0.126
+        arboles_eco = co2_eco / 21
+
+        col_eco1, col_eco2 = st.columns(2)
+
+        with col_eco1:
+            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            st.markdown(
+                "<div style='color:#FFB300;font-family:Rajdhani,sans-serif;"
+                "font-weight:600;margin-bottom:0.8rem;font-size:1rem;'>"
+                "💰 PARÁMETROS ECONÓMICOS</div>",
+                unsafe_allow_html=True)
+
+            tarifa_eco   = st.number_input(
+                "Tarifa energía ($/kWh)", 100.0, 5000.0, 700.0, 50.0,
+                help="Tarifa promedio Colombia: $600–$900/kWh", key="eco_tarifa")
+            ppanel_eco   = st.number_input(
+                "Precio panel solar ($/unidad)", 50000.0, 2000000.0, 320000.0, 10000.0,
+                key="eco_ppanel")
+            pbat_eco     = st.number_input(
+                "Precio batería ($/unidad)", 50000.0, 5000000.0, 450000.0, 50000.0,
+                key="eco_pbat")
+            pcontrol_eco = st.number_input(
+                "Precio controlador MPPT ($)", 50000.0, 3000000.0, 600000.0, 50000.0,
+                key="eco_pcontrol")
+            pinv_eco     = st.number_input(
+                "Precio inversor ($)", 100000.0, 10000000.0, 1200000.0, 100000.0,
+                key="eco_pinv")
+            potros_eco   = st.number_input(
+                "Otros costos (estructura, cable, MO) ($)",
+                0.0, 50000000.0, 1500000.0, 200000.0, key="eco_otros")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_eco2:
+            # ── Cálculos económicos ──────────────────────────────────────────
+            inv_pan_eco   = n_pan_eco  * ppanel_eco
+            inv_bat_eco   = n_bat_eco  * pbat_eco
+            inv_total_eco = inv_pan_eco + inv_bat_eco + pcontrol_eco + pinv_eco + potros_eco
+
+            ahorro_mes_eco  = (consumo_base_eco / 1000) * 30 * tarifa_eco
+            ahorro_anio_eco = ahorro_mes_eco * 12
+            payback_eco     = inv_total_eco / ahorro_anio_eco if ahorro_anio_eco > 0 else 99
+            tir_eco         = (ahorro_anio_eco / inv_total_eco) * 100 if inv_total_eco > 0 else 0
+
+            # Indicadores resumen
+            st.markdown(f"""
+            <div class='result-highlight' style='border-color:rgba(0,230,118,0.5);
+                 background:linear-gradient(135deg,rgba(0,230,118,0.08),rgba(0,230,118,0.02));'>
+                <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
+                    Ahorro mensual estimado</div>
+                <div class='val' style='color:#00E676;'>${ahorro_mes_eco:,.0f} / mes</div>
+            </div>
+            <div class='metric-grid' style='margin-top:0.8rem;'>
+                <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
+                    <div class='metric-val'>${inv_total_eco/1000000:.1f}M</div>
+                    <div class='metric-unit'>COP</div>
+                    <div class='metric-label'>INVERSIÓN TOTAL</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
+                    <div class='metric-val' style='color:#00E676;'>${ahorro_anio_eco:,.0f}</div>
+                    <div class='metric-unit'>$/año</div>
+                    <div class='metric-label'>AHORRO ANUAL</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
+                    <div class='metric-val' style='color:#00BCD4;'>{payback_eco:.1f}</div>
+                    <div class='metric-unit'>años</div>
+                    <div class='metric-label'>PAYBACK</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
+                    <div class='metric-val' style='color:#00BCD4;'>{tir_eco:.1f}%</div>
+                    <div class='metric-unit'>/ año</div>
+                    <div class='metric-label'>TIR SIMPLE</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # ── Tabla financiera detallada ────────────────────────────────────
+            st.markdown(f"""
+            <div class='sol-card' style='margin-top:0.8rem;'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                            font-weight:600;margin-bottom:0.8rem;'>DESGLOSE DE INVERSIÓN</div>
+                <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Paneles ({n_pan_eco} × ${ppanel_eco:,.0f})</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_pan_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Baterías ({n_bat_eco} × ${pbat_eco:,.0f})</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_bat_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Controlador MPPT</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pcontrol_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Inversor</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pinv_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Otros (estructura + cable + MO)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${potros_eco:,.0f}</td>
+                    </tr>
+                    <tr style='background:#1A2235;border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#FFB300;padding:0.4rem 0;font-weight:700;'>INVERSIÓN TOTAL</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;
+                                   font-weight:700;font-size:0.95rem;'>${inv_total_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Ahorro mensual</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>${ahorro_mes_eco:,.0f}</td>
+                    </tr>
+                    <tr style='background:#1A2235;'>
+                        <td style='color:#00E676;padding:0.4rem 0;font-weight:700;'>AHORRO ANUAL</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;
+                                   font-weight:700;font-size:0.95rem;'>${ahorro_anio_eco:,.0f}</td>
+                    </tr>
+                </table>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # ── Fila ambiental + indicadores adicionales ──────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        col_amb1, col_amb2, col_amb3, col_amb4 = st.columns(4)
+
+        for c_amb, icon_a, lbl_a, val_a, unit_a, col_a in [
+            (col_amb1, "🌿", "CO₂ evitado/año",   f"{co2_eco:,.0f}",   "kg CO₂",    "#00BCD4"),
+            (col_amb2, "🌳", "Árboles equiv./año", f"{arboles_eco:.0f}", "árboles",   "#00E676"),
+            (col_amb3, "☀", "Generación anual",   f"{gen_anio_eco:,.0f}","kWh/año",  "#FFB300"),
+            (col_amb4, "📅", "Vida útil sistema",  "20–25",              "años",      "#8A9BBD"),
+        ]:
+            with c_amb:
+                st.markdown(f"""
+                <div class='metric-box' style='text-align:center;border-top:2px solid {col_a};'>
+                    <div style='font-size:1.6rem;margin-bottom:0.3rem;'>{icon_a}</div>
+                    <div class='metric-val' style='color:{col_a};font-size:1.4rem;'>{val_a}</div>
+                    <div class='metric-unit'>{unit_a}</div>
+                    <div class='metric-label'>{lbl_a}</div>
+                </div>""", unsafe_allow_html=True)
+
+        # ── Resumen del sistema para contexto ─────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        st.markdown(
+            "<div style='color:#FFB300;font-family:Rajdhani,sans-serif;"
+            "font-weight:600;font-size:1rem;margin-bottom:0.8rem;'>"
+            "📋 SISTEMA DIMENSIONADO (BASE DE CÁLCULO)</div>",
+            unsafe_allow_html=True)
+
+        col_sum1, col_sum2, col_sum3 = st.columns(3)
+        with col_sum1:
+            st.markdown(f"""
+            <div class='sol-card'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                            font-weight:600;margin-bottom:0.6rem;'>ARRAY FV</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono,monospace;'>
+                    Paneles: <b style='color:#FFD54F;'>{n_pan_eco} × {pot_panel_eco} Wp</b><br>
+                    Pot. inst.: <b style='color:#FFD54F;'>{n_pan_eco*pot_panel_eco/1000:.2f} kWp</b><br>
+                    Gen. día: <b style='color:#00E676;'>{gen_dia_eco:.2f} kWh/día</b><br>
+                    HSP usada: <b style='color:#00BCD4;'>{hsp_eco} h/día</b>
+                </div>
+            </div>""", unsafe_allow_html=True)
+        with col_sum2:
+            st.markdown(f"""
+            <div class='sol-card'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                            font-weight:600;margin-bottom:0.6rem;'>BANCO BATERÍAS</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono,monospace;'>
+                    N° baterías: <b style='color:#FFD54F;'>{n_bat_eco} unidades</b><br>
+                    Cap. banco: <b style='color:#FFD54F;'>{ah_eco} Ah @ {vdc_eco}V</b><br>
+                    Energía: <b style='color:#00E676;'>{ah_eco*vdc_eco/1000:.2f} kWh</b><br>
+                    Tensión DC: <b style='color:#00BCD4;'>{vdc_eco} V</b>
+                </div>
+            </div>""", unsafe_allow_html=True)
+        with col_sum3:
+            st.markdown(f"""
+            <div class='sol-card'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                            font-weight:600;margin-bottom:0.6rem;'>CONSUMO</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono,monospace;'>
+                    Base: <b style='color:#FFD54F;'>{consumo_base_eco:,.0f} Wh/día</b><br>
+                    Con 25% FS: <b style='color:#FFD54F;'>{consumo_fs_eco:,.0f} Wh/día</b><br>
+                    Mensual: <b style='color:#00E676;'>{consumo_base_eco*30/1000:.1f} kWh/mes</b><br>
+                    Anual: <b style='color:#00BCD4;'>{consumo_base_eco*365/1000:.0f} kWh/año</b>
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+        # ── Nota normativa ─────────────────────────────────────────────────
+        st.markdown("""
+        <div class='info-note' style='margin-top:1rem;'>
+            ℹ <b>Notas metodológicas:</b>
+            El ahorro mensual corresponde al costo evitado de comprar esa energía a la red eléctrica
+            (o al generador diésel en zonas aisladas). Para sistemas OFF-GRID totalmente aislados,
+            el análisis compara contra el costo de alternativas (generadores, velas, pilas).
+            El factor CO₂ de 0.126 kgCO₂/kWh corresponde al factor de emisión de la red colombiana
+            (UPME). Vida útil: paneles 25–30 años, baterías AGM/GEL 5–8 años, LiFePO4 10–15 años.
+            <b>Normas aplicables: RETIE, NTC 2050, CREG 030-2018.</b>
+        </div>
+        """, unsafe_allow_html=True)
+
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style='text-align:center; padding:2rem 0 1rem; color:#2A3A55; font-size:0.75rem; letter-spacing:2px;'>
-    SOLARCALC PRO · DIMENSIONAMIENTO FOTOVOLTAICO AISLADO · SQLITE3 + STREAMLIT
+    SOLARCALC PRO · DIMENSIONAMIENTO FOTOVOLTAICO OFF-GRID · SQLITE3 + STREAMLIT
 </div>
 """, unsafe_allow_html=True)
