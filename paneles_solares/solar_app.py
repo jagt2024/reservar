@@ -2635,8 +2635,8 @@ with tab6:
                             unsafe_allow_html=True)
 
             pr_dec5             = pr_input5 / 100.0
-            hsp_ef5             = hsp_input5 * pr_dec5
-            potencia_instalada5 = consumo5_fs / hsp_ef5 if hsp_ef5 > 0 else 0
+            hsp_efectiva5       = hsp_input5 * pr_dec5
+            potencia_instalada5 = consumo5_fs / hsp_efectiva5 if hsp_efectiva5 > 0 else 0
             num_pan5            = num_paneles(potencia_instalada5, pot_panel_input5)
             pot_real5           = num_pan5 * pot_panel_input5
             gen_dia5_kwh        = (pot_real5 / 1000) * hsp_input5 * pr_dec5
@@ -2655,7 +2655,7 @@ with tab6:
             <hr class='sep'>
             <div style='color:#8A9BBD; font-size:0.8rem; margin-bottom:0.5rem;'>
                 {consumo5_fs:,.0f} Wh ÷ ({hsp_input5} h × {pr_input5}%) =
-                <b style='color:#FFD54F;'>{hsp_ef5:.2f} h efectivas</b>
+                <b style='color:#FFD54F;'>{hsp_efectiva5:.2f} h efectivas</b>
             </div>
             """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -2691,7 +2691,8 @@ with tab6:
             </div>
             <div class='sol-card' style='margin-top:0.8rem;'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
-                            margin-bottom:0.5rem;font-size:0.9rem;'>DESGLOSE DE PÉRDIDAS (PR {pr_input5}%)</div>
+                            margin-bottom:0.5rem;font-size:0.9rem;'>
+                    DESGLOSE PÉRDIDAS (PR {pr_input5}%)</div>
                 <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.3rem 0;'>HSP bruta (PVGIS)</td>
@@ -2703,7 +2704,7 @@ with tab6:
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
                         <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>HSP efectiva</td>
-                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{hsp_ef5:.2f} h/día</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{hsp_efectiva5:.2f} h/día</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo con FS 25%</td>
@@ -3162,6 +3163,7 @@ with tab9:
     calc_hsp9    = st.session_state.get("calc_hsp",           _hsp9_base)
     calc_vdc9    = int(st.session_state.get("calc_vdc",       _vdc9_base))
     calc_fs9     = st.session_state.get("calc_consumo_fs_wh", 0.0)
+    calc_pr9     = float(st.session_state.get("calc_pr", 0.75))   # PR de Tab 6
 
     # ── Selector de fuente para el plano ──────────────────────────────────────
     st.markdown("""
@@ -3195,7 +3197,7 @@ with tab9:
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
-        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        n_paneles9    = num_paneles(consumo_fs9 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 1
         fuente_label9 = f"Recibo · {consumo_rec9:,.0f} Wh/día → {n_paneles9} paneles"
         fuente_color9 = "#00BCD4"
     elif "Mayor" in fuente9_sel:
@@ -3204,7 +3206,7 @@ with tab9:
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
-        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        n_paneles9    = num_paneles(consumo_fs9 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 1
         fuente_label9 = f"Mayor de los dos · {consumo_mayor9:,.0f} Wh/día → {n_paneles9} paneles"
         fuente_color9 = "#FFB300"
     else:  # Inventario
@@ -3213,7 +3215,7 @@ with tab9:
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
-        n_paneles9    = num_paneles(consumo_fs9 / hsp9, pot_panel9) if hsp9 > 0 else 1
+        n_paneles9    = num_paneles(consumo_fs9 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 1
         fuente_label9 = f"Inventario · {consumo_inv9:,.0f} Wh/día → {n_paneles9} paneles"
         fuente_color9 = "#FFB300"
 
@@ -3235,6 +3237,7 @@ with tab9:
             Consumo base: <b style='color:#FFD54F;'>{consumo_base9:,.0f} Wh/día</b>
             → con FS 25%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
             | HSP: <b style='color:#00BCD4;'>{hsp9} h</b>
+            | PR: <b style='color:#FF6B35;'>{int(calc_pr9*100)}%</b>
             | VDC: <b style='color:#00BCD4;'>{vdc9} V</b>
         </span>
     </div>
@@ -3250,7 +3253,7 @@ with tab9:
         ]
         for col_c, (lbl_c, cons_c, clr_c) in zip(src_cols, fuentes_comp):
             if cons_c > 0:
-                n_c = num_paneles(cons_c * 1.25 / hsp9, pot_panel9) if hsp9 > 0 else 0
+                n_c = num_paneles(cons_c * 1.25 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 0
                 col_c.markdown(f"""
                 <div style='background:#1A2235;border:1px solid {clr_c}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
@@ -3690,6 +3693,7 @@ with tab10:
     calc_vdc10    = int(st.session_state.get("calc_vdc",       _vdc10_base))
     calc_fs10     = st.session_state.get("calc_consumo_fs_wh", 0.0)
     calc_n_bat10  = st.session_state.get("calc_num_baterias")
+    calc_pr10     = float(st.session_state.get("calc_pr", 0.75))   # PR de Tab 6
 
     # ── Selector de fuente ────────────────────────────────────────────────────
     st.markdown("""
@@ -3724,7 +3728,7 @@ with tab10:
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
-        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
         bats_r10       = calcular_baterias(consumo10_fs, vdc10)
         n_bat10        = bats_r10["num_baterias"]
         fuente_label10 = f"Recibo · {consumo_rec10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
@@ -3735,7 +3739,7 @@ with tab10:
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
-        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
         bats_m10       = calcular_baterias(consumo10_fs, vdc10)
         n_bat10        = bats_m10["num_baterias"]
         fuente_label10 = f"Mayor de los dos · {consumo_mayor10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
@@ -3746,7 +3750,7 @@ with tab10:
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
-        n_pan10        = num_paneles(consumo10_fs / hsp10, pot_panel10) if hsp10 > 0 else 1
+        n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
         bats_i10       = calcular_baterias(consumo10_fs, vdc10)
         n_bat10        = bats_i10["num_baterias"]
         fuente_label10 = f"Inventario · {consumo_inv10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
@@ -3770,6 +3774,7 @@ with tab10:
                      font-weight:700;font-size:0.95rem;'>{fuente_label10}</span>
         <span style='font-size:0.8rem;color:#8A9BBD;'>
             Consumo: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b>
+            | PR: <b style='color:#FF6B35;'>{int(calc_pr10*100)}%</b>
             → FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b>
             | HSP: <b style='color:#00BCD4;'>{hsp10} h</b>
             | VDC: <b style='color:#00BCD4;'>{vdc10} V</b>
@@ -3790,7 +3795,7 @@ with tab10:
             if cons_c10 > 0:
                 fs_c10  = cons_c10 * 1.25
                 vdc_c10 = tension_dc(fs_c10)
-                n_c10   = num_paneles(fs_c10 / hsp10, pot_panel10) if hsp10 > 0 else 0
+                n_c10   = num_paneles(fs_c10 / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 0
                 nb_c10  = calcular_baterias(fs_c10, vdc_c10)["num_baterias"]
                 col_c10.markdown(f"""
                 <div style='background:#1A2235;border:1px solid {clr_c10}44;
@@ -4227,11 +4232,11 @@ with tab11:
         else:
             vdc_eco = int(tension_dc(consumo_fs_eco))   # fallback automático
 
-        # ── Derivar dimensionamiento actual ───────────────────────────────────
-        # Leer PR guardado desde Tab 6; si no existe usar 0.75 como fallback OFF-GRID
+        # ── Derivar dimensionamiento actual (usa PR del Tab 6) ───────────────
         pr_eco      = float(st.session_state.get("calc_pr", 0.75))
         hsp_ef_eco  = float(hsp_eco) * pr_eco
-        n_pan_eco   = num_paneles(consumo_fs_eco / hsp_ef_eco, pot_panel_eco)                       if hsp_ef_eco > 0 else 1
+        n_pan_eco   = num_paneles(consumo_fs_eco / hsp_ef_eco, pot_panel_eco) \
+                      if hsp_ef_eco > 0 else 1
         n_pan_eco   = max(1, int(n_pan_eco))
         bats_eco    = calcular_baterias(float(consumo_fs_eco), int(vdc_eco))
         n_bat_eco   = int(bats_eco["num_baterias"])
@@ -4398,7 +4403,9 @@ with tab11:
                     Paneles: <b style='color:#FFD54F;'>{n_pan_eco} × {pot_panel_eco} Wp</b><br>
                     Pot. inst.: <b style='color:#FFD54F;'>{n_pan_eco*pot_panel_eco/1000:.2f} kWp</b><br>
                     Gen. día: <b style='color:#00E676;'>{gen_dia_eco:.2f} kWh/día</b><br>
-                    HSP usada: <b style='color:#00BCD4;'>{hsp_eco} h/día</b>
+                    HSP bruta: <b style='color:#00BCD4;'>{hsp_eco} h/día</b><br>
+                    PR aplicado: <b style='color:#FF6B35;'>{int(pr_eco*100)}%</b><br>
+                    HSP efectiva: <b style='color:#FFB300;'>{hsp_ef_eco:.2f} h/día</b>
                 </div>
             </div>""", unsafe_allow_html=True)
         with col_sum2:
