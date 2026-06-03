@@ -361,38 +361,35 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     """, unsafe_allow_html=True)
 
     # ── Detectar tipo de sistema activo ──────────────────────────────────────
-    # Normalizar usando unicodedata para eliminar cualquier problema de tilde/encoding
     import unicodedata as _ud
     def _norm_tipo(s: str) -> str:
-        s = _ud.normalize("NFD", str(s)).encode("ascii", "ignore").decode("ascii").upper().strip()
-        if s in ("ON GRID", "ONGRID"):  return "ON-GRID"
-        if s in ("OFF GRID", "OFFGRID"): return "OFF-GRID"
-        if "HIBR" in s or "HBR" in s:  return "HIBRIDO"
-        if "ON" in s and "GRID" in s:  return "ON-GRID"
-        if "OFF" in s:                 return "OFF-GRID"
-        return s if s in ("ON-GRID", "OFF-GRID", "HIBRIDO") else "OFF-GRID"
+        s = _ud.normalize("NFD", str(s)).encode("ascii","ignore").decode("ascii").upper().strip()
+        if "HIBR" in s: return "HIBRIDO"
+        if "ON" in s and "GRID" in s and "OFF" not in s: return "ON-GRID"
+        return "OFF-GRID"
 
-    _ts_raw      = ss.get("tipo_sistema", "OFF-GRID")
-    tipo_sistema = _norm_tipo(_ts_raw)
-
-    # Selector explícito en la UI — permite corregir si la detección automática falla
     COLOR_SIS = {"OFF-GRID": "#FFB300", "ON-GRID": "#FF6B35", "HIBRIDO": "#F59E0B"}
     LABEL_SIS = {"OFF-GRID": "🔋 OFF-GRID", "ON-GRID": "🔌 ON-GRID", "HIBRIDO": "⚡ HÍBRIDO"}
-
     _opciones  = ["OFF-GRID", "ON-GRID", "HIBRIDO"]
     _labels    = ["🔋 OFF-GRID (Aislado)", "🔌 ON-GRID (Interconectado)", "⚡ HÍBRIDO (ON + Baterías)"]
-    _idx_def   = _opciones.index(tipo_sistema) if tipo_sistema in _opciones else 0
-    _sel       = st.radio(
+
+    # Prioridad: 1) selección previa en el widget  2) session_state del app  3) OFF-GRID
+    if "sim_tipo_selector" in ss:
+        _default = _norm_tipo(str(ss["sim_tipo_selector"]))
+    else:
+        _default = _norm_tipo(str(ss.get("tipo_sistema", "OFF-GRID")))
+    _idx_def = _opciones.index(_default) if _default in _opciones else 0
+
+    tipo_sistema = st.radio(
         "Sistema a simular:",
         options=_opciones,
         format_func=lambda x: _labels[_opciones.index(x)],
         index=_idx_def,
         horizontal=True,
         key="sim_tipo_selector")
-    tipo_sistema = _sel   # el selector siempre gana
 
-    col_sis  = COLOR_SIS.get(tipo_sistema, "#FFB300")
-    lbl_sis  = LABEL_SIS.get(tipo_sistema, tipo_sistema)
+    col_sis = COLOR_SIS[tipo_sistema]
+    lbl_sis = LABEL_SIS[tipo_sistema]
 
     st.markdown(f"""
     <div class='sim-header'>
