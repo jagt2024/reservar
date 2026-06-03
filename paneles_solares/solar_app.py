@@ -1186,6 +1186,7 @@ with st.sidebar:
         GRUPOS_MODULOS = [
             ("PROYECTO ON-GRID", [
                 ("🔌  Dimensionamiento ON-GRID", "ongrid"),
+                ("🔬  Simulador ON-GRID",        "simulador"),
                 ("💰  Presupuesto",              "presupuesto"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
@@ -1194,6 +1195,7 @@ with st.sidebar:
         GRUPOS_MODULOS = [
             ("PROYECTO HÍBRIDO", [
                 ("⚡  Dimensionamiento HÍBRIDO", "hibrido"),
+                ("🔬  Simulador HÍBRIDO",        "simulador"),
                 ("💰  Presupuesto",              "presupuesto"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
@@ -1202,7 +1204,7 @@ with st.sidebar:
         GRUPOS_MODULOS = [
             ("PROYECTO OFF-GRID", [
                 ("🔋  Dimensionamiento OFF-GRID", "dimensionamiento"),
-                ("🔬  Simulador",                 "simulador"),
+                ("🔬  Simulador OFF-GRID",        "simulador"),
                 ("💰  Presupuesto",               "presupuesto"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
