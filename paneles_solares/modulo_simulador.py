@@ -633,24 +633,43 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     col_en, col_fi, col_am = st.columns(3)
     with col_en:
         # Filas específicas por sistema
-        if tipo_sistema == "OFF-GRID":
+        if tipo_sistema == "ON-GRID":
+            autoconsumo_show = min(gen_dia_s, consumo_sim / 1000)
+            inyeccion_show   = max(0, gen_dia_s - consumo_sim / 1000)
+            cobertura_pct    = autoconsumo_show / (consumo_sim / 1000) * 100 \
+                               if consumo_sim > 0 else 0
             rows_extra = f"""
-                <tr><td style='color:#8A9BBD;'>Tensión DC</td>
-                    <td style='color:#00BCD4;text-align:right;font-family:Share Tech Mono,monospace;'>{vdc_s} V</td></tr>
-                <tr><td style='color:#8A9BBD;'>Energía banco bat.</td>
-                    <td style='color:#A78BFA;text-align:right;font-family:Share Tech Mono,monospace;'>{bats_s['energia_kwh']:.2f} kWh</td></tr>"""
+                <tr><td style='color:#8A9BBD;'>Autoconsumo/día</td>
+                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{autoconsumo_show:.2f} kWh</td></tr>
+                <tr><td style='color:#8A9BBD;'>Inyección red/día</td>
+                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{inyeccion_show:.2f} kWh</td></tr>
+                <tr><td style='color:#8A9BBD;'>Cobertura solar</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>{cobertura_pct:.0f}%</td></tr>"""
         elif tipo_sistema == "HIBRIDO":
+            autoconsumo_show = min(gen_dia_s, consumo_sim / 1000)
+            inyeccion_show   = max(0, gen_dia_s - consumo_sim / 1000)
+            cobertura_pct    = autoconsumo_show / (consumo_sim / 1000) * 100 \
+                               if consumo_sim > 0 else 0
             rows_extra = f"""
+                <tr><td style='color:#8A9BBD;'>Autoconsumo/día</td>
+                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{autoconsumo_show:.2f} kWh</td></tr>
+                <tr><td style='color:#8A9BBD;'>Inyección red/día</td>
+                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{inyeccion_show:.2f} kWh</td></tr>
+                <tr><td style='color:#8A9BBD;'>Cobertura solar</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>{cobertura_pct:.0f}%</td></tr>
                 <tr><td style='color:#8A9BBD;'>Banco baterías</td>
                     <td style='color:#A78BFA;text-align:right;font-family:Share Tech Mono,monospace;'>{bats_s['energia_kwh']:.2f} kWh</td></tr>
                 <tr><td style='color:#8A9BBD;'>Autonomía batería</td>
                     <td style='color:#A78BFA;text-align:right;font-family:Share Tech Mono,monospace;'>{autonomia_s:.1f} h</td></tr>"""
         else:
+            # OFF-GRID: cubre el 100% del consumo, sin inyección a red
             rows_extra = f"""
-                <tr><td style='color:#8A9BBD;'>Autoconsumo/día</td>
-                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{min(gen_dia_s, consumo_sim/1000):.2f} kWh</td></tr>
-                <tr><td style='color:#8A9BBD;'>Inyección red/día</td>
-                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>{max(0,gen_dia_s-consumo_sim/1000):.2f} kWh</td></tr>"""
+                <tr><td style='color:#8A9BBD;'>Tensión DC</td>
+                    <td style='color:#00BCD4;text-align:right;font-family:Share Tech Mono,monospace;'>{vdc_s} V</td></tr>
+                <tr><td style='color:#8A9BBD;'>Energía banco bat.</td>
+                    <td style='color:#A78BFA;text-align:right;font-family:Share Tech Mono,monospace;'>{bats_s['energia_kwh']:.2f} kWh</td></tr>
+                <tr><td style='color:#8A9BBD;'>Cobertura solar</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>100% (aislado)</td></tr>"""
 
         st.markdown(f"""
         <div style='background:#0F1525;border:1px solid #2A3A55;border-radius:10px;padding:1.2rem;'>
@@ -677,10 +696,14 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
 
     with col_fi:
         vpn_color  = "#00E676" if vpn_s > 0 else "#FF5252"
-        if tipo_sistema in ("ON-GRID","HIBRIDO"):
+        if tipo_sistema in ("ON-GRID", "HIBRIDO"):
+            autoconsumo_mes = min(gen_dia_s, consumo_sim/1000) * 30 * tarifa_s
+            inyeccion_mes   = max(0, gen_dia_s - consumo_sim/1000) * 30 * tarifa_iny_s
             row_iny = f"""
+                <tr><td style='color:#8A9BBD;'>Ahorro autoconsumo/mes</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {autoconsumo_mes:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Ingreso inyección/mes</td>
-                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ingreso_iny_s:,.0f}</td></tr>"""
+                    <td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>$ {inyeccion_mes:,.0f}</td></tr>"""
         else:
             row_iny = ""
         st.markdown(f"""
@@ -692,9 +715,10 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                     <td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>$ {costo_s:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Tarifa kWh</td>
                     <td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>$ {tarifa_s:,.0f}</td></tr>
-                <tr><td style='color:#8A9BBD;'>Ahorro mensual</td>
-                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ahorro_mes_s:,.0f}</td></tr>
+                {"<tr><td style='color:#8A9BBD;'>Precio inyección kWh</td><td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>$ " + f"{tarifa_iny_s:,.0f}" + "</td></tr>" if tipo_sistema in ("ON-GRID","HIBRIDO") else ""}
                 {row_iny}
+                <tr><td style='color:#8A9BBD;'>{"Ahorro mensual" if tipo_sistema=="OFF-GRID" else "Beneficio total/mes"}</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ahorro_mes_s + (ingreso_iny_s if tipo_sistema in ("ON-GRID","HIBRIDO") else 0):,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Beneficio anual total</td>
                     <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ahorro_anual_s:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Payback</td>
