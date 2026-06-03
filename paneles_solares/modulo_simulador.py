@@ -361,7 +361,11 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     """, unsafe_allow_html=True)
 
     # ── Detectar tipo de sistema activo ──────────────────────────────────────
-    tipo_sistema = ss.get("tipo_sistema", "OFF-GRID")
+    # Normalizar: quitar tilde de HÍBRIDO para comparaciones internas
+    _ts_raw = ss.get("tipo_sistema", "OFF-GRID")
+    _NORM   = {"HÍBRIDO": "HIBRIDO", "HIBRIDO": "HIBRIDO",
+               "ON-GRID": "ON-GRID", "OFF-GRID": "OFF-GRID"}
+    tipo_sistema = _NORM.get(_ts_raw, "OFF-GRID")
     COLOR_SIS = {"OFF-GRID": "#FFB300", "ON-GRID": "#FF6B35", "HIBRIDO": "#F59E0B"}
     LABEL_SIS = {"OFF-GRID": "🔋 OFF-GRID", "ON-GRID": "🔌 ON-GRID", "HIBRIDO": "⚡ HÍBRIDO"}
     col_sis   = COLOR_SIS.get(tipo_sistema, "#FFB300")
