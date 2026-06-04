@@ -408,7 +408,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         datos_sis = _cargar_ongrid(ss, pan, p)
         fs_label  = "10% FS (ON-GRID)"
         fs_factor = 1.10
-    elif tipo_sistema == "HIBRIDO":
+    elif _es_hibrido_s:
         datos_sis = _cargar_hibrido(ss, pan, p)
         fs_label  = "15% FS (HÍBRIDO)"
         fs_factor = 1.15
@@ -488,8 +488,8 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             modelo_s    = st.text_input("Modelo panel",
                                          value=pan[2] if pan else "Panel 550Wp", key="sim_mod")
             dod_s       = st.slider("DOD baterías (%)", 50, 100,
-                                    80 if tipo_sistema == "OFF-GRID" else
-                                    (int(ss.get("hib_dod", 80)) if tipo_sistema == "HIBRIDO" else 50),
+                                    80 if _es_offgrid_s else
+                                    (int(ss.get("hib_dod", 80)) if _es_hibrido_s else 50),
                                     key="sim_dod")
             bat_cap_s   = st.number_input("Capacidad batería (Ah)", 50, 500,
                                            bc_default, 50, key="sim_bc")
@@ -541,7 +541,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     gen_anual_s  = gen_dia_s * 365
 
     # Baterías (sólo OFF-GRID e HÍBRIDO)
-    if tipo_sistema == "ON-GRID":
+    if _es_ongrid_s:
         bats_s      = {"num": 0, "ah_final": 0, "energia_kwh": 0}
         n_bats_s    = 0
         autonomia_s = 0.0
@@ -553,7 +553,13 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     ah_banco_s   = n_bats_s * bat_cap_s
 
     # Controlador MPPT (OFF-GRID) / strings (ON-GRID, HÍBRIDO)
-    if tipo_sistema == "ON-GRID" or tipo_sistema == "HIBRIDO":
+    # ── Flags de sistema — se calculan UNA sola vez, usados en todo el módulo ──
+    _es_ongrid_s  = (tipo_sistema == "ON-GRID")
+    _es_hibrido_s = (tipo_sistema == "HIBRIDO")
+    _es_red_s     = _es_ongrid_s or _es_hibrido_s
+    _es_offgrid_s = not _es_red_s
+
+    if _es_red_s:
         vmpp_s    = voc_s * 0.82
         if v_mppt_max_s > 0 and vmpp_s > 0:
             serie_s = min(math.floor(v_mppt_max_s / vmpp_s),
@@ -585,7 +591,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
 
     # Financiero — diferente según sistema
     consumo_dia_kwh_s = consumo_sim / 1000
-    if tipo_sistema == "OFF-GRID":
+    if _es_offgrid_s:
         # Ahorro = 100% consumo cubierto
         ahorro_mes_s   = consumo_dia_kwh_s * 30 * tarifa_s
         ingreso_iny_s  = 0.0
@@ -615,7 +621,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     """, unsafe_allow_html=True)
 
     # Fila 1 — métricas técnicas adaptadas al sistema
-    if tipo_sistema == "ON-GRID":
+    if _es_ongrid_s:
         c1,c2,c3,c4,c5 = st.columns(5)
         metrics_tech = [
             (c1, str(n_pan_s),          "paneles",  f"{pot_panel_s}Wp",     "CAMPO FV"),
@@ -733,20 +739,35 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
 
     with col_fi:
         vpn_color = "#00E676" if vpn_s > 0 else "#FF5252"
-        # Usar valores pre-calculados — sin comparaciones de string
-        _row_iny_map   = {"ON-GRID": _row_iny_on, "HIBRIDO": _row_iny_on, "OFF-GRID": ""}
-        row_iny        = _row_iny_map.get(tipo_sistema, "")
-        _es_red       = {"ON-GRID": True, "HIBRIDO": True, "OFF-GRID": False}
+        # Flags booleanos explícitos — no dependen de comparación de string
+        _es_ongrid  = (tipo_sistema == "ON-GRID")
+        _es_hibrido = (tipo_sistema == "HIBRIDO")
+        _es_red     = _es_ongrid or _es_hibrido   # conectado a la red
+        _es_offgrid = not _es_red
+
+        vpn_color = "#00E676" if vpn_s > 0 else "#FF5252"
+
+        # Fila precio inyección (solo red)
         _precio_iny_row = (
             f"<tr><td style='color:#8A9BBD;'>Precio inyección kWh</td>"
             f"<td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>"
             f"$ {tarifa_iny_s:,.0f}</td></tr>"
-        ) if _es_red.get(tipo_sistema, False) else ""
-        _lbl_ahorro_map = {"OFF-GRID": "Ahorro mensual", "ON-GRID": "Beneficio total/mes",
-                           "HIBRIDO":  "Beneficio total/mes"}
-        _lbl_ahorro     = _lbl_ahorro_map.get(tipo_sistema, "Beneficio total/mes")
-        _extra_beneficio= (_autocon_mes + _iny_mes) if _es_red.get(tipo_sistema, False) else 0
-        _beneficio_mes  = ahorro_mes_s + _extra_beneficio
+        ) if _es_red else ""
+
+        # Filas desglose autoconsumo/inyección (solo red)
+        _row_desglose = (
+            f"<tr><td style='color:#8A9BBD;'>Ahorro autoconsumo/mes</td>"
+            f"<td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>"
+            f"$ {_autocon_mes:,.0f}</td></tr>"
+            f"<tr><td style='color:#8A9BBD;'>Ingreso inyección/mes</td>"
+            f"<td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>"
+            f"$ {_iny_mes:,.0f}</td></tr>"
+        ) if _es_red else ""
+
+        # Etiqueta y valor del beneficio mensual
+        _lbl_ben  = "Ahorro mensual"    if _es_offgrid else "Beneficio total/mes"
+        _val_ben  = ahorro_mes_s        if _es_offgrid else (_autocon_mes + _iny_mes)
+
         st.markdown(f"""
         <div style='background:#0F1525;border:1px solid #2A3A55;border-radius:10px;padding:1.2rem;'>
             <div style='font-family:Rajdhani,sans-serif;font-size:1rem;font-weight:700;
@@ -757,9 +778,9 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                 <tr><td style='color:#8A9BBD;'>Tarifa kWh</td>
                     <td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>$ {tarifa_s:,.0f}</td></tr>
                 {_precio_iny_row}
-                {row_iny}
-                <tr><td style='color:#8A9BBD;'>{_lbl_ahorro}</td>
-                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {_beneficio_mes:,.0f}</td></tr>
+                {_row_desglose}
+                <tr><td style='color:#8A9BBD;'>{_lbl_ben}</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {_val_ben:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Beneficio anual total</td>
                     <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ahorro_anual_s:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Payback</td>
