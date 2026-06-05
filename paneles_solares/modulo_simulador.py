@@ -511,12 +511,35 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
 
         with colc:
             st.markdown("**💰 Financiero**")
-            # Pre-cargar inversión del módulo activo si existe
-            inv_preload = datos_sis["inv_total"] if datos_sis["inv_total"] > 0                           else float(ss.get("presup_total", 0))
-            costo_default = max(0.0, min(inv_preload, 999999999.0))
+
+            # Pre-cargar inversión según sistema
+            # ON-GRID / HÍBRIDO: leer del módulo económico
+            # OFF-GRID: estimar desde n_paneles y baterías si no hay presupuesto guardado
+            _inv_modulo = datos_sis.get("inv_total", 0.0) if isinstance(datos_sis, dict) else 0.0
+            _inv_presup = float(ss.get("presup_total", 0))
+            if _inv_modulo > 0:
+                inv_preload = _inv_modulo
+            elif _inv_presup > 0:
+                inv_preload = _inv_presup
+            elif _es_offgrid_s:
+                # Estimación automática OFF-GRID: panel ~$320k + batería ~$450k + ctrl + inv + MO
+                _n_pan_est  = datos_sis.get("n_pan", ss.get("calc_num_paneles", 0)) or 0
+                _n_bat_est  = datos_sis.get("n_baterias", ss.get("calc_num_baterias", 0)) or 0
+                inv_preload = (_n_pan_est * 320000 + _n_bat_est * 450000
+                               + 600000 + 1200000 + 1500000)
+            else:
+                inv_preload = 0.0
+            costo_default = max(0.0, min(float(inv_preload), 999999999.0))
 
             costo_s  = st.number_input("Costo estimado sistema ($)", 0.0, 999999999.0,
                                         costo_default, 100000.0, key="sim_costo")
+            if _es_offgrid_s and _inv_modulo == 0 and _inv_presup == 0:
+                st.markdown("""
+                <div style='font-size:0.72rem;color:#8A9BBD;margin-top:-0.5rem;margin-bottom:0.4rem;
+                 padding:0.3rem 0.6rem;background:rgba(255,179,0,0.08);border-radius:4px;'>
+                    ⚠ Costo estimado automáticamente. Ingresa el costo real del Tab 11
+                    o el módulo de presupuesto para un análisis preciso.
+                </div>""", unsafe_allow_html=True)
             tarifa_s = st.number_input("Tarifa energía ($/kWh)", 0.0, 5000.0,
                                         700.0, 10.0, key="sim_tarifa",
                                         help="Precio actual del kWh en su factura")
@@ -527,10 +550,11 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             factor_co2 = st.number_input("Factor emisión CO₂ (kg/kWh)", 0.05, 1.0,
                                           0.136, 0.001, key="sim_co2",
                                           help="Colombia: ~0.136 kg CO₂/kWh (UPME 2023)")
-            if tipo_sistema in ("ON-GRID", "HIBRIDO"):
+            # Precio inyección solo para sistemas conectados a la red
+            if _es_red_s:
                 tarifa_iny_s = st.number_input(
                     "Precio compra excedente red ($/kWh)", 0.0, 5000.0, 350.0, 10.0,
-                    help="Precio al que la empresa de energía compra el excedente (~50% tarifa)",
+                    help="Precio al que la empresa compra el excedente (~50% tarifa)",
                     key="sim_tarifa_iny")
             else:
                 tarifa_iny_s = 0.0
