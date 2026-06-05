@@ -783,9 +783,11 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             f"$ {_iny_mes:,.0f}</td></tr>"
         ) if _es_red_s else ""
 
-        # Etiqueta y valor del beneficio mensual
-        _lbl_ben  = "Ahorro mensual"    if _es_offgrid_s else "Beneficio total/mes"
-        _val_ben  = ahorro_mes_s        if _es_offgrid_s else (_autocon_mes + _iny_mes)
+        # Etiquetas y valores — todos pre-calculados antes del markdown
+        _lbl_ben      = "Ahorro mensual"      if _es_offgrid_s else "Beneficio total/mes"
+        _val_ben      = ahorro_mes_s          if _es_offgrid_s else (_autocon_mes + _iny_mes)
+        _lbl_ben_anio = "Ahorro anual"        if _es_offgrid_s else "Beneficio anual total"
+        _val_ben_anio = ahorro_anual_s
 
         st.markdown(f"""
         <div style='background:#0F1525;border:1px solid #2A3A55;border-radius:10px;padding:1.2rem;'>
@@ -800,8 +802,8 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                 {_row_desglose}
                 <tr><td style='color:#8A9BBD;'>{_lbl_ben}</td>
                     <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {_val_ben:,.0f}</td></tr>
-                <tr><td style='color:#8A9BBD;'>Beneficio anual total</td>
-                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {ahorro_anual_s:,.0f}</td></tr>
+                <tr><td style='color:#8A9BBD;'>{_lbl_ben_anio}</td>
+                    <td style='color:#00E676;text-align:right;font-family:Share Tech Mono,monospace;'>$ {_val_ben_anio:,.0f}</td></tr>
                 <tr><td style='color:#8A9BBD;'>Payback</td>
                     <td style='color:#FFB300;text-align:right;font-family:Share Tech Mono,monospace;'>{pb_s:.1f} años</td></tr>
                 <tr><td style='color:#8A9BBD;'>TIR ({int(anos_s)} años)</td>
