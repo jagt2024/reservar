@@ -391,6 +391,12 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         key="sim_tipo_selector")
     tipo_sistema = _sel   # el selector siempre gana
 
+    # ── Flags booleanos — definidos UNA vez aquí, usados en todo el módulo ──
+    _es_ongrid_s  = (tipo_sistema == "ON-GRID")
+    _es_hibrido_s = (tipo_sistema == "HIBRIDO")
+    _es_red_s     = _es_ongrid_s or _es_hibrido_s
+    _es_offgrid_s = not _es_red_s
+
     col_sis  = COLOR_SIS.get(tipo_sistema, "#FFB300")
     lbl_sis  = LABEL_SIS.get(tipo_sistema, tipo_sistema)
 
@@ -553,12 +559,6 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     ah_banco_s   = n_bats_s * bat_cap_s
 
     # Controlador MPPT (OFF-GRID) / strings (ON-GRID, HÍBRIDO)
-    # ── Flags de sistema — se calculan UNA sola vez, usados en todo el módulo ──
-    _es_ongrid_s  = (tipo_sistema == "ON-GRID")
-    _es_hibrido_s = (tipo_sistema == "HIBRIDO")
-    _es_red_s     = _es_ongrid_s or _es_hibrido_s
-    _es_offgrid_s = not _es_red_s
-
     if _es_red_s:
         vmpp_s    = voc_s * 0.82
         if v_mppt_max_s > 0 and vmpp_s > 0:
@@ -739,12 +739,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
 
     with col_fi:
         vpn_color = "#00E676" if vpn_s > 0 else "#FF5252"
-        # Flags booleanos explícitos — no dependen de comparación de string
-        _es_ongrid  = (tipo_sistema == "ON-GRID")
-        _es_hibrido = (tipo_sistema == "HIBRIDO")
-        _es_red     = _es_ongrid or _es_hibrido   # conectado a la red
-        _es_offgrid = not _es_red
-
+        # Flags de sistema (ya definidos globalmente al inicio)
         vpn_color = "#00E676" if vpn_s > 0 else "#FF5252"
 
         # Fila precio inyección (solo red)
@@ -752,7 +747,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             f"<tr><td style='color:#8A9BBD;'>Precio inyección kWh</td>"
             f"<td style='color:#FFD54F;text-align:right;font-family:Share Tech Mono,monospace;'>"
             f"$ {tarifa_iny_s:,.0f}</td></tr>"
-        ) if _es_red else ""
+        ) if _es_red_s else ""
 
         # Filas desglose autoconsumo/inyección (solo red)
         _row_desglose = (
@@ -762,11 +757,11 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             f"<tr><td style='color:#8A9BBD;'>Ingreso inyección/mes</td>"
             f"<td style='color:#FF6B35;text-align:right;font-family:Share Tech Mono,monospace;'>"
             f"$ {_iny_mes:,.0f}</td></tr>"
-        ) if _es_red else ""
+        ) if _es_red_s else ""
 
         # Etiqueta y valor del beneficio mensual
-        _lbl_ben  = "Ahorro mensual"    if _es_offgrid else "Beneficio total/mes"
-        _val_ben  = ahorro_mes_s        if _es_offgrid else (_autocon_mes + _iny_mes)
+        _lbl_ben  = "Ahorro mensual"    if _es_offgrid_s else "Beneficio total/mes"
+        _val_ben  = ahorro_mes_s        if _es_offgrid_s else (_autocon_mes + _iny_mes)
 
         st.markdown(f"""
         <div style='background:#0F1525;border:1px solid #2A3A55;border-radius:10px;padding:1.2rem;'>
