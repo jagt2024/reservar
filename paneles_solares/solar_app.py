@@ -2716,6 +2716,8 @@ with tab6:
             st.session_state["calc_potencia_inst_wp"]  = potencia_instalada5
             st.session_state["calc_pot_real_wp"]       = pot_real5
             st.session_state["calc_gen_dia_kwh"]       = gen_dia5_kwh
+            st.session_state["calc_serie"]             = 1   # OFF-GRID no usa strings en serie
+            st.session_state["calc_paralelo"]          = num_pan5
 
             st.markdown(f"""
             <hr class='sep'>
@@ -3033,6 +3035,10 @@ with tab8:
             else:
                 mppt_modelo = f"MPPT {math.ceil(corriente_ctrl/50)*50}A"
                 mppt_color = "#FF5252"
+            # Guardar para el simulador
+            st.session_state["calc_corr_mppt"]  = corriente_ctrl
+            st.session_state["calc_mppt_modelo"] = mppt_modelo
+            st.session_state["calc_isc"]         = isc_7
 
             st.markdown(f"""
             <div style='background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.5rem;'>

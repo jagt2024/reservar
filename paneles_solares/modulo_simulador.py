@@ -255,83 +255,128 @@ def generar_informe_pdf(sim: dict, proyecto_nombre: str) -> bytes:
 # HELPERS PARA CARGAR DATOS DE CADA TIPO DE SISTEMA
 # ══════════════════════════════════════════════════════════════════════════════
 def _cargar_ongrid(ss: dict, pan, p) -> dict:
-    """Lee session_state del módulo ON-GRID y devuelve dict normalizado."""
-    hsp    = ss.get("_og_hsp_calc",  p[4] if p and p[4] else 4.2)
-    pr     = ss.get("_og_pr_dec",    0.80)
-    wp     = ss.get("og_wp",         pan[3] if pan else 550)
-    voc    = ss.get("og_voc",        pan[4] if pan else 49.9)
-    isc    = ss.get("og_isc",        pan[5] if pan else 14.0)
-    n_pan  = ss.get("_og_n_paneles", 0)
-    pot_i  = ss.get("_og_pot_inst",  0.0)
-    pot_inv= ss.get("_og_pot_inv_kw",3.0)
-    consumo= ss.get("_og_consumo_fs", ss.get("consumo_recibo_wh", 3000.0))
-    gen_a  = ss.get("_og_gen_anio",  0.0)
-    payb   = ss.get("_og_payback",   0.0)
-    inv_t  = ss.get("_og_inv_total", 0.0)
-    ben_a  = ss.get("_og_beneficio_anio", 0.0)
-    co2_a  = ss.get("_og_co2_anio",  0.0)
-    return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, n_pan=n_pan,
-                pot_inst=pot_i, pot_inv_kw=pot_inv, consumo_fs=consumo,
-                gen_anio=gen_a, payback=payb, inv_total=inv_t,
-                ben_anio=ben_a, co2_anio=co2_a,
+    """Lee session_state guardado por modulo_ongrid.py y devuelve dict normalizado."""
+    hsp     = ss.get("_og_hsp_calc",     p[4] if p and p[4] else 4.2)
+    pr      = ss.get("_og_pr_dec",       0.80)
+    # Panel — widget keys del módulo ON-GRID
+    wp      = ss.get("og_wp",            pan[3] if pan else 550)
+    voc     = ss.get("og_voc",           pan[4] if pan else 49.9)
+    isc     = ss.get("og_isc",           pan[5] if pan else 8.02)
+    vmpp    = ss.get("og_vmpp",          round(float(voc)*0.82, 1))
+    n_pan   = ss.get("_og_n_paneles",    0)
+    pan_serie = ss.get("_og_pan_serie",  1)
+    n_str   = ss.get("_og_n_strings",    1)
+    pot_i   = ss.get("_og_pot_inst",     0.0)
+    pot_inv = ss.get("_og_pot_inv_kw",   3.0)
+    consumo = ss.get("_og_consumo_fs",   ss.get("og_consumo_fs",
+              ss.get("consumo_recibo_wh", 3000.0)))
+    gen_a   = ss.get("_og_gen_anio",     0.0)
+    payb    = ss.get("_og_payback",      0.0)
+    inv_t   = ss.get("_og_inv_total",    0.0)
+    ben_a   = ss.get("_og_beneficio_anio", 0.0)
+    co2_a   = ss.get("_og_co2_anio",     0.0)
+    v_str_mpp = ss.get("_og_v_str_mpp",  vmpp * pan_serie)
+    v_str_oc  = ss.get("_og_v_str_oc",   float(voc) * pan_serie)
+    i_array   = ss.get("_og_i_array",    0.0)
+    return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, vmpp=vmpp,
+                n_pan=n_pan, pot_inst=pot_i, pot_inv_kw=pot_inv,
+                consumo_fs=consumo, gen_anio=gen_a,
+                payback=payb, inv_total=inv_t, ben_anio=ben_a, co2_anio=co2_a,
                 n_baterias=0, cap_bat_kwh=0, autonomia_h=0,
-                pan_serie=ss.get("_og_pan_serie",1),
-                n_strings=ss.get("_og_n_strings",1))
+                cap_bat_ah=0, vdc=0, dod=0, ah_req=0,
+                mppt_modelo="Inversor MPPT", corr_mppt=0,
+                pan_serie=pan_serie, n_strings=n_str,
+                v_str_mpp=v_str_mpp, v_str_oc=v_str_oc, i_array=i_array)
 
 def _cargar_hibrido(ss: dict, pan, p) -> dict:
-    """Lee session_state del módulo HÍBRIDO y devuelve dict normalizado."""
-    hsp    = ss.get("_hib_hsp",      p[4] if p and p[4] else 4.2)
-    pr     = ss.get("_hib_pr",       0.80)
-    wp     = ss.get("hib_wp",        pan[3] if pan else 550)
-    voc    = ss.get("hib_voc",       pan[4] if pan else 49.9)
-    isc    = ss.get("hib_isc",       pan[5] if pan else 14.0)
-    n_pan  = ss.get("_hib_n_pan",    0)
-    pot_i  = ss.get("_hib_pot_inst", 0.0)
-    pot_inv= ss.get("_hib_pot_inv",  3.0)
-    consumo= ss.get("hib_consumo_fs",ss.get("consumo_recibo_wh", 3000.0))
-    gen_a  = ss.get("_hib_gen_anio", 0.0)
-    payb   = ss.get("_hib_payback",  0.0)
-    inv_t  = ss.get("_hib_inv_tot",  0.0)
-    ben_a  = ss.get("_hib_ben_anio", 0.0)
-    co2_a  = ss.get("_hib_co2_anio", 0.0)
-    n_bat  = ss.get("_hib_n_baterias", 0)
-    cap_wh = ss.get("_hib_cap_real_wh", 0.0)
-    aut_h  = ss.get("_hib_aut_horas",   0.0)
-    return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, n_pan=n_pan,
-                pot_inst=pot_i, pot_inv_kw=pot_inv, consumo_fs=consumo,
-                gen_anio=gen_a, payback=payb, inv_total=inv_t,
-                ben_anio=ben_a, co2_anio=co2_a,
-                n_baterias=n_bat, cap_bat_kwh=cap_wh/1000,
-                autonomia_h=aut_h,
-                pan_serie=ss.get("_hib_pan_serie",1),
-                n_strings=ss.get("_hib_n_strings",1))
+    """Lee session_state guardado por modulo_hibrido.py y devuelve dict normalizado."""
+    hsp     = ss.get("_hib_hsp",          p[4] if p and p[4] else 4.2)
+    pr      = ss.get("_hib_pr",           0.80)
+    wp      = ss.get("hib_wp",            pan[3] if pan else 550)
+    voc     = ss.get("hib_voc",           pan[4] if pan else 49.9)
+    isc     = ss.get("hib_isc",           pan[5] if pan else 8.02)
+    vmpp    = ss.get("hib_vmpp",          round(float(voc)*0.82, 1))
+    n_pan   = ss.get("_hib_n_pan",        0)
+    pan_serie = ss.get("_hib_pan_serie",  1)
+    n_str   = ss.get("_hib_n_strings",    1)
+    pot_i   = ss.get("_hib_pot_inst",     0.0)
+    pot_inv = ss.get("_hib_pot_inv",      3.0)
+    consumo = ss.get("hib_consumo_fs",    ss.get("consumo_recibo_wh", 3000.0))
+    gen_a   = ss.get("_hib_gen_anio",     0.0)
+    gen_d   = ss.get("_hib_gen_dia",      (pot_i/1000)*float(hsp)*float(pr))
+    payb    = ss.get("_hib_payback",      0.0)
+    inv_t   = ss.get("_hib_inv_tot",      0.0)
+    ben_a   = ss.get("_hib_ben_anio",     0.0)
+    co2_a   = ss.get("_hib_co2_anio",     0.0)
+    n_bat   = ss.get("_hib_n_baterias",   0)
+    cap_wh  = ss.get("_hib_cap_real_wh",  0.0)
+    aut_h   = ss.get("_hib_aut_horas",    ss.get("_hib_aut_real_h", 0.0))
+    cap_ah  = ss.get("_hib_cap_bat_ah",   ss.get("hib_cap_bat", 200))
+    vdc     = ss.get("_hib_v_bat",        ss.get("hib_v_bat", 48))
+    dod     = ss.get("hib_dod",           50)
+    v_str_mpp = ss.get("_hib_v_str_mpp",  vmpp * pan_serie)
+    v_str_oc  = ss.get("_hib_v_str_oc",   float(voc) * pan_serie)
+    i_array   = ss.get("_hib_i_array",    0.0)
+    # Ah requeridos: (consumo × 1) / (vdc × dod)
+    ah_req  = consumo / (float(vdc) * (dod/100)) if vdc and dod else 0.0
+    return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, vmpp=vmpp,
+                n_pan=n_pan, pot_inst=pot_i, pot_inv_kw=pot_inv,
+                consumo_fs=consumo, gen_anio=gen_a, gen_dia=gen_d,
+                payback=payb, inv_total=inv_t, ben_anio=ben_a, co2_anio=co2_a,
+                n_baterias=n_bat, cap_bat_kwh=cap_wh/1000, autonomia_h=aut_h,
+                cap_bat_ah=cap_ah, vdc=vdc, dod=dod, ah_req=ah_req,
+                mppt_modelo="Inversor Híbrido MPPT", corr_mppt=0,
+                pan_serie=pan_serie, n_strings=n_str,
+                v_str_mpp=v_str_mpp, v_str_oc=v_str_oc, i_array=i_array)
 
 def _cargar_offgrid(ss: dict, pan, p, cargas) -> dict:
-    """Lee session_state del módulo OFF-GRID y devuelve dict normalizado."""
-    consumo_inv = (cargas["cantidad"]*cargas["potencia_w"]*cargas["horas_dia"]).sum()                   if not cargas.empty else 0.0
-    consumo_rec = ss.get("consumo_recibo_wh", 0.0)
-    consumo_base= max(consumo_inv, consumo_rec) if consumo_rec > 0 else consumo_inv
-    hsp    = ss.get("calc_hsp",         p[4] if p and p[4] else 4.2)
-    pr     = ss.get("calc_pr",          0.75)
-    wp     = ss.get("calc_pot_panel_wp",pan[3] if pan else 550)
-    voc    = pan[4] if pan else 49.9
-    isc    = pan[5] if pan else 14.0
-    n_pan  = ss.get("calc_num_paneles", 0)
-    pot_i  = ss.get("calc_pot_real_wp", 0.0)
-    consumo= ss.get("calc_consumo_fs_wh",consumo_base*1.20),
-    n_bat  = ss.get("calc_num_baterias",0)
-    vdc    = ss.get("calc_vdc",         48)
-    cap_ah = ss.get("calc_bat_cap_ah",  100)
-    cap_kwh= n_bat * cap_ah * int(vdc) / 1000 if n_bat else 0.0
-    gen_d  = ss.get("calc_gen_dia_kwh", (pot_i/1000)*float(hsp)*float(pr))
-    gen_a  = gen_d * 365
+    """Lee session_state del módulo OFF-GRID (solar_app.py Tabs 5-8) y devuelve dict normalizado."""
+    consumo_inv  = (cargas["cantidad"]*cargas["potencia_w"]*cargas["horas_dia"]).sum() \
+                   if not cargas.empty else 0.0
+    consumo_rec  = ss.get("consumo_recibo_wh", 0.0)
+    consumo_base = max(consumo_inv, consumo_rec) if consumo_rec > 0 else consumo_inv
+
+    hsp     = ss.get("calc_hsp",            p[4] if p and p[4] else 4.2)
+    pr      = ss.get("calc_pr",             0.75)
+    wp      = ss.get("calc_pot_panel_wp",   pan[3] if pan else 550)
+    voc     = pan[4] if pan else 49.9
+    isc     = pan[5] if pan else 8.02
+    n_pan   = ss.get("calc_num_paneles",    0)
+    pot_i   = ss.get("calc_pot_real_wp",    ss.get("calc_potencia_inst_wp", 0.0))
+    consumo = ss.get("calc_consumo_fs_wh",  consumo_base * 1.20)   # ← sin coma
+    n_bat   = ss.get("calc_num_baterias",   0)
+    vdc     = ss.get("calc_vdc",            48)
+    cap_ah  = ss.get("calc_bat_cap_ah",     200)
+    dod     = ss.get("calc_dod_pct",        50)
+    ah_req  = ss.get("calc_ah_final",       0.0)
+    gen_d   = ss.get("calc_gen_dia_kwh",    (pot_i/1000)*float(hsp)*float(pr))
+    gen_a   = gen_d * 365
+    cap_kwh = n_bat * cap_ah * int(vdc) / 1000 if n_bat else 0.0
+    # Corriente controlador desde Tab 8 (Isc × N_paneles)
+    corr_mppt = ss.get("calc_corr_mppt",  isc * n_pan if n_pan else 0.0)
+    mppt_m    = ss.get("calc_mppt_modelo", "")
+    if not mppt_m:
+        if   corr_mppt <= 40:  mppt_m = "MPPT 40A"
+        elif corr_mppt <= 60:  mppt_m = "MPPT 60A"
+        elif corr_mppt <= 100: mppt_m = "MPPT 100A"
+        else: mppt_m = f"MPPT {math.ceil(corr_mppt/50)*50}A" if corr_mppt else "—"
+    # Inversor: pot_total_cargas × 1.2
+    _pot_t = cargas.apply(
+        lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
+    ).sum() if not cargas.empty else pot_i
+    _inv_w  = _pot_t * 1.2
+    _kw_s   = [1,2,3,5,8,10,15,20,25,30,40,50]
+    inv_kw  = float(next((k for k in _kw_s if k*1000 >= _inv_w), math.ceil(_inv_w/1000)))
+
     return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, n_pan=n_pan,
-                pot_inst=pot_i, pot_inv_kw=pot_i/1000*1.20,
-                consumo_fs=consumo, gen_anio=gen_a,
-                payback=0.0, inv_total=0.0, ben_anio=0.0, co2_anio=gen_a*0.126,
+                pot_inst=pot_i, pot_inv_kw=inv_kw, consumo_fs=consumo,
+                gen_anio=gen_a, payback=0.0, inv_total=0.0, ben_anio=0.0,
+                co2_anio=gen_a*0.136,
                 n_baterias=n_bat, cap_bat_kwh=cap_kwh, autonomia_h=0.0,
-                pan_serie=ss.get("calc_serie",1),
-                n_strings=ss.get("calc_paralelo",1))
+                cap_bat_ah=cap_ah, vdc=vdc, dod=dod, ah_req=ah_req,
+                mppt_modelo=mppt_m, corr_mppt=corr_mppt,
+                pan_serie=ss.get("calc_serie", 1),
+                n_strings=ss.get("calc_paralelo", 1))
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -433,16 +478,37 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     # Pre-cargar defaults desde el sistema activo
     pot_pan_calc = datos_sis["wp"]
     hsp_calc     = float(datos_sis["hsp"])
-    bat_cap_calc = ss.get("calc_bat_cap_ah", ss.get("hib_cap_bat", 100))
-    cons_fs_calc = datos_sis["consumo_fs"] if datos_sis["consumo_fs"] > 0                    else consumo_base_auto * fs_factor
+    bat_cap_calc = datos_sis.get("cap_bat_ah", ss.get("calc_bat_cap_ah",
+                   ss.get("hib_cap_bat", 200)))
+    vdc_calc     = datos_sis.get("vdc", ss.get("calc_vdc", 48))
+    dod_calc     = datos_sis.get("dod", ss.get("calc_dod_pct", 50))
+    voc_calc     = datos_sis.get("voc", pan[4] if pan else 49.9)
+    isc_calc     = datos_sis.get("isc", pan[5] if pan else 8.02)
 
-    # Tip de fuente
+    _consumo_raw = datos_sis["consumo_fs"]
+    # Desempacar tupla si el bug anterior dejó algún valor guardado como tupla
+    if isinstance(_consumo_raw, tuple):
+        _consumo_raw = _consumo_raw[0] if _consumo_raw else 0.0
+    cons_fs_calc = float(_consumo_raw) if _consumo_raw else consumo_base_auto * fs_factor
+
+    # Tip de fuente — mostrar los valores reales dimensionados
     tiene_datos = datos_sis["n_pan"] > 0
     if tiene_datos:
         tip_color = col_sis
-        tip_txt   = (f"✓ Datos cargados desde el módulo <b>{lbl_sis}</b>: "
-                     f"{datos_sis['n_pan']} paneles · {datos_sis['pot_inst']/1000:.2f} kWp "
-                     f"· HSP {datos_sis['hsp']:.2f} h · PR {int(datos_sis['pr']*100)}%")
+        _bat_info = ""
+        if not _es_ongrid_s:
+            _nb = datos_sis.get("n_baterias", 0)
+            _ca = datos_sis.get("cap_bat_ah", 0)
+            _vb = datos_sis.get("vdc", 0)
+            _bat_info = f" · {_nb} baterías {_ca}Ah@{_vb}V" if _nb else ""
+        _inv_kw = datos_sis.get("pot_inv_kw", 0)
+        tip_txt = (f"✓ Datos cargados desde <b>{lbl_sis}</b>: "
+                   f"{datos_sis['n_pan']} paneles {int(datos_sis['wp'])}Wp"
+                   f" · {datos_sis['pot_inst']/1000:.2f} kWp"
+                   f" · HSP {float(datos_sis['hsp']):.2f}h"
+                   f" · PR {int(float(datos_sis['pr'])*100)}%"
+                   f" · Inv {_inv_kw:.1f}kW"
+                   f"{_bat_info}")
     else:
         tip_color = "#8A9BBD"
         tip_txt   = (f"ℹ Dimensiona primero en el módulo <b>{lbl_sis}</b> para cargar "
@@ -461,7 +527,9 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         cola, colb, colc = st.columns(3)
         with cola:
             st.markdown(f"**⚡ Energético — {lbl_sis}**")
-            consumo_default = max(100.0, min(float(consumo_base_auto) if consumo_base_auto > 0
+            # Consumo base = consumo_fs / 1.20 para mostrarlo sin el FS
+            _consumo_sin_fs = cons_fs_calc / fs_factor if cons_fs_calc > 0 else consumo_base_auto
+            consumo_default = max(100.0, min(float(_consumo_sin_fs) if _consumo_sin_fs > 0
                                              else 3000.0, 500000.0))
             hsp_default     = max(0.5, min(float(hsp_calc), 12.0))
             irrad_default   = max(10.0, min(hsp_default * 30, 300.0))
@@ -469,7 +537,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             consumo_sim = st.number_input("Consumo diario base (Wh/día)", 100.0, 500000.0,
                                           consumo_default, 100.0, key="sim_consumo")
             pr_sim      = st.slider("Performance Ratio — PR (%)", 65, 95,
-                                    int(datos_sis["pr"] * 100),
+                                    int(float(datos_sis["pr"]) * 100),
                                     help="OFF-GRID:70-80% | ON-GRID:80-88% | HÍBRIDO:78-85%",
                                     key="sim_pr")
             hsp_sim     = st.number_input("Hora Solar Pico — HSP (h/día)", 0.5, 12.0,
@@ -483,9 +551,10 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         with colb:
             st.markdown("**🔆 Sistema FV**")
             pp_default  = max(50,   min(int(pot_pan_calc), 1000))
-            voc_default = max(10.0, min(float(datos_sis["voc"]), 100.0))
-            isc_default = max(1.0,  min(float(datos_sis["isc"]),  30.0))
+            voc_default = max(10.0, min(float(voc_calc), 100.0))
+            isc_default = max(1.0,  min(float(isc_calc),  30.0))
             bc_default  = max(50,   min(int(bat_cap_calc), 500))
+            dod_default = max(50,   min(int(dod_calc), 100))
 
             pot_panel_s = st.number_input("Potencia panel (Wp)", 50, 1000,
                                            pp_default, 50, key="sim_pp")
@@ -495,10 +564,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                                            isc_default, 0.1, key="sim_isc")
             modelo_s    = st.text_input("Modelo panel",
                                          value=pan[2] if pan else "Panel 550Wp", key="sim_mod")
-            dod_s       = st.slider("DOD baterías (%)", 50, 100,
-                                    80 if _es_offgrid_s else
-                                    (int(ss.get("hib_dod", 80)) if _es_hibrido_s else 50),
-                                    key="sim_dod")
+            dod_s       = st.slider("DOD baterías (%)", 50, 100, dod_default, key="sim_dod")
             bat_cap_s   = st.number_input("Capacidad batería (Ah)", 50, 500,
                                            bc_default, 50, key="sim_bc")
             if tipo_sistema in ("ON-GRID", "HIBRIDO"):
@@ -562,26 +628,52 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                 tarifa_iny_s = 0.0
 
     # ── Cálculos del simulador ────────────────────────────────────────────────
+    # Si el proyecto ya está dimensionado, partir de esos valores reales.
+    # Los widgets del formulario permiten ajustarlos manualmente.
     pr_dec_s     = pr_sim / 100.0
     hsp_ef_s     = hsp_sim * pr_dec_s
     consumo_fs_s = consumo_sim * fs_factor
-    vdc_s        = tension_dc(consumo_fs_s)
-    pot_inst_s   = consumo_fs_s / hsp_ef_s if hsp_ef_s > 0 else 0
-    n_pan_s      = num_paneles(pot_inst_s, pot_panel_s)
-    pot_real_s   = n_pan_s * pot_panel_s
+
+    # Usar paneles dimensionados del proyecto si están disponibles
+    _n_pan_dim  = datos_sis.get("n_pan", 0)
+    _pot_dim    = datos_sis.get("pot_inst", 0.0)
+    if _n_pan_dim > 0 and tiene_datos:
+        n_pan_s    = _n_pan_dim
+        pot_real_s = _pot_dim if _pot_dim > 0 else _n_pan_dim * pot_panel_s
+    else:
+        pot_inst_s = consumo_fs_s / hsp_ef_s if hsp_ef_s > 0 else 0
+        n_pan_s    = num_paneles(pot_inst_s, pot_panel_s)
+        pot_real_s = n_pan_s * pot_panel_s
+
+    vdc_s        = int(datos_sis.get("vdc", 0)) or tension_dc(consumo_fs_s)
     gen_dia_s    = (pot_real_s / 1000) * hsp_sim * pr_dec_s
     gen_anual_s  = gen_dia_s * 365
 
-    # Baterías (sólo OFF-GRID e HÍBRIDO)
+    # Baterías: usar banco dimensionado si existe
     if _es_ongrid_s:
-        bats_s      = {"num": 0, "ah_final": 0, "energia_kwh": 0}
+        bats_s      = {"num": 0, "ah_final": 0, "ah_dod": 0, "energia_kwh": 0}
         n_bats_s    = 0
         autonomia_s = 0.0
     else:
-        bats_s      = calcular_baterias(consumo_fs_s, vdc_s, dod_s/100, bat_cap_s)
-        n_bats_s    = bats_s["num"]
-        _aut_denom  = (consumo_fs_s / 1000) / 24 if consumo_fs_s > 0 else 1
-        autonomia_s = bats_s["energia_kwh"] * (dod_s / 100) / _aut_denom
+        _n_bat_dim  = datos_sis.get("n_baterias", 0)
+        _cap_kwh_dim= datos_sis.get("cap_bat_kwh", 0.0)
+        _aut_dim    = datos_sis.get("autonomia_h", 0.0)
+        _ah_req_dim = datos_sis.get("ah_req", 0.0)
+        if _n_bat_dim > 0 and tiene_datos:
+            n_bats_s    = _n_bat_dim
+            _cap_kwh_s  = _cap_kwh_dim if _cap_kwh_dim > 0 else _n_bat_dim * bat_cap_s * vdc_s / 1000
+            bats_s      = {"num": n_bats_s,
+                           "ah_dod":        _ah_req_dim,
+                           "ah_final":      _ah_req_dim,
+                           "energia_kwh":   _cap_kwh_s}
+            autonomia_s = _aut_dim if _aut_dim > 0 else (
+                _cap_kwh_s * (dod_s / 100) / (consumo_fs_s / 1000 / 24)
+                if consumo_fs_s > 0 else 0.0)
+        else:
+            bats_s      = calcular_baterias(consumo_fs_s, vdc_s, dod_s/100, bat_cap_s)
+            n_bats_s    = bats_s["num"]
+            _aut_denom  = (consumo_fs_s / 1000) / 24 if consumo_fs_s > 0 else 1
+            autonomia_s = bats_s["energia_kwh"] * (dod_s / 100) / _aut_denom
     ah_banco_s   = n_bats_s * bat_cap_s
 
     # Controlador MPPT (OFF-GRID) / strings (ON-GRID, HÍBRIDO)
@@ -593,31 +685,41 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
             serie_s = max(serie_s, math.ceil(v_mppt_min_s / vmpp_s))
         else:
             serie_s = max(1, round(vdc_s / (voc_s * 0.80))) if voc_s > 0 else 1
-        par_s     = max(1, math.ceil(n_pan_s / serie_s))
-        mppt_s    = "Inversor MPPT"
+        par_s       = max(1, math.ceil(n_pan_s / serie_s))
+        mppt_s      = "Inversor MPPT"
         corr_mppt_s = 0
+        # Usar strings dimensionados si existen
+        if datos_sis.get("pan_serie", 0) > 0 and tiene_datos:
+            serie_s = datos_sis["pan_serie"]
+            par_s   = datos_sis.get("n_strings", par_s)
     else:
         vmp_s       = voc_s * 0.80
         serie_s     = max(1, round(vdc_s / vmp_s)) if vmp_s > 0 else 1
         par_s       = math.ceil(n_pan_s / serie_s)
         # 4. Controlador: Isc × N_paneles
-        corr_mppt_s = isc_s * n_pan_s
+        _corr_dim   = datos_sis.get("corr_mppt", 0.0)
+        corr_mppt_s = _corr_dim if (_corr_dim > 0 and tiene_datos) else isc_s * n_pan_s
         if corr_mppt_s <= 40:    mppt_s = "MPPT 40A"
         elif corr_mppt_s <= 60:  mppt_s = "MPPT 60A"
         elif corr_mppt_s <= 100: mppt_s = "MPPT 100A"
-        else: mppt_s = f"MPPT {math.ceil(corr_mppt_s/50)*50}A"
+        elif corr_mppt_s > 0:    mppt_s = f"MPPT {math.ceil(corr_mppt_s/50)*50}A"
+        else:                    mppt_s = datos_sis.get("mppt_modelo", "—")
 
-    # 5. Inversor: potencia total cargas × 1.2, estándar superior
-    if not cargas.empty:
-        _pot_total_s = cargas.apply(
-            lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
-        ).sum()
+    # 5. Inversor: usar dimensionado si existe, sino calcular
+    _inv_dim = datos_sis.get("pot_inv_kw", 0.0)
+    if _inv_dim > 0 and tiene_datos:
+        inv_kva_s = float(_inv_dim)
     else:
-        _pot_total_s = consumo_fs_s
-    _inv_w_s   = _pot_total_s * 1.2
-    _kw_std_s  = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    inv_kva_s  = float(next((k for k in _kw_std_s if k * 1000 >= _inv_w_s),
-                             math.ceil(_inv_w_s / 1000)))
+        if not cargas.empty:
+            _pot_total_s = cargas.apply(
+                lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
+            ).sum()
+        else:
+            _pot_total_s = consumo_fs_s
+        _inv_w_s  = _pot_total_s * 1.2
+        _kw_std_s = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
+        inv_kva_s = float(next((k for k in _kw_std_s if k * 1000 >= _inv_w_s),
+                               math.ceil(_inv_w_s / 1000)))
 
     # Financiero — diferente según sistema
     consumo_dia_kwh_s = consumo_sim / 1000

@@ -100,10 +100,9 @@ def calcular_ongrid(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
                      pot_inv_kw: float, tarifa_kwh: float = 700.0,
                      precio_panel: float = 320000.0) -> dict:
     """Cálculo principal ON-GRID."""
-    # 1. Dimensionamiento inicial: demanda × 1.2
-    consumo_fs = consumo_wh_dia * 1.20   # Factor de seguridad 20%
+    consumo_fs = consumo_wh_dia * 1.10   # 10% factor seguridad (pérdidas cableado+temperatura)
+    # Potencia mínima array
     rendimiento_sistema = 0.80   # PR (Performance Ratio) típico para ON-GRID
-    # 2. Potencia mínima array
     pot_array_min_wp = consumo_fs / (hsp * rendimiento_sistema)
 
     # Número de paneles
@@ -125,13 +124,11 @@ def calcular_ongrid(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     ahorro_mes = autoconsumo_dia * 30 * tarifa_kwh
     ingreso_inyeccion = inyeccion_dia * 30 * tarifa_kwh * 0.5  # precio de compra ~50% tarifa
 
-    # 5. Inversor: potencia instalada × 1.2, redondear al kW estándar superior
-    _inv_w   = pot_instalada_wp * 1.2
-    _kw_std  = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    pot_inv_rec_kw = float(next((k for k in _kw_std if k * 1000 >= _inv_w), math.ceil(_inv_w / 1000)))
+    # Potencia inversor recomendada (igual o ligeramente menor que array)
+    pot_inv_rec_kw = round(pot_instalada_wp / 1000 * 0.85, 1)
 
     # Payback simple
-    inversion_est = n_paneles * precio_panel + pot_inv_rec_kw * 2_000_000
+    inversion_est = n_paneles * precio_panel + pot_inv_rec_kw * 2_000_000  # inversor ~2M/kW
     beneficio_anual = (ahorro_mes + ingreso_inyeccion) * 12
     payback_anios = inversion_est / beneficio_anual if beneficio_anual > 0 else 99
 
@@ -787,14 +784,14 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         else:
             consumo_base = consumo_inv
 
-        consumo_fs_og = consumo_base * 1.20   # 20% FS para ON-GRID
+        consumo_fs_og = consumo_base * 1.10   # 10% FS para ON-GRID
 
         col1, col2, col3, col4 = st.columns(4)
         for c, val, unit, lbl, col in [
             (col1, consumo_inv, "Wh/día", "Inventario cargas", "#FFB300"),
             (col2, consumo_rec, "Wh/día", "Recibo energía", "#00BCD4"),
             (col3, consumo_base, "Wh/día", "Consumo seleccionado", "#00E676"),
-            (col4, consumo_fs_og, "Wh/día", "Con 20% FS sistema", "#FF6B35"),
+            (col4, consumo_fs_og, "Wh/día", "Con 10% FS sistema", "#FF6B35"),
         ]:
             with c:
                 st.markdown(f"""
@@ -811,9 +808,9 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
 
         st.markdown("""
         <div class='info-note' style='margin-top:1rem;'>
-            ℹ En sistemas ON-GRID se aplica <b>20% de factor de seguridad</b>
-            (pérdidas de temperatura, cableado, suciedad y rendimiento del inversor).
-            La red eléctrica cubre cualquier déficit en tiempo real.
+            ℹ En sistemas ON-GRID se aplica solo <b>10% de factor de seguridad</b>
+            (pérdidas de temperatura, cableado, suciedad y rendimiento inversor),
+            ya que la red eléctrica cubre cualquier déficit en tiempo real.
         </div>""", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -982,7 +979,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         # Leer valores desde session_state (escritos automáticamente por los widgets del Tab 3)
         # y desde las claves derivadas del Tab 2 (prefijo _og_)
         consumo_og = session_state.get("og_consumo_fs",
-                        session_state.get("_og_consumo_fs", consumo_inv * 1.20))
+                        session_state.get("_og_consumo_fs", consumo_inv * 1.10))
         hsp_og_use = session_state.get("_og_hsp_calc", hsp_guardado or 4.2)
         pr_og_use  = session_state.get("og_pr", 80)          # valor bruto del slider (int)
         wp_og_use  = session_state.get("og_wp", pot_panel_def)
@@ -1049,11 +1046,8 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             v_string_oc  = pan_serie * voc_input
             i_array      = impp_input * n_strings
 
-            # 5. Inversor: potencia instalada × 1.2, redondear al kW estándar superior
-            _inv_w_og = pot_inst_real * 1.2
-            _kw_std_og = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-            pot_inv_kw = float(next((k for k in _kw_std_og if k * 1000 >= _inv_w_og),
-                                    math.ceil(_inv_w_og / 1000)))
+            # Inversor recomendado
+            pot_inv_kw = round(pot_inst_real / 1000 * 0.85, 1)
 
             # Guardar resultados calculados con prefijo seguro (no son keys de widgets)
             session_state["_og_n_paneles"]  = n_pan_real
@@ -1150,7 +1144,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             Payback = Inversión total ÷ Beneficio anual
         </div>""", unsafe_allow_html=True)
 
-        consumo_og2    = session_state.get("og_consumo_fs", consumo_inv * 1.20)
+        consumo_og2    = session_state.get("og_consumo_fs", consumo_inv * 1.10)
         hsp_og2        = session_state.get("_og_hsp_calc", hsp_guardado or 4.2)
         pr_og2         = session_state.get("og_pr_d4", session_state.get("og_pr", 80)) / 100
         pot_inst_og2   = session_state.get("_og_pot_inst", 0.0)
@@ -1367,7 +1361,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         v_str_p7  = session_state.get("_og_v_str_mpp", pan_s_p7 * session_state.get("og_vmpp", 40.0))
         v_oc_p7   = session_state.get("_og_v_str_oc",  pan_s_p7 * session_state.get("og_voc", voc_def))
         i_arr_p7  = session_state.get("_og_i_array",   n_str_p7 * session_state.get("og_impp", 13.0))
-        consumo_p7= session_state.get("og_consumo_fs", consumo_inv * 1.20)
+        consumo_p7= session_state.get("og_consumo_fs", consumo_inv * 1.10)
         hsp_p7    = session_state.get("_og_hsp_calc", hsp_guardado or 4.2)
 
         if n_pan_p7 == 0:
