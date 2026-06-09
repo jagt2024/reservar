@@ -31,15 +31,13 @@ def num_paneles(pot_inst: float, pot_panel: float) -> int:
     if pot_panel <= 0: return 0
     return math.ceil(pot_inst / pot_panel)
 
-def calcular_baterias(wh: float, vdc: int, dod: float = 0.50, cap: float = 200) -> dict:
-    """Ah = (consumo × días) / (V × DoD). días=1 por defecto."""
-    ah_req = wh / (vdc * dod)
-    n      = math.ceil(ah_req / cap)
-    return {"ah_bruto": wh / vdc,
-            "ah_dod":   ah_req,
-            "ah_final": ah_req,
-            "num": n,
-            "energia_kwh": n * cap * vdc / 1000}
+def calcular_baterias(wh: float, vdc: int, dod: float = 0.80, cap: float = 100) -> dict:
+    ah_bruto = wh / vdc
+    ah_dod   = ah_bruto / dod
+    ah_final = ah_dod / 0.85
+    n        = math.ceil(ah_final / cap)
+    return {"ah_bruto": ah_bruto, "ah_dod": ah_dod, "ah_final": ah_final,
+            "num": n, "energia_kwh": n * cap * vdc / 1000}
 
 def payback(costo: float, ahorro_anual: float) -> float:
     return round(costo / ahorro_anual, 1) if ahorro_anual > 0 else 0
@@ -318,7 +316,7 @@ def _cargar_offgrid(ss: dict, pan, p, cargas) -> dict:
     isc    = pan[5] if pan else 14.0
     n_pan  = ss.get("calc_num_paneles", 0)
     pot_i  = ss.get("calc_pot_real_wp", 0.0)
-    consumo= ss.get("calc_consumo_fs_wh",consumo_base*1.20),
+    consumo= ss.get("calc_consumo_fs_wh",consumo_base*1.25)
     n_bat  = ss.get("calc_num_baterias",0)
     vdc    = ss.get("calc_vdc",         48)
     cap_ah = ss.get("calc_bat_cap_ah",  100)
@@ -326,7 +324,7 @@ def _cargar_offgrid(ss: dict, pan, p, cargas) -> dict:
     gen_d  = ss.get("calc_gen_dia_kwh", (pot_i/1000)*float(hsp)*float(pr))
     gen_a  = gen_d * 365
     return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, n_pan=n_pan,
-                pot_inst=pot_i, pot_inv_kw=pot_i/1000*1.20,
+                pot_inst=pot_i, pot_inv_kw=pot_i/1000*1.25,
                 consumo_fs=consumo, gen_anio=gen_a,
                 payback=0.0, inv_total=0.0, ben_anio=0.0, co2_anio=gen_a*0.126,
                 n_baterias=n_bat, cap_bat_kwh=cap_kwh, autonomia_h=0.0,
@@ -414,16 +412,16 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     # ── Cargar datos del sistema activo ──────────────────────────────────────
     if tipo_sistema == "ON-GRID":
         datos_sis = _cargar_ongrid(ss, pan, p)
-        fs_label  = "20% FS"
-        fs_factor = 1.20
+        fs_label  = "10% FS (ON-GRID)"
+        fs_factor = 1.10
     elif _es_hibrido_s:
         datos_sis = _cargar_hibrido(ss, pan, p)
-        fs_label  = "20% FS (HÍBRIDO)"
-        fs_factor = 1.20
+        fs_label  = "15% FS (HÍBRIDO)"
+        fs_factor = 1.15
     else:
         datos_sis = _cargar_offgrid(ss, pan, p, cargas)
-        fs_label  = "20% FS (OFF-GRID)"
-        fs_factor = 1.20
+        fs_label  = "25% FS (OFF-GRID)"
+        fs_factor = 1.25
 
     # Consumo base general
     consumo_inv = (cargas["cantidad"]*cargas["potencia_w"]*cargas["horas_dia"]).sum()                   if not cargas.empty else 0.0
@@ -600,24 +598,20 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         vmp_s       = voc_s * 0.80
         serie_s     = max(1, round(vdc_s / vmp_s)) if vmp_s > 0 else 1
         par_s       = math.ceil(n_pan_s / serie_s)
-        # 4. Controlador: Isc × N_paneles
-        corr_mppt_s = isc_s * n_pan_s
+        corr_mppt_s = ah_banco_s * 0.30
         if corr_mppt_s <= 40:    mppt_s = "MPPT 40A"
         elif corr_mppt_s <= 60:  mppt_s = "MPPT 60A"
         elif corr_mppt_s <= 100: mppt_s = "MPPT 100A"
         else: mppt_s = f"MPPT {math.ceil(corr_mppt_s/50)*50}A"
 
-    # 5. Inversor: potencia total cargas × 1.2, estándar superior
+    # Inversor
     if not cargas.empty:
-        _pot_total_s = cargas.apply(
+        pot_inv_s = cargas.apply(
             lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
-        ).sum()
+        ).sum() * 1.30
     else:
-        _pot_total_s = consumo_fs_s
-    _inv_w_s   = _pot_total_s * 1.2
-    _kw_std_s  = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    inv_kva_s  = float(next((k for k in _kw_std_s if k * 1000 >= _inv_w_s),
-                             math.ceil(_inv_w_s / 1000)))
+        pot_inv_s = consumo_fs_s
+    inv_kva_s = round(pot_inv_s / 1000, 2)
 
     # Financiero — diferente según sistema
     consumo_dia_kwh_s = consumo_sim / 1000

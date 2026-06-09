@@ -60,9 +60,8 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
                      pr: float = 0.80) -> dict:
     """Cálculo completo del sistema híbrido."""
 
-    # ── Array FV
-    # 1. Dimensionamiento inicial: demanda × 1.2
-    consumo_fs       = consumo_wh_dia * 1.20      # Factor de seguridad 20%
+    # ── Array FV (igual que ON-GRID con PR)
+    consumo_fs       = consumo_wh_dia * 1.15      # 15% FS híbrido
     pot_array_wp_min = consumo_fs / (hsp * pr)
     n_paneles        = math.ceil(pot_array_wp_min / pot_panel_wp)
     pot_instalada_wp = n_paneles * pot_panel_wp
@@ -81,9 +80,10 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     v_str_oc           = pan_serie * voc_panel
     i_array            = impp_panel * n_strings
 
-    # ── Banco de baterías (backup)
-    # 3. Ah = (demanda × días_autonomía) / (V_sistema × DoD)
-    cap_bat_total_ah    = (consumo_fs * dias_autonomia) / (v_bat * (dod / 100))
+    # ── Banco de baterías (OFF-GRID backup)
+    energia_respaldo_wh = consumo_fs * dias_autonomia
+    cap_bat_total_wh    = energia_respaldo_wh / (dod / 100)
+    cap_bat_total_ah    = cap_bat_total_wh / v_bat
     n_baterias          = math.ceil(cap_bat_total_ah / cap_bat_ah)
     # Ajustar a múltiplos pares para configuración serie/paralelo
     if n_baterias % 2 != 0 and n_baterias > 1:
@@ -92,7 +92,6 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     autonomia_real_h    = cap_real_wh * (dod / 100) / (consumo_wh_dia / 24)
 
     # ── Inversor híbrido
-    # 5. Inversor = Potencia_total × 1.2
     consumo_dia_kwh     = consumo_wh_dia / 1000
     autoconsumo_kwh     = min(gen_dia_kwh, consumo_dia_kwh)
     excedente_kwh       = max(0, gen_dia_kwh - consumo_dia_kwh)
@@ -102,10 +101,7 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     excedente_bat_kwh   = min(excedente_kwh, cap_real_wh * 0.3 / 1000)  # 30% cap diaria batería
     inyeccion_kwh       = max(0, excedente_kwh - excedente_bat_kwh)
 
-    # Inversor recomendado: potencia instalada × 1.2, luego redondear al kW estándar superior
-    _inv_w   = pot_inst_real * 1.2
-    _kw_std  = [1,2,3,5,8,10,15,20,25,30,40,50]
-    pot_inv_kw = next((k for k in _kw_std if k*1000 >= _inv_w), math.ceil(_inv_w/1000))
+    pot_inv_kw          = round(pot_inst_real / 1000 * 0.90, 1)   # 90% para híbrido
 
     # ── Generación anual
     gen_anio_kwh        = gen_dia_kwh * 365
@@ -126,14 +122,13 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
         "n_baterias":        n_baterias,
         "cap_bat_total_wh":  cap_real_wh,
         "cap_bat_total_ah":  n_baterias * cap_bat_ah,
-        "cap_bat_total_ah_req": cap_bat_total_ah,
         "autonomia_real_h":  autonomia_real_h,
         "autoconsumo_kwh":   autoconsumo_kwh,
         "inyeccion_kwh":     inyeccion_kwh,
         "deficit_kwh":       deficit_kwh,
         "autoconsumo_pct":   autoconsumo_pct,
         "excedente_bat_kwh": excedente_bat_kwh,
-        "pot_inv_kw":        float(pot_inv_kw),
+        "pot_inv_kw":        pot_inv_kw,
         "co2_anio_kg":       co2_anio_kg,
     }
 
@@ -731,14 +726,14 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         else:
             consumo_base = consumo_inv
 
-        consumo_fs_hib = consumo_base * 1.20
+        consumo_fs_hib = consumo_base * 1.15
 
         col1,col2,col3,col4 = st.columns(4)
         for c_col, val, unit, lbl, col_c in [
             (col1, consumo_inv,    "Wh/día","Inventario cargas",  "#FFB300"),
             (col2, consumo_rec,    "Wh/día","Recibo energía",     "#00BCD4"),
             (col3, consumo_base,   "Wh/día","Consumo base",       "#00E676"),
-            (col4, consumo_fs_hib, "Wh/día","Con 20% FS híbrido", "#F59E0B"),
+            (col4, consumo_fs_hib, "Wh/día","Con 15% FS híbrido", "#F59E0B"),
         ]:
             with c_col:
                 st.markdown(f"""
@@ -752,9 +747,9 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
 
         st.markdown("""
         <div class='info-note' style='margin-top:1rem;'>
-            ℹ El <b>sistema híbrido</b> aplica un <b>20% de factor de seguridad</b>
-            (pérdidas de conversión DC→Batería→AC, temperatura, cableado y rendimiento del inversor).
-            La red eléctrica actúa como respaldo de último recurso.
+            ℹ El <b>sistema híbrido</b> aplica un 15% de factor de seguridad: mayor que ON-GRID (10%)
+            porque incluye pérdidas adicionales de conversión DC→Batería→AC, y menor que OFF-GRID
+            aislado puro (25%) porque la red eléctrica actúa como respaldo de último recurso.
         </div>""", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -934,10 +929,11 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_b2:
-            consumo_fs_calc = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
+            consumo_fs_calc = session_state.get("hib_consumo_fs", consumo_inv * 1.15)
             if consumo_fs_calc > 0:
-                # 3. Ah = (demanda × días_autonomía) / (V_sistema × DoD)
-                cap_banco_ah = (consumo_fs_calc * hib_dias_aut) / (hib_v_bat * (hib_dod / 100))
+                en_resp_wh   = consumo_fs_calc * hib_dias_aut
+                cap_banco_wh = en_resp_wh / (hib_dod / 100)
+                cap_banco_ah = cap_banco_wh / hib_v_bat
                 n_bats       = math.ceil(cap_banco_ah / hib_cap_bat)
                 if n_bats % 2 != 0 and n_bats > 1: n_bats += 1
                 cap_real_wh  = n_bats * hib_cap_bat * hib_v_bat
@@ -946,8 +942,8 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 st.markdown(f"""
                 <div class='result-highlight' style='border-color:rgba(167,139,250,0.5);
                      background:linear-gradient(135deg,rgba(167,139,250,0.08),rgba(167,139,250,0.02));'>
-                    <div style='color:#8A9BBD;font-size:0.8rem;'>Ah requeridos del banco</div>
-                    <div class='val' style='color:#A78BFA;'>{cap_banco_ah:.1f} Ah</div>
+                    <div style='color:#8A9BBD;font-size:0.8rem;'>Energía de respaldo requerida</div>
+                    <div class='val' style='color:#A78BFA;'>{en_resp_wh/1000:.2f} kWh</div>
                 </div>
                 <div class='metric-grid' style='margin-top:0.8rem;'>
                     <div class='metric-box' style='border-color:rgba(167,139,250,0.5);'>
@@ -1027,7 +1023,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             Banco bat.: Consumo × Días autonomía ÷ DoD  |  Inversor híbrido ≈ 90% pot. array
         </div>""", unsafe_allow_html=True)
 
-        consumo_d5  = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
+        consumo_d5  = session_state.get("hib_consumo_fs", consumo_inv * 1.15)
         hsp_d5      = session_state.get("_hib_hsp",    hsp_guardado or 4.2)
         pr_d5_raw   = session_state.get("hib_pr",      80)
         wp_d5       = session_state.get("hib_wp",      pot_panel_def)
@@ -1086,23 +1082,18 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             v_str_mpp_h  = pan_serie_h * vmpp_inp
             v_str_oc_h   = pan_serie_h * voc_inp
             i_arr_h      = impp_inp * n_str_h
-            # 5. Inversor: pot_instalada × 1.2, estándar superior
-            _inv_w_h5 = pot_inst_h * 1.2
-            _kw_s5    = [1,2,3,5,8,10,15,20,25,30,40,50]
-            pot_inv_h = float(next((k for k in _kw_s5 if k*1000 >= _inv_w_h5),
-                                    math.ceil(_inv_w_h5/1000)))
+            pot_inv_h    = round(pot_inst_h / 1000 * 0.90, 1)
 
-            # Banco — fórmula: Ah = (consumo × días) / (V × DoD)
-            cap_bat_ah_t = (consumo_inp * dias_aut_d5) / (v_bat_d5 * (dod_d5 / 100))
+            # Banco
+            en_resp      = consumo_inp * dias_aut_d5
+            cap_bat_wh   = en_resp / (dod_d5 / 100)
+            cap_bat_ah_t = cap_bat_wh / v_bat_d5
             n_bats_calc  = math.ceil(cap_bat_ah_t / cap_bat_d5)
             if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
             cap_real      = n_bats_calc * cap_bat_d5 * v_bat_d5
             aut_real_hh   = cap_real * (dod_d5/100) / (consumo_inp/24)
 
-            # Inversor híbrido: pot_instalada × 1.2, redondear a kW estándar superior
-            _inv_w_h = pot_inst_h * 1.2
-            _kw_std  = [1,2,3,5,8,10,15,20,25,30,40,50]
-            pot_inv_h = float(next((k for k in _kw_std if k*1000 >= _inv_w_h), math.ceil(_inv_w_h/1000)))
+            # Generación
             gen_dia_h     = (pot_inst_h / 1000) * hsp_inp * pr_dec
             consumo_kwh   = consumo_inp / 1000
             autocon_h     = min(gen_dia_h, consumo_kwh)
@@ -1201,7 +1192,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         pot_inv_e   = session_state.get("_hib_pot_inv",   3.0)
         gen_dia_e   = session_state.get("_hib_gen_dia",   0.0)
         ac_pct_e    = session_state.get("_hib_autocon_pct", 0.0)
-        consumo_fe  = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
+        consumo_fe  = session_state.get("hib_consumo_fs", consumo_inv * 1.15)
         cap_real_e  = session_state.get("_hib_cap_real_wh", 0.0)
         aut_h_e     = session_state.get("_hib_aut_horas", 0.0)
         hsp_e       = session_state.get("_hib_hsp",  hsp_guardado or 4.2)
@@ -1385,7 +1376,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         n_bats_p8  = session_state.get("_hib_n_baterias", 4)
         v_bat_p8   = session_state.get("hib_v_bat",       48)
         cap_bat_p8 = session_state.get("hib_cap_bat",     100)
-        consumo_p8 = session_state.get("hib_consumo_fs",  consumo_inv * 1.20)
+        consumo_p8 = session_state.get("hib_consumo_fs",  consumo_inv * 1.15)
         hsp_p8     = session_state.get("_hib_hsp",        hsp_guardado or 4.2)
 
         if n_pan_p8 == 0:

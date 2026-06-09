@@ -480,18 +480,12 @@ def num_paneles(potencia_instalada: float, potencia_panel: float) -> int:
         return 0
     return math.ceil(potencia_instalada / potencia_panel)
 
-def calcular_baterias(consumo_wh: float, vdc: int, dod: float = 0.50, cap: float = 200) -> dict:
-    """
-    Fórmula: Ah = (consumo_wh × días_autonomía) / (V_sistema × DoD)
-    Con días_autonomía = 1 por defecto.
-    """
-    ah_req  = consumo_wh / (vdc * dod)
-    n       = math.ceil(ah_req / cap)
-    return {"ah_bruto": consumo_wh / vdc,
-            "ah_dod":   ah_req,
-            "ah_final": ah_req,
-            "num_baterias": n,
-            "energia_kwh": n * cap * vdc / 1000}
+def calcular_baterias(consumo_wh: float, vdc: int, dod: float = 0.80) -> dict:
+    ah_bruto = consumo_wh / vdc
+    ah_dod = ah_bruto / dod
+    ah_final = ah_dod / 0.85
+    num_bat = math.ceil(ah_final / 100)
+    return {"ah_bruto": ah_bruto, "ah_dod": ah_dod, "ah_final": ah_final, "num_baterias": num_bat}
 
 # ─── EXPORT: EXCEL ────────────────────────────────────────────────────────────
 def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
@@ -589,12 +583,12 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         # Totales
         consumo_total = cargas_df["consumo_wh"].sum()
         pot_inv_total = cargas_df["pot_inversor"].sum()
-        consumo_fs    = consumo_total * 1.20
-        pot_inv_fs    = pot_inv_total * 1.20
+        consumo_fs    = consumo_total * 1.25
+        pot_inv_fs    = pot_inv_total * 1.25
 
         totales = [
             ("", "TOTAL BASE",       "", "", cargas_df["pot_total_w"].sum(), "", consumo_total, pot_inv_total, ""),
-            ("", "TOTAL + 20% FS",   "", "", "", "",                              consumo_fs,   pot_inv_fs,    ""),
+            ("", "TOTAL + 25% FS",   "", "", "", "",                              consumo_fs,   pot_inv_fs,    ""),
         ]
         for t_vals in totales:
             r = ws1.max_row + 1
@@ -613,8 +607,8 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ("Tensión DC del sistema (V)",    proyecto_info[3] or tension_dc(consumo_fs), C_MONO),
             ("HSP guardado (h)",               proyecto_info[4] or "—",                   C_CYAN),
             ("Consumo base (Wh/día)",          round(consumo_total,1),                    C_TEXT),
-            ("Consumo + 20% FS (Wh/día)",      round(consumo_fs,1),                       C_HEADER),
-            ("Pot. Inversor + 20% FS (W)",     round(pot_inv_fs,1),                       C_GREEN),
+            ("Consumo + 25% FS (Wh/día)",      round(consumo_fs,1),                       C_HEADER),
+            ("Pot. Inversor + 25% FS (W)",     round(pot_inv_fs,1),                       C_GREEN),
         ]
         ws1.merge_cells(f"A{r}:C{r}")
         ws1.cell(row=r, column=1, value="PARÁMETRO").fill = hdr_fill(C_HEADER)
@@ -656,31 +650,24 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
 
     if not cargas_df.empty:
         consumo_total2 = cargas_df["consumo_wh"].sum()
-        consumo_fs2    = consumo_total2 * 1.20   # FS 20%
+        consumo_fs2    = consumo_total2 * 1.25
         vdc2           = proyecto_info[3] or tension_dc(consumo_fs2)
         hsp2           = proyecto_info[4] or 4.2
         pp_wp          = panel_row[3] if panel_row else 550
-        isc2           = panel_row[5] if panel_row else 8.02
         pot_inst2      = consumo_fs2 / hsp2
         n_pan2         = num_paneles(pot_inst2, pp_wp)
         bats2          = calcular_baterias(consumo_fs2, vdc2)
-        # 4. Controlador: Isc × N_paneles
-        corr_mppt2     = isc2 * n_pan2
+        corr_mppt2     = bats2["num_baterias"] * 100 * 0.25
 
         if corr_mppt2 <= 40:   mppt2 = "MPPT 40A"
         elif corr_mppt2 <= 60: mppt2 = "MPPT 60A"
         elif corr_mppt2 <= 100:mppt2 = "MPPT 100A"
         else: mppt2 = f"MPPT {math.ceil(corr_mppt2/50)*50}A"
-        # 5. Inversor: pot. total × 1.2
-        _pot_t2   = cargas_df["pot_inversor"].sum() if "pot_inversor" in cargas_df else consumo_fs2
-        _inv_w2   = _pot_t2 * 1.2
-        _kw_s2    = [1,2,3,5,8,10,15,20,25,30,40,50]
-        inv_kw2   = float(next((k for k in _kw_s2 if k*1000 >= _inv_w2), math.ceil(_inv_w2/1000)))
 
         secciones = [
             ("⚡ CONSUMO ENERGÉTICO", [
                 ("Consumo base diario (Wh/día)",       f"{consumo_total2:,.1f} Wh"),
-                ("Factor de seguridad",                 "20%"),
+                ("Factor de seguridad",                 "25%"),
                 ("Consumo diario con FS (Wh/día)",      f"{consumo_fs2:,.1f} Wh"),
             ]),
             ("🔋 TENSIÓN DC DEL SISTEMA", [
@@ -695,26 +682,27 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 ("Panel solar",                         panel_row[2] if panel_row else "—"),
                 ("Potencia por panel",                  f"{pp_wp} Wp"),
                 ("Tensión Voc",                         f"{panel_row[4] if panel_row else '—'} V"),
-                ("Corriente Isc",                       f"{isc2} A"),
+                ("Corriente Isc",                       f"{panel_row[5] if panel_row else '—'} A"),
                 ("Potencia mínima instalada (Wp)",      f"{pot_inst2:,.0f} Wp"),
                 ("Número de paneles requeridos",        f"{n_pan2} paneles"),
                 ("Potencia real instalada (Wp)",        f"{n_pan2 * pp_wp:,} Wp"),
             ]),
-            ("🔋 BANCO DE BATERÍAS", [
-                ("Ah requeridos (consumo÷V÷DoD)",       f"{bats2['ah_dod']:,.1f} Ah"),
-                ("Profundidad de descarga (DoD)",        "50%"),
-                ("Número de baterías 200Ah",             f"{bats2['num_baterias']} unidades"),
-                ("Capacidad real instalada",             f"{bats2['num_baterias']*200} Ah @ {vdc2}V"),
-                ("Energía almacenada (kWh)",             f"{bats2['energia_kwh']:.2f} kWh"),
+            ("🔋 BANCO DE BATERÍAS LITIO", [
+                ("Ah bruto",                            f"{bats2['ah_bruto']:,.1f} Ah"),
+                ("Profundidad de descarga (DOD)",        "80%"),
+                ("Ah con DOD 80%",                      f"{bats2['ah_dod']:,.1f} Ah"),
+                ("Pérdidas adicionales (15%)",           "Inversor + Cableado + Controlador"),
+                ("Ah final requeridos",                  f"{bats2['ah_final']:,.0f} Ah"),
+                ("Número de baterías 100Ah",             f"{bats2['num_baterias']} unidades"),
+                ("Capacidad real instalada",             f"{bats2['num_baterias']*100} Ah @ {vdc2}V"),
+                ("Energía almacenada (kWh)",             f"{bats2['num_baterias']*100*vdc2/1000:.2f} kWh"),
             ]),
             ("🎛 CONTROLADOR MPPT", [
                 ("Tensión del sistema",                 f"{vdc2} V"),
-                ("Isc panel × N° paneles",              f"{isc2} A × {n_pan2} = {corr_mppt2:.1f} A"),
+                ("Capacidad banco baterías",            f"{bats2['num_baterias']*100} Ah"),
+                ("Cálculo corriente (Ah × 0.25)",       f"{bats2['num_baterias']*100} × 0.25 = {corr_mppt2:.0f} A"),
                 ("Controlador recomendado",             mppt2),
-            ]),
-            ("🔌 INVERSOR DC/AC", [
-                ("Potencia total cargas × 1.2",         f"{_pot_t2:,.0f} × 1.2 = {_inv_w2:,.0f} W"),
-                ("Inversor recomendado",                f"{inv_kw2:.0f} kW / {inv_kw2*1000:.0f} W"),
+                ("Potencia mínima paneles para MPPT",   f"≥ {n_pan2*pp_wp:,} Wp"),
             ]),
         ]
 
@@ -771,7 +759,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
 
         recibos_df["kwh_dia_x"]   = recibos_df["kwh_periodo"] / recibos_df["dias_periodo"]
         recibos_df["wh_dia_x"]    = recibos_df["kwh_dia_x"] * 1000
-        recibos_df["wh_dia_fs_x"] = recibos_df["wh_dia_x"] * 1.20
+        recibos_df["wh_dia_fs_x"] = recibos_df["wh_dia_x"] * 1.25
         recibos_df["tarifa_x"]    = recibos_df.apply(
             lambda r: r["valor_total"]/r["kwh_periodo"] if r["valor_total"] and r["kwh_periodo"]>0 else (r["tarifa_kwh"] or ""), axis=1)
 
@@ -867,22 +855,15 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             lambda r: r["pot_total_w"] * 4 if r["es_motor"] else r["pot_total_w"], axis=1)
 
         consumo_total = cargas_df["consumo_wh"].sum()
-        consumo_fs    = consumo_total * 1.20   # FS 20%
-        _pot_inv_base = cargas_df["pot_inversor"].sum()
-        # 5. Inversor = pot_total × 1.2, redondeado a kW estándar
-        _inv_w_p  = _pot_inv_base * 1.2
-        _kw_sp    = [1,2,3,5,8,10,15,20,25,30,40,50]
-        inv_kw_p  = float(next((k for k in _kw_sp if k*1000 >= _inv_w_p), math.ceil(_inv_w_p/1000)))
-        pot_inv_fs    = inv_kw_p * 1000
+        consumo_fs    = consumo_total * 1.25
+        pot_inv_fs    = cargas_df["pot_inversor"].sum() * 1.25
         vdc_p         = proyecto_info[3] or tension_dc(consumo_fs)
         hsp_p         = proyecto_info[4] or 4.2
         pp_wp_p       = panel_row[3] if panel_row else 550
-        isc_p         = panel_row[5] if panel_row else 8.02
         pot_inst_p    = consumo_fs / hsp_p
         n_pan_p       = num_paneles(pot_inst_p, pp_wp_p)
         bats_p        = calcular_baterias(consumo_fs, vdc_p)
-        # 4. Controlador: Isc × N_paneles
-        corr_p        = isc_p * n_pan_p
+        corr_p        = bats_p["num_baterias"] * 100 * 0.25
         if corr_p <= 40:   mppt_p = "MPPT 40A"
         elif corr_p <= 60: mppt_p = "MPPT 60A"
         elif corr_p <= 100:mppt_p = "MPPT 100A"
@@ -909,7 +890,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         tbl_data.append(["","TOTAL BASE","","",
                           f"{cargas_df['pot_total_w'].sum():,.0f}","",
                           f"{consumo_total:,.1f}",f"{cargas_df['pot_inversor'].sum():,.0f}",""])
-        tbl_data.append(["","TOTAL + 20% FS","","","","",
+        tbl_data.append(["","TOTAL + 25% FS","","","","",
                           f"{consumo_fs:,.1f}",f"{pot_inv_fs:,.0f}",""])
 
         col_w = [1.2*cm, 6.5*cm, 1.2*cm, 2.0*cm, 2.0*cm, 1.5*cm, 2.5*cm, 2.5*cm, 1.3*cm]
@@ -950,7 +931,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             story.append(Paragraph("🧾  RECIBOS DE ENERGÍA ELÉCTRICA", sec_st))
             recibos_df["kwh_dia_p"]   = recibos_df["kwh_periodo"] / recibos_df["dias_periodo"]
             recibos_df["wh_dia_p"]    = recibos_df["kwh_dia_p"] * 1000
-            recibos_df["wh_dia_fs_p"] = recibos_df["wh_dia_p"] * 1.20
+            recibos_df["wh_dia_fs_p"] = recibos_df["wh_dia_p"] * 1.25
             recibos_df["tarifa_p"]    = recibos_df.apply(
                 lambda r: r["valor_total"]/r["kwh_periodo"] if r["valor_total"] and r["kwh_periodo"]>0
                           else (r["tarifa_kwh"] or 0), axis=1)
@@ -1008,22 +989,22 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         resumen_data = [
             ["MÓDULO","PARÁMETRO","VALOR"],
             ["⚡ Consumo", "Consumo base (Wh/día)",         f"{consumo_total:,.1f} Wh"],
-            ["",          "Factor de seguridad 20%",         "× 1.20"],
+            ["",          "Factor de seguridad 25%",         "× 1.25"],
             ["",          "Consumo con FS (Wh/día)",         f"{consumo_fs:,.1f} Wh"],
-            ["",          "Inversor recomendado",             f"{inv_kw_p:.0f} kW"],
+            ["",          "Potencia inversor + 25% FS (W)",  f"{pot_inv_fs:,.0f} W"],
             ["🔋 Tensión DC","Tensión estándar del sistema", f"{vdc_p} V DC"],
             ["🌞 HSP",    "Hora Solar Pico",                  f"{hsp_p} h/día"],
             ["",          "Municipio",                        proyecto_info[2] or "—"],
             ["🔆 Paneles",f"Panel: {panel_row[2] if panel_row else '—'}  {pp_wp_p}Wp",
-                          f"Voc={panel_row[4] if panel_row else '—'}V / Isc={isc_p}A"],
+                          f"Voc={panel_row[4] if panel_row else '—'}V / Isc={panel_row[5] if panel_row else '—'}A"],
             ["",          "Potencia mínima instalada (Wp)",   f"{pot_inst_p:,.0f} Wp"],
             ["",          "Número de paneles",                 f"{n_pan_p} paneles"],
             ["",          "Potencia real instalada (Wp)",      f"{n_pan_p*pp_wp_p:,} Wp"],
-            ["🔋 Baterías","Ah = consumo÷(V×DoD)",           f"{bats_p['ah_dod']:,.1f} Ah"],
-            ["",          "Número baterías 200Ah",             f"{bats_p['num_baterias']} unidades"],
-            ["",          "Energía almacenada",                f"{bats_p['energia_kwh']:.2f} kWh"],
-            ["🎛 MPPT",   f"Isc ({isc_p}A) × {n_pan_p} paneles",
-                          f"{corr_p:.1f} A"],
+            ["🔋 Baterías","Ah requeridos (con DOD 80% + 15% pérd.)", f"{bats_p['ah_final']:,.0f} Ah"],
+            ["",          "Número baterías litio 100Ah",       f"{bats_p['num_baterias']} unidades"],
+            ["",          "Energía almacenada",                f"{bats_p['num_baterias']*100*vdc_p/1000:.2f} kWh"],
+            ["🎛 MPPT",   f"Corriente controlador ({bats_p['num_baterias']*100}Ah × 0.25)",
+                          f"{corr_p:.0f} A"],
             ["",          "Controlador recomendado",           mppt_p],
         ]
 
@@ -1665,7 +1646,7 @@ with tab1:
             df_prev = pd.DataFrame(filas_prev)
             total_preview    = df_prev["Consumo (Wh/día)"].sum()
             total_pot        = df_prev["Pot. Total (W)"].sum()
-            total_preview_fs = total_preview * 1.20
+            total_preview_fs = total_preview * 1.25
 
             # Tabla detalle
             st.markdown(f"""
@@ -1806,8 +1787,8 @@ with tab1:
         # Totales
         consumo_total    = cargas["consumo_dia_wh"].sum()
         pot_inversor_total = cargas["pot_inversor_w"].sum()
-        consumo_fs       = consumo_total * 1.20
-        pot_inversor_fs  = pot_inversor_total * 1.20
+        consumo_fs       = consumo_total * 1.25
+        pot_inversor_fs  = pot_inversor_total * 1.25
 
         st.markdown(f"""
         <div class='metric-grid'>
@@ -1819,7 +1800,7 @@ with tab1:
             <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
                 <div class='metric-val'>{consumo_fs:,.0f}</div>
                 <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>+ 20% Factor Seguridad</div>
+                <div class='metric-label'>+ 25% Factor Seguridad</div>
             </div>
             <div class='metric-box'>
                 <div class='metric-val'>{pot_inversor_total:,.0f}</div>
@@ -1829,14 +1810,14 @@ with tab1:
             <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
                 <div class='metric-val'>{pot_inversor_fs:,.0f}</div>
                 <div class='metric-unit'>W</div>
-                <div class='metric-label'>Pot. Inversor +20% FS</div>
+                <div class='metric-label'>Pot. Inversor +25% FS</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class='result-highlight'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Potencia Inversor Recomendada (con 20% FS)</div>
+            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Potencia Inversor Recomendada (con 25% FS)</div>
             <div class='val'>{pot_inversor_fs:,.0f} W</div>
         </div>
         """, unsafe_allow_html=True)
@@ -2047,7 +2028,7 @@ with tab2:
         if rec_kwh > 0 and rec_dias > 0:
             kwh_dia_prev  = rec_kwh / rec_dias
             wh_dia_prev   = kwh_dia_prev * 1000
-            wh_dia_fs     = wh_dia_prev * 1.20
+            wh_dia_fs     = wh_dia_prev * 1.25
             tarifa_calc   = rec_valor / rec_kwh if rec_kwh > 0 and rec_valor > 0 else rec_tarifa
             costo_dia     = kwh_dia_prev * tarifa_calc if tarifa_calc > 0 else 0
 
@@ -2107,7 +2088,7 @@ with tab2:
         # Calcular columnas derivadas
         recibos_df["kwh_dia"]   = recibos_df["kwh_periodo"] / recibos_df["dias_periodo"]
         recibos_df["wh_dia"]    = recibos_df["kwh_dia"] * 1000
-        recibos_df["wh_dia_fs"] = recibos_df["wh_dia"] * 1.20
+        recibos_df["wh_dia_fs"] = recibos_df["wh_dia"] * 1.25
         recibos_df["tarifa_calc"] = recibos_df.apply(
             lambda r: r["valor_total"] / r["kwh_periodo"]
             if (r["valor_total"] and r["kwh_periodo"] > 0) else (r["tarifa_kwh"] or 0), axis=1)
@@ -2140,7 +2121,7 @@ with tab2:
         consumo_inv = 0.0
         if not cargas_rec.empty:
             consumo_inv = (cargas_rec["cantidad"] * cargas_rec["potencia_w"] * cargas_rec["horas_dia"]).sum()
-        consumo_inv_fs = consumo_inv * 1.20
+        consumo_inv_fs = consumo_inv * 1.25
 
         # Diferencia
         diferencia    = wh_dia_ref - consumo_inv
@@ -2274,7 +2255,7 @@ with tab2:
         else:
             consumo_base_sel = consumo_custom_val
 
-        consumo_base_fs_sel = consumo_base_sel * 1.20
+        consumo_base_fs_sel = consumo_base_sel * 1.25
 
         st.markdown(f"""
         <div class='result-highlight'>
@@ -2397,7 +2378,7 @@ with tab3:
     if consumo_base2 == 0:
         st.markdown("<div class='warn-box'>⚠ Registra cargas (Módulo 1) o un recibo (Módulo 2) para calcular la tensión DC</div>", unsafe_allow_html=True)
     else:
-        consumo_fs2 = consumo_base2 * 1.20
+        consumo_fs2 = consumo_base2 * 1.25
         vdc = tension_dc(consumo_fs2)
 
         if consumo_rec2 > 0:
@@ -2663,14 +2644,14 @@ with tab6:
     if consumo5 == 0:
         st.markdown("<div class='warn-box'>⚠ Ingresa las cargas en el Módulo 1 o un recibo en el Módulo 2</div>", unsafe_allow_html=True)
     else:
-        consumo5_fs = consumo5 * 1.20
+        consumo5_fs = consumo5 * 1.25
 
         if consumo_rec5 > 0:
             st.markdown(f"""
             <div class='info-note' style='margin-bottom:0.8rem;'>
                 Inventario: <b style='color:#FFD54F;'>{consumo_inv5:,.0f} Wh/día</b> &nbsp;|&nbsp;
                 Recibo: <b style='color:#00BCD4;'>{consumo_rec5:,.0f} Wh/día</b> &nbsp;|&nbsp;
-                <b>Usando: {consumo5:,.0f} Wh/día → {consumo5_fs:,.0f} Wh/día con FS 20%</b>
+                <b>Usando: {consumo5:,.0f} Wh/día → {consumo5_fs:,.0f} Wh/día con FS 25%</b>
             </div>
             """, unsafe_allow_html=True)
 
@@ -2773,7 +2754,7 @@ with tab6:
                         <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{hsp_efectiva5:.2f} h/día</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo con FS 20%</td>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo con FS 25%</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo5_fs:,.0f} Wh/día</td>
                     </tr>
                     <tr>
@@ -2794,8 +2775,10 @@ with tab7:
 
     st.markdown("""
     <div class='formula-box'>
-        Ah = (Consumo día Wh × Días autonomía) ÷ (Tensión DC (V) × DoD (%))<br>
-        N° baterías = Ah requeridos ÷ Capacidad batería (Ah)
+        Ah bruto = Consumo día (Wh) ÷ Tensión DC (V)<br>
+        Ah DOD   = Ah bruto ÷ Profundidad de descarga (%)<br>
+        Ah final = Ah DOD ÷ 0.85  (+15% pérdidas: inversor + cableado + autoconsumo controlador)<br>
+        N° baterías = Ah final ÷ 100 Ah (capacidad batería)
     </div>
     """, unsafe_allow_html=True)
 
@@ -2827,7 +2810,7 @@ with tab7:
     if consumo6 == 0:
         st.markdown("<div class='warn-box'>⚠ Ingresa las cargas en el Módulo 1 o un recibo en el Módulo 2</div>", unsafe_allow_html=True)
     else:
-        consumo6_fs = consumo6 * 1.20
+        consumo6_fs = consumo6 * 1.25
         vdc6 = p6[0] if p6 and p6[0] else tension_dc(consumo6_fs)
 
         if consumo_rec6 > 0:
@@ -2849,15 +2832,15 @@ with tab7:
             bat_cap6 = st.number_input("Capacidad por batería (Ah)", min_value=10, max_value=500, value=100)
 
             dod_dec = dod_input6 / 100.0
-            # 3. Ah = (consumo × días_autonomía) / (V × DoD)
-            dias_aut6 = 1  # 1 día de autonomía por defecto
-            ah_req6   = (consumo6_fs * dias_aut6) / (vdc_input6 * dod_dec)
-            num_bat6  = math.ceil(ah_req6 / bat_cap6)
+            ah_bruto6 = consumo6_fs / vdc_input6
+            ah_dod6 = ah_bruto6 / dod_dec
+            ah_final6 = ah_dod6 / 0.85
+            num_bat6 = math.ceil(ah_final6 / bat_cap6)
 
             # ── Guardar en session_state para Tabs 9 y 10 ──────────────────
             st.session_state["calc_num_baterias"]    = num_bat6
             st.session_state["calc_bat_cap_ah"]      = bat_cap6
-            st.session_state["calc_ah_final"]        = ah_req6
+            st.session_state["calc_ah_final"]        = ah_final6
             st.session_state["calc_vdc"]             = vdc_input6
             st.session_state["calc_dod_pct"]         = dod_input6
 
@@ -2869,24 +2852,24 @@ with tab7:
             <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; margin-bottom:1rem;'>PASO A PASO</div>
             <table style='width:100%; font-size:0.85rem; border-collapse:collapse;'>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Consumo diario (con FS 20%)</td>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Consumo diario (con FS 25%)</td>
                     <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{consumo6_fs:,.0f} Wh</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Tensión DC × DoD ({dod_input6}%)</td>
-                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_input6} × {dod_dec:.2f} = {vdc_input6*dod_dec:.1f}</td>
-                </tr>
-                <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                    <td style='color:#FFB300; padding:0.4rem 0; font-weight:600;'>{consumo6_fs:,.0f} ÷ {vdc_input6*dod_dec:.1f} =</td>
-                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right; font-weight:700;'>{ah_req6:.1f} Ah</td>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Tensión DC del sistema</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_input6} V</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Capacidad por batería</td>
-                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{bat_cap6} Ah</td>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>{consumo6_fs:,.0f} ÷ {vdc_input6} =</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{ah_bruto6:.1f} Ah</td>
                 </tr>
-                <tr>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>{ah_req6:.1f} ÷ {bat_cap6} =</td>
-                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right;'>{num_bat6} baterías</td>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>{ah_bruto6:.1f} ÷ {dod_dec:.2f} (DOD {dod_input6}%) =</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{ah_dod6:.1f} Ah</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>{ah_dod6:.1f} ÷ 0.85 (+15% pérdidas) =</td>
+                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right;'>{ah_final6:.0f} Ah</td>
                 </tr>
             </table>
             </div>
@@ -2894,14 +2877,14 @@ with tab7:
 
         st.markdown(f"""
         <div class='result-highlight'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Ah requeridos</div>
-            <div class='val'>{ah_req6:.0f} Ah @ {vdc_input6} V</div>
+            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Capacidad Total Requerida</div>
+            <div class='val'>{ah_final6:.0f} Ah @ {vdc_input6} V</div>
         </div>
         <div class='metric-grid'>
             <div class='metric-box' style='border-color:rgba(0,230,118,0.4);'>
                 <div class='metric-val' style='color:#00E676;'>{num_bat6}</div>
                 <div class='metric-unit'>unidades</div>
-                <div class='metric-label'>BATERÍAS {bat_cap6} Ah</div>
+                <div class='metric-label'>BATERÍAS LITIO {bat_cap6} Ah</div>
             </div>
             <div class='metric-box'>
                 <div class='metric-val'>{num_bat6 * bat_cap6}</div>
@@ -2931,8 +2914,8 @@ with tab8:
 
     st.markdown("""
     <div class='formula-box'>
-        Corriente controlador (A) = Isc (panel) × N° de paneles<br>
-        Seleccionar el controlador estándar inmediatamente superior a ese valor
+        Corriente controlador (A) = Capacidad Ah batería × 0.20<br>
+        Verificar: Pot. paneles ≥ Capacidad MPPT requerida
     </div>
     """, unsafe_allow_html=True)
 
@@ -2989,11 +2972,8 @@ with tab8:
         num_pan7 = num_paneles(potencia_inst7, pot_panel7)
         pot_real_paneles = num_pan7 * pot_panel7
         bats7 = calcular_baterias(consumo7_fs, vdc7)
-        # 4. Controlador: Isc × N_paneles
-        isc7 = st.session_state.get("calc_isc", 8.02) if "calc_isc" in st.session_state else (
-            st.session_state.get("panel_isc", 8.02))
         ah_banco7 = bats7["num_baterias"] * 100
-        corriente_mppt7 = isc7 * num_pan7   # Isc × N° paneles
+        corriente_mppt7 = ah_banco7 * 0.20
 
         col7a, col7b = st.columns([1,1])
         with col7a:
@@ -3001,20 +2981,16 @@ with tab8:
             st.markdown("**Ajuste parámetros MPPT**")
             vdc_7 = st.selectbox("Tensión sistema (V)", [12, 24, 48],
                                    index=[12,24,48].index(vdc7) if vdc7 in [12,24,48] else 2, key="vdc7")
-            isc_7 = st.number_input("Corriente Isc del panel (A)", min_value=1.0, max_value=30.0,
-                                     value=float(isc7), step=0.01, key="isc7_ctrl",
-                                     help="Corriente de cortocircuito del panel (del Módulo 5)")
-            n_pan_7 = st.number_input("Número de paneles (N°)", min_value=1, max_value=500,
-                                       value=int(num_pan7), step=1, key="npan7_ctrl")
+            ah_banco_7 = st.number_input("Capacidad banco baterías (Ah)", min_value=100, max_value=5000,
+                                          value=int(ah_banco7), step=100)
             pot_paneles_7 = st.number_input("Potencia total paneles (Wp)", min_value=100, max_value=50000,
                                              value=int(pot_real_paneles), step=100)
 
-            # 4. Corriente controlador = Isc × N_paneles
-            corriente_ctrl = isc_7 * n_pan_7
+            corriente_ctrl = ah_banco_7 * 0.20
 
             st.markdown(f"""
             <div class='formula-box' style='margin-top:1rem;'>
-                Isc ({isc_7} A) × {n_pan_7} paneles = {corriente_ctrl:.1f} A → controlador estándar superior
+                {ah_banco_7} Ah × 0.20 = {corriente_ctrl:.0f} A (corriente controlador)
             </div>
             """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -3045,27 +3021,23 @@ with tab8:
                         <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_7} V</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Isc panel</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{isc_7} A</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>N° paneles</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{n_pan_7}</td>
+                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Capacidad banco baterías</td>
+                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{ah_banco_7} Ah</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD; padding:0.5rem 0;'>Potencia mínima paneles</td>
                         <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{pot_paneles_7:,} Wp</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Isc ({isc_7} A) × {n_pan_7} =</td>
-                        <td style='font-family:Share Tech Mono; color:{mppt_color}; text-align:right; font-size:1.1rem; font-weight:700;'>{corriente_ctrl:.1f} A</td>
+                        <td style='color:#8A9BBD; padding:0.5rem 0;'>{ah_banco_7} Ah × 0.20 =</td>
+                        <td style='font-family:Share Tech Mono; color:{mppt_color}; text-align:right; font-size:1.1rem; font-weight:700;'>{corriente_ctrl:.0f} A</td>
                     </tr>
                 </table>
                 <div style='margin-top:1rem; background:rgba(255,179,0,0.08); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:1rem; text-align:center;'>
                     <div style='color:#8A9BBD; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;'>Controlador Recomendado</div>
                     <div style='font-family:Rajdhani,sans-serif; font-size:2rem; color:{mppt_color}; font-weight:700; margin:0.3rem 0;'>{mppt_modelo}</div>
                     <div style='font-size:0.8rem; color:#8A9BBD;'>
-                        {vdc_7} V | {corriente_ctrl:.1f} A | ≥{pot_paneles_7:,} Wp
+                        {vdc_7} V | {corriente_ctrl:.0f} A | ≥{pot_paneles_7:,} Wp
                     </div>
                 </div>
             </div>
@@ -3258,8 +3230,8 @@ with tab9:
 
     # Calcular consumo y paneles según fuente seleccionada
     if "Módulo 6" in fuente9_sel and calc_n_pan9:
-        consumo_base9 = calc_fs9 / 1.20 if calc_fs9 > 0 else consumo_mayor9
-        consumo_fs9   = calc_fs9 if calc_fs9 > 0 else consumo_base9 * 1.20
+        consumo_base9 = calc_fs9 / 1.25 if calc_fs9 > 0 else consumo_mayor9
+        consumo_fs9   = calc_fs9 if calc_fs9 > 0 else consumo_base9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = calc_vdc9
         pot_panel9    = calc_pp9
@@ -3268,7 +3240,7 @@ with tab9:
         fuente_color9 = "#00E676"
     elif "Recibo" in fuente9_sel and consumo_rec9 > 0:
         consumo_base9 = consumo_rec9
-        consumo_fs9   = consumo_rec9 * 1.20
+        consumo_fs9   = consumo_rec9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3277,7 +3249,7 @@ with tab9:
         fuente_color9 = "#00BCD4"
     elif "Mayor" in fuente9_sel:
         consumo_base9 = consumo_mayor9
-        consumo_fs9   = consumo_mayor9 * 1.20
+        consumo_fs9   = consumo_mayor9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3286,7 +3258,7 @@ with tab9:
         fuente_color9 = "#FFB300"
     else:  # Inventario
         consumo_base9 = consumo_inv9
-        consumo_fs9   = consumo_inv9 * 1.20
+        consumo_fs9   = consumo_inv9 * 1.25
         hsp9          = calc_hsp9
         vdc9          = tension_dc(consumo_fs9)
         pot_panel9    = calc_pp9
@@ -3328,7 +3300,7 @@ with tab9:
         ]
         for col_c, (lbl_c, cons_c, clr_c) in zip(src_cols, fuentes_comp):
             if cons_c > 0:
-                n_c = num_paneles(cons_c * 1.20 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 0
+                n_c = num_paneles(cons_c * 1.25 / (hsp9 * calc_pr9), pot_panel9) if hsp9 * calc_pr9 > 0 else 0
                 col_c.markdown(f"""
                 <div style='background:#1A2235;border:1px solid {clr_c}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
@@ -3788,8 +3760,8 @@ with tab10:
 
     # Resolver valores según fuente
     if "Módulos 6" in fuente10_sel and calc_n_pan10:
-        consumo_base10 = calc_fs10 / 1.20 if calc_fs10 > 0 else consumo_mayor10
-        consumo10_fs   = calc_fs10 if calc_fs10 > 0 else consumo_base10 * 1.20
+        consumo_base10 = calc_fs10 / 1.25 if calc_fs10 > 0 else consumo_mayor10
+        consumo10_fs   = calc_fs10 if calc_fs10 > 0 else consumo_base10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = calc_vdc10
         pot_panel10    = calc_pp10
@@ -3799,7 +3771,7 @@ with tab10:
         fuente_color10 = "#00E676"
     elif "Recibo" in fuente10_sel and consumo_rec10 > 0:
         consumo_base10 = consumo_rec10
-        consumo10_fs   = consumo_rec10 * 1.20
+        consumo10_fs   = consumo_rec10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3810,7 +3782,7 @@ with tab10:
         fuente_color10 = "#00BCD4"
     elif "Mayor" in fuente10_sel:
         consumo_base10 = consumo_mayor10
-        consumo10_fs   = consumo_mayor10 * 1.20
+        consumo10_fs   = consumo_mayor10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3821,7 +3793,7 @@ with tab10:
         fuente_color10 = "#FFB300"
     else:  # Inventario
         consumo_base10 = consumo_inv10
-        consumo10_fs   = consumo_inv10 * 1.20
+        consumo10_fs   = consumo_inv10 * 1.25
         hsp10          = calc_hsp10
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
@@ -3868,7 +3840,7 @@ with tab10:
         ]
         for col_c10, (lbl_c10, cons_c10, clr_c10) in zip(src10_cols, fuentes10_comp):
             if cons_c10 > 0:
-                fs_c10  = cons_c10 * 1.20
+                fs_c10  = cons_c10 * 1.25
                 vdc_c10 = tension_dc(fs_c10)
                 n_c10   = num_paneles(fs_c10 / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 0
                 nb_c10  = calcular_baterias(fs_c10, vdc_c10)["num_baterias"]
@@ -3892,20 +3864,14 @@ with tab10:
 
     # ── Derivados para el SVG ─────────────────────────────────────────────────
     pot_inst10    = consumo10_fs / hsp10 if hsp10 > 0 else 0
-    # 4. Controlador: Isc × N_paneles
-    corr_mppt10   = isc10 * n_pan10
-    # 5. Inversor: potencia total cargas × 1.2, redondeado estándar superior
+    corr_mppt10   = ah_banco10 * 0.25
     if not cargas10.empty:
         def _inv_pot(row):
             pot = row["cantidad"] * row["potencia_w"]
             return pot * 4 if int(row["es_motor"]) else pot
-        _pot_total10 = cargas10.apply(_inv_pot, axis=1).sum()
+        pot_inv10_w = cargas10.apply(_inv_pot, axis=1).sum() * 1.25
     else:
-        _pot_total10 = consumo10_fs
-    _inv_w10   = _pot_total10 * 1.2
-    _kw_std10  = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    pot_inv10_w = float(next((k for k in _kw_std10 if k * 1000 >= _inv_w10),
-                              math.ceil(_inv_w10 / 1000))) * 1000
+        pot_inv10_w = consumo10_fs
     vmp10    = round(voc10 * 0.80, 1)
     serie10  = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
     par10    = math.ceil(n_pan10 / serie10)
@@ -4294,7 +4260,7 @@ with tab11:
     pot_panel_eco   = int(panel_eco[0]) if panel_eco else 550
 
     consumo_base_eco = max(float(consumo_inv_eco), float(consumo_rec_eco))                        if consumo_rec_eco > 0 else float(consumo_inv_eco)
-    consumo_fs_eco   = consumo_base_eco * 1.20
+    consumo_fs_eco   = consumo_base_eco * 1.25
 
     if consumo_base_eco == 0:
         st.markdown("""
