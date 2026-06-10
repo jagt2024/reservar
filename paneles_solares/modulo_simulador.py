@@ -637,11 +637,12 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     # Usar paneles dimensionados del proyecto si están disponibles
     _n_pan_dim  = datos_sis.get("n_pan", 0)
     _pot_dim    = datos_sis.get("pot_inst", 0.0)
+    # pot_inst_s = potencia mínima teórica (siempre calculada para guardar en BD)
+    pot_inst_s  = consumo_fs_s / hsp_ef_s if hsp_ef_s > 0 else 0
     if _n_pan_dim > 0 and tiene_datos:
         n_pan_s    = _n_pan_dim
         pot_real_s = _pot_dim if _pot_dim > 0 else _n_pan_dim * pot_panel_s
     else:
-        pot_inst_s = consumo_fs_s / hsp_ef_s if hsp_ef_s > 0 else 0
         n_pan_s    = num_paneles(pot_inst_s, pot_panel_s)
         pot_real_s = n_pan_s * pot_panel_s
 
