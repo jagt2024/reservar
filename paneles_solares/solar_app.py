@@ -2708,6 +2708,7 @@ with tab6:
             pr_dec5             = pr_input5 / 100.0
             factor_bat5_dec     = factor_bat5 / 100.0
             consumo5_kwh        = consumo5 / 1000.0         # base sin FS
+            hsp_efectiva5       = hsp_input5 * pr_dec5      # para mostrar en tabla
             # OFF-GRID: Pot_FV = (Consumo_kWh / (HSP × PR)) × Factor_baterías
             pot_base5_kw        = consumo5_kwh / (hsp_input5 * pr_dec5) if (hsp_input5 * pr_dec5) > 0 else 0
             potencia_instalada5 = pot_base5_kw * factor_bat5_dec * 1000
