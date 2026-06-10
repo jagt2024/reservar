@@ -747,7 +747,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
 
         st.markdown("""
         <div class='info-note' style='margin-top:1rem;'>
-            ℹ El <b>sistema híbrido</b> aplica un 15% de factor de seguridad: mayor que ON-GRID (10%)
+            ℹ El <b>sistema híbrido</b> aplica un 15% de factor de seguridad: mayor que ON-GRID (20%)
             porque incluye pérdidas adicionales de conversión DC→Batería→AC, y menor que OFF-GRID
             aislado puro (25%) porque la red eléctrica actúa como respaldo de último recurso.
         </div>""", unsafe_allow_html=True)
