@@ -61,7 +61,7 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     """Cálculo completo del sistema híbrido."""
 
     # ── Array FV (igual que ON-GRID con PR)
-    consumo_fs       = consumo_wh_dia * 1.15      # 15% FS híbrido
+    consumo_fs       = consumo_wh_dia * 1.20      # 20% FS híbrido
     pot_array_wp_min = consumo_fs / (hsp * pr)
     n_paneles        = math.ceil(pot_array_wp_min / pot_panel_wp)
     pot_instalada_wp = n_paneles * pot_panel_wp
@@ -70,7 +70,7 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     # ── Configuración strings (MPPT)
     pan_serie_min      = max(1, math.ceil(v_mppt_min / vmpp_panel)) if vmpp_panel > 0 else 1
     pan_serie_max_mppt = math.floor(v_mppt_max / vmpp_panel)         if vmpp_panel > 0 else 20
-    pan_serie_max_voc  = math.floor((v_mppt_max * 1.15) / voc_panel) if voc_panel  > 0 else 20
+    pan_serie_max_voc  = math.floor((v_mppt_max * 1.20) / voc_panel) if voc_panel  > 0 else 20
     pan_serie          = min(pan_serie_max_mppt, pan_serie_max_voc)
     pan_serie          = max(pan_serie, pan_serie_min)
     n_strings          = max(1, math.ceil(n_paneles / pan_serie))
@@ -696,7 +696,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         <div class='formula-box'>
             El sistema híbrido cubre el consumo con energía solar, usa baterías de respaldo
             y puede importar/exportar energía de/a la red.<br>
-            <b>Factor de seguridad: 15%</b> (incluye pérdidas térmicas, cableado y eficiencia del inversor).
+            <b>Factor de seguridad: 20%</b> (incluye pérdidas térmicas, cableado y eficiencia del inversor).
         </div>""", unsafe_allow_html=True)
 
         opciones = ["⚡ Inventario de cargas (Módulo Cargas)"]
@@ -726,14 +726,14 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         else:
             consumo_base = consumo_inv
 
-        consumo_fs_hib = consumo_base * 1.15
+        consumo_fs_hib = consumo_base * 1.20
 
         col1,col2,col3,col4 = st.columns(4)
         for c_col, val, unit, lbl, col_c in [
             (col1, consumo_inv,    "Wh/día","Inventario cargas",  "#FFB300"),
             (col2, consumo_rec,    "Wh/día","Recibo energía",     "#00BCD4"),
             (col3, consumo_base,   "Wh/día","Consumo base",       "#00E676"),
-            (col4, consumo_fs_hib, "Wh/día","Con 15% FS híbrido", "#F59E0B"),
+            (col4, consumo_fs_hib, "Wh/día","Con 20% FS híbrido", "#F59E0B"),
         ]:
             with c_col:
                 st.markdown(f"""
@@ -747,9 +747,9 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
 
         st.markdown("""
         <div class='info-note' style='margin-top:1rem;'>
-            ℹ El <b>sistema híbrido</b> aplica un 15% de factor de seguridad: mayor que ON-GRID (20%)
+            ℹ El <b>sistema híbrido</b> aplica un 20% de factor de seguridad: mayor que ON-GRID (20%)
             porque incluye pérdidas adicionales de conversión DC→Batería→AC, y menor que OFF-GRID
-            aislado puro (25%) porque la red eléctrica actúa como respaldo de último recurso.
+            aislado puro (20%) porque la red eléctrica actúa como respaldo de último recurso.
         </div>""", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1073,7 +1073,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             # Strings
             pan_s_min    = max(1, math.ceil(v_mppt_min_h / vmpp_inp)) if vmpp_inp > 0 else 1
             pan_s_max_m  = math.floor(v_mppt_max_h / vmpp_inp)        if vmpp_inp > 0 else 20
-            pan_s_max_v  = math.floor((v_mppt_max_h*1.15) / voc_inp)  if voc_inp  > 0 else 20
+            pan_s_max_v  = math.floor((v_mppt_max_h*1.20) / voc_inp)  if voc_inp  > 0 else 20
             pan_serie_h  = min(pan_s_max_m, pan_s_max_v)
             pan_serie_h  = max(pan_serie_h, pan_s_min)
             n_str_h      = max(1, math.ceil(n_pan / pan_serie_h))

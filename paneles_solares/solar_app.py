@@ -762,7 +762,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         ws3["A2"].fill = hdr_fill(C_CARD); ws3["A2"].font = Font(color="8A9BBD", size=9, name="Calibri")
         ws3["A2"].alignment = center(); ws3.row_dimensions[2].height = 16
 
-        hdrs3 = ["ID","Período","Estrato","kWh período","Días","kWh/día","Wh/día","Wh/día +25%FS","Tarifa ($/kWh)","Valor total ($)"]
+        hdrs3 = ["ID","Período","Estrato","kWh período","Días","kWh/día","Wh/día","Wh/día +20%FS","Tarifa ($/kWh)","Valor total ($)"]
         for ci, h in enumerate(hdrs3, 1):
             c = ws3.cell(row=4, column=ci, value=h)
             c.fill = hdr_fill(C_HEADER); c.font = Font(bold=True, color=C_DARK, size=9, name="Calibri")
@@ -955,7 +955,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 lambda r: r["valor_total"]/r["kwh_periodo"] if r["valor_total"] and r["kwh_periodo"]>0
                           else (r["tarifa_kwh"] or 0), axis=1)
 
-            rec_hdr  = [["Período","Estrato","kWh período","Días","kWh/día","Wh/día","Wh/día +25%FS","Valor ($)"]]
+            rec_hdr  = [["Período","Estrato","kWh período","Días","kWh/día","Wh/día","Wh/día +20%FS","Valor ($)"]]
             rec_rows = rec_hdr[:]
             for _, row in recibos_df.iterrows():
                 rec_rows.append([
@@ -1445,7 +1445,7 @@ with tab1:
     st.markdown("""
     <div class='formula-box'>
         Consumo día (Wh) = Cantidad × Potencia (W) × Horas uso/día<br>
-        Potencia Inversor = Potencia × Factor (×4 para motorizados) | Total con 25% factor seguridad
+        Potencia Inversor = Potencia × Factor (×4 para motorizados) | Total con 20% factor seguridad
     </div>
     """, unsafe_allow_html=True)
 
@@ -1699,7 +1699,7 @@ with tab1:
                             padding:0.8rem; text-align:center;'>
                     <div style='font-family:Share Tech Mono; font-size:1.4rem; color:#00E676;'>{total_preview_fs:,.0f}</div>
                     <div style='font-size:0.72rem; color:#8A9BBD; margin-top:0.2rem;
-                                text-transform:uppercase; letter-spacing:1px;'>Wh/día — Con 25% FS</div>
+                                text-transform:uppercase; letter-spacing:1px;'>Wh/día — Con 20% FS</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
@@ -2061,7 +2061,7 @@ with tab2:
                     <b style='color:#FFD54F; font-family:Share Tech Mono;'>{kwh_dia_prev:.2f}</b></span>
                 <span style='font-size:0.82rem; color:#8A9BBD;'>Wh/día:
                     <b style='color:#FFB300; font-family:Share Tech Mono;'>{wh_dia_prev:,.0f}</b></span>
-                <span style='font-size:0.82rem; color:#8A9BBD;'>Wh/día +25% FS:
+                <span style='font-size:0.82rem; color:#8A9BBD;'>Wh/día +20% FS:
                     <b style='color:#00E676; font-family:Share Tech Mono;'>{wh_dia_fs:,.0f}</b></span>
                 {costo_span}
             </div>
@@ -2124,10 +2124,10 @@ with tab2:
         disp_rec = recibos_df[["id","periodo","estrato","kwh_periodo","dias_periodo",
                                 "kwh_dia","wh_dia","wh_dia_fs","valor_total"]].copy()
         disp_rec.columns = ["ID","Período","Estrato/Cat.","kWh período","Días",
-                             "kWh/día","Wh/día","Wh/día +25%FS","Valor ($)"]
+                             "kWh/día","Wh/día","Wh/día +20%FS","Valor ($)"]
         disp_rec["kWh/día"]     = disp_rec["kWh/día"].round(2)
         disp_rec["Wh/día"]      = disp_rec["Wh/día"].round(0).astype(int)
-        disp_rec["Wh/día +25%FS"] = disp_rec["Wh/día +25%FS"].round(0).astype(int)
+        disp_rec["Wh/día +20%FS"] = disp_rec["Wh/día +20%FS"].round(0).astype(int)
         st.dataframe(disp_rec.set_index("ID"), use_container_width=True)
 
         # Recibo más reciente como referencia
@@ -2183,7 +2183,7 @@ with tab2:
                 <div style='font-size:1.2rem; margin-bottom:0.3rem;'>🧾</div>
                 <div class='metric-val' style='color:#00E676;'>{wh_dia_fs_ref:,.0f}</div>
                 <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>RECIBO + 25% FS</div>
+                <div class='metric-label'>RECIBO + 20% FS</div>
             </div>""", unsafe_allow_html=True)
         with col_cmp3:
             st.markdown(f"""
@@ -2279,7 +2279,7 @@ with tab2:
         st.markdown(f"""
         <div class='result-highlight'>
             <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
-                Consumo base seleccionado → con Factor de Seguridad 25%
+                Consumo base seleccionado → con Factor de Seguridad 20%
             </div>
             <div class='val'>{consumo_base_sel:,.0f} Wh/día
                 <span style='font-size:1rem; color:#8A9BBD;'>→</span>
@@ -2429,7 +2429,7 @@ with tab3:
 
         st.markdown(f"""
         <div class='result-highlight' style='margin-top:1.5rem;'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Consumo diario (con FS 25%): {consumo_fs2:,.0f} Wh/día</div>
+            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Consumo diario (con FS 20%): {consumo_fs2:,.0f} Wh/día</div>
             <div class='val'>Tensión DC del Sistema: {vdc} V</div>
         </div>
         """, unsafe_allow_html=True)
@@ -2837,7 +2837,7 @@ with tab7:
             <div class='info-note' style='margin-bottom:0.8rem;'>
                 Inventario: <b style='color:#FFD54F;'>{consumo_inv6:,.0f} Wh/día</b> &nbsp;|&nbsp;
                 Recibo: <b style='color:#00BCD4;'>{consumo_rec6:,.0f} Wh/día</b> &nbsp;|&nbsp;
-                <b>Usando: {consumo6:,.0f} Wh/día → {consumo6_fs:,.0f} Wh/día con FS 25%</b>
+                <b>Usando: {consumo6:,.0f} Wh/día → {consumo6_fs:,.0f} Wh/día con FS 20%</b>
             </div>
             """, unsafe_allow_html=True)
 
@@ -3113,7 +3113,7 @@ with tab8:
                 <div style='font-size:1.5rem; margin-bottom:0.3rem;'>⚡</div>
                 <div class='metric-val'>{consumo7_fs:,.0f}</div>
                 <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>CONSUMO + 25% FS</div>
+                <div class='metric-label'>CONSUMO + 20% FS</div>
             </div>
             """, unsafe_allow_html=True)
         with col_r2:
@@ -3316,7 +3316,7 @@ with tab9:
                      font-weight:700;font-size:0.95rem;'>{fuente_label9}</span>
         <span style='font-size:0.8rem;color:#8A9BBD;'>
             Consumo base: <b style='color:#FFD54F;'>{consumo_base9:,.0f} Wh/día</b>
-            → con FS 25%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
+            → con FS 20%: <b style='color:#FFD54F;'>{consumo_fs9:,.0f} Wh/día</b>
             | HSP: <b style='color:#00BCD4;'>{hsp9} h</b>
             | PR: <b style='color:#FF6B35;'>{int(calc_pr9*100)}%</b>
             | VDC: <b style='color:#00BCD4;'>{vdc9} V</b>
@@ -4163,7 +4163,7 @@ with tab10:
         Baterías: {n_bat10}×{bat_cap10}Ah@{vdc10}V = {ah_banco10*vdc10/1000:.1f}kWh  |
         MPPT: {mppt_label10}  |  Inversor: {inv_kva}kVA</text>
     <text x="12" y="{tb_y10+61}" font-family="Share Tech Mono,monospace" font-size="7.5" fill="#2A3A55">
-        Consumo: {consumo10_fs:,.0f}Wh/día (+25%FS)  |  SolarCalc Pro  |  {datetime.now().strftime("%d/%m/%Y")}  |  Diagrama Unifilar — Plano N°02</text>
+        Consumo: {consumo10_fs:,.0f}Wh/día (+20%FS)  |  SolarCalc Pro  |  {datetime.now().strftime("%d/%m/%Y")}  |  Diagrama Unifilar — Plano N°02</text>
     <text x="{W10-12}" y="{tb_y10+18}" text-anchor="end"
           font-family="Share Tech Mono,monospace" font-size="9" fill="{C_DIM10}">Plano N° 02  Rev.A</text>
     '''
@@ -4245,7 +4245,7 @@ with tab10:
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
             <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
                 Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
-                Consumo + 25%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
+                Consumo + 20%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
                 Potencia instalada: <b style='color:#FFD54F;'>{pot_inst10:,.0f} Wp</b><br>
                 Municipio: <b style='color:#00E676;'>{p10[2] if p10 and p10[2] else "—"}</b>
