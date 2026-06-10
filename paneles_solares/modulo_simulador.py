@@ -628,17 +628,26 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
                 tarifa_iny_s = 0.0
 
     # ── Cálculos del simulador ────────────────────────────────────────────────
-    # Si el proyecto ya está dimensionado, partir de esos valores reales.
-    # Los widgets del formulario permiten ajustarlos manualmente.
+    # Usa los valores reales del proyecto si están dimensionados.
+    # Si no, calcula con la fórmula correcta para cada sistema.
     pr_dec_s     = pr_sim / 100.0
-    hsp_ef_s     = hsp_sim * pr_dec_s
     consumo_fs_s = consumo_sim * fs_factor
+    consumo_kwh_s = consumo_sim / 1000.0    # base sin FS
 
-    # Usar paneles dimensionados del proyecto si están disponibles
+    # Fórmula por sistema:
+    # ON-GRID:  Pot = Consumo_kWh / (HSP × PR)
+    # OFF-GRID: Pot = (Consumo_kWh / (HSP × PR)) × factor_bat
+    # HÍBRIDO:  Pot = (Consumo_kWh / (HSP × PR)) × factor_hibrido
+    _factor_bat_s  = ss.get("factor_bat_offgrid", 130) / 100.0  if _es_offgrid_s else 1.0
+    _factor_hib_s  = ss.get("_hib_factor", 1.20)                if _es_hibrido_s else 1.0
+    _factor_pan_s  = _factor_bat_s if _es_offgrid_s else (_factor_hib_s if _es_hibrido_s else 1.0)
+
+    _pot_base_kw   = consumo_kwh_s / (hsp_sim * pr_dec_s) if (hsp_sim * pr_dec_s) > 0 else 0
+    pot_inst_s     = _pot_base_kw * _factor_pan_s * 1000   # potencia mínima teórica
+
+    # Usar paneles ya dimensionados si existen
     _n_pan_dim  = datos_sis.get("n_pan", 0)
     _pot_dim    = datos_sis.get("pot_inst", 0.0)
-    # pot_inst_s = potencia mínima teórica (siempre calculada para guardar en BD)
-    pot_inst_s  = consumo_fs_s / hsp_ef_s if hsp_ef_s > 0 else 0
     if _n_pan_dim > 0 and tiene_datos:
         n_pan_s    = _n_pan_dim
         pot_real_s = _pot_dim if _pot_dim > 0 else _n_pan_dim * pot_panel_s

@@ -57,12 +57,18 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
                      cap_bat_ah: float, tarifa_kwh: float,
                      v_mppt_min: float, v_mppt_max: float,
                      voc_panel: float, vmpp_panel: float, impp_panel: float,
-                     pr: float = 0.80) -> dict:
-    """Cálculo completo del sistema híbrido."""
+                     pr: float = 0.80, factor_hibrido: float = 1.20) -> dict:
+    """Cálculo completo del sistema híbrido.
+    Fórmula: Paneles = Consumo_kWh/(HSP×PR) × factor_hibrido (1.10-1.30)
+    factor_hibrido=1.10 (solo ahorro) a 1.30 (máx respaldo).
+    """
 
-    # ── Array FV (igual que ON-GRID con PR)
-    consumo_fs       = consumo_wh_dia * 1.20      # 20% FS híbrido
-    pot_array_wp_min = consumo_fs / (hsp * pr)
+    # ── Array FV: HÍBRIDO = ON-GRID × factor_hibrido (1.10–1.30)
+    consumo_fs       = consumo_wh_dia * 1.20      # se conserva para baterías/PDF
+    consumo_kwh_dia  = consumo_wh_dia / 1000.0
+    # Pot_array = Consumo_kWh / (HSP × PR) × factor_hibrido
+    pot_base_kw      = consumo_kwh_dia / (hsp * pr) if (hsp * pr) > 0 else 0
+    pot_array_wp_min = pot_base_kw * factor_hibrido * 1000
     n_paneles        = math.ceil(pot_array_wp_min / pot_panel_wp)
     pot_instalada_wp = n_paneles * pot_panel_wp
     gen_dia_kwh      = (pot_instalada_wp / 1000) * hsp * pr
@@ -101,7 +107,10 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     excedente_bat_kwh   = min(excedente_kwh, cap_real_wh * 0.3 / 1000)  # 30% cap diaria batería
     inyeccion_kwh       = max(0, excedente_kwh - excedente_bat_kwh)
 
-    pot_inv_kw          = round(pot_inst_real / 1000 * 0.90, 1)   # 90% para híbrido
+    _inv_w_h = pot_inst_real * 1.2
+    _kw_std_h = [1,2,3,5,8,10,15,20,25,30,40,50]
+    pot_inv_kw = float(next((k for k in _kw_std_h if k*1000 >= _inv_w_h),
+                            math.ceil(_inv_w_h/1000)))
 
     # ── Generación anual
     gen_anio_kwh        = gen_dia_kwh * 365
@@ -803,6 +812,12 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 "Performance Ratio PR (%)", 70, 90, 80,
                 help="PR típico para híbrido: 78-85%", key="hib_pr")
 
+            factor_hib = st.slider(
+                "Factor híbrido (%)", 110, 130, 120,
+                help="Paneles extra sobre ON-GRID por respaldo de baterías. "
+                     "110% = solo ahorro · 120% = balance · 130% = máximo respaldo",
+                key="hib_factor")
+
             hsp_ef = hsp_hib * (pr_hib / 100)
 
             st.markdown(f"""
@@ -826,9 +841,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                     ✓ HSP del proyecto: <b>{hsp_guardado} h/día</b>
                 </div>""", unsafe_allow_html=True)
 
-        session_state["_hib_hsp"]    = hsp_hib
-        session_state["_hib_hsp_ef"] = hsp_ef
-        session_state["_hib_pr"]     = pr_hib / 100
+        session_state["_hib_hsp"]      = hsp_hib
+        session_state["_hib_hsp_ef"]   = hsp_ef
+        session_state["_hib_pr"]       = pr_hib / 100
+        session_state["_hib_factor"]   = factor_hib / 100
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB H3 — PANEL SOLAR
@@ -1067,8 +1083,12 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_d2:
-            pr_dec = pr_inp / 100.0
-            pot_min_wp   = consumo_inp / (hsp_inp * pr_dec) if hsp_inp * pr_dec > 0 else 0
+            pr_dec       = pr_inp / 100.0
+            # HÍBRIDO: Pot_array = Consumo_kWh/(HSP×PR) × factor_hibrido
+            factor_h_d5  = session_state.get("_hib_factor", 1.20)
+            consumo_kwh_h5 = (consumo_inp / 1.20) / 1000.0   # quitar FS para obtener base
+            pot_base_kw_h5 = consumo_kwh_h5 / (hsp_inp * pr_dec) if hsp_inp * pr_dec > 0 else 0
+            pot_min_wp   = pot_base_kw_h5 * factor_h_d5 * 1000
             n_pan        = math.ceil(pot_min_wp / wp_inp)
             # Strings
             pan_s_min    = max(1, math.ceil(v_mppt_min_h / vmpp_inp)) if vmpp_inp > 0 else 1
@@ -1082,7 +1102,11 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             v_str_mpp_h  = pan_serie_h * vmpp_inp
             v_str_oc_h   = pan_serie_h * voc_inp
             i_arr_h      = impp_inp * n_str_h
-            pot_inv_h    = round(pot_inst_h / 1000 * 0.90, 1)
+            # 5. Inversor: pot_instalada × 1.2 → estándar superior
+            _inv_w_h5 = pot_inst_h * 1.2
+            _kw_s5    = [1,2,3,5,8,10,15,20,25,30,40,50]
+            pot_inv_h = float(next((k for k in _kw_s5 if k*1000 >= _inv_w_h5),
+                                    math.ceil(_inv_w_h5/1000)))
 
             # Banco
             en_resp      = consumo_inp * dias_aut_d5

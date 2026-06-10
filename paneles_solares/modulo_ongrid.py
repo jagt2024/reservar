@@ -98,42 +98,45 @@ def calcular_string_ongrid(v_mppt_min: float, v_mppt_max: float, voc: float, vmp
 
 def calcular_ongrid(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
                      pot_inv_kw: float, tarifa_kwh: float = 700.0,
-                     precio_panel: float = 320000.0) -> dict:
-    """Cálculo principal ON-GRID."""
-    consumo_fs = consumo_wh_dia * 1.20   # 20% factor seguridad (pérdidas cableado+temperatura)
-    # Potencia mínima array
-    rendimiento_sistema = 0.80   # PR (Performance Ratio) típico para ON-GRID
-    pot_array_min_wp = consumo_fs / (hsp * rendimiento_sistema)
+                     precio_panel: float = 320000.0,
+                     rendimiento: float = 0.80) -> dict:
+    """Cálculo principal ON-GRID.
+    Fórmula: Pot_array (kWp) = Consumo_diario (kWh) / (HSP × PR)
+    La red actúa como batería virtual — no se aplica factor de baterías.
+    consumo_fs se conserva solo para PDF/Excel (inversor y baterías auxiliares).
+    """
+    consumo_kwh_dia  = consumo_wh_dia / 1000.0
+    consumo_fs       = consumo_wh_dia * 1.20        # solo para compatibilidad PDF/inversor
 
-    # Número de paneles
-    n_paneles = math.ceil(pot_array_min_wp / pot_panel_wp)
+    # ── 2. Potencia mínima array: Consumo / (HSP × PR)
+    pot_array_min_kw = consumo_kwh_dia / (hsp * rendimiento)
+    pot_array_min_wp = pot_array_min_kw * 1000
+
+    n_paneles        = math.ceil(pot_array_min_wp / pot_panel_wp)
     pot_instalada_wp = n_paneles * pot_panel_wp
 
-    # Generación estimada
-    gen_dia_kwh   = (pot_instalada_wp / 1000) * hsp * rendimiento_sistema
-    gen_mes_kwh   = gen_dia_kwh * 30
-    gen_anio_kwh  = gen_dia_kwh * 365
+    gen_dia_kwh  = (pot_instalada_wp / 1000) * hsp * rendimiento
+    gen_mes_kwh  = gen_dia_kwh * 30
+    gen_anio_kwh = gen_dia_kwh * 365
 
-    consumo_dia_kwh = consumo_wh_dia / 1000
-    autoconsumo_dia = min(gen_dia_kwh, consumo_dia_kwh)
-    inyeccion_dia   = max(0, gen_dia_kwh - consumo_dia_kwh)
-    deficit_dia     = max(0, consumo_dia_kwh - gen_dia_kwh)
+    autoconsumo_dia = min(gen_dia_kwh, consumo_kwh_dia)
+    inyeccion_dia   = max(0, gen_dia_kwh - consumo_kwh_dia)
+    deficit_dia     = max(0, consumo_kwh_dia - gen_dia_kwh)
+    autoconsumo_pct = (autoconsumo_dia / consumo_kwh_dia * 100) if consumo_kwh_dia > 0 else 0
 
-    autoconsumo_pct = (autoconsumo_dia / consumo_dia_kwh * 100) if consumo_dia_kwh > 0 else 0
+    ahorro_mes        = autoconsumo_dia * 30 * tarifa_kwh
+    ingreso_inyeccion = inyeccion_dia   * 30 * tarifa_kwh * 0.5
 
-    ahorro_mes = autoconsumo_dia * 30 * tarifa_kwh
-    ingreso_inyeccion = inyeccion_dia * 30 * tarifa_kwh * 0.5  # precio de compra ~50% tarifa
+    # 5. Inversor: pot_instalada × 1.2 → estándar superior
+    _inv_w  = pot_instalada_wp * 1.2
+    _kw_std = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
+    pot_inv_rec_kw = float(next((k for k in _kw_std if k * 1000 >= _inv_w),
+                                 math.ceil(_inv_w / 1000)))
 
-    # Potencia inversor recomendada (igual o ligeramente menor que array)
-    pot_inv_rec_kw = round(pot_instalada_wp / 1000 * 0.85, 1)
-
-    # Payback simple
-    inversion_est = n_paneles * precio_panel + pot_inv_rec_kw * 2_000_000  # inversor ~2M/kW
+    inversion_est   = n_paneles * precio_panel + pot_inv_rec_kw * 2_000_000
     beneficio_anual = (ahorro_mes + ingreso_inyeccion) * 12
-    payback_anios = inversion_est / beneficio_anual if beneficio_anual > 0 else 99
-
-    # CO2 evitado (0.126 kgCO2/kWh factor Colombia)
-    co2_anio_kg = gen_anio_kwh * 0.126
+    payback_anios   = inversion_est / beneficio_anual if beneficio_anual > 0 else 99
+    co2_anio_kg     = gen_anio_kwh * 0.126
 
     return {
         "consumo_fs":       consumo_fs,
@@ -154,7 +157,7 @@ def calcular_ongrid(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
         "beneficio_anual":  beneficio_anual,
         "payback_anios":    payback_anios,
         "co2_anio_kg":      co2_anio_kg,
-        "rendimiento_pr":   rendimiento_sistema,
+        "rendimiento_pr":   rendimiento,
     }
 
 
@@ -997,8 +1000,10 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
             st.markdown("**Parámetros de cálculo**")
             consumo_input = st.number_input(
-                "Consumo diario con FS (Wh/día)", min_value=100.0,
-                value=float(consumo_og), step=100.0, key="og_consumo_input")
+                "Consumo diario base (Wh/día)", min_value=100.0,
+                value=float(consumo_og / 1.20) if consumo_og > 0 else 1000.0,
+                step=100.0, key="og_consumo_input",
+                help="Consumo real sin factor de seguridad. Fórmula: Paneles = Consumo/(HSP×PR)")
             hsp_input = st.number_input(
                 "HSP (h/día)", min_value=0.5, max_value=12.0,
                 value=float(hsp_og_use), step=0.01, key="og_hsp_input")
@@ -1027,10 +1032,12 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         with col_d2:
             # Calcular
             pr_dec = pr_input / 100.0
-            gen_efectiva = hsp_input * pr_dec
-            pot_array_wp = (consumo_input / gen_efectiva) if gen_efectiva > 0 else 0
-            n_pan = math.ceil(pot_array_wp / wp_input)
-            pot_inst = n_pan * wp_input
+            # ON-GRID: Pot_array = Consumo_kWh / (HSP × PR)  — sin factor baterías
+            consumo_kwh_calc = consumo_input / 1000.0
+            pot_array_kw   = consumo_kwh_calc / (hsp_input * pr_dec) if (hsp_input * pr_dec) > 0 else 0
+            pot_array_wp   = pot_array_kw * 1000
+            n_pan          = math.ceil(pot_array_wp / wp_input)
+            pot_inst       = n_pan * wp_input
 
             # String design
             pan_serie_min = math.ceil(v_mppt_min / vmpp_input) if vmpp_input > 0 else 1
@@ -1047,7 +1054,10 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             i_array      = impp_input * n_strings
 
             # Inversor recomendado
-            pot_inv_kw = round(pot_inst_real / 1000 * 0.85, 1)
+            _inv_w_og = pot_inst_real * 1.2
+            _kw_std_og = [1,2,3,5,8,10,15,20,25,30,40,50]
+            pot_inv_kw = float(next((k for k in _kw_std_og if k*1000 >= _inv_w_og),
+                                    math.ceil(_inv_w_og/1000)))
 
             # Guardar resultados calculados con prefijo seguro (no son keys de widgets)
             session_state["_og_n_paneles"]  = n_pan_real
@@ -1060,11 +1070,27 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             session_state["_og_pot_inv_kw"] = pot_inv_kw
 
             st.markdown(f"""
-            <div class='result-highlight' style='border-color:rgba(255,107,53,0.5);
-                 background:linear-gradient(135deg,rgba(255,107,53,0.1),rgba(255,107,53,0.03));'>
-                <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
-                    Potencia mínima del array</div>
-                <div class='val' style='color:#FF6B35;'>{pot_array_wp/1000:.2f} kWp</div>
+            <div class='sol-card' style='border-color:rgba(255,107,53,0.4);margin-bottom:0.8rem;'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.6rem;'>
+                    FÓRMULA ON-GRID</div>
+                <table style='width:100%;font-size:0.83rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Consumo diario</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_input/1000:.3f} kWh</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>HSP × PR ({pr_input}%)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{hsp_input} × {pr_dec:.2f} = {hsp_input*pr_dec:.2f} h ef.</td>
+                    </tr>
+                    <tr style='background:#1A2235;'>
+                        <td style='color:#FF6B35;padding:0.35rem 0;font-weight:600;'>Pot. array mínima</td>
+                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;font-weight:700;'>{pot_array_wp/1000:.3f} kWp</td>
+                    </tr>
+                    <tr style='border-top:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>{pot_array_wp:.0f} W ÷ {wp_input} Wp/panel</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles</td>
+                    </tr>
+                </table>
             </div>
             <div class='metric-grid'>
                 <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>

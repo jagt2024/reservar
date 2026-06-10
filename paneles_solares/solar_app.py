@@ -2688,6 +2688,11 @@ with tab6:
                 help="PR típico OFF-GRID: 70–80%. Incluye pérdidas de temperatura, "
                      "inversor, sombreado, suciedad y cableado.",
                 key="pr_offgrid")
+            factor_bat5 = st.slider(
+                "Factor baterías (OFF-GRID)", 120, 150, 130,
+                help="Compensa pérdidas de carga/descarga. Típico: 120-150%. "
+                     "P_FV = Consumo/(HSP×PR) × Factor_bat",
+                key="factor_bat_offgrid")
             pot_panel_input5 = st.number_input("Potencia panel (Wp)",
                                                 min_value=10, max_value=1000,
                                                 value=int(pot_panel5) if pot_panel5 else 550,
@@ -2701,8 +2706,11 @@ with tab6:
                             unsafe_allow_html=True)
 
             pr_dec5             = pr_input5 / 100.0
-            hsp_efectiva5       = hsp_input5 * pr_dec5
-            potencia_instalada5 = consumo5_fs / hsp_efectiva5 if hsp_efectiva5 > 0 else 0
+            factor_bat5_dec     = factor_bat5 / 100.0
+            consumo5_kwh        = consumo5 / 1000.0         # base sin FS
+            # OFF-GRID: Pot_FV = (Consumo_kWh / (HSP × PR)) × Factor_baterías
+            pot_base5_kw        = consumo5_kwh / (hsp_input5 * pr_dec5) if (hsp_input5 * pr_dec5) > 0 else 0
+            potencia_instalada5 = pot_base5_kw * factor_bat5_dec * 1000
             num_pan5            = num_paneles(potencia_instalada5, pot_panel_input5)
             pot_real5           = num_pan5 * pot_panel_input5
             gen_dia5_kwh        = (pot_real5 / 1000) * hsp_input5 * pr_dec5
@@ -2722,8 +2730,8 @@ with tab6:
             st.markdown(f"""
             <hr class='sep'>
             <div style='color:#8A9BBD; font-size:0.8rem; margin-bottom:0.5rem;'>
-                {consumo5_fs:,.0f} Wh ÷ ({hsp_input5} h × {pr_input5}%) =
-                <b style='color:#FFD54F;'>{hsp_efectiva5:.2f} h efectivas</b>
+                ({consumo5_kwh:.3f} kWh ÷ ({hsp_input5}h × {pr_input5}%)) × {factor_bat5}% =
+                <b style='color:#FFD54F;'>{potencia_instalada5:,.0f} Wp mínimos</b>
             </div>
             """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
@@ -2732,7 +2740,7 @@ with tab6:
             st.markdown(f"""
             <div class='result-highlight'>
                 <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
-                    Potencia Mínima Instalada (con PR {pr_input5}%)</div>
+                    Pot. Mínima OFF-GRID (PR {pr_input5}% × Fact.bat {factor_bat5}%)</div>
                 <div class='val'>{potencia_instalada5:,.0f} Wp</div>
             </div>
             <div class='metric-grid'>
