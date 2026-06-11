@@ -669,21 +669,32 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         _cap_kwh_dim= datos_sis.get("cap_bat_kwh", 0.0)
         _aut_dim    = datos_sis.get("autonomia_h", 0.0)
         _ah_req_dim = datos_sis.get("ah_req", 0.0)
+        # Horas de autonomía — desde Tab 3 (recibo) o Tab 7 (baterías)
+        _horas_aut_src = (ss.get("calc_horas_autonomia") or
+                          ss.get("hib_horas_aut") or
+                          ss.get("horas_autonomia_deseada") or 24.0)
+        _dias_aut_s = float(_horas_aut_src) / 24.0
         if _n_bat_dim > 0 and tiene_datos:
             n_bats_s    = _n_bat_dim
             _cap_kwh_s  = _cap_kwh_dim if _cap_kwh_dim > 0 else _n_bat_dim * bat_cap_s * vdc_s / 1000
             bats_s      = {"num": n_bats_s,
-                           "ah_dod":        _ah_req_dim,
-                           "ah_final":      _ah_req_dim,
-                           "energia_kwh":   _cap_kwh_s}
+                           "ah_dod":      _ah_req_dim,
+                           "ah_final":    _ah_req_dim,
+                           "energia_kwh": _cap_kwh_s}
             autonomia_s = _aut_dim if _aut_dim > 0 else (
                 _cap_kwh_s * (dod_s / 100) / (consumo_fs_s / 1000 / 24)
                 if consumo_fs_s > 0 else 0.0)
         else:
-            bats_s      = calcular_baterias(consumo_fs_s, vdc_s, dod_s/100, bat_cap_s)
-            n_bats_s    = bats_s["num"]
+            # Calcular con las horas deseadas configuradas
+            _ah_sim     = (consumo_fs_s * _dias_aut_s) / (vdc_s * (dod_s / 100)) if vdc_s > 0 else 0
+            n_bats_s    = math.ceil(_ah_sim / bat_cap_s) if bat_cap_s > 0 else 0
+            _cap_kwh_s  = n_bats_s * bat_cap_s * vdc_s / 1000
+            bats_s      = {"num": n_bats_s,
+                           "ah_dod":      _ah_sim,
+                           "ah_final":    _ah_sim,
+                           "energia_kwh": _cap_kwh_s}
             _aut_denom  = (consumo_fs_s / 1000) / 24 if consumo_fs_s > 0 else 1
-            autonomia_s = bats_s["energia_kwh"] * (dod_s / 100) / _aut_denom
+            autonomia_s = _cap_kwh_s * (dod_s / 100) / _aut_denom
     ah_banco_s   = n_bats_s * bat_cap_s
 
     # Controlador MPPT (OFF-GRID) / strings (ON-GRID, HÍBRIDO)

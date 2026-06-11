@@ -2288,10 +2288,53 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
+        # ── AUTONOMÍA DESEADA ──────────────────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style='font-family:Rajdhani,sans-serif;font-size:1.1rem;font-weight:600;
+                    color:#FFB300;letter-spacing:1px;margin-bottom:0.8rem;'>
+            🔋 HORAS DE AUTONOMÍA DESEADA (OFF-GRID / HÍBRIDO)
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_aut1, col_aut2 = st.columns([1, 1])
+        with col_aut1:
+            horas_autonomia_sel = st.number_input(
+                "Horas de autonomía deseada (h)",
+                min_value=1.0, max_value=96.0,
+                value=float(st.session_state.get("horas_autonomia_deseada", 24.0)),
+                step=1.0,
+                help="Tiempo que el banco de baterías debe cubrir sin sol ni red. "
+                     "Ejemplos: 8h (nocturno) · 24h (1 día) · 48h (2 días) · 72h (3 días)",
+                key="horas_aut_tab3")
+            dias_autonomia_calc = horas_autonomia_sel / 24.0
+        with col_aut2:
+            st.markdown(f"""
+            <div class='sol-card' style='padding:0.7rem 1rem;'>
+                <div style='color:#8A9BBD;font-size:0.75rem;text-transform:uppercase;
+                            letter-spacing:1px;margin-bottom:0.5rem;'>Referencia</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                    <tr><td style='color:#8A9BBD;padding:0.2rem 0;'>Nocturno (sin sol)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>8 h</td></tr>
+                    <tr><td style='color:#8A9BBD;padding:0.2rem 0;'>1 día completo</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>24 h</td></tr>
+                    <tr><td style='color:#8A9BBD;padding:0.2rem 0;'>2 días (fin de semana)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>48 h</td></tr>
+                    <tr><td style='color:#8A9BBD;padding:0.2rem 0;'>3 días (nublado)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>72 h</td></tr>
+                </table>
+                <div style='margin-top:0.5rem;font-family:Share Tech Mono;color:#00E676;font-size:0.85rem;'>
+                    {horas_autonomia_sel:.0f} h = {dias_autonomia_calc:.2f} días de autonomía
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
         # Guardar selección en session_state para que otros tabs la usen
-        st.session_state["consumo_recibo_wh"] = consumo_base_sel
-        st.session_state["consumo_recibo_fs_wh"] = consumo_base_fs_sel
-        st.session_state["recibo_ref_periodo"] = recibo_ref["periodo"]
+        st.session_state["consumo_recibo_wh"]       = consumo_base_sel
+        st.session_state["consumo_recibo_fs_wh"]    = consumo_base_fs_sel
+        st.session_state["recibo_ref_periodo"]      = recibo_ref["periodo"]
+        st.session_state["horas_autonomia_deseada"] = horas_autonomia_sel
+        st.session_state["dias_autonomia_deseada"]  = dias_autonomia_calc
 
         # ── ANÁLISIS DE TENDENCIA ─────────────────────────────────────────
         if len(recibos_df) >= 2:
@@ -2884,11 +2927,15 @@ with tab7:
                     <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{consumo6_fs:,.0f} Wh</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Autonomía deseada</td>
+                    <td style='font-family:Share Tech Mono; color:#00BCD4; text-align:right;'>{horas_aut6:.0f} h = {dias_aut6:.3f} días</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
                     <td style='color:#8A9BBD; padding:0.4rem 0;'>Tensión DC × DoD ({dod_input6}%)</td>
                     <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_input6} × {dod_dec:.2f} = {vdc_input6*dod_dec:.1f}</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                    <td style='color:#FFB300; padding:0.4rem 0; font-weight:600;'>{consumo6_fs:,.0f} ÷ {vdc_input6*dod_dec:.1f} =</td>
+                    <td style='color:#FFB300; padding:0.4rem 0; font-weight:600;'>({consumo6_fs:,.0f} × {dias_aut6:.3f}) ÷ {vdc_input6*dod_dec:.1f} =</td>
                     <td style='font-family:Share Tech Mono; color:#00E676; text-align:right; font-weight:700;'>{ah_req6:.1f} Ah</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>

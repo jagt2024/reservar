@@ -809,6 +809,18 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         # Alias sin prefijo para compatibilidad con tabs posteriores
         session_state["og_consumo_fs"]    = consumo_fs_og
 
+        # Mostrar nota de autonomía si viene configurada desde Tab 3
+        _horas_aut_og = session_state.get("horas_autonomia_deseada", 0)
+        if _horas_aut_og > 0 and "Recibo" in fuente:
+            st.markdown(f"""
+            <div class='info-note' style='margin-top:0.5rem;border-color:rgba(0,188,212,0.3);
+                         background:rgba(0,188,212,0.05);'>
+                🔋 Autonomía configurada en Módulo 2: <b style='color:#00BCD4;'>
+                {_horas_aut_og:.0f} horas ({_horas_aut_og/24:.2f} días)</b> —
+                se usará en OFF-GRID/Híbrido. ON-GRID no requiere baterías
+                (la red actúa como respaldo).
+            </div>""", unsafe_allow_html=True)
+
         st.markdown("""
         <div class='info-note' style='margin-top:1rem;'>
             ℹ En sistemas ON-GRID se aplica solo <b>20% de factor de seguridad</b>

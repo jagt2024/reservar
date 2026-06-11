@@ -928,9 +928,27 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
             st.markdown("<div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>PARÁMETROS BANCO</div>", unsafe_allow_html=True)
 
-            hib_dias_aut = st.number_input(
-                "Días de autonomía", min_value=0.5, max_value=7.0, value=1.0, step=0.5,
-                help="Para híbrido: 0.5–2 días. La red cubre el resto.", key="hib_dias_aut")
+            # Leer horas guardadas desde Tab 3 (recibo) si existen
+            _horas_default_hib = session_state.get("horas_autonomia_deseada",
+                                  session_state.get("hib_horas_aut", 24.0))
+            hib_horas_aut = st.number_input(
+                "Horas de autonomía deseada (h)",
+                min_value=1.0, max_value=168.0,
+                value=float(_horas_default_hib),
+                step=1.0,
+                help="8h = nocturno | 24h = 1 día | 48h = 2 días. "
+                     "La red cubre el resto. Se toma del Módulo 2 si está configurado.",
+                key="hib_horas_aut")
+            hib_dias_aut = hib_horas_aut / 24.0
+
+            # Mostrar equivalencia
+            st.markdown(f"""
+            <div style='font-family:Share Tech Mono;color:#00BCD4;font-size:0.8rem;
+                        margin:-0.3rem 0 0.6rem 0;'>
+                {hib_horas_aut:.0f} h = {hib_dias_aut:.3f} días de autonomía
+            </div>
+            """, unsafe_allow_html=True)
+
             hib_dod = st.slider(
                 "Profundidad de descarga DoD (%)", 50, 90, 80,
                 help="AGM/GEL: 50%. LiFePO4: 80-90%", key="hib_dod")
@@ -947,19 +965,21 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         with col_b2:
             consumo_fs_calc = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
             if consumo_fs_calc > 0:
-                en_resp_wh   = consumo_fs_calc * hib_dias_aut
-                cap_banco_wh = en_resp_wh / (hib_dod / 100)
-                cap_banco_ah = cap_banco_wh / hib_v_bat
+                # Fórmula: Ah = (consumo × días_autonomía) / (V × DoD)
+                cap_banco_ah = (consumo_fs_calc * hib_dias_aut) / (hib_v_bat * (hib_dod / 100))
                 n_bats       = math.ceil(cap_banco_ah / hib_cap_bat)
                 if n_bats % 2 != 0 and n_bats > 1: n_bats += 1
                 cap_real_wh  = n_bats * hib_cap_bat * hib_v_bat
                 aut_real_h   = cap_real_wh * (hib_dod/100) / (consumo_fs_calc / 24)
+                # Guardar horas en session_state
+                session_state["hib_horas_aut"]  = hib_horas_aut
+                session_state["_hib_aut_horas"] = aut_real_h
 
                 st.markdown(f"""
                 <div class='result-highlight' style='border-color:rgba(167,139,250,0.5);
                      background:linear-gradient(135deg,rgba(167,139,250,0.08),rgba(167,139,250,0.02));'>
-                    <div style='color:#8A9BBD;font-size:0.8rem;'>Energía de respaldo requerida</div>
-                    <div class='val' style='color:#A78BFA;'>{en_resp_wh/1000:.2f} kWh</div>
+                    <div style='color:#8A9BBD;font-size:0.8rem;'>Ah requeridos (consumo × {hib_dias_aut:.3f} días ÷ V × DoD)</div>
+                    <div class='val' style='color:#A78BFA;'>{cap_banco_ah:.1f} Ah</div>
                 </div>
                 <div class='metric-grid' style='margin-top:0.8rem;'>
                     <div class='metric-box' style='border-color:rgba(167,139,250,0.5);'>
@@ -974,7 +994,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                     </div>
                     <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
                         <div class='metric-val'>{aut_real_h:.1f}</div>
-                        <div class='metric-unit'>horas</div>
+                        <div class='metric-unit'>h reales</div>
                         <div class='metric-label'>AUTONOMÍA</div>
                     </div>
                     <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
@@ -982,6 +1002,21 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                         <div class='metric-unit'>Ah</div>
                         <div class='metric-label'>CAPACIDAD Ah</div>
                     </div>
+                </div>""", unsafe_allow_html=True)
+
+                # Comparación horas deseadas vs reales
+                _delta_h = aut_real_h - hib_horas_aut
+                _delta_color = "#00E676" if _delta_h >= 0 else "#FF5252"
+                st.markdown(f"""
+                <div style='background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.25);
+                            border-radius:8px;padding:0.6rem 1rem;margin-top:0.6rem;font-size:0.82rem;'>
+                    <span style='color:#8A9BBD;'>Autonomía deseada:</span>
+                    <b style='color:#00BCD4;font-family:Share Tech Mono;'>{hib_horas_aut:.0f} h</b>
+                    &nbsp;|&nbsp;
+                    <span style='color:#8A9BBD;'>Autonomía real:</span>
+                    <b style='color:{_delta_color};font-family:Share Tech Mono;'>{aut_real_h:.1f} h</b>
+                    &nbsp;
+                    <span style='color:{_delta_color};'>({_delta_h:+.1f} h)</span>
                 </div>""", unsafe_allow_html=True)
 
                 st.markdown(f"""
