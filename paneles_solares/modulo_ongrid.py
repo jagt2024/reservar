@@ -1194,22 +1194,41 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                 """, unsafe_allow_html=True)
 
             # ── PRODUCCIÓN ESTIMADA ──────────────────────────────────────
-            gen_dia_og4  = (pot_inst_real / 1000) * hsp_input * pr_dec   # kWh/día
-            gen_mes_og4  = gen_dia_og4 * 30                               # kWh/mes
-            gen_anio_og4 = gen_dia_og4 * 365                              # kWh/año
-            consumo_mes  = (consumo_input / 1000) * 30                    # kWh/mes
+            gen_dia_og4  = (pot_inst_real / 1000) * hsp_input * pr_dec
+            gen_mes_og4  = gen_dia_og4 * 30
+            gen_anio_og4 = gen_dia_og4 * 365
+            consumo_mes  = (consumo_input / 1000) * 30
             consumo_anio = consumo_mes * 12
             cobertura_pct = min(gen_mes_og4 / consumo_mes * 100, 100) if consumo_mes > 0 else 0
             excedente_mes = max(0, gen_mes_og4 - consumo_mes)
             deficit_mes   = max(0, consumo_mes - gen_mes_og4)
             cob_color     = "#00E676" if cobertura_pct >= 100 else ("#FFB300" if cobertura_pct >= 80 else "#FF5252")
 
+            # Pre-construir filas condicionales FUERA del f-string
+            _row_exc = (
+                f"<tr style='border-bottom:1px solid #2A3A55;'>"
+                f"<td style='color:#8A9BBD;padding:0.4rem 0;'>Excedente inyección red</td>"
+                f"<td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>"
+                f"{excedente_mes:.1f} kWh/mes</td></tr>"
+            ) if excedente_mes > 0 else ""
+
+            _row_def = (
+                f"<tr><td style='color:#8A9BBD;padding:0.4rem 0;'>Déficit cubierto por red</td>"
+                f"<td style='font-family:Share Tech Mono;color:#FF5252;text-align:right;'>"
+                f"{deficit_mes:.1f} kWh/mes</td></tr>"
+            ) if deficit_mes > 0 else ""
+
+            _badge_tail = (
+                f"— inyecta <b style='color:#00BCD4;'>{excedente_mes:.1f} kWh/mes</b> a la red."
+                if excedente_mes > 0 else
+                f"— la red aporta <b style='color:#FF5252;'>{deficit_mes:.1f} kWh/mes</b>."
+            )
+            _badge_icon = "✅ <b style='color:#00E676;'>Cubre completamente</b>" if cobertura_pct >= 100 else "⚠ <b style='color:#FFB300;'>Cubre parcialmente</b>"
+
             st.markdown(f"""
             <div class='sol-card' style='margin-top:1rem;border-color:rgba(0,230,118,0.4);'>
                 <div style='color:#00E676;font-family:Rajdhani,sans-serif;font-weight:600;
                             margin-bottom:0.8rem;'>⚡ PRODUCCIÓN ESTIMADA</div>
-
-                <!-- Fórmula paso a paso -->
                 <div style='background:#0D1B2A;border-radius:6px;padding:0.6rem 0.8rem;
                             margin-bottom:0.8rem;font-size:0.82rem;color:#8A9BBD;'>
                     <b style='color:#FFD54F;'>{pot_inst_real/1000:.2f} kWp</b>
@@ -1219,7 +1238,6 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                     &nbsp;&nbsp;|&nbsp;&nbsp;
                     ×30 =&nbsp;<b style='color:#00E676;font-size:0.95rem;'>{gen_mes_og4:.1f} kWh/mes</b>
                 </div>
-
                 <table style='width:100%;font-size:0.85rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.4rem 0;'>Generación diaria</td>
@@ -1244,25 +1262,21 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                         <td style='font-family:Share Tech Mono;text-align:right;font-weight:700;
                                    font-size:1rem;color:{cob_color};'>{cobertura_pct:.1f}%</td>
                     </tr>
-                    {f"<tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;padding:0.4rem 0;'>Excedente inyección red</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{excedente_mes:.1f} kWh/mes</td></tr>" if excedente_mes > 0 else ""}
-                    {f"<tr><td style='color:#8A9BBD;padding:0.4rem 0;'>Déficit cubierto por red</td><td style='font-family:Share Tech Mono;color:#FF5252;text-align:right;'>{deficit_mes:.1f} kWh/mes</td></tr>" if deficit_mes > 0 else ""}
+                    {_row_exc}
+                    {_row_def}
                 </table>
-
-                <!-- Badge de cobertura -->
                 <div style='margin-top:0.7rem;padding:0.5rem 0.8rem;border-radius:6px;
                             background:rgba(0,230,118,0.08);border:1px solid rgba(0,230,118,0.25);
                             font-size:0.83rem;color:#8A9BBD;'>
-                    {"✅ <b style='color:#00E676;'>Cubre completamente</b> los " if cobertura_pct >= 100 else "⚠ <b style='color:#FFB300;'>Cubre parcialmente</b> los "}
-                    <b style='color:#FFD54F;'>{consumo_mes:.1f} kWh/mes</b>
-                    {"— inyecta " + f"<b style='color:#00BCD4;'>{excedente_mes:.1f} kWh/mes</b> a la red." if excedente_mes > 0 else
-                     f" — la red aporta <b style='color:#FF5252;'>{deficit_mes:.1f} kWh/mes</b>."}
+                    {_badge_icon} los <b style='color:#FFD54F;'>{consumo_mes:.1f} kWh/mes</b>
+                    {_badge_tail}
                 </div>
             </div>
             """, unsafe_allow_html=True)
 
-            session_state["_og_gen_dia_kwh"]  = gen_dia_og4
-            session_state["_og_gen_mes_kwh"]  = gen_mes_og4
-            session_state["_og_gen_anio"]     = gen_anio_og4
+            session_state["_og_gen_dia_kwh"] = gen_dia_og4
+            session_state["_og_gen_mes_kwh"] = gen_mes_og4
+            session_state["_og_gen_anio"]    = gen_anio_og4
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB OG5 — ANÁLISIS ECONÓMICO
