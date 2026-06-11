@@ -2902,18 +2902,30 @@ with tab7:
                                     help="80% recomendado para baterías LiFePO4")
             bat_cap6 = st.number_input("Capacidad por batería (Ah)", min_value=10, max_value=500, value=100)
 
-            dod_dec = dod_input6 / 100.0
+            dod_dec   = dod_input6 / 100.0
+            # Horas de autonomía — desde Tab 3 (recibo) si está configurado
+            _horas_default6 = st.session_state.get("horas_autonomia_deseada", 24.0)
+            horas_aut6 = st.number_input(
+                "Horas de autonomía deseada (h)",
+                min_value=1.0, max_value=120.0,
+                value=float(_horas_default6),
+                step=1.0,
+                help="8h = solo nocturno | 24h = 1 día | 48h = 2 días | 72h = 3 días",
+                key="horas_aut_bat6")
+            dias_aut6 = horas_aut6 / 24.0
+
             # 3. Ah = (consumo × días_autonomía) / (V × DoD)
-            dias_aut6 = 1  # 1 día de autonomía por defecto
             ah_req6   = (consumo6_fs * dias_aut6) / (vdc_input6 * dod_dec)
             num_bat6  = math.ceil(ah_req6 / bat_cap6)
 
             # ── Guardar en session_state para Tabs 9 y 10 ──────────────────
-            st.session_state["calc_num_baterias"]    = num_bat6
-            st.session_state["calc_bat_cap_ah"]      = bat_cap6
-            st.session_state["calc_ah_final"]        = ah_req6
-            st.session_state["calc_vdc"]             = vdc_input6
-            st.session_state["calc_dod_pct"]         = dod_input6
+            st.session_state["calc_num_baterias"]     = num_bat6
+            st.session_state["calc_bat_cap_ah"]       = bat_cap6
+            st.session_state["calc_ah_final"]         = ah_req6
+            st.session_state["calc_vdc"]              = vdc_input6
+            st.session_state["calc_dod_pct"]          = dod_input6
+            st.session_state["calc_horas_autonomia"]  = horas_aut6
+            st.session_state["calc_dias_autonomia"]   = dias_aut6
 
             st.markdown("</div>", unsafe_allow_html=True)
 
