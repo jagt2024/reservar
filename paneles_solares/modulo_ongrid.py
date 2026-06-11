@@ -1094,21 +1094,30 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                         <td style='color:#8A9BBD;padding:0.35rem 0;'>HSP × PR ({pr_input}%)</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{hsp_input} × {pr_dec:.2f} = {hsp_input*pr_dec:.2f} h ef.</td>
                     </tr>
-                    <tr style='background:#1A2235;'>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
                         <td style='color:#FF6B35;padding:0.35rem 0;font-weight:600;'>Pot. array mínima</td>
                         <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;font-weight:700;'>{pot_array_wp/1000:.3f} kWp</td>
                     </tr>
-                    <tr style='border-top:1px solid #2A3A55;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.35rem 0;'>{pot_array_wp:.0f} W ÷ {wp_input} Wp/panel</td>
-                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_array_wp/wp_input:.2f} → <b>{n_pan} paneles mín.</b></td>
+                    </tr>
+                    <tr style='background:#0D1B2A;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Ajuste strings ({n_strings}P × {pan_serie}S)</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles reales</td>
                     </tr>
                 </table>
             </div>
             <div class='metric-grid'>
                 <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
+                    <div class='metric-val'>{n_pan}</div>
+                    <div class='metric-unit'>paneles mín.</div>
+                    <div class='metric-label'>CALC. DIRECTO</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
                     <div class='metric-val'>{n_pan_real}</div>
                     <div class='metric-unit'>paneles</div>
-                    <div class='metric-label'>CANT. TOTAL</div>
+                    <div class='metric-label'>CANT. TOTAL REAL</div>
                 </div>
                 <div class='metric-box'>
                     <div class='metric-val'>{pot_inst_real/1000:.2f}</div>
