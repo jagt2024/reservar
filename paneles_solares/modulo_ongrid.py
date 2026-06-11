@@ -1206,24 +1206,28 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
 
             # Pre-construir filas condicionales FUERA del f-string
             _row_exc = (
-                f"<tr style='border-bottom:1px solid #2A3A55;'>"
-                f"<td style='color:#8A9BBD;padding:0.4rem 0;'>Excedente inyección red</td>"
-                f"<td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>"
-                f"{excedente_mes:.1f} kWh/mes</td></tr>"
+                f'<tr style="border-bottom:1px solid #2A3A55;">'
+                f'<td style="color:#8A9BBD;padding:0.4rem 0;">Excedente inyección red</td>'
+                f'<td style="font-family:Share Tech Mono;color:#00BCD4;text-align:right;">'
+                f'{excedente_mes:.1f} kWh/mes</td></tr>'
             ) if excedente_mes > 0 else ""
 
             _row_def = (
-                f"<tr><td style='color:#8A9BBD;padding:0.4rem 0;'>Déficit cubierto por red</td>"
-                f"<td style='font-family:Share Tech Mono;color:#FF5252;text-align:right;'>"
-                f"{deficit_mes:.1f} kWh/mes</td></tr>"
+                f'<tr><td style="color:#8A9BBD;padding:0.4rem 0;">Déficit cubierto por red</td>'
+                f'<td style="font-family:Share Tech Mono;color:#FF5252;text-align:right;">'
+                f'{deficit_mes:.1f} kWh/mes</td></tr>'
             ) if deficit_mes > 0 else ""
 
             _badge_tail = (
-                f"— inyecta <b style='color:#00BCD4;'>{excedente_mes:.1f} kWh/mes</b> a la red."
+                f'— inyecta <b style="color:#00BCD4;">{excedente_mes:.1f} kWh/mes</b> a la red.'
                 if excedente_mes > 0 else
-                f"— la red aporta <b style='color:#FF5252;'>{deficit_mes:.1f} kWh/mes</b>."
+                f'— la red aporta <b style="color:#FF5252;">{deficit_mes:.1f} kWh/mes</b>.'
             )
-            _badge_icon = "✅ <b style='color:#00E676;'>Cubre completamente</b>" if cobertura_pct >= 100 else "⚠ <b style='color:#FFB300;'>Cubre parcialmente</b>"
+            _badge_icon = (
+                '<b style="color:#00E676;">✅ Cubre completamente</b>'
+                if cobertura_pct >= 100 else
+                '<b style="color:#FFB300;">⚠ Cubre parcialmente</b>'
+            )
 
             st.markdown(f"""
             <div class='sol-card' style='margin-top:1rem;border-color:rgba(0,230,118,0.4);'>
