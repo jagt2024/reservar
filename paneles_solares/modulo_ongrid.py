@@ -1051,14 +1051,36 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             n_pan          = math.ceil(pot_array_wp / wp_input)
             pot_inst       = n_pan * wp_input
 
-            # String design
-            pan_serie_min = math.ceil(v_mppt_min / vmpp_input) if vmpp_input > 0 else 1
-            pan_serie_max_mppt = math.floor(v_mppt_max / vmpp_input) if vmpp_input > 0 else 20
-            pan_serie_max_voc  = math.floor((v_mppt_max * 1.15) / voc_input) if voc_input > 0 else 20
-            pan_serie = min(pan_serie_max_mppt, pan_serie_max_voc)
-            pan_serie = max(pan_serie, pan_serie_min)
-            n_strings = max(1, math.ceil(n_pan / pan_serie))
-            n_pan_real = n_strings * pan_serie
+            # ── String design ─────────────────────────────────────────────
+            # Rango de paneles en serie según voltajes MPPT del inversor
+            pan_serie_min = max(1, math.ceil(v_mppt_min / vmpp_input)) if vmpp_input > 0 else 1
+            pan_serie_max_mppt = math.floor(v_mppt_max / vmpp_input)         if vmpp_input > 0 else 20
+            pan_serie_max_voc  = math.floor((v_mppt_max * 1.15) / voc_input) if voc_input  > 0 else 20
+            pan_serie_max = max(min(pan_serie_max_mppt, pan_serie_max_voc), pan_serie_min)
+
+            # Objetivo: encontrar (serie, paralelo) tal que serie × paralelo == n_pan
+            # Si no existe divisor exacto dentro del rango, buscar el que menos paneles agrega
+            pan_serie  = 1
+            n_strings  = n_pan
+            best_extra = 10_000   # penalización por paneles extra
+
+            for s in range(pan_serie_min, pan_serie_max + 1):
+                p = math.ceil(n_pan / s)        # strings necesarios
+                total = s * p
+                extra = total - n_pan           # paneles "sobrantes"
+                # Preferir combinación con menos sobrantes; desempate: más cuadrada
+                if extra < best_extra or (extra == best_extra and abs(s - p) < abs(pan_serie - n_strings)):
+                    best_extra = extra
+                    pan_serie  = s
+                    n_strings  = p
+
+            # Si pan_serie_min > n_pan (pocos paneles para el rango MPPT)
+            # usar 1 string con todos los paneles en serie
+            if pan_serie_min > n_pan:
+                pan_serie = n_pan
+                n_strings = 1
+
+            n_pan_real    = pan_serie * n_strings   # igual o muy cerca de n_pan
             pot_inst_real = n_pan_real * wp_input
 
             v_string_mpp = pan_serie * vmpp_input
@@ -1100,24 +1122,19 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.35rem 0;'>{pot_array_wp:.0f} W ÷ {wp_input} Wp/panel</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_array_wp/wp_input:.2f} → <b>{n_pan} paneles mín.</b></td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_array_wp/wp_input:.2f} → ↑ {n_pan} paneles</td>
                     </tr>
                     <tr style='background:#0D1B2A;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Ajuste strings ({n_strings}P × {pan_serie}S)</td>
-                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles reales</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Configuración strings</td>
+                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{pan_serie}S × {n_strings}P = {n_pan_real} paneles{"" if n_pan_real == n_pan else f" (+{n_pan_real-n_pan})"}</td>
                     </tr>
                 </table>
             </div>
             <div class='metric-grid'>
                 <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
-                    <div class='metric-val'>{n_pan}</div>
-                    <div class='metric-unit'>paneles mín.</div>
-                    <div class='metric-label'>CALC. DIRECTO</div>
-                </div>
-                <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
                     <div class='metric-val'>{n_pan_real}</div>
                     <div class='metric-unit'>paneles</div>
-                    <div class='metric-label'>CANT. TOTAL REAL</div>
+                    <div class='metric-label'>CANT. TOTAL</div>
                 </div>
                 <div class='metric-box'>
                     <div class='metric-val'>{pot_inst_real/1000:.2f}</div>
