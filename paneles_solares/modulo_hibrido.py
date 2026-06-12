@@ -1203,6 +1203,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 </table>
             </div>
             """, unsafe_allow_html=True)
+            gen_dia_h     = (pot_inst_h / 1000) * hsp_inp * pr_dec
             consumo_kwh   = consumo_inp / 1000
             autocon_h     = min(gen_dia_h, consumo_kwh)
             inj_h         = max(0, gen_dia_h - consumo_kwh)
