@@ -935,8 +935,8 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.markdown("<div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>PARÁMETROS BANCO</div>", unsafe_allow_html=True)
 
             # Leer horas guardadas desde Tab 3 (recibo) si existen
-            _horas_default_hib = session_state.get("horas_autonomia_deseada",
-                                  session_state.get("hib_horas_aut", 24.0))
+            _horas_default_hib = session_state.get("_hib_horas_aut_val",
+                                  session_state.get("horas_autonomia_deseada", 24.0))
             hib_horas_aut = st.number_input(
                 "Horas de autonomía deseada (h)",
                 min_value=1.0, max_value=168.0,
@@ -978,7 +978,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 cap_real_wh  = n_bats * hib_cap_bat * hib_v_bat
                 aut_real_h   = cap_real_wh * (hib_dod/100) / (consumo_fs_calc / 24)
                 # Guardar horas en session_state
-                session_state["hib_horas_aut"]  = hib_horas_aut
+                session_state["_hib_horas_aut_val"] = hib_horas_aut
                 session_state["_hib_aut_horas"] = aut_real_h
 
                 st.markdown(f"""
