@@ -631,6 +631,7 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
     # Usa los valores reales del proyecto si están dimensionados.
     # Si no, calcula con la fórmula correcta para cada sistema.
     pr_dec_s     = pr_sim / 100.0
+    hsp_ef_s     = hsp_sim * pr_dec_s          # HSP efectiva (HSP × PR)
     consumo_fs_s = consumo_sim * fs_factor
     consumo_kwh_s = consumo_sim / 1000.0    # base sin FS
 
