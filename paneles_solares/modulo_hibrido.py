@@ -64,22 +64,28 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     factor_hibrido=1.10 (solo ahorro) a 1.30 (máx respaldo).
     """
 
-    # ── 1. Banco de baterías (calculado PRIMERO — define energía de recarga)
+    # ── 1. Banco de baterías
     consumo_fs       = consumo_wh_dia * 1.20      # se conserva para PDF/inversor
     consumo_kwh_dia  = consumo_wh_dia / 1000.0
-    # Ah = (consumo × días_autonomía) / (V × DoD)
-    cap_bat_total_ah = (consumo_fs * dias_autonomia) / (v_bat * (dod / 100))
+    consumo_h_kwh    = consumo_kwh_dia / 24.0     # consumo horario promedio
+    # Energía real para las horas de autonomía pedidas
+    horas_autonomia_h = dias_autonomia * 24.0
+    e_autonomia_kwh  = consumo_h_kwh * horas_autonomia_h   # kWh para esas horas
+    # Cap banco: E_autonomia / DoD — con margen para redondear a módulo comercial
+    cap_banco_kwh    = e_autonomia_kwh / (dod / 100)
+    # Convertir a Ah para contar baterías
+    cap_bat_total_ah = cap_banco_kwh * 1000 / v_bat
     n_baterias       = math.ceil(cap_bat_total_ah / cap_bat_ah)
     if n_baterias % 2 != 0 and n_baterias > 1:
         n_baterias += 1
     cap_real_wh      = n_baterias * cap_bat_ah * v_bat
     cap_real_kwh     = cap_real_wh / 1000.0
-    autonomia_real_h = cap_real_wh * (dod / 100) / (consumo_wh_dia / 24)
+    autonomia_real_h = cap_real_wh * (dod / 100) / consumo_h_kwh
 
-    # ── 2. Array FV: cubre consumo diario + recarga completa del banco
-    # E_total = Consumo_día_kWh + Cap_banco_kWh
-    # Pot_FV  = E_total / (HSP × PR) × factor_hibrido (margen 10-30%)
-    e_total_kwh      = consumo_kwh_dia + cap_real_kwh
+    # ── 2. Array FV: cubre consumo diario + recarga de la energía usada en las baterías
+    # E_total = Consumo_día_kWh + E_recarga_baterías
+    # E_recarga = energía que las baterías cedieron (e_autonomia_kwh)
+    e_total_kwh      = consumo_kwh_dia + e_autonomia_kwh
     pot_array_wp_min = (e_total_kwh / (hsp * pr) * factor_hibrido * 1000) if (hsp * pr) > 0 else 0
     n_paneles        = math.ceil(pot_array_wp_min / pot_panel_wp)
     pot_instalada_wp = n_paneles * pot_panel_wp
@@ -969,14 +975,19 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_b2:
-            consumo_fs_calc = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
-            if consumo_fs_calc > 0:
-                # Fórmula: Ah = (consumo × días_autonomía) / (V × DoD)
-                cap_banco_ah = (consumo_fs_calc * hib_dias_aut) / (hib_v_bat * (hib_dod / 100))
-                n_bats       = math.ceil(cap_banco_ah / hib_cap_bat)
+            consumo_base_h4 = session_state.get("hib_consumo_fs", consumo_inv * 1.20)
+            if consumo_base_h4 > 0:
+                # Consumo horario promedio
+                consumo_h_h4    = (consumo_base_h4 / 1.20) / 24.0  # Wh/h real (sin FS)
+                # Energía para las horas de autonomía pedidas
+                e_auto_wh_h4    = consumo_h_h4 * hib_horas_aut
+                # Cap banco: E_auto / DoD
+                cap_banco_kwh_h4 = e_auto_wh_h4 / 1000 / (hib_dod / 100)
+                cap_banco_ah    = cap_banco_kwh_h4 * 1000 / hib_v_bat
+                n_bats          = math.ceil(cap_banco_ah / hib_cap_bat)
                 if n_bats % 2 != 0 and n_bats > 1: n_bats += 1
-                cap_real_wh  = n_bats * hib_cap_bat * hib_v_bat
-                aut_real_h   = cap_real_wh * (hib_dod/100) / (consumo_fs_calc / 24)
+                cap_real_wh     = n_bats * hib_cap_bat * hib_v_bat
+                aut_real_h      = (cap_real_wh * (hib_dod/100) / 1000) / (consumo_h_h4 / 1000)
                 # Guardar horas en session_state
                 session_state["_hib_horas_aut_val"] = hib_horas_aut
                 session_state["_hib_aut_horas"] = aut_real_h
@@ -984,8 +995,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 st.markdown(f"""
                 <div class='result-highlight' style='border-color:rgba(167,139,250,0.5);
                      background:linear-gradient(135deg,rgba(167,139,250,0.08),rgba(167,139,250,0.02));'>
-                    <div style='color:#8A9BBD;font-size:0.8rem;'>Ah requeridos (consumo × {hib_dias_aut:.3f} días ÷ V × DoD)</div>
-                    <div class='val' style='color:#A78BFA;'>{cap_banco_ah:.1f} Ah</div>
+                    <div style='color:#8A9BBD;font-size:0.8rem;'>
+                        Consumo horario: {consumo_h_h4:.3f} Wh/h × {hib_horas_aut:.0f}h
+                        ÷ DoD {hib_dod}% = <b>{e_auto_wh_h4/1000:.2f} kWh banco</b></div>
+                    <div class='val' style='color:#A78BFA;'>{cap_banco_ah:.1f} Ah requeridos</div>
                 </div>
                 <div class='metric-grid' style='margin-top:0.8rem;'>
                     <div class='metric-box' style='border-color:rgba(167,139,250,0.5);'>
@@ -1127,20 +1140,23 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             pr_dec       = pr_inp / 100.0
             factor_h_d5  = session_state.get("_hib_factor", 1.20)
 
-            # ── 1. Banco de baterías PRIMERO (define energía de recarga)
-            consumo_fs_h5 = consumo_inp * 1.20
-            # Ah = (consumo_fs × días_autonomía) / (V × DoD)
-            cap_bat_ah_t = (consumo_fs_h5 * dias_aut_d5) / (v_bat_d5 * (dod_d5 / 100))
-            n_bats_calc  = math.ceil(cap_bat_ah_t / cap_bat_d5)
+            # ── 1. Banco de baterías PRIMERO
+            consumo_h_h5    = consumo_inp / 24.0               # Wh/h promedio
+            # Energía para las horas de autonomía
+            e_auto_wh_h5    = consumo_h_h5 * (dias_aut_d5 * 24)
+            cap_banco_kwh_h5 = e_auto_wh_h5 / 1000 / (dod_d5 / 100)
+            cap_bat_ah_t    = cap_banco_kwh_h5 * 1000 / v_bat_d5
+            n_bats_calc     = math.ceil(cap_bat_ah_t / cap_bat_d5)
             if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
-            cap_real      = n_bats_calc * cap_bat_d5 * v_bat_d5
+            cap_real        = n_bats_calc * cap_bat_d5 * v_bat_d5
             cap_real_kwh_h5 = cap_real / 1000.0
-            aut_real_hh   = cap_real * (dod_d5/100) / (consumo_inp/24)
+            aut_real_hh     = (cap_real * (dod_d5/100) / 1000) / (consumo_h_h5 / 1000)
 
-            # ── 2. Paneles: consumo diario + recarga banco
-            consumo_kwh_h5 = consumo_inp / 1000.0
-            e_total_h5     = consumo_kwh_h5 + cap_real_kwh_h5
-            pot_min_wp     = (e_total_h5 / (hsp_inp * pr_dec) * factor_h_d5 * 1000) if hsp_inp * pr_dec > 0 else 0
+            # ── 2. Paneles: consumo diario + energía de recarga (e_auto)
+            consumo_kwh_h5  = consumo_inp / 1000.0
+            e_recarga_h5    = e_auto_wh_h5 / 1000.0            # kWh a reponer en las baterías
+            e_total_h5      = consumo_kwh_h5 + e_recarga_h5
+            pot_min_wp      = (e_total_h5 / (hsp_inp * pr_dec) * factor_h_d5 * 1000) if hsp_inp * pr_dec > 0 else 0
             n_pan          = math.ceil(pot_min_wp / wp_inp)
 
             # Strings — ajustados para no inflar n_pan
@@ -1166,33 +1182,41 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                                     math.ceil(_inv_w_h5/1000)))
 
             # ── Display fórmula paso a paso ───────────────────────────────
-            _exc_h5 = max(0, (pot_inst_h/1000)*hsp_inp*pr_dec - consumo_kwh_h5)
+            _gen_dia_h5 = (pot_inst_h/1000)*hsp_inp*pr_dec
             st.markdown(f"""
             <div class='sol-card' style='border-color:rgba(255,107,53,0.4);margin-top:0.6rem;'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
                             margin-bottom:0.6rem;'>FÓRMULA HÍBRIDA — PANELES</div>
                 <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo horario ({consumo_inp:.0f}Wh ÷ 24h)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_h_h5:.3f} Wh/h</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>× {dias_aut_d5*24:.0f}h autonomía = E banco</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{e_auto_wh_h5/1000:.3f} kWh</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo diario</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_kwh_h5:.3f} kWh</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>+ Recarga banco baterías</td>
-                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{cap_real_kwh_h5:.3f} kWh</td>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>+ Recarga baterías</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>+ {e_recarga_h5:.3f} kWh</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
                         <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>E total día</td>
                         <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{e_total_h5:.3f} kWh</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>÷ (HSP {hsp_inp}h × PR {pr_inp}%) × Factor {int(factor_h_d5*100)}%</td>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>÷ (HSP {hsp_inp}h × PR {pr_inp}%) × {int(factor_h_d5*100)}%</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_min_wp/1000:.3f} kWp mín.</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.3rem 0;'>{pot_min_wp:.0f} W ÷ {wp_inp} Wp/panel</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_min_wp/wp_inp:.2f} → ↑ {n_pan} pan.</td>
                     </tr>
-                    <tr style='background:#0D1B2A;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
                         <td style='color:#8A9BBD;padding:0.3rem 0;'>Config. strings ({pan_serie_h}S × {n_str_h}P)</td>
                         <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles {wp_inp}Wp</td>
                     </tr>
