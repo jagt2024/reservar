@@ -1052,6 +1052,80 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         ]))
         story.append(tr)
 
+        # ── Sección: Protecciones y equipos ──────────────────────────────────
+        if panel_row:
+            isc_pdf  = float(panel_row[5]) if panel_row[5] else 14.0
+            voc_pdf  = float(panel_row[4]) if panel_row[4] else 49.9
+            fus_pdf  = isc_pdf * 1.25
+            fus_std_pdf = next((f for f in [10,15,20,25,30,40,50] if f >= fus_pdf), 50)
+            corr_ac_pdf = pot_inv_fs / 220 if pot_inv_fs > 0 else 20
+            brk_ac_pdf  = corr_ac_pdf * 1.25
+            brk_std_pdf = next((f for f in [16,20,25,32,40,50,63] if f >= brk_ac_pdf), 63)
+
+            story.append(Spacer(1, 0.4*cm))
+            story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
+            story.append(Paragraph("🛡  PROTECCIONES ELÉCTRICAS", sec_st))
+            prot_data = [
+                ["COMPONENTE", "CALCULO", "SELECCION"],
+                ["Fusible string DC", f"Isc {isc_pdf}A x 1.25 = {fus_pdf:.1f}A", f"{fus_std_pdf}A DC"],
+                ["DPS DC", "Tipo II - 1000 VDC", "40 kA"],
+                ["Breaker AC 2P", f"P/220V x 1.25 = {brk_ac_pdf:.1f}A", f"{brk_std_pdf}A AC"],
+                ["DPS AC", "Tipo II - 275V", "40 kA"],
+                ["Puesta a tierra", "Sistema TT", "Verde/Amarillo"],
+            ]
+            t_prot = Table(prot_data, colWidths=[5*cm, 8*cm, 5*cm], repeatRows=1)
+            t_prot.setStyle(TableStyle([
+                ("BACKGROUND",  (0,0), (-1,0), SOL),
+                ("TEXTCOLOR",   (0,0), (-1,0), DARK),
+                ("FONTNAME",    (0,0), (-1,0), "Helvetica-Bold"),
+                ("FONTSIZE",    (0,0), (-1,0), 8),
+                ("ALIGN",       (0,0), (-1,0), "CENTER"),
+                *[("BACKGROUND",(0,i),(-1,i), CARD if i%2==0 else CARD2) for i in range(1, len(prot_data))],
+                ("TEXTCOLOR",   (0,1), (-1,-1), TEXT),
+                ("TEXTCOLOR",   (2,1), (2,-1),  colors.HexColor("#00E676")),
+                ("FONTNAME",    (0,1), (-1,-1), "Helvetica"),
+                ("FONTSIZE",    (0,1), (-1,-1), 8),
+                ("ALIGN",       (0,1), (-1,-1), "CENTER"),
+                ("GRID",        (0,0), (-1,-1), 0.4, BORDER),
+                ("TOPPADDING",  (0,0), (-1,-1), 4),
+                ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+                ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+            ]))
+            story.append(t_prot)
+
+            # Catálogo de equipos recomendados
+            story.append(Spacer(1, 0.4*cm))
+            story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER, spaceAfter=6))
+            story.append(Paragraph("🏪  EQUIPOS RECOMENDADOS (REFERENCIA)", sec_st))
+            eq_data = [
+                ["TIPO", "FABRICANTE", "MODELO", "TIPO"],
+                ["Panel Solar",   "JinkoSolar",    "Tiger Neo 550Wp",   "Monocristalino PERC"],
+                ["Panel Solar",   "Canadian Solar", "HiKu6 550Wp",      "Monocristalino"],
+                ["Inversor OFF",  "Victron Energy", "MultiPlus II 5kVA", "OFFGRID/HIBRIDO"],
+                ["Inversor HYB",  "Deye",           "SUN-5K-SG04LP1",   "HIBRIDO"],
+                ["Inversor ON",   "Growatt",        "MOD 5000TL3-X",    "ONGRID"],
+                ["Bateria LiFe",  "Pylontech",      "US5000 4.8kWh",    "LiFePO4 48V"],
+                ["Bateria LiFe",  "BYD",            "Battery Box 5.1kWh","LiFePO4 51.2V"],
+            ]
+            t_eq = Table(eq_data, colWidths=[3.5*cm, 4*cm, 5.5*cm, 4.5*cm], repeatRows=1)
+            t_eq.setStyle(TableStyle([
+                ("BACKGROUND",  (0,0), (-1,0), SOL),
+                ("TEXTCOLOR",   (0,0), (-1,0), DARK),
+                ("FONTNAME",    (0,0), (-1,0), "Helvetica-Bold"),
+                ("FONTSIZE",    (0,0), (-1,0), 8),
+                ("ALIGN",       (0,0), (-1,0), "CENTER"),
+                *[("BACKGROUND",(0,i),(-1,i), CARD if i%2==0 else CARD2) for i in range(1, len(eq_data))],
+                ("TEXTCOLOR",   (0,1), (-1,-1), TEXT),
+                ("FONTNAME",    (0,1), (-1,-1), "Helvetica"),
+                ("FONTSIZE",    (0,1), (-1,-1), 8),
+                ("ALIGN",       (0,1), (-1,-1), "LEFT"),
+                ("GRID",        (0,0), (-1,-1), 0.4, BORDER),
+                ("TOPPADDING",  (0,0), (-1,-1), 3),
+                ("BOTTOMPADDING",(0,0),(-1,-1), 3),
+                ("VALIGN",      (0,0), (-1,-1), "MIDDLE"),
+            ]))
+            story.append(t_eq)
+
     story.append(Spacer(1, 0.6*cm))
     story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
     story.append(Paragraph(
@@ -2599,18 +2673,78 @@ with tab5:
         "SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1", conn, params=(proyecto_id,))
     conn.close()
 
+    # ── CATÁLOGO DE PANELES SOLARES ────────────────────────────────────────
+    CATALOGO_PANELES = {
+        "JinkoSolar Tiger Neo 550":  {"wp": 550, "voc": 49.8, "isc": 13.96},
+        "Trina Solar Vertex 550":    {"wp": 550, "voc": 49.5, "isc": 14.01},
+        "Canadian Solar HiKu6 550":  {"wp": 550, "voc": 49.7, "isc": 13.98},
+        "LONGi Hi-MO 6 550":         {"wp": 550, "voc": 50.2, "isc": 13.95},
+        "JA Solar JAM72D30 550":     {"wp": 550, "voc": 49.6, "isc": 14.02},
+        "Risen RSM132-8-650M":       {"wp": 650, "voc": 56.4, "isc": 14.71},
+        "Bifacial 440W":             {"wp": 440, "voc": 41.8, "isc": 13.45},
+        "Personalizado":             {"wp": 550, "voc": 49.9, "isc": 14.0},
+    }
+
+    with st.expander("📋 Catálogo de Paneles Solares", expanded=False):
+        st.markdown("""
+        <div class='info-note' style='margin-bottom:0.8rem;'>
+            Selecciona un panel del catálogo para cargar sus parámetros automáticamente.
+        </div>
+        """, unsafe_allow_html=True)
+        cat_cols = st.columns(4)
+        for i, (nombre_panel, params) in enumerate(CATALOGO_PANELES.items()):
+            if nombre_panel == "Personalizado":
+                continue
+            with cat_cols[i % 4]:
+                st.markdown(f"""
+                <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
+                            padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
+                    <div style='font-size:0.72rem;color:#FFB300;font-weight:600;'>{nombre_panel}</div>
+                    <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>{params['wp']}Wp</div>
+                    <div style='font-size:0.7rem;color:#8A9BBD;'>Voc={params['voc']}V | Isc={params['isc']}A</div>
+                </div>
+                """, unsafe_allow_html=True)
+                if st.button(f"Usar", key=f"cat_panel_{nombre_panel}_{i}", use_container_width=True):
+                    st.session_state["panel_cat_sel"] = nombre_panel
+                    st.rerun()
+
+    # Detectar si hay selección del catálogo
+    _cat_sel = st.session_state.get("panel_cat_sel", "")
+    _cat_params = CATALOGO_PANELES.get(_cat_sel, {})
+
     col_p1, col_p2 = st.columns([1,1])
     with col_p1:
         st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
         st.markdown("**Parámetros del panel seleccionado**")
-        panel_modelo = st.text_input("Modelo / Referencia", value=panel_existente["modelo"].values[0] if not panel_existente.empty else "",
+        if _cat_sel:
+            st.markdown(f"<div class='info-note' style='margin-bottom:0.5rem;'>✓ Panel del catálogo: <b>{_cat_sel}</b></div>", unsafe_allow_html=True)
+        panel_modelo = st.text_input("Modelo / Referencia",
+                                      value=_cat_params.get("wp") and _cat_sel or (panel_existente["modelo"].values[0] if not panel_existente.empty else ""),
                                       placeholder="Ej: Canadian Solar CS6W-550T")
+        if _cat_sel and not panel_existente.empty == False:
+            panel_modelo = _cat_sel
         panel_wp = st.number_input("Potencia pico (Wp)", min_value=10, max_value=1000,
-                                    value=int(panel_existente["potencia_wp"].values[0]) if not panel_existente.empty else 550)
+                                    value=int(_cat_params.get("wp", int(panel_existente["potencia_wp"].values[0]) if not panel_existente.empty else 550)))
         panel_voc = st.number_input("Tensión Voc (V)", min_value=5.0, max_value=100.0,
-                                     value=float(panel_existente["voc"].values[0]) if not panel_existente.empty else 49.9, step=0.1)
+                                     value=float(_cat_params.get("voc", float(panel_existente["voc"].values[0]) if not panel_existente.empty else 49.9)), step=0.1)
         panel_isc = st.number_input("Corriente Isc (A)", min_value=0.1, max_value=30.0,
-                                     value=float(panel_existente["isc"].values[0]) if not panel_existente.empty else 14.0, step=0.1)
+                                     value=float(_cat_params.get("isc", float(panel_existente["isc"].values[0]) if not panel_existente.empty else 14.0)), step=0.1)
+
+        # ── CÁLCULO DE STRINGS MPPT ──────────────────────────────────────────
+        st.markdown("<hr class='sep' style='margin:0.8rem 0;'>", unsafe_allow_html=True)
+        st.markdown("**🔗 Cálculo Automático de Strings MPPT**")
+        mppt_max_v5 = st.number_input("Tensión máxima MPPT del controlador (V)",
+                                       min_value=100.0, max_value=1500.0, value=600.0, step=10.0,
+                                       help="Tensión máxima de entrada del controlador MPPT (ej: 600V)")
+
+        if panel_voc > 0 and mppt_max_v5 > 0:
+            paneles_por_string5 = int(mppt_max_v5 / panel_voc)
+            st.markdown(f"""
+            <div class='formula-box'>
+                {mppt_max_v5:.0f}V ÷ {panel_voc}V (Voc) = <b style='color:#FFB300;'>{paneles_por_string5} paneles/string</b>
+            </div>
+            """, unsafe_allow_html=True)
+            st.session_state["_paneles_por_string"] = paneles_por_string5
 
         if st.button("💾 Guardar Especificaciones Panel", use_container_width=True):
             conn = get_conn()
@@ -2619,32 +2753,36 @@ with tab5:
                          (proyecto_id, panel_modelo, panel_wp, panel_voc, panel_isc))
             conn.commit()
             conn.close()
+            st.session_state.pop("panel_cat_sel", None)
             st.success("Panel guardado ✓")
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
 
     with col_p2:
+        _paneles_por_string5 = st.session_state.get("_paneles_por_string", int(600 / panel_voc) if panel_voc > 0 else 12)
+        _fusible_dc5 = panel_isc * 1.25
+        _fusible_std5 = next((f for f in [10,15,20,25,30,40] if f >= _fusible_dc5), 40)
         st.markdown(f"""
         <div class='sol-card'>
             <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; margin-bottom:1rem; font-size:1.1rem;'>
-                FICHA TÉCNICA
+                FICHA TECNICA
             </div>
             <div style='display:grid; grid-template-columns:1fr 1fr; gap:0.8rem;'>
                 <div style='background:#161D30; border-radius:8px; padding:1rem; text-align:center;'>
                     <div style='font-family:Share Tech Mono; font-size:1.8rem; color:#FFB300;'>{panel_wp}</div>
-                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>Wp — POTENCIA PICO</div>
+                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>Wp - POTENCIA PICO</div>
                 </div>
                 <div style='background:#161D30; border-radius:8px; padding:1rem; text-align:center;'>
                     <div style='font-family:Share Tech Mono; font-size:1.8rem; color:#00BCD4;'>{panel_voc}</div>
-                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>V — Voc CIRCUITO ABIERTO</div>
+                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>V - Voc</div>
                 </div>
                 <div style='background:#161D30; border-radius:8px; padding:1rem; text-align:center;'>
                     <div style='font-family:Share Tech Mono; font-size:1.8rem; color:#00E676;'>{panel_isc}</div>
-                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>A — Isc CORTOCIRCUITO</div>
+                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>A - Isc</div>
                 </div>
                 <div style='background:#161D30; border-radius:8px; padding:1rem; text-align:center;'>
                     <div style='font-family:Share Tech Mono; font-size:1.8rem; color:#FFD54F;'>{(panel_wp/panel_voc):.1f}</div>
-                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>A — Impp APROX</div>
+                    <div style='font-size:0.75rem; color:#8A9BBD; margin-top:0.3rem;'>A - Impp APROX</div>
                 </div>
             </div>
             <div style='margin-top:1rem; color:#8A9BBD; font-size:0.8rem;'>
@@ -2652,6 +2790,67 @@ with tab5:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # Tabla de strings
+        st.markdown("""
+        <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                    font-size:0.9rem;letter-spacing:1px;margin:0.8rem 0 0.4rem;'>
+            DISTRIBUCION DE STRINGS (ejemplos)
+        </div>""", unsafe_allow_html=True)
+        _ejemplos_pan = [5, 10, 15, 20, 30, 40]
+        _filas_str = []
+        for _np in _ejemplos_pan:
+            _nstr = math.ceil(_np / _paneles_por_string5) if _paneles_por_string5 > 0 else 1
+            _pp_str = math.ceil(_np / _nstr) if _nstr > 0 else _np
+            _filas_str.append({"Paneles": _np, "Strings": _nstr, "Pan/String": _pp_str})
+        st.dataframe(pd.DataFrame(_filas_str).set_index("Paneles"), use_container_width=True, hide_index=False)
+
+        # Protecciones DC
+        st.markdown(f"""
+        <div class='sol-card' style='margin-top:0.8rem;'>
+            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                        margin-bottom:0.6rem;'>PROTECCIONES DC (calculo automatico)</div>
+            <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0;'>Fusible string (Isc x 1.25)</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                        {panel_isc}A x 1.25 = {_fusible_dc5:.1f}A seleccionar: <b style='color:#FFB300;'>{_fusible_std5}A DC</b></td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0;'>DPS DC</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                        Tipo II - 1000 VDC - 40 kA</td>
+                </tr>
+                <tr>
+                    <td style='color:#8A9BBD;padding:0.35rem 0;'>Seccionador DC</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                        mayor o igual Voc string</td>
+                </tr>
+            </table>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Catalogo de baterias LiFePO4
+    st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:700;
+                font-size:1.1rem;letter-spacing:1px;margin-bottom:0.8rem;'>
+        CATALOGO DE BATERIAS LiFePO4
+    </div>""", unsafe_allow_html=True)
+    CATALOGO_BATERIAS = [
+        {"Marca": "Pylontech", "Modelo": "US5000",       "kWh": 4.8,  "V": 48,   "Ah": 100},
+        {"Marca": "Dyness",    "Modelo": "BX51100",      "kWh": 5.12, "V": 51.2, "Ah": 100},
+        {"Marca": "BYD",       "Modelo": "Battery Box",  "kWh": 5.1,  "V": 51.2, "Ah": 100},
+        {"Marca": "CATL",      "Modelo": "EnerOne Plus", "kWh": 5.0,  "V": 48,   "Ah": 104},
+        {"Marca": "Sunsynk",   "Modelo": "LBSA016",      "kWh": 5.12, "V": 51.2, "Ah": 100},
+        {"Marca": "Hubble",    "Modelo": "AM-5",         "kWh": 5.5,  "V": 51.2, "Ah": 107},
+    ]
+    df_bats_cat = pd.DataFrame(CATALOGO_BATERIAS)
+    st.dataframe(df_bats_cat.set_index("Marca"), use_container_width=True, hide_index=False)
+    st.markdown("""
+    <div class='info-note'>
+        LiFePO4 DoD recomendado 80-90%, ciclos de vida 3500-6000, BMS integrado.
+    </div>""", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 6 — POTENCIA INSTALADA
@@ -3144,6 +3343,82 @@ with tab8:
                 </div>
             </div>
             """, unsafe_allow_html=True)
+
+        # ─── PROTECCIONES DC / AC ────────────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        st.markdown("""
+        <div style='font-family:Rajdhani,sans-serif;font-size:1.2rem;font-weight:700;
+                    color:#FFB300;letter-spacing:1px;margin-bottom:0.8rem;'>
+            🛡 PROTECCIONES ELÉCTRICAS DEL SISTEMA
+        </div>""", unsafe_allow_html=True)
+
+        _isc_prot = isc_7
+        _n_str_prot = max(1, math.ceil(n_pan_7 / max(1, int(600 / voc_7) if (hasattr(st.session_state,"_paneles_por_string") and 0) else (int(600 / 49.8)))))
+        try:
+            _voc_prot = float(conn7b_voc) if False else float(panel7[4]) if panel7 and len(panel7) > 4 else 49.8
+        except Exception:
+            _voc_prot = 49.8
+
+        _fus_str = _isc_prot * 1.25
+        _fus_std = next((f for f in [10,15,20,25,30,40,50] if f >= _fus_str), 50)
+        _corr_total_dc = _isc_prot * _n_str_prot
+        _breaker_dc = _corr_total_dc * 1.25
+        _breaker_dc_std = next((f for f in [20,25,32,40,50,63,80,100,125] if f >= _breaker_dc), 125)
+        _pot_ac_w = pot_paneles_7
+        _corr_ac = _pot_ac_w / 220 if _pot_ac_w > 0 else 20
+        _breaker_ac = _corr_ac * 1.25
+        _breaker_ac_std = next((f for f in [16,20,25,32,40,50,63] if f >= _breaker_ac), 63)
+
+        col_prot1, col_prot2 = st.columns(2)
+        with col_prot1:
+            st.markdown(f"""
+            <div class='sol-card'>
+                <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;
+                            margin-bottom:0.6rem;'>PROTECCIONES DC</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Fusible string (Isc x 1.25)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            {_isc_prot}A x 1.25 = {_fus_str:.1f}A<br>
+                            <b style='color:#FFB300;'>Seleccionar: {_fus_std}A DC</b></td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker DC general (Isc x N_str x 1.25)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            {_isc_prot}A x {_n_str_prot} str x 1.25 = {_breaker_dc:.1f}A<br>
+                            <b style='color:#FFB300;'>Seleccionar: {_breaker_dc_std}A DC</b></td>
+                    </tr>
+                    <tr>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>DPS DC</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            Tipo II - 1000 VDC - 40 kA</td>
+                    </tr>
+                </table>
+            </div>""", unsafe_allow_html=True)
+        with col_prot2:
+            st.markdown(f"""
+            <div class='sol-card'>
+                <div style='color:#00E676;font-family:Rajdhani,sans-serif;font-weight:600;
+                            margin-bottom:0.6rem;'>PROTECCIONES AC</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker AC (P/220V x 1.25)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            {_pot_ac_w:,.0f}W / 220V = {_corr_ac:.1f}A x 1.25 = {_breaker_ac:.1f}A<br>
+                            <b style='color:#00E676;'>Seleccionar: Breaker 2P {_breaker_ac_std}A</b></td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>DPS AC</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            Tipo II - 275V - 40 kA</td>
+                    </tr>
+                    <tr>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Puesta a tierra</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            TT - conductor verde/amarillo</td>
+                    </tr>
+                </table>
+            </div>""", unsafe_allow_html=True)
 
         # ─── RESUMEN FINAL ───────────────────────────────────────────────
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)

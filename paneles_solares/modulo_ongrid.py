@@ -921,56 +921,142 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         <div class='sol-card-title'><span class='step-badge'>3</span>
         PARÁMETROS DEL PANEL SOLAR</div>""", unsafe_allow_html=True)
 
+        # Catalogo de paneles
+        CATALOGO_PANELES_OG = {
+            "JinkoSolar Tiger Neo 550":  {"wp": 550, "voc": 49.8, "vmpp": 41.8, "isc": 13.96, "impp": 13.16},
+            "Trina Solar Vertex 550":    {"wp": 550, "voc": 49.5, "vmpp": 41.6, "isc": 14.01, "impp": 13.21},
+            "Canadian Solar HiKu6 550":  {"wp": 550, "voc": 49.7, "vmpp": 41.7, "isc": 13.98, "impp": 13.18},
+            "LONGi Hi-MO 6 550":         {"wp": 550, "voc": 50.2, "vmpp": 42.1, "isc": 13.95, "impp": 13.15},
+            "JA Solar JAM72D30 550":     {"wp": 550, "voc": 49.6, "vmpp": 41.5, "isc": 14.02, "impp": 13.22},
+            "Risen RSM132-8-650M":       {"wp": 650, "voc": 56.4, "vmpp": 47.1, "isc": 14.71, "impp": 13.80},
+        }
+        with st.expander("Catalogo de Paneles Solares", expanded=False):
+            _cat_cols_og = st.columns(3)
+            for _oi, (_pnom, _pp) in enumerate(CATALOGO_PANELES_OG.items()):
+                with _cat_cols_og[_oi % 3]:
+                    st.markdown(f"""
+                    <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
+                                padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
+                        <div style='font-size:0.72rem;color:#FFB300;font-weight:600;'>{_pnom}</div>
+                        <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>{_pp['wp']}Wp</div>
+                        <div style='font-size:0.7rem;color:#8A9BBD;'>Voc={_pp['voc']}V Vmpp={_pp['vmpp']}V Isc={_pp['isc']}A</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button("Usar", key=f"og_cat_{_oi}", use_container_width=True):
+                        session_state["_og_panel_cat"] = _pnom
+                        session_state["_og_panel_params"] = _pp
+                        st.rerun()
+
+        _og_cat_params = session_state.get("_og_panel_params", {})
+
         col_p1, col_p2 = st.columns(2)
         with col_p1:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            if _og_cat_params:
+                st.markdown(f"<div class='info-note' style='margin-bottom:0.5rem;'>Seleccionado del catalogo: <b>{session_state.get('_og_panel_cat','')}</b></div>", unsafe_allow_html=True)
             og_modelo = st.text_input("Modelo", placeholder="Canadian Solar CS6W-550T",
-                                       value=panel_row[0] if panel_row else "", key="og_modelo") \
-                        if panel_row and len(panel_row) > 0 else \
-                        st.text_input("Modelo", placeholder="Canadian Solar CS6W-550T", key="og_modelo2")
-            og_wp     = st.number_input("Potencia pico (Wp)", 50, 1000, pot_panel_def, key="og_wp")
-            og_voc    = st.number_input("Tensión Voc (V)", 5.0, 100.0, voc_def, step=0.1, key="og_voc")
-            og_vmpp   = st.number_input("Tensión Vmpp (V)", 5.0, 80.0,
-                                         round(voc_def * 0.82, 1), step=0.1, key="og_vmpp")
-            og_isc    = st.number_input("Corriente Isc (A)", 0.1, 30.0, isc_def, step=0.1, key="og_isc")
+                                       value=session_state.get("_og_panel_cat", panel_row[0] if panel_row else ""), key="og_modelo") \
+                        if not (panel_row and len(panel_row) > 0 and not _og_cat_params) else \
+                        st.text_input("Modelo", placeholder="Canadian Solar CS6W-550T",
+                                       value=session_state.get("_og_panel_cat", panel_row[0] if panel_row else ""), key="og_modelo2")
+            og_wp     = st.number_input("Potencia pico (Wp)", 50, 1000, int(_og_cat_params.get("wp", pot_panel_def)), key="og_wp")
+            og_voc    = st.number_input("Tension Voc (V)", 5.0, 100.0, float(_og_cat_params.get("voc", voc_def)), step=0.1, key="og_voc")
+            og_vmpp   = st.number_input("Tension Vmpp (V)", 5.0, 80.0,
+                                         float(_og_cat_params.get("vmpp", round(voc_def * 0.82, 1))), step=0.1, key="og_vmpp")
+            og_isc    = st.number_input("Corriente Isc (A)", 0.1, 30.0, float(_og_cat_params.get("isc", isc_def)), step=0.1, key="og_isc")
             og_impp   = st.number_input("Corriente Impp (A)", 0.1, 25.0,
-                                         round(isc_def * 0.95, 1), step=0.1, key="og_impp")
+                                         float(_og_cat_params.get("impp", round(isc_def * 0.95, 1))), step=0.1, key="og_impp")
 
-            if st.button("💾 Guardar Panel", use_container_width=True, key="og_save_panel"):
+            # Calculo strings MPPT ON-GRID
+            st.markdown("<hr class='sep' style='margin:0.8rem 0;'>", unsafe_allow_html=True)
+            st.markdown("**Calculo de Strings MPPT (ON-GRID)**")
+            og_mppt_min = st.number_input("Vmpp minimo inversor (V)", 100.0, 500.0, 200.0, 10.0, key="og_mppt_min")
+            og_mppt_max = st.number_input("Vmpp maximo inversor (V)", 200.0, 1000.0, 800.0, 10.0, key="og_mppt_max")
+            if og_vmpp > 0:
+                _ser_min_og = math.ceil(og_mppt_min / og_vmpp)
+                _ser_max_og = math.floor(og_mppt_max / og_vmpp)
+                _voc_max_og = og_mppt_max * 1.15
+                _ser_max_voc = math.floor(_voc_max_og / og_voc) if og_voc > 0 else _ser_max_og
+                _ser_opt_og = min(_ser_max_og, _ser_max_voc)
+                _fusible_og = og_isc * 1.25
+                _fusible_std_og = next((f for f in [10,15,20,25,30,40] if f >= _fusible_og), 40)
+                st.markdown(f"""
+                <div class='formula-box'>
+                    Serie min: {_ser_min_og}  |  Serie max: {_ser_max_og}  |  Optimo: <b style='color:#FFB300;'>{_ser_opt_og} paneles/string</b><br>
+                    Voc max string: {round(og_voc * _ser_opt_og, 1)}V  |  Vmpp string: {round(og_vmpp * _ser_opt_og, 1)}V
+                </div>""", unsafe_allow_html=True)
+                session_state["_og_paneles_por_string"] = _ser_opt_og
+
+            if st.button("Guardar Panel", use_container_width=True, key="og_save_panel"):
                 conn = get_conn()
                 conn.execute("DELETE FROM paneles WHERE proyecto_id=?", (proyecto_id,))
                 conn.execute("INSERT INTO paneles(proyecto_id,modelo,potencia_wp,voc,isc) VALUES(?,?,?,?,?)",
                              (proyecto_id,
-                              st.session_state.get("og_modelo", og_modelo),
+                              session_state.get("og_modelo", og_modelo),
                               og_wp, og_voc, og_isc))
                 conn.commit(); conn.close()
-                st.success("Panel guardado ✓"); st.rerun()
+                session_state.pop("_og_panel_cat", None)
+                session_state.pop("_og_panel_params", None)
+                st.success("Panel guardado"); st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_p2:
             impp_calc = og_wp / og_vmpp if og_vmpp > 0 else 0
+            _fus_og = og_isc * 1.25
+            _fus_std_og = next((f for f in [10,15,20,25,30,40] if f >= _fus_og), 40)
+            _corr_ac_og = og_wp / 220 if og_wp > 0 else 20
+            _breaker_ac_og = _corr_ac_og * 1.25
+            _breaker_ac_std_og = next((f for f in [16,20,25,32,40,50,63] if f >= _breaker_ac_og), 63)
             st.markdown(f"""
             <div class='sol-card'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
-                            margin-bottom:1rem;font-size:1.1rem;'>FICHA TÉCNICA</div>
+                            margin-bottom:1rem;font-size:1.1rem;'>FICHA TECNICA</div>
                 <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;'>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#FFB300;'>{og_wp}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>Wp — POTENCIA PICO</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>Wp - POTENCIA PICO</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#00BCD4;'>{og_voc}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V — Voc</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V - Voc</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#FFD54F;'>{og_vmpp}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V — Vmpp</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V - Vmpp</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#00E676;'>{og_impp:.1f}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>A — Impp</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>A - Impp</div>
                     </div>
                 </div>
+            </div>""", unsafe_allow_html=True)
+
+            # Inversores ON-GRID y protecciones
+            st.markdown("""
+            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                        font-size:0.9rem;margin:0.8rem 0 0.4rem;'>CATALOGO INVERSORES ON-GRID</div>""",
+                unsafe_allow_html=True)
+            _inv_og_cat = [
+                {"Marca":"Growatt","Modelo":"MOD 5000TL3-X","Tipo":"ONGRID","kW":5,"MPPT_max":1000},
+                {"Marca":"Sungrow","Modelo":"SG5.0RS",      "Tipo":"ONGRID","kW":5,"MPPT_max":1100},
+                {"Marca":"Huawei", "Modelo":"SUN2000-6KTL",  "Tipo":"ONGRID","kW":6,"MPPT_max":1100},
+                {"Marca":"Fronius","Modelo":"Primo 6.0-1",   "Tipo":"ONGRID","kW":6,"MPPT_max":800},
+            ]
+            st.dataframe(pd.DataFrame(_inv_og_cat).set_index("Marca"), use_container_width=True, hide_index=False)
+
+            st.markdown(f"""
+            <div class='sol-card' style='margin-top:0.6rem;'>
+                <div style='color:#00E676;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>PROTECCIONES AC</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Breaker AC</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            <b style='color:#00E676;'>Breaker 2P {_breaker_ac_std_og}A</b></td>
+                    </tr>
+                    <tr>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>DPS AC</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>Tipo II - 275V - 40kA</td>
+                    </tr>
+                </table>
             </div>""", unsafe_allow_html=True)
 
         # og_wp, og_voc, og_vmpp, og_isc, og_impp ya están en session_state

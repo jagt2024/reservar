@@ -866,58 +866,129 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         <div class='sol-card-title'><span class='step-badge'>3</span>
         PARÁMETROS DEL PANEL SOLAR</div>""", unsafe_allow_html=True)
 
+        # Catalogo de paneles
+        CATALOGO_PANELES_HIB = {
+            "JinkoSolar Tiger Neo 550":  {"wp": 550, "voc": 49.8, "vmpp": 41.8, "isc": 13.96, "impp": 13.16},
+            "Trina Solar Vertex 550":    {"wp": 550, "voc": 49.5, "vmpp": 41.6, "isc": 14.01, "impp": 13.21},
+            "Canadian Solar HiKu6 550":  {"wp": 550, "voc": 49.7, "vmpp": 41.7, "isc": 13.98, "impp": 13.18},
+            "LONGi Hi-MO 6 550":         {"wp": 550, "voc": 50.2, "vmpp": 42.1, "isc": 13.95, "impp": 13.15},
+            "JA Solar JAM72D30 550":     {"wp": 550, "voc": 49.6, "vmpp": 41.5, "isc": 14.02, "impp": 13.22},
+            "Risen RSM132-8-650M":       {"wp": 650, "voc": 56.4, "vmpp": 47.1, "isc": 14.71, "impp": 13.80},
+        }
+        with st.expander("Catalogo de Paneles Solares", expanded=False):
+            _cat_cols_h = st.columns(3)
+            for _hi, (_hpnom, _hpp) in enumerate(CATALOGO_PANELES_HIB.items()):
+                with _cat_cols_h[_hi % 3]:
+                    st.markdown(f"""
+                    <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
+                                padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
+                        <div style='font-size:0.72rem;color:#F59E0B;font-weight:600;'>{_hpnom}</div>
+                        <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>{_hpp['wp']}Wp</div>
+                        <div style='font-size:0.7rem;color:#8A9BBD;'>Voc={_hpp['voc']}V Isc={_hpp['isc']}A</div>
+                    </div>""", unsafe_allow_html=True)
+                    if st.button("Usar", key=f"hib_cat_{_hi}", use_container_width=True):
+                        session_state["_hib_panel_cat"] = _hpnom
+                        session_state["_hib_panel_params"] = _hpp
+                        st.rerun()
+
+        _hib_cat_params = session_state.get("_hib_panel_params", {})
+
         col_h31, col_h32 = st.columns(2)
         with col_h31:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            if _hib_cat_params:
+                st.markdown(f"<div class='info-note' style='margin-bottom:0.5rem;'>Catalogo: <b>{session_state.get('_hib_panel_cat','')}</b></div>", unsafe_allow_html=True)
             hib_modelo = st.text_input("Modelo del panel",
                 placeholder="Ej: Canadian Solar CS6W-550T",
-                value=_sv(panel_row[0] if panel_row else ""), key="hib_modelo")
-            hib_wp   = st.number_input("Potencia pico (Wp)", 50, 1000, pot_panel_def, key="hib_wp")
-            hib_voc  = st.number_input("Tensión Voc (V)", 5.0, 100.0, voc_def, step=0.1, key="hib_voc")
-            hib_vmpp = st.number_input("Tensión Vmpp (V)", 5.0, 80.0,
-                                        round(voc_def*0.82,1), step=0.1, key="hib_vmpp")
-            hib_isc  = st.number_input("Corriente Isc (A)", 0.1, 30.0, isc_def, step=0.1, key="hib_isc")
+                value=session_state.get("_hib_panel_cat", _sv(panel_row[0] if panel_row else "")), key="hib_modelo")
+            hib_wp   = st.number_input("Potencia pico (Wp)", 50, 1000, int(_hib_cat_params.get("wp", pot_panel_def)), key="hib_wp")
+            hib_voc  = st.number_input("Tension Voc (V)", 5.0, 100.0, float(_hib_cat_params.get("voc", voc_def)), step=0.1, key="hib_voc")
+            hib_vmpp = st.number_input("Tension Vmpp (V)", 5.0, 80.0,
+                                        float(_hib_cat_params.get("vmpp", round(voc_def*0.82,1))), step=0.1, key="hib_vmpp")
+            hib_isc  = st.number_input("Corriente Isc (A)", 0.1, 30.0, float(_hib_cat_params.get("isc", isc_def)), step=0.1, key="hib_isc")
             hib_impp = st.number_input("Corriente Impp (A)", 0.1, 25.0,
-                                        round(isc_def*0.95,1), step=0.1, key="hib_impp")
+                                        float(_hib_cat_params.get("impp", round(isc_def*0.95,1))), step=0.1, key="hib_impp")
 
-            if st.button("💾 Guardar Panel", use_container_width=True, key="hib_save_panel"):
+            # Strings MPPT hibrido
+            st.markdown("<hr class='sep' style='margin:0.8rem 0;'>", unsafe_allow_html=True)
+            st.markdown("**Calculo Strings MPPT (HIBRIDO)**")
+            hib_mppt_max = st.number_input("Tension maxima MPPT inversor hibrido (V)",
+                                            100.0, 1000.0, 600.0, 10.0, key="hib_mppt_max")
+            if hib_voc > 0 and hib_mppt_max > 0:
+                _hib_pps = int(hib_mppt_max / hib_voc)
+                _hib_fus = hib_isc * 1.25
+                _hib_fus_std = next((f for f in [10,15,20,25,30,40] if f >= _hib_fus), 40)
+                st.markdown(f"""
+                <div class='formula-box'>
+                    {hib_mppt_max:.0f}V / {hib_voc}V = <b style='color:#F59E0B;'>{_hib_pps} paneles/string</b>
+                    | Fusible string: <b style='color:#FFB300;'>{_hib_fus_std}A DC</b>
+                </div>""", unsafe_allow_html=True)
+                session_state["_hib_paneles_por_string"] = _hib_pps
+
+            if st.button("Guardar Panel", use_container_width=True, key="hib_save_panel"):
                 conn = get_conn()
                 conn.execute("DELETE FROM paneles WHERE proyecto_id=?", (proyecto_id,))
                 conn.execute("INSERT INTO paneles(proyecto_id,modelo,potencia_wp,voc,isc) VALUES(?,?,?,?,?)",
                              (proyecto_id, hib_modelo, hib_wp, hib_voc, hib_isc))
                 conn.commit(); conn.close()
-                st.success("Panel guardado ✓"); st.rerun()
+                session_state.pop("_hib_panel_cat", None)
+                session_state.pop("_hib_panel_params", None)
+                st.success("Panel guardado"); st.rerun()
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_h32:
+            _hib_fus2 = hib_isc * 1.25
+            _hib_fus_std2 = next((f for f in [10,15,20,25,30,40] if f >= _hib_fus2), 40)
+            _hib_corr_ac = hib_wp / 220 if hib_wp > 0 else 20
+            _hib_brk_ac = _hib_corr_ac * 1.25
+            _hib_brk_std = next((f for f in [16,20,25,32,40,50,63] if f >= _hib_brk_ac), 63)
             st.markdown(f"""
             <div class='sol-card'>
                 <div style='color:#F59E0B;font-family:Rajdhani,sans-serif;font-weight:600;
-                            margin-bottom:1rem;font-size:1.1rem;'>FICHA TÉCNICA</div>
+                            margin-bottom:1rem;font-size:1.1rem;'>FICHA TECNICA</div>
                 <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;'>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#FFB300;'>{hib_wp}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>Wp — POT. PICO</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>Wp - POT. PICO</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#00BCD4;'>{hib_voc}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V — Voc</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V - Voc</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#FFD54F;'>{hib_vmpp}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V — Vmpp</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>V - Vmpp</div>
                     </div>
                     <div style='background:#161D30;border-radius:8px;padding:1rem;text-align:center;'>
                         <div style='font-family:Share Tech Mono;font-size:1.8rem;color:#A78BFA;'>{hib_impp:.1f}</div>
-                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>A — Impp</div>
+                        <div style='font-size:0.75rem;color:#8A9BBD;margin-top:0.3rem;'>A - Impp</div>
                     </div>
                 </div>
                 <div style='margin-top:0.8rem;background:#161D30;border-radius:8px;padding:0.8rem;text-align:center;'>
                     <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#F59E0B;'>
-                        FF = Vmpp×Impp / Voc×Isc = {(hib_vmpp*hib_impp/(hib_voc*hib_isc)*100) if hib_voc*hib_isc>0 else 0:.1f}%
+                        FF = {(hib_vmpp*hib_impp/(hib_voc*hib_isc)*100) if hib_voc*hib_isc>0 else 0:.1f}%
                     </div>
-                    <div style='font-size:0.72rem;color:#8A9BBD;margin-top:0.3rem;'>Factor de Forma (≥72% ideal)</div>
+                    <div style='font-size:0.72rem;color:#8A9BBD;margin-top:0.3rem;'>Factor de Forma (mayor o igual 72% ideal)</div>
                 </div>
+            </div>""", unsafe_allow_html=True)
+
+            # Catalogos inversores hibridos y baterias
+            st.markdown("""
+            <div style='color:#F59E0B;font-family:Rajdhani,sans-serif;font-weight:600;
+                        font-size:0.9rem;margin:0.8rem 0 0.4rem;'>CATALOGOS DE REFERENCIA</div>""",
+                unsafe_allow_html=True)
+            _inv_hib_cat = [
+                {"Marca":"Deye",   "Modelo":"SUN-5K-SG04LP1","Tipo":"HIBRIDO","kW":5},
+                {"Marca":"Growatt","Modelo":"SPF 5000ES",     "Tipo":"HIBRIDO","kW":5},
+                {"Marca":"Solis",  "Modelo":"RHI-5K-48ES",   "Tipo":"HIBRIDO","kW":5},
+                {"Marca":"Victron","Modelo":"MultiPlus-II 5k","Tipo":"HIBRIDO","kW":5},
+            ]
+            st.dataframe(pd.DataFrame(_inv_hib_cat).set_index("Marca"), use_container_width=True, hide_index=False)
+            st.markdown(f"""
+            <div class='sol-card' style='margin-top:0.6rem;'>
+                <div style='color:#00E676;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>PROTECCIONES AC</div>
+                <div style='font-size:0.8rem;color:#8A9BBD;'>Breaker 2P <b style='color:#00E676;'>{_hib_brk_std}A</b>
+                | DPS Tipo II 275V 40kA | Tierra TT</div>
             </div>""", unsafe_allow_html=True)
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -928,17 +999,30 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         <div class='sol-card-title'><span class='step-badge'>4</span>
         BANCO DE BATERÍAS (RESPALDO)</div>""", unsafe_allow_html=True)
 
+        # Catalogo baterias LiFePO4
+        with st.expander("Catalogo de Baterias LiFePO4", expanded=False):
+            _hib_bats_cat = [
+                {"Marca": "Pylontech", "Modelo": "US5000",       "kWh": 4.8,  "V": 48,   "Ah": 100, "Ciclos": "6000"},
+                {"Marca": "Dyness",    "Modelo": "BX51100",      "kWh": 5.12, "V": 51.2, "Ah": 100, "Ciclos": "4000"},
+                {"Marca": "BYD",       "Modelo": "Battery Box",  "kWh": 5.1,  "V": 51.2, "Ah": 100, "Ciclos": "4000"},
+                {"Marca": "CATL",      "Modelo": "EnerOne Plus", "kWh": 5.0,  "V": 48,   "Ah": 104, "Ciclos": "6000"},
+                {"Marca": "Sunsynk",   "Modelo": "LBSA016",      "kWh": 5.12, "V": 51.2, "Ah": 100, "Ciclos": "4000"},
+                {"Marca": "Hubble",    "Modelo": "AM-5",         "kWh": 5.5,  "V": 51.2, "Ah": 107, "Ciclos": "4000"},
+            ]
+            st.dataframe(pd.DataFrame(_hib_bats_cat).set_index("Marca"), use_container_width=True, hide_index=False)
+            st.markdown("<div class='info-note'>LiFePO4 - DoD 80-90% - BMS integrado - Compatible con inversores hibridos.</div>", unsafe_allow_html=True)
+
         st.markdown("""
         <div class='formula-box'>
-            Cap. banco (Wh) = Consumo/día × Días autonomía ÷ DoD<br>
-            N° baterías = Cap. banco (Ah) ÷ Cap. batería (Ah)<br>
-            En sistemas híbridos el banco actúa como <b>respaldo nocturno y ante cortes de red</b>.
+            Cap. banco (Wh) = Consumo/dia x Dias autonomia / DoD<br>
+            N baterias = Cap. banco (Ah) / Cap. bateria (Ah)<br>
+            En sistemas hibridos el banco actua como <b>respaldo nocturno y ante cortes de red</b>.
         </div>""", unsafe_allow_html=True)
 
         col_b1, col_b2 = st.columns(2)
         with col_b1:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-            st.markdown("<div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>PARÁMETROS BANCO</div>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>PARAMETROS BANCO</div>", unsafe_allow_html=True)
 
             # Leer horas guardadas desde Tab 3 (recibo) si existen
             _horas_default_hib = session_state.get("_hib_horas_aut_val",
