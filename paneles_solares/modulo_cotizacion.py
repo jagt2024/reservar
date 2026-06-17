@@ -755,8 +755,9 @@ def mostrar_cotizacion(proyecto_id: int, session_state: dict):
                 ["BORRADOR","ENVIADA","APROBADA","RECHAZADA","VENCIDA"],
                 key="cot_estado")
 
-        cot_moneda = st.selectbox("Moneda", ["COP","USD","EUR"],
-            key="cot_moneda", horizontal=True if False else None)
+        col_mon1, col_mon2 = st.columns([1, 3])
+        with col_mon1:
+            cot_moneda = st.selectbox("Moneda", ["COP", "USD", "EUR"], key="cot_moneda")
         fecha_validez = cot_fecha + timedelta(days=cot_validez)
 
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
