@@ -1300,7 +1300,7 @@ with st.sidebar:
             ("PROYECTO ON-GRID", [
                 ("🔌  Dimensionamiento ON-GRID", "ongrid"),
                 ("🔬  Simulador ON-GRID",        "simulador"),
-                ("💰  Presupuesto",              "presupuesto"),
+                ("💰  Cotización Comercial",  "cotizacion"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1312,7 +1312,7 @@ with st.sidebar:
             ("PROYECTO HÍBRIDO", [
                 ("⚡  Dimensionamiento HÍBRIDO", "hibrido"),
                 ("🔬  Simulador HÍBRIDO",        "simulador"),
-                ("💰  Presupuesto",              "presupuesto"),
+                ("💰  Cotización Comercial",  "cotizacion"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1324,7 +1324,7 @@ with st.sidebar:
             ("PROYECTO OFF-GRID", [
                 ("🔋  Dimensionamiento OFF-GRID", "dimensionamiento"),
                 ("🔬  Simulador OFF-GRID",        "simulador"),
-                ("💰  Presupuesto",               "presupuesto"),
+                ("💰  Cotización Comercial",  "cotizacion"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1447,9 +1447,9 @@ if modulo_activo == "simulador":
     mostrar_simulador(proyecto_id, st.session_state)
     st.stop()
 
-if modulo_activo == "presupuesto":
-    from modulo_presupuesto import mostrar_presupuesto
-    mostrar_presupuesto(proyecto_id, st.session_state)
+if modulo_activo in ("cotizacion", "presupuesto"):
+    from modulo_cotizacion import mostrar_cotizacion
+    mostrar_cotizacion(proyecto_id, st.session_state)
     st.stop()
 
 # ── Módulo ON-GRID ────────────────────────────────────────────────────────────
