@@ -1277,6 +1277,59 @@ with st.sidebar:
             else:
                 st.error("Ingresa un nombre")
 
+    # ── 2b. Eliminar proyecto ─────────────────────────────────────────────────
+    if proyecto_id:
+        with st.expander("🗑 Eliminar proyecto", expanded=False):
+            conn = get_conn()
+            p_del = conn.execute(
+                "SELECT nombre FROM proyectos WHERE id=?", (proyecto_id,)
+            ).fetchone()
+            conn.close()
+            nombre_del = p_del[0] if p_del else "—"
+
+            st.markdown(f"""
+            <div class='warn-box' style='margin-bottom:0.6rem;'>
+                ⚠ Esta acción eliminará <b>permanentemente</b> el proyecto
+                <b style='color:#FFB300;'>#{proyecto_id} — {nombre_del}</b>
+                y todos sus datos asociados (cargas, paneles, baterías, recibos,
+                resultados). <b>No se puede deshacer.</b>
+            </div>
+            """, unsafe_allow_html=True)
+
+            confirmar_nombre = st.text_input(
+                "Escribe el nombre del proyecto para confirmar:",
+                placeholder=nombre_del,
+                key="del_confirm_nombre",
+            )
+
+            if st.button("🗑 Eliminar definitivamente", use_container_width=True,
+                         key="sb_eliminar"):
+                if confirmar_nombre.strip() == nombre_del.strip():
+                    conn = get_conn()
+                    conn.execute("DELETE FROM cargas     WHERE proyecto_id=?", (proyecto_id,))
+                    conn.execute("DELETE FROM paneles    WHERE proyecto_id=?", (proyecto_id,))
+                    conn.execute("DELETE FROM resultados WHERE proyecto_id=?", (proyecto_id,))
+                    conn.execute("DELETE FROM recibos    WHERE proyecto_id=?", (proyecto_id,))
+                    conn.execute("DELETE FROM proyectos  WHERE id=?",          (proyecto_id,))
+                    conn.commit()
+                    conn.close()
+                    if usuario_activo():
+                        _u2 = usuario_activo()
+                        registrar_auditoria(
+                            _u2["id"], _u2["username"],
+                            "ELIMINAR_PROYECTO",
+                            f"Proyecto #{proyecto_id} '{nombre_del}' eliminado",
+                            "app",
+                        )
+                    st.success(f"✓ Proyecto #{proyecto_id} '{nombre_del}' eliminado")
+                    # Limpiar selección y volver al inicio
+                    for _k in ("sel_proyecto", "del_confirm_nombre"):
+                        if _k in st.session_state:
+                            del st.session_state[_k]
+                    st.rerun()
+                else:
+                    st.error("El nombre no coincide. Escríbelo exactamente para confirmar.")
+
     st.markdown("<hr style='border-color:#2A3A55;margin:0.6rem 0;'>", unsafe_allow_html=True)
 
     # ── 3. Navegación de módulos ──────────────────────────────────────────────
@@ -2871,7 +2924,7 @@ with tab6:
 
     st.markdown("""
     <div class='formula-box'>
-        Potencia Instalada (Wp) = Consumo día con FS 25% (Wh) ÷ (HSP × PR)<br>
+        Potencia Instalada (Wp) = Consumo día con FS 20% (Wh) ÷ (HSP × PR)<br>
         Número de paneles = Potencia Instalada ÷ Potencia del panel (Wp)<br>
         <span style='font-size:0.85em;color:#8A9BBD;'>
         PR (Performance Ratio): pérdidas reales del sistema
