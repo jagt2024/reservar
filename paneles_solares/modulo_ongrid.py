@@ -127,10 +127,11 @@ def calcular_ongrid(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     ahorro_mes        = autoconsumo_dia * 30 * tarifa_kwh
     ingreso_inyeccion = inyeccion_dia   * 30 * tarifa_kwh * 0.5
 
-    # 5. Inversor: pot_instalada × 1.2 → estándar superior
-    _inv_w  = pot_instalada_wp * 1.2
-    _kw_std = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    pot_inv_rec_kw = float(next((k for k in _kw_std if k * 1000 >= _inv_w),
+    # 5. Inversor ON-GRID: potencia del array × FM 25% → tamaño comercial
+    # (inversor grid-tie se dimensiona por potencia FV, no por cargas)
+    _KW_COM_OG = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+    _inv_w  = pot_instalada_wp * 1.25
+    pot_inv_rec_kw = float(next((k for k in _KW_COM_OG if k * 1000 >= _inv_w),
                                  math.ceil(_inv_w / 1000)))
 
     inversion_est   = n_paneles * precio_panel + pot_inv_rec_kw * 2_000_000
@@ -1174,9 +1175,10 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             i_array      = impp_input * n_strings
 
             # Inversor recomendado
-            _inv_w_og = pot_inst_real * 1.2
-            _kw_std_og = [1,2,3,5,8,10,15,20,25,30,40,50]
-            pot_inv_kw = float(next((k for k in _kw_std_og if k*1000 >= _inv_w_og),
+            # Inversor ON-GRID: potencia del array × FM 25% → tamaño comercial
+            _KW_COM_OG2 = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+            _inv_w_og = pot_inst_real * 1.25
+            pot_inv_kw = float(next((k for k in _KW_COM_OG2 if k*1000 >= _inv_w_og),
                                     math.ceil(_inv_w_og/1000)))
 
             # Guardar resultados calculados con prefijo seguro (no son keys de widgets)
@@ -1237,6 +1239,10 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                     <div class='metric-unit'>kW</div>
                     <div class='metric-label'>INVERSOR REC.</div>
                 </div>
+            </div>
+            <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
+                🔌 Inversor ON-GRID: {pot_inst_real/1000:.2f} kWp × 1.25 = {_inv_w_og/1000:.2f} kW
+                → <b>Comercial: {pot_inv_kw} kW</b>
             </div>""", unsafe_allow_html=True)
 
             st.markdown(f"""

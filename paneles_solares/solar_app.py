@@ -493,6 +493,102 @@ def calcular_baterias(consumo_wh: float, vdc: int, dod: float = 0.50, cap: float
             "num_baterias": n,
             "energia_kwh": n * cap * vdc / 1000}
 
+# Tamaños comerciales de inversores (kW)
+_KW_COMERCIALES = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+
+def calcular_inversor(cargas_df: "pd.DataFrame",
+                      fs: float = 0.80,
+                      fm: float = 1.25,
+                      vdc: int = 24) -> dict:
+    """Dimensionamiento de inversor según metodología del documento técnico.
+
+    Pasos:
+      1. Potencia instalada = suma de (cantidad × potencia_w)
+      2. Demanda simultánea = potencia instalada × FS (factor de simultaneidad 0.6-1.0)
+      3. Potencia de arranque de motores = excedente sobre potencia nominal
+         Factor arranque: nevera/AC/ventilador→3, bomba→4, compresor→5, otros motores→2
+      4. Potencia requerida = P_simult + P_arranque
+      5. Inversor mínimo = P_requerida × FM (factor de margen 1.20-1.30)
+      6. Tamaño comercial = siguiente valor estándar superior (kW)
+      7. Corriente DC = P_inv / V_sistema
+    """
+    import pandas as _pd
+
+    # Factores de arranque por tipo de carga
+    _FACTORES_ARRANQUE = {
+        "nevera": 3, "refriger": 3, "congelador": 3,
+        "aire acondicionado": 3, "aire": 3,
+        "ventilador": 3, "bomba": 4,
+        "compresor": 5,
+        "lavadora": 2, "licuadora": 2, "procesadora": 2,
+        "extractor": 2, "motor": 2,
+    }
+
+    if cargas_df is None or cargas_df.empty:
+        return {
+            "pot_instalada": 0, "pot_simultanea": 0, "pot_arranque": 0,
+            "pot_requerida": 0, "pot_inv_minima": 0, "inv_kw": 1.0,
+            "inv_w": 1000, "corr_dc": 0,
+            "fs": fs, "fm": fm, "desglose": [],
+        }
+
+    df = cargas_df.copy()
+    df["pot_total_w"] = df["cantidad"] * df["potencia_w"]
+    pot_instalada = df["pot_total_w"].sum()
+
+    # Demanda simultánea
+    pot_simultanea = pot_instalada * fs
+
+    # Arranque de motores: solo se suma el excedente del motor más exigente
+    # (pico de arranque, no todos a la vez)
+    pot_arranque = 0.0
+    desglose_arranque = []
+    for _, row in df.iterrows():
+        nombre = str(row.get("electrodomestico", "")).lower()
+        es_mot = int(row.get("es_motor", 0))
+        pot_nom = float(row.get("pot_total_w", row["cantidad"] * row["potencia_w"]))
+        if es_mot:
+            factor_a = 2  # default
+            for keyword, fa in _FACTORES_ARRANQUE.items():
+                if keyword in nombre:
+                    factor_a = fa
+                    break
+            pot_arranque_eq = pot_nom * (factor_a - 1)  # excedente sobre nominal
+            desglose_arranque.append({
+                "equipo": row.get("electrodomestico", "—"),
+                "pot_nominal_w": pot_nom,
+                "factor_arranque": factor_a,
+                "excedente_w": pot_arranque_eq,
+            })
+        # Se toma solo el mayor pico de arranque (no suma simultánea de todos los arranques)
+    if desglose_arranque:
+        pot_arranque = max(d["excedente_w"] for d in desglose_arranque)
+
+    pot_requerida = pot_simultanea + pot_arranque
+    pot_inv_minima = pot_requerida * fm
+
+    # Tamaño comercial
+    inv_kw = float(next(
+        (k for k in _KW_COMERCIALES if k * 1000 >= pot_inv_minima),
+        math.ceil(pot_inv_minima / 1000)
+    ))
+    inv_w = inv_kw * 1000
+    corr_dc = inv_w / vdc if vdc > 0 else 0
+
+    return {
+        "pot_instalada":   pot_instalada,
+        "pot_simultanea":  pot_simultanea,
+        "pot_arranque":    pot_arranque,
+        "pot_requerida":   pot_requerida,
+        "pot_inv_minima":  pot_inv_minima,
+        "inv_kw":          inv_kw,
+        "inv_w":           inv_w,
+        "corr_dc":         corr_dc,
+        "fs":              fs,
+        "fm":              fm,
+        "desglose_arranque": desglose_arranque,
+    }
+
 # ─── EXPORT: EXCEL ────────────────────────────────────────────────────────────
 def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
     conn = get_conn()
@@ -554,7 +650,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
     ws1.row_dimensions[3].height = 6
 
     # Encabezados tabla
-    headers = ["ID","Electrodoméstico","Cant.","Potencia (W)","Pot. Total (W)","Horas/día","Consumo día (Wh)","Pot. Inversor (W)","Motor"]
+    headers = ["ID","Electrodoméstico","Cant.","Potencia (W)","Pot. Total (W)","Horas/día","Consumo día (Wh)","Motor"]
     for col_i, h in enumerate(headers, 1):
         c = ws1.cell(row=4, column=col_i, value=h)
         c.fill = hdr_fill(C_HEADER); c.font = Font(bold=True, color=C_DARK, size=9, name="Calibri")
@@ -565,8 +661,9 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
     if not cargas_df.empty:
         cargas_df["pot_total_w"]   = cargas_df["cantidad"] * cargas_df["potencia_w"]
         cargas_df["consumo_wh"]    = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
-        cargas_df["pot_inversor"]  = cargas_df.apply(
-            lambda r: r["pot_total_w"] * 4 if r["es_motor"] else r["pot_total_w"], axis=1)
+
+        _vdc_xl = proyecto_info[3] or 24
+        _inv_xl = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=_vdc_xl)
 
         alt = False
         for _, row in cargas_df.iterrows():
@@ -574,27 +671,25 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             bg = "161D30" if alt else C_SUB; alt = not alt
             vals = [row["id"], row["electrodomestico"], row["cantidad"],
                     row["potencia_w"], row["pot_total_w"], row["horas_dia"],
-                    row["consumo_wh"], row["pot_inversor"],
-                    "⚡ Sí" if row["es_motor"] else "—"]
+                    row["consumo_wh"],
+                    "⚡ Motor" if row["es_motor"] else "—"]
             for ci, v in enumerate(vals, 1):
                 c = ws1.cell(row=r, column=ci, value=v)
                 c.fill = hdr_fill(bg)
-                fc = C_WARN if (ci == 9 and row["es_motor"]) else C_TEXT
+                fc = C_WARN if (ci == 8 and row["es_motor"]) else C_TEXT
                 c.font = Font(color=fc, size=9, name="Calibri")
                 c.alignment = center() if ci != 2 else left()
                 c.border = border()
-                if ci in (4,5,7,8): c.number_format = "#,##0.0"
+                if ci in (4,5,7): c.number_format = "#,##0.0"
             ws1.row_dimensions[r].height = 18
 
         # Totales
         consumo_total = cargas_df["consumo_wh"].sum()
-        pot_inv_total = cargas_df["pot_inversor"].sum()
         consumo_fs    = consumo_total * 1.20
-        pot_inv_fs    = pot_inv_total * 1.20
 
         totales = [
-            ("", "TOTAL BASE",       "", "", cargas_df["pot_total_w"].sum(), "", consumo_total, pot_inv_total, ""),
-            ("", "TOTAL + 20% FS",   "", "", "", "",                              consumo_fs,   pot_inv_fs,    ""),
+            ("", "TOTAL BASE",    "", "", cargas_df["pot_total_w"].sum(), "", consumo_total, ""),
+            ("", "TOTAL + 20% FS","", "", "", "",                              consumo_fs,   ""),
         ]
         for t_vals in totales:
             r = ws1.max_row + 1
@@ -607,14 +702,21 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 if isinstance(v, float): c.number_format = "#,##0.0"
             ws1.row_dimensions[r].height = 20
 
-        # Bloque resumen
+        # Bloque resumen — inversor con metodología técnica
         r = ws1.max_row + 2
         summaries = [
-            ("Tensión DC del sistema (V)",    proyecto_info[3] or tension_dc(consumo_fs), C_MONO),
-            ("HSP guardado (h)",               proyecto_info[4] or "—",                   C_CYAN),
-            ("Consumo base (Wh/día)",          round(consumo_total,1),                    C_TEXT),
-            ("Consumo + 20% FS (Wh/día)",      round(consumo_fs,1),                       C_HEADER),
-            ("Pot. Inversor + 20% FS (W)",     round(pot_inv_fs,1),                       C_GREEN),
+            ("Tensión DC del sistema (V)",          proyecto_info[3] or tension_dc(consumo_fs),         C_MONO),
+            ("HSP guardado (h)",                     proyecto_info[4] or "—",                            C_CYAN),
+            ("Consumo base (Wh/día)",                round(consumo_total,1),                             C_TEXT),
+            ("Consumo + 20% FS (Wh/día)",            round(consumo_fs,1),                                C_HEADER),
+            ("— CÁLCULO INVERSOR —",                 "",                                                  C_WARN),
+            ("Pot. instalada total (W)",             round(_inv_xl["pot_instalada"],1),                  C_TEXT),
+            (f"Demanda simultánea (×FS {int(_inv_xl['fs']*100)}%)",  round(_inv_xl["pot_simultanea"],1), C_CYAN),
+            ("Pot. arranque motores (excedente)",    round(_inv_xl["pot_arranque"],1),                   C_WARN),
+            ("Pot. requerida (sim+arranque)",        round(_inv_xl["pot_requerida"],1),                  C_HEADER),
+            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)",round(_inv_xl["pot_inv_minima"],1), C_HEADER),
+            ("✅ Inversor recomendado (comercial)",  f"{_inv_xl['inv_kw']:.1f} kW / {_inv_xl['inv_w']:,.0f} W", C_GREEN),
+            (f"Corriente DC @ {_vdc_xl}V",          f"{_inv_xl['corr_dc']:.1f} A",                      C_MONO),
         ]
         ws1.merge_cells(f"A{r}:C{r}")
         ws1.cell(row=r, column=1, value="PARÁMETRO").fill = hdr_fill(C_HEADER)
@@ -671,11 +773,11 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         elif corr_mppt2 <= 60: mppt2 = "MPPT 60A"
         elif corr_mppt2 <= 100:mppt2 = "MPPT 100A"
         else: mppt2 = f"MPPT {math.ceil(corr_mppt2/50)*50}A"
-        # 5. Inversor: pot. total × 1.2
-        _pot_t2   = cargas_df["pot_inversor"].sum() if "pot_inversor" in cargas_df else consumo_fs2
-        _inv_w2   = _pot_t2 * 1.2
-        _kw_s2    = [1,2,3,5,8,10,15,20,25,30,40,50]
-        inv_kw2   = float(next((k for k in _kw_s2 if k*1000 >= _inv_w2), math.ceil(_inv_w2/1000)))
+        # Inversor — metodología técnica
+        _inv2 = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc2)
+        inv_kw2 = _inv2["inv_kw"]
+        _db2 = _inv2.get("desglose_arranque", [])
+        _arr_desc2 = " | ".join(f"{d['equipo']}(×{d['factor_arranque']})" for d in _db2) or "—"
 
         secciones = [
             ("⚡ CONSUMO ENERGÉTICO", [
@@ -712,9 +814,16 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 ("Isc panel × N° paneles",              f"{isc2} A × {n_pan2} = {corr_mppt2:.1f} A"),
                 ("Controlador recomendado",             mppt2),
             ]),
-            ("🔌 INVERSOR DC/AC", [
-                ("Potencia total cargas × 1.2",         f"{_pot_t2:,.0f} × 1.2 = {_inv_w2:,.0f} W"),
-                ("Inversor recomendado",                f"{inv_kw2:.0f} kW / {inv_kw2*1000:.0f} W"),
+            ("🔌 INVERSOR DC/AC — DIMENSIONAMIENTO TÉCNICO", [
+                ("1. Pot. instalada total",             f"{_inv2['pot_instalada']:,.0f} W"),
+                (f"2. Demanda simultánea (×FS {int(_inv2['fs']*100)}%)",
+                                                        f"{_inv2['pot_simultanea']:,.0f} W"),
+                (f"3. Pico de arranque motores",        f"{_inv2['pot_arranque']:,.0f} W — {_arr_desc2}"),
+                ("4. Potencia requerida (2+3)",         f"{_inv2['pot_requerida']:,.0f} W"),
+                (f"5. Pot. mínima inversor (×FM {int(_inv2['fm']*100)}%)",
+                                                        f"{_inv2['pot_inv_minima']:,.0f} W"),
+                ("✅ INVERSOR RECOMENDADO",             f"{inv_kw2:.1f} kW / {_inv2['inv_w']:,.0f} W"),
+                (f"Corriente DC @ {vdc2}V",             f"{_inv2['corr_dc']:.1f} A"),
             ]),
         ]
 
@@ -863,17 +972,9 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
     if not cargas_df.empty:
         cargas_df["pot_total_w"]  = cargas_df["cantidad"] * cargas_df["potencia_w"]
         cargas_df["consumo_wh"]   = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
-        cargas_df["pot_inversor"] = cargas_df.apply(
-            lambda r: r["pot_total_w"] * 4 if r["es_motor"] else r["pot_total_w"], axis=1)
 
         consumo_total = cargas_df["consumo_wh"].sum()
-        consumo_fs    = consumo_total * 1.20   # FS 20%
-        _pot_inv_base = cargas_df["pot_inversor"].sum()
-        # 5. Inversor = pot_total × 1.2, redondeado a kW estándar
-        _inv_w_p  = _pot_inv_base * 1.2
-        _kw_sp    = [1,2,3,5,8,10,15,20,25,30,40,50]
-        inv_kw_p  = float(next((k for k in _kw_sp if k*1000 >= _inv_w_p), math.ceil(_inv_w_p/1000)))
-        pot_inv_fs    = inv_kw_p * 1000
+        consumo_fs    = consumo_total * 1.20
         vdc_p         = proyecto_info[3] or tension_dc(consumo_fs)
         hsp_p         = proyecto_info[4] or 4.2
         pp_wp_p       = panel_row[3] if panel_row else 550
@@ -881,17 +982,21 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         pot_inst_p    = consumo_fs / hsp_p
         n_pan_p       = num_paneles(pot_inst_p, pp_wp_p)
         bats_p        = calcular_baterias(consumo_fs, vdc_p)
-        # 4. Controlador: Isc × N_paneles
         corr_p        = isc_p * n_pan_p
         if corr_p <= 40:   mppt_p = "MPPT 40A"
         elif corr_p <= 60: mppt_p = "MPPT 60A"
         elif corr_p <= 100:mppt_p = "MPPT 100A"
         else: mppt_p = f"MPPT {math.ceil(corr_p/50)*50}A"
 
+        # Inversor con metodología técnica
+        _inv_p = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc_p)
+        inv_kw_p  = _inv_p["inv_kw"]
+        pot_inv_fs = _inv_p["inv_w"]
+
         # ── Tabla cargas ──────────────────────────────────────────────────────
         story.append(Paragraph("⚡  ANÁLISIS DE CARGA ELÉCTRICA", sec_st))
         tbl_hdr = [["ID","Electrodoméstico","Cant.","Potencia\n(W)","Pot. Total\n(W)",
-                     "Horas/\ndía","Consumo día\n(Wh)","Pot. Inversor\n(W)","Motor"]]
+                     "Horas/\ndía","Consumo día\n(Wh)","Motor"]]
         tbl_data = tbl_hdr[:]
         for _, row in cargas_df.iterrows():
             tbl_data.append([
@@ -902,17 +1007,16 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 f"{row['pot_total_w']:,.0f}",
                 f"{row['horas_dia']:.1f}",
                 f"{row['consumo_wh']:,.1f}",
-                f"{row['pot_inversor']:,.0f}",
-                "⚡" if row["es_motor"] else "—",
+                "⚡ Motor" if row["es_motor"] else "—",
             ])
         # fila totales
         tbl_data.append(["","TOTAL BASE","","",
                           f"{cargas_df['pot_total_w'].sum():,.0f}","",
-                          f"{consumo_total:,.1f}",f"{cargas_df['pot_inversor'].sum():,.0f}",""])
+                          f"{consumo_total:,.1f}",""])
         tbl_data.append(["","TOTAL + 20% FS","","","","",
-                          f"{consumo_fs:,.1f}",f"{pot_inv_fs:,.0f}",""])
+                          f"{consumo_fs:,.1f}",""])
 
-        col_w = [1.2*cm, 6.5*cm, 1.2*cm, 2.0*cm, 2.0*cm, 1.5*cm, 2.5*cm, 2.5*cm, 1.3*cm]
+        col_w = [1.2*cm, 6.5*cm, 1.2*cm, 2.0*cm, 2.0*cm, 1.5*cm, 2.5*cm, 1.9*cm]
         t = Table(tbl_data, colWidths=col_w, repeatRows=1)
         n_data = len(tbl_data)
         t.setStyle(TableStyle([
@@ -1005,12 +1109,15 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         # ── Resumen del sistema ───────────────────────────────────────────────
         story.append(Paragraph("📊  RESUMEN EJECUTIVO DEL SISTEMA", sec_st))
 
+        _db_arr = _inv_p.get("desglose_arranque", [])
+        _arr_desc = ""
+        if _db_arr:
+            _arr_desc = " | ".join(f"{d['equipo']}(×{d['factor_arranque']})" for d in _db_arr)
         resumen_data = [
             ["MÓDULO","PARÁMETRO","VALOR"],
             ["⚡ Consumo", "Consumo base (Wh/día)",         f"{consumo_total:,.1f} Wh"],
             ["",          "Factor de seguridad 20%",         "× 1.20"],
             ["",          "Consumo con FS (Wh/día)",         f"{consumo_fs:,.1f} Wh"],
-            ["",          "Inversor recomendado",             f"{inv_kw_p:.0f} kW"],
             ["🔋 Tensión DC","Tensión estándar del sistema", f"{vdc_p} V DC"],
             ["🌞 HSP",    "Hora Solar Pico",                  f"{hsp_p} h/día"],
             ["",          "Municipio",                        proyecto_info[2] or "—"],
@@ -1025,6 +1132,17 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ["🎛 MPPT",   f"Isc ({isc_p}A) × {n_pan_p} paneles",
                           f"{corr_p:.1f} A"],
             ["",          "Controlador recomendado",           mppt_p],
+            ["🔌 Inversor","Potencia instalada total",         f"{_inv_p['pot_instalada']:,.0f} W"],
+            ["",          f"Demanda simultánea (×FS {int(_inv_p['fs']*100)}%)",
+                                                               f"{_inv_p['pot_simultanea']:,.0f} W"],
+            ["",          f"Pico arranque motores{': '+_arr_desc if _arr_desc else ''}",
+                                                               f"{_inv_p['pot_arranque']:,.0f} W"],
+            ["",          "Potencia requerida (sim+arranque)", f"{_inv_p['pot_requerida']:,.0f} W"],
+            ["",          f"Pot. mínima (×FM {int(_inv_p['fm']*100)}%)",
+                                                               f"{_inv_p['pot_inv_minima']:,.0f} W"],
+            ["",          "✅ INVERSOR RECOMENDADO (comercial)",
+                                                               f"{inv_kw_p:.1f} kW / {_inv_p['inv_w']:,.0f} W"],
+            ["",          f"Corriente DC @ {vdc_p}V",          f"{_inv_p['corr_dc']:.1f} A"],
         ]
 
         rw = [1.8*cm, 8*cm, 8*cm]
@@ -1888,7 +2006,7 @@ with tab1:
     motor_detected = es_motorizado(elec_nombre) if elec_nombre else False
     if motor_detected:
         st.markdown(f"""
-        <div class='info-note'>⚡ <b>{elec_nombre}</b> detectado como equipo motorizado — se aplicará factor ×4 en potencia de inversor</div>
+        <div class='info-note'>⚡ <b>{elec_nombre}</b> detectado como equipo motorizado — se aplicará factor de arranque (×2 a ×5 según tipo) en el cálculo del inversor</div>
         """, unsafe_allow_html=True)
 
     if st.button("➕ Agregar Carga Personalizada", use_container_width=True):
@@ -1926,24 +2044,22 @@ with tab1:
         """, unsafe_allow_html=True)
     else:
         # Calcular columnas derivadas
-        cargas["pot_total_w"]  = cargas["cantidad"] * cargas["potencia_w"]
+        cargas["pot_total_w"]    = cargas["cantidad"] * cargas["potencia_w"]
         cargas["consumo_dia_wh"] = cargas["pot_total_w"] * cargas["horas_dia"]
-        cargas["pot_inversor_w"] = cargas.apply(
-            lambda r: r["pot_total_w"] * 4 if r["es_motor"] else r["pot_total_w"], axis=1)
 
         # Tabla display
         display = cargas[["id","electrodomestico","cantidad","potencia_w","pot_total_w",
-                           "horas_dia","consumo_dia_wh","pot_inversor_w","es_motor"]].copy()
+                           "horas_dia","consumo_dia_wh","es_motor"]].copy()
         display.columns = ["ID","Electrodoméstico","Cant","Potencia(W)","Pot.Total(W)",
-                            "Horas/día","Consumo día(Wh)","Pot.Inversor(W)","Motor"]
-        display["Motor"] = display["Motor"].map({1:"⚡ Sí", 0:"—"})
+                            "Horas/día","Consumo día(Wh)","Motor"]
+        display["Motor"] = display["Motor"].map({1:"⚡ Motor", 0:"—"})
         st.dataframe(display.set_index("ID"), use_container_width=True)
 
         # Totales
-        consumo_total    = cargas["consumo_dia_wh"].sum()
-        pot_inversor_total = cargas["pot_inversor_w"].sum()
-        consumo_fs       = consumo_total * 1.20
-        pot_inversor_fs  = pot_inversor_total * 1.20
+        consumo_total      = cargas["consumo_dia_wh"].sum()
+        consumo_fs         = consumo_total * 1.20
+        _vdc_t1 = st.session_state.get("calc_vdc", 24)
+        _inv_t1 = calcular_inversor(cargas, fs=0.80, fm=1.25, vdc=_vdc_t1)
 
         st.markdown(f"""
         <div class='metric-grid'>
@@ -1958,22 +2074,32 @@ with tab1:
                 <div class='metric-label'>+ 20% Factor Seguridad</div>
             </div>
             <div class='metric-box'>
-                <div class='metric-val'>{pot_inversor_total:,.0f}</div>
+                <div class='metric-val'>{_inv_t1['pot_instalada']:,.0f}</div>
                 <div class='metric-unit'>W</div>
-                <div class='metric-label'>Pot. Inversor Base</div>
+                <div class='metric-label'>Pot. Instalada Total</div>
             </div>
             <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
-                <div class='metric-val'>{pot_inversor_fs:,.0f}</div>
+                <div class='metric-val'>{_inv_t1['inv_w']:,.0f}</div>
                 <div class='metric-unit'>W</div>
-                <div class='metric-label'>Pot. Inversor +20% FS</div>
+                <div class='metric-label'>Inversor Recomendado</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class='result-highlight'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Potencia Inversor Recomendada (con 20% FS)</div>
-            <div class='val'>{pot_inversor_fs:,.0f} W</div>
+            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
+                Inversor Recomendado — Metodología técnica (FS={int(_inv_t1['fs']*100)}% · FM={int(_inv_t1['fm']*100)}%)</div>
+            <div class='val'>{_inv_t1['inv_kw']:.1f} kW &nbsp;<span style='font-size:1.2rem;color:#FFD54F;'>({_inv_t1['inv_w']:,.0f} W)</span></div>
+        </div>
+        <div class='formula-box' style='margin-top:0.5rem;font-size:0.78rem;'>
+            P_inst={_inv_t1['pot_instalada']:,.0f}W · FS {int(_inv_t1['fs']*100)}%
+            → P_sim={_inv_t1['pot_simultanea']:,.0f}W
+            + Arr.motor={_inv_t1['pot_arranque']:,.0f}W
+            → P_req={_inv_t1['pot_requerida']:,.0f}W
+            × FM {int(_inv_t1['fm']*100)}%
+            → {_inv_t1['pot_inv_minima']:,.0f}W
+            → <b>Comercial: {_inv_t1['inv_kw']:.1f} kW</b>
         </div>
         """, unsafe_allow_html=True)
 
@@ -2009,21 +2135,20 @@ with tab1:
                                                value=float(fila_sel["horas_dia"]), step=0.5, key="edit_hrs")
             with col_e5:
                 edit_motor  = st.checkbox("Motor ⚡", value=bool(fila_sel["es_motor"]), key="edit_mot",
-                                           help="Marcar si es equipo motorizado (×4 inversor)")
+                                           help="Marcar si es equipo motorizado — factor de arranque ×2 a ×5 según tipo")
 
             # Previsualización inline
             pot_t_prev = edit_cant * edit_pot
             cons_prev  = pot_t_prev * edit_hrs
-            inv_prev   = pot_t_prev * 4 if edit_motor else pot_t_prev
             inv_color  = "FF5252" if edit_motor else "FFD54F"
-            inv_label  = "(×4)" if edit_motor else ""
+            inv_label  = "(motor — arranque ×2-×5)" if edit_motor else ""
             st.markdown(f"""
             <div style='background:#161D30; border:1px dashed #2A3A55; border-radius:8px;
                         padding:0.6rem 1rem; font-size:0.82rem; color:#8A9BBD; margin:0.5rem 0;
                         display:flex; gap:2rem; flex-wrap:wrap;'>
                 <span>Pot. total: <b style='color:#FFD54F;'>{pot_t_prev:,} W</b></span>
                 <span>Consumo/día: <b style='color:#FFD54F;'>{cons_prev:,.1f} Wh</b></span>
-                <span>Pot. inversor: <b style='color:#{inv_color};'>{inv_prev:,} W {inv_label}</b></span>
+                <span>Tipo: <b style='color:#{inv_color};'>{inv_label if edit_motor else "Estándar"}</b></span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -4305,18 +4430,14 @@ with tab10:
     pot_inst10    = consumo10_fs / hsp10 if hsp10 > 0 else 0
     # 4. Controlador: Isc × N_paneles
     corr_mppt10   = isc10 * n_pan10
-    # 5. Inversor: potencia total cargas × 1.2, redondeado estándar superior
-    if not cargas10.empty:
-        def _inv_pot(row):
-            pot = row["cantidad"] * row["potencia_w"]
-            return pot * 4 if int(row["es_motor"]) else pot
-        _pot_total10 = cargas10.apply(_inv_pot, axis=1).sum()
-    else:
-        _pot_total10 = consumo10_fs
-    _inv_w10   = _pot_total10 * 1.2
-    _kw_std10  = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-    pot_inv10_w = float(next((k for k in _kw_std10 if k * 1000 >= _inv_w10),
-                              math.ceil(_inv_w10 / 1000))) * 1000
+    # 5. Inversor — metodología técnica
+    _inv10 = calcular_inversor(cargas10 if not cargas10.empty else None,
+                               fs=0.80, fm=1.25, vdc=vdc10)
+    if _inv10["inv_w"] == 0:
+        # fallback cuando no hay cargas: dimensionar a partir del consumo
+        _inv10["inv_w"] = float(next((k*1000 for k in _KW_COMERCIALES if k*1000 >= consumo10_fs*1.25),
+                                     math.ceil(consumo10_fs*1.25/1000)*1000))
+    pot_inv10_w = _inv10["inv_w"]
     vmp10    = round(voc10 * 0.80, 1)
     serie10  = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
     par10    = math.ceil(n_pan10 / serie10)

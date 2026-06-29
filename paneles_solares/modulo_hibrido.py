@@ -119,9 +119,11 @@ def calcular_hibrido(consumo_wh_dia: float, hsp: float, pot_panel_wp: int,
     excedente_bat_kwh   = min(excedente_kwh, cap_real_wh * 0.3 / 1000)  # 30% cap diaria batería
     inyeccion_kwh       = max(0, excedente_kwh - excedente_bat_kwh)
 
-    _inv_w_h = pot_inst_real * 1.2
-    _kw_std_h = [1,2,3,5,8,10,15,20,25,30,40,50]
-    pot_inv_kw = float(next((k for k in _kw_std_h if k*1000 >= _inv_w_h),
+    # Inversor híbrido: potencia de campo FV × FM 25% → tamaño comercial
+    # (en híbrido el inversor debe manejar la potencia pico del array, no solo el consumo)
+    _KW_COM_H = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+    _inv_w_h = pot_inst_real * 1.25
+    pot_inv_kw = float(next((k for k in _KW_COM_H if k*1000 >= _inv_w_h),
                             math.ceil(_inv_w_h/1000)))
 
     # ── Generación anual
@@ -1266,10 +1268,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             v_str_mpp_h  = pan_serie_h * vmpp_inp
             v_str_oc_h   = pan_serie_h * voc_inp
             i_arr_h      = impp_inp * n_str_h
-            # 5. Inversor: pot_instalada × 1.2 → estándar superior
-            _inv_w_h5 = pot_inst_h * 1.2
-            _kw_s5    = [1,2,3,5,8,10,15,20,25,30,40,50]
-            pot_inv_h = float(next((k for k in _kw_s5 if k*1000 >= _inv_w_h5),
+            # 5. Inversor híbrido: potencia del array × FM 25% → tamaño comercial
+            _KW_COM_H5 = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+            _inv_w_h5 = pot_inst_h * 1.25
+            pot_inv_h = float(next((k for k in _KW_COM_H5 if k*1000 >= _inv_w_h5),
                                     math.ceil(_inv_w_h5/1000)))
 
             # ── Display fórmula paso a paso ───────────────────────────────
@@ -1370,6 +1372,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                     <div class='metric-val'>{pot_inv_h}</div>
                     <div class='metric-unit'>kW</div><div class='metric-label'>INVERSOR HIB.</div>
                 </div>
+            </div>
+            <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
+                🔌 Inversor: {pot_inst_h/1000:.2f} kWp × 1.25 = {_inv_w_h5/1000:.2f} kW
+                → <b>Comercial: {pot_inv_h} kW</b>
             </div>""", unsafe_allow_html=True)
 
             st.markdown(f"""
