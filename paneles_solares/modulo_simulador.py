@@ -41,6 +41,72 @@ def calcular_baterias(wh: float, vdc: int, dod: float = 0.50, cap: float = 200) 
             "num": n,
             "energia_kwh": n * cap * vdc / 1000}
 
+# Tamaños comerciales de inversores (kW) — debe coincidir con solar_app.py
+_KW_COMERCIALES = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+
+def calcular_inversor(cargas_df, fs: float = 0.80, fm: float = 1.25, vdc: int = 24) -> dict:
+    """Dimensionamiento de inversor (espejo de la función en solar_app.py).
+
+    1. Pot. instalada = Σ(cantidad×potencia_w)
+    2. Demanda simultánea = Pot.instalada × FS
+    3. Pico de arranque = excedente del motor más exigente (factor 2-5 según tipo)
+    4. Pot. requerida = P_sim + P_arranque
+    5. Pot. mínima = P_requerida × FM
+    6. Tamaño comercial = siguiente valor estándar superior
+    """
+    _FACTORES_ARRANQUE = {
+        "nevera": 3, "refriger": 3, "congelador": 3,
+        "aire acondicionado": 3, "aire": 3,
+        "ventilador": 3, "bomba": 4,
+        "compresor": 5,
+        "lavadora": 2, "licuadora": 2, "procesadora": 2,
+        "extractor": 2, "motor": 2,
+    }
+
+    if cargas_df is None or cargas_df.empty:
+        return {"pot_instalada": 0, "pot_simultanea": 0, "pot_arranque": 0,
+                "pot_requerida": 0, "pot_inv_minima": 0, "inv_kw": 1.0,
+                "inv_w": 1000, "corr_dc": 0, "fs": fs, "fm": fm,
+                "desglose_arranque": []}
+
+    df = cargas_df.copy()
+    df["pot_total_w"] = df["cantidad"] * df["potencia_w"]
+    pot_instalada  = df["pot_total_w"].sum()
+    pot_simultanea = pot_instalada * fs
+
+    pot_arranque = 0.0
+    desglose_arranque = []
+    for _, row in df.iterrows():
+        nombre  = str(row.get("electrodomestico", "")).lower()
+        es_mot  = int(row.get("es_motor", 0))
+        pot_nom = float(row.get("pot_total_w", row["cantidad"] * row["potencia_w"]))
+        if es_mot:
+            factor_a = 2
+            for keyword, fa in _FACTORES_ARRANQUE.items():
+                if keyword in nombre:
+                    factor_a = fa
+                    break
+            pot_arranque_eq = pot_nom * (factor_a - 1)
+            desglose_arranque.append({"equipo": row.get("electrodomestico", "—"),
+                                      "pot_nominal_w": pot_nom,
+                                      "factor_arranque": factor_a,
+                                      "excedente_w": pot_arranque_eq})
+    if desglose_arranque:
+        pot_arranque = max(d["excedente_w"] for d in desglose_arranque)
+
+    pot_requerida  = pot_simultanea + pot_arranque
+    pot_inv_minima = pot_requerida * fm
+    inv_kw = float(next((k for k in _KW_COMERCIALES if k * 1000 >= pot_inv_minima),
+                         math.ceil(pot_inv_minima / 1000)))
+    inv_w  = inv_kw * 1000
+    corr_dc = inv_w / vdc if vdc > 0 else 0
+
+    return {"pot_instalada": pot_instalada, "pot_simultanea": pot_simultanea,
+            "pot_arranque": pot_arranque, "pot_requerida": pot_requerida,
+            "pot_inv_minima": pot_inv_minima, "inv_kw": inv_kw, "inv_w": inv_w,
+            "corr_dc": corr_dc, "fs": fs, "fm": fm,
+            "desglose_arranque": desglose_arranque}
+
 def payback(costo: float, ahorro_anual: float) -> float:
     return round(costo / ahorro_anual, 1) if ahorro_anual > 0 else 0
 
@@ -360,13 +426,18 @@ def _cargar_offgrid(ss: dict, pan, p, cargas) -> dict:
         elif corr_mppt <= 60:  mppt_m = "MPPT 60A"
         elif corr_mppt <= 100: mppt_m = "MPPT 100A"
         else: mppt_m = f"MPPT {math.ceil(corr_mppt/50)*50}A" if corr_mppt else "—"
-    # Inversor: pot_total_cargas × 1.2
-    _pot_t = cargas.apply(
-        lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
-    ).sum() if not cargas.empty else pot_i
-    _inv_w  = _pot_t * 1.2
-    _kw_s   = [1,2,3,5,8,10,15,20,25,30,40,50]
-    inv_kw  = float(next((k for k in _kw_s if k*1000 >= _inv_w), math.ceil(_inv_w/1000)))
+    # Inversor — metodología técnica (FS demanda simultánea + arranque motores + FM)
+    _KW_COM_SIM = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+    inv_kw = ss.get("calc_inv_kw", 0.0)
+    if not inv_kw:
+        if not cargas.empty:
+            _inv_res = calcular_inversor(cargas, fs=0.80, fm=1.25, vdc=int(vdc))
+            inv_kw = _inv_res["inv_kw"]
+        else:
+            # Fallback sin inventario de cargas: consumo × FM 1.25
+            _inv_w_fb = consumo * 1.25
+            inv_kw = float(next((k for k in _KW_COM_SIM if k*1000 >= _inv_w_fb),
+                                math.ceil(_inv_w_fb/1000)))
 
     return dict(hsp=hsp, pr=pr, wp=wp, voc=voc, isc=isc, n_pan=n_pan,
                 pot_inst=pot_i, pot_inv_kw=inv_kw, consumo_fs=consumo,
@@ -727,21 +798,26 @@ def mostrar_simulador(proyecto_id: int, ss: dict):
         elif corr_mppt_s > 0:    mppt_s = f"MPPT {math.ceil(corr_mppt_s/50)*50}A"
         else:                    mppt_s = datos_sis.get("mppt_modelo", "—")
 
-    # 5. Inversor: usar dimensionado si existe, sino calcular
+    # 5. Inversor: usar dimensionado si existe, sino calcular con metodología técnica
     _inv_dim = datos_sis.get("pot_inv_kw", 0.0)
     if _inv_dim > 0 and tiene_datos:
         inv_kva_s = float(_inv_dim)
     else:
-        if not cargas.empty:
-            _pot_total_s = cargas.apply(
-                lambda r: r["cantidad"]*r["potencia_w"]*(4 if int(r["es_motor"]) else 1), axis=1
-            ).sum()
+        _KW_COM_S2 = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+        if _es_offgrid_s and not cargas.empty:
+            # OFF-GRID: demanda simultánea (FS 80%) + pico de arranque de motores + FM 25%
+            _inv_res_s = calcular_inversor(cargas, fs=0.80, fm=1.25, vdc=int(vdc_s))
+            inv_kva_s  = _inv_res_s["inv_kw"]
+        elif _es_offgrid_s:
+            # OFF-GRID sin inventario de cargas: consumo × FM 1.25
+            _inv_w_s  = consumo_fs_s * 1.25
+            inv_kva_s = float(next((k for k in _KW_COM_S2 if k*1000 >= _inv_w_s),
+                                   math.ceil(_inv_w_s/1000)))
         else:
-            _pot_total_s = consumo_fs_s
-        _inv_w_s  = _pot_total_s * 1.2
-        _kw_std_s = [1, 2, 3, 5, 8, 10, 15, 20, 25, 30, 40, 50]
-        inv_kva_s = float(next((k for k in _kw_std_s if k * 1000 >= _inv_w_s),
-                               math.ceil(_inv_w_s / 1000)))
+            # ON-GRID / HÍBRIDO: dimensionado por potencia del campo FV × FM 25%
+            _inv_w_s  = pot_real_s * 1.25
+            inv_kva_s = float(next((k for k in _KW_COM_S2 if k*1000 >= _inv_w_s),
+                                   math.ceil(_inv_w_s/1000)))
 
     # Financiero — diferente según sistema
     consumo_dia_kwh_s = consumo_sim / 1000
