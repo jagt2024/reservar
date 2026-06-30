@@ -3224,6 +3224,60 @@ with tab6:
             </div>
             """, unsafe_allow_html=True)
 
+            # ── Inversor — metodología técnica (igual a la usada en el resto del sistema)
+            conn = get_conn()
+            _cargas_t6 = pd.read_sql(
+                "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
+                conn, params=(proyecto_id,))
+            conn.close()
+            vdc5 = st.session_state.get("calc_vdc", tension_dc(consumo5_fs))
+            _inv5 = calcular_inversor(_cargas_t6 if not _cargas_t6.empty else None,
+                                      fs=0.80, fm=1.25, vdc=vdc5)
+            if _inv5["inv_w"] == 0:
+                _inv5_w_fb = consumo5_fs * 1.25
+                _inv5["inv_w"]  = float(next(
+                    (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
+                    math.ceil(_inv5_w_fb/1000)*1000))
+                _inv5["inv_kw"] = _inv5["inv_w"] / 1000
+                _inv5["corr_dc"] = _inv5["inv_w"] / vdc5 if vdc5 > 0 else 0
+            st.session_state["calc_inv_kw"]  = _inv5["inv_kw"]
+            st.session_state["calc_inv_w"]   = _inv5["inv_w"]
+
+            # Baterías estimadas (para la tabla resumen técnica)
+            bats5 = calcular_baterias(consumo5_fs, vdc5)
+
+            st.markdown(f"""
+            <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
+                🔌 Inversor: P_inst={_inv5['pot_instalada']:,.0f}W × FS {int(_inv5['fs']*100)}%
+                → P_sim={_inv5['pot_simultanea']:,.0f}W + Arr.motor={_inv5['pot_arranque']:,.0f}W
+                → P_req={_inv5['pot_requerida']:,.0f}W × FM {int(_inv5['fm']*100)}%
+                → <b>Comercial: {_inv5['inv_kw']:.1f} kW</b>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.8rem;'>
+              <div class='sol-card'>
+                <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>ARRAY FV</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Paneles en paralelo</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{num_pan5}</td></tr>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Pot. real instalada</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{pot_real5:,} Wp</td></tr>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Tensión DC sistema</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{vdc5} V</td></tr>
+                  <tr><td style='color:#8A9BBD;'>Gen. anual estimada</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia5_kwh*365:,.0f} kWh/año</td></tr>
+                </table>
+              </div>
+              <div class='sol-card'>
+                <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>BATERÍAS (estimado)</div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>N° unidades (100Ah)</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{bats5['num_baterias']}</td></tr>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Cap. banco</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{bats5['energia_kwh']:.2f} kWh</td></tr>
+                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversor recomendado</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{_inv5['inv_kw']:.1f} kW</td></tr>
+                  <tr><td style='color:#8A9BBD;'>Corriente DC inversor</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{_inv5['corr_dc']:.1f} A</td></tr>
+                </table>
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 7 — BATERÍAS
 # ════════════════════════════════════════════════════════════════════════════
