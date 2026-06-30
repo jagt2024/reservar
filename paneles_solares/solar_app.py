@@ -3397,11 +3397,8 @@ with tab8:
     cargas7 = pd.read_sql("SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
                            conn, params=(proyecto_id,))
     p7 = conn.execute("SELECT hsp, tension_dc FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
-    panel7 = conn.execute("SELECT potencia_wp FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+    panel7 = conn.execute("SELECT potencia_wp, voc, isc FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
                            (proyecto_id,)).fetchone()
-    recibo_res = pd.read_sql(
-        "SELECT periodo, kwh_periodo, dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
-        conn, params=(proyecto_id,))
     conn.close()
 
     consumo_inv7 = (cargas7["cantidad"] * cargas7["potencia_w"] * cargas7["horas_dia"]).sum() if not cargas7.empty else 0.0
@@ -3440,14 +3437,39 @@ with tab8:
             </div>
             """, unsafe_allow_html=True)
 
-        # Recalcular todo
-        potencia_inst7 = consumo7_fs / hsp7
-        num_pan7 = num_paneles(potencia_inst7, pot_panel7)
-        pot_real_paneles = num_pan7 * pot_panel7
+        # ── Usar datos ya calculados en Tab 6 (Potencia) si existen ────────
+        # Esto evita recalcular con HSP/PR/factor genéricos y respeta los
+        # ajustes que el usuario hizo en el Módulo 6, sin importar si la
+        # fuente de consumo fue inventario de cargas o recibo de luz.
+        _tab6_disponible = "calc_num_paneles" in st.session_state
+        if _tab6_disponible:
+            num_pan7         = st.session_state.get("calc_num_paneles", 0)
+            pot_panel7       = st.session_state.get("calc_pot_panel_wp", pot_panel7)
+            pot_real_paneles = st.session_state.get("calc_pot_real_wp", num_pan7 * pot_panel7)
+            hsp7             = st.session_state.get("calc_hsp", hsp7)
+            consumo7_fs      = st.session_state.get("calc_consumo_fs_wh", consumo7_fs)
+            st.markdown("""
+            <div class='info-note' style='margin-bottom:0.8rem;border-color:rgba(0,230,118,0.4);'>
+                ✅ Usando paneles y potencia ya dimensionados en el <b>Módulo 6 · Potencia</b>
+                (incluye tu ajuste de PR y factor de baterías)
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            # Fallback: recalcular si el usuario no ha pasado por Tab 6
+            potencia_inst7   = consumo7_fs / hsp7
+            num_pan7         = num_paneles(potencia_inst7, pot_panel7)
+            pot_real_paneles = num_pan7 * pot_panel7
+            st.markdown("""
+            <div class='warn-box' style='margin-bottom:0.8rem;'>
+                ⚠ No se encontraron datos del Módulo 6 · Potencia en esta sesión — se recalculó
+                con HSP/PR por defecto. Visita el Módulo 6 para un dimensionamiento más preciso.
+            </div>
+            """, unsafe_allow_html=True)
+
         bats7 = calcular_baterias(consumo7_fs, vdc7)
-        # 4. Controlador: Isc × N_paneles
-        isc7 = st.session_state.get("calc_isc", 8.02) if "calc_isc" in st.session_state else (
-            st.session_state.get("panel_isc", 8.02))
+        # Isc del panel: priorizar el de la BD (Módulo 5), luego session_state
+        isc7 = (panel7[2] if panel7 and len(panel7) > 2 and panel7[2] else
+                st.session_state.get("calc_isc", st.session_state.get("panel_isc", 8.02)))
         ah_banco7 = bats7["num_baterias"] * 100
         corriente_mppt7 = isc7 * num_pan7   # Isc × N° paneles
 
@@ -3542,7 +3564,7 @@ with tab8:
         _isc_prot = isc_7
         _n_str_prot = max(1, math.ceil(n_pan_7 / max(1, int(600 / voc_7) if (hasattr(st.session_state,"_paneles_por_string") and 0) else (int(600 / 49.8)))))
         try:
-            _voc_prot = float(conn7b_voc) if False else float(panel7[4]) if panel7 and len(panel7) > 4 else 49.8
+            _voc_prot = float(conn7b_voc) if False else float(panel7[1]) if panel7 and len(panel7) > 1 else 49.8
         except Exception:
             _voc_prot = 49.8
 
