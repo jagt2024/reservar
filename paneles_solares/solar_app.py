@@ -3399,6 +3399,9 @@ with tab8:
     p7 = conn.execute("SELECT hsp, tension_dc FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
     panel7 = conn.execute("SELECT potencia_wp, voc, isc FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
                            (proyecto_id,)).fetchone()
+    recibo_res = pd.read_sql(
+        "SELECT periodo, kwh_periodo, dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+        conn, params=(proyecto_id,))
     conn.close()
 
     consumo_inv7 = (cargas7["cantidad"] * cargas7["potencia_w"] * cargas7["horas_dia"]).sum() if not cargas7.empty else 0.0
