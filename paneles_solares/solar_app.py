@@ -3615,6 +3615,26 @@ with tab8:
         </div>
         """, unsafe_allow_html=True)
 
+        # ── Inversor desde metodología técnica ─────────────────────────────
+        conn = get_conn()
+        _cargas_r8 = pd.read_sql(
+            "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
+            conn, params=(proyecto_id,))
+        conn.close()
+        _inv8 = calcular_inversor(_cargas_r8 if not _cargas_r8.empty else None,
+                                  fs=0.80, fm=1.25, vdc=vdc7)
+        if _inv8["inv_w"] == 0:
+            # Fallback cuando no hay inventario de cargas: usar consumo×FM
+            _inv8_w_fallback = consumo7_fs * 1.25
+            _inv8["inv_w"]  = float(next(
+                (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv8_w_fallback),
+                math.ceil(_inv8_w_fallback/1000)*1000))
+            _inv8["inv_kw"] = _inv8["inv_w"] / 1000
+            _inv8["corr_dc"] = _inv8["inv_w"] / vdc7 if vdc7 > 0 else 0
+            _inv8["_fallback"] = True
+        else:
+            _inv8["_fallback"] = False
+
         # Recibo info banner
         if not recibo_res.empty:
             r0 = recibo_res.iloc[0]
@@ -3636,7 +3656,7 @@ with tab8:
             </div>
             """, unsafe_allow_html=True)
 
-        col_r1, col_r2, col_r3, col_r4 = st.columns(4)
+        col_r1, col_r2, col_r3, col_r4, col_r5 = st.columns(5)
         with col_r1:
             st.markdown(f"""
             <div class='metric-box' style='border-color:#FFB300;'>
@@ -3673,6 +3693,35 @@ with tab8:
                 <div class='metric-label'>CONTROLADOR MPPT</div>
             </div>
             """, unsafe_allow_html=True)
+        with col_r5:
+            st.markdown(f"""
+            <div class='metric-box' style='border-color:rgba(255,107,53,0.6);'>
+                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🔌</div>
+                <div class='metric-val' style='color:#FF6B35;'>{_inv8['inv_kw']:.1f}</div>
+                <div class='metric-unit'>kW / {_inv8['inv_w']:,.0f} W</div>
+                <div class='metric-label'>INVERSOR REC.</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Desglose técnico del inversor
+        if _inv8["_fallback"]:
+            _inv8_desc = f"Consumo {consumo7_fs:,.0f} Wh/día × FM 125% (sin inventario de cargas)"
+        else:
+            _inv8_desc = (
+                f"P_inst={_inv8['pot_instalada']:,.0f}W · FS {int(_inv8['fs']*100)}%"
+                f" → P_sim={_inv8['pot_simultanea']:,.0f}W"
+                f" + Arr.motor={_inv8['pot_arranque']:,.0f}W"
+                f" → P_req={_inv8['pot_requerida']:,.0f}W"
+                f" × FM {int(_inv8['fm']*100)}%"
+                f" → {_inv8['pot_inv_minima']:,.0f}W"
+                f" → <b>Comercial: {_inv8['inv_kw']:.1f} kW</b>"
+            )
+        st.markdown(f"""
+        <div class='formula-box' style='margin-top:0.6rem;font-size:0.78rem;'>
+            🔌 Inversor (metodología técnica): {_inv8_desc}
+            &nbsp;| Corriente DC @ {vdc7}V: <b>{_inv8['corr_dc']:.1f} A</b>
+        </div>
+        """, unsafe_allow_html=True)
 
         # Guardar resultado
         if st.button("💾 Guardar Resultados del Proyecto", use_container_width=True):
@@ -4434,9 +4483,13 @@ with tab10:
     _inv10 = calcular_inversor(cargas10 if not cargas10.empty else None,
                                fs=0.80, fm=1.25, vdc=vdc10)
     if _inv10["inv_w"] == 0:
-        # fallback cuando no hay cargas: dimensionar a partir del consumo
-        _inv10["inv_w"] = float(next((k*1000 for k in _KW_COMERCIALES if k*1000 >= consumo10_fs*1.25),
-                                     math.ceil(consumo10_fs*1.25/1000)*1000))
+        # Fallback: sin inventario de cargas → usar consumo seleccionado × FM
+        _inv10_fallback_w = consumo10_fs * 1.25
+        _inv10["inv_w"]   = float(next(
+            (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv10_fallback_w),
+            math.ceil(_inv10_fallback_w/1000)*1000))
+        _inv10["inv_kw"]  = _inv10["inv_w"] / 1000
+        _inv10["corr_dc"] = _inv10["inv_w"] / vdc10 if vdc10 > 0 else 0
     pot_inv10_w = _inv10["inv_w"]
     vmp10    = round(voc10 * 0.80, 1)
     serie10  = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
