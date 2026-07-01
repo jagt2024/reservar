@@ -480,18 +480,63 @@ def num_paneles(potencia_instalada: float, potencia_panel: float) -> int:
         return 0
     return math.ceil(potencia_instalada / potencia_panel)
 
-def calcular_baterias(consumo_wh: float, vdc: int, dod: float = 0.50, cap: float = 200) -> dict:
+def calcular_baterias(consumo_wh: float, vdc: int,
+                      dod: float = 0.50,
+                      cap: float = 100,
+                      dias_autonomia: float = 1.0,
+                      eficiencia: float = 0.90) -> dict:
     """
-    Fórmula: Ah = (consumo_wh × días_autonomía) / (V_sistema × DoD)
-    Con días_autonomía = 1 por defecto.
+    Dimensionamiento de banco de baterías — 5 parámetros principales:
+      1. consumo_wh     : Consumo diario de energía (Wh/día)
+      2. dias_autonomia : Días de autonomía sin sol (default 1 día = 24 h)
+      3. vdc            : Voltaje del banco de baterías (12 / 24 / 48 V)
+      4. dod            : Profundidad máxima de descarga — fracción (0.0-1.0)
+      5. eficiencia     : Eficiencia global del sistema — fracción (0.0-1.0)
+                          (pérdidas en inversores, cables, autodescargas, etc.)
+
+    Fórmula:
+      E_total (Wh) = consumo_wh × días_autonomía / eficiencia
+      Ah_req       = E_total / (V_banco × DoD)
+      N° baterías  = ⌈ Ah_req / cap_bateria ⌉
     """
-    ah_req  = consumo_wh / (vdc * dod)
-    n       = math.ceil(ah_req / cap)
-    return {"ah_bruto": consumo_wh / vdc,
-            "ah_dod":   ah_req,
-            "ah_final": ah_req,
-            "num_baterias": n,
-            "energia_kwh": n * cap * vdc / 1000}
+    e_total  = (consumo_wh * dias_autonomia) / max(eficiencia, 0.01)
+    ah_bruto = e_total / max(vdc, 1)
+    ah_req   = e_total / (max(vdc, 1) * max(dod, 0.01))
+    n        = math.ceil(ah_req / max(cap, 1))
+    # Ajustar a número par si es > 1 (facilita configuración serie/paralelo)
+    if n > 1 and n % 2 != 0:
+        n += 1
+    cap_real_ah  = n * cap
+    energia_real = cap_real_ah * vdc / 1000          # kWh brutos
+    autonomia_real_h = (cap_real_ah * vdc * dod * eficiencia) / max(consumo_wh / 24, 0.001)
+    return {
+        "ah_bruto":          ah_bruto,
+        "ah_dod":            ah_req,
+        "ah_final":          ah_req,
+        "num_baterias":      n,
+        "cap_real_ah":       cap_real_ah,
+        "energia_kwh":       energia_real,
+        "energia_util_kwh":  energia_real * dod * eficiencia,
+        "autonomia_real_h":  autonomia_real_h,
+        "autonomia_real_d":  autonomia_real_h / 24,
+        "e_total_wh":        e_total,
+        "eficiencia":        eficiencia,
+        "dod":               dod,
+        "dias_autonomia":    dias_autonomia,
+        "vdc":               vdc,
+        "cap_bat_ah":        cap,
+    }
+
+def _bat_params(ss: dict = None) -> dict:
+    """Devuelve los parámetros de baterías guardados en session_state (o defaults).
+    Úsalo para pasar parámetros consistentes a calcular_baterias() en todo el app."""
+    _ss = ss or {}
+    return {
+        "dod":            _ss.get("calc_dod_pct",       80) / 100,
+        "cap":            _ss.get("calc_bat_cap_ah",    100),
+        "dias_autonomia": _ss.get("calc_dias_autonomia", 1.0),
+        "eficiencia":     _ss.get("calc_eff_pct",        90) / 100,
+    }
 
 # Tamaños comerciales de inversores (kW)
 _KW_COMERCIALES = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
@@ -765,7 +810,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         isc2           = panel_row[5] if panel_row else 8.02
         pot_inst2      = consumo_fs2 / hsp2
         n_pan2         = num_paneles(pot_inst2, pp_wp)
-        bats2          = calcular_baterias(consumo_fs2, vdc2)
+        bats2          = calcular_baterias(consumo_fs2, vdc2, **_bat_params(st.session_state))
         # 4. Controlador: Isc × N_paneles
         corr_mppt2     = isc2 * n_pan2
 
@@ -803,11 +848,18 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 ("Potencia real instalada (Wp)",        f"{n_pan2 * pp_wp:,} Wp"),
             ]),
             ("🔋 BANCO DE BATERÍAS", [
-                ("Ah requeridos (consumo÷V÷DoD)",       f"{bats2['ah_dod']:,.1f} Ah"),
-                ("Profundidad de descarga (DoD)",        "50%"),
-                ("Número de baterías 200Ah",             f"{bats2['num_baterias']} unidades"),
-                ("Capacidad real instalada",             f"{bats2['num_baterias']*200} Ah @ {vdc2}V"),
-                ("Energía almacenada (kWh)",             f"{bats2['energia_kwh']:.2f} kWh"),
+                ("① Consumo diario con FS (Wh/día)",    f"{consumo_fs2:,.1f} Wh"),
+                ("② Días de autonomía",                  f"{bats2['dias_autonomia']:.3f} días ({bats2['dias_autonomia']*24:.0f} h)"),
+                ("③ Voltaje banco",                      f"{vdc2} V DC"),
+                (f"④ DoD",                               f"{int(bats2['dod']*100)}%"),
+                (f"⑤ Eficiencia sistema (η)",            f"{int(bats2['eficiencia']*100)}%"),
+                ("E_total = consumo × días ÷ η",         f"{bats2['e_total_wh']:,.1f} Wh"),
+                ("Ah = E_total ÷ (V × DoD)",             f"{bats2['ah_dod']:,.1f} Ah"),
+                (f"Número de baterías {int(bats2['cap_bat_ah'])} Ah", f"{bats2['num_baterias']} unidades"),
+                ("Capacidad real instalada",              f"{bats2['cap_real_ah']:,} Ah @ {vdc2}V"),
+                ("Energía bruta almacenada",              f"{bats2['energia_kwh']:.2f} kWh"),
+                ("✅ Energía utilizable",                 f"{bats2['energia_util_kwh']:.2f} kWh"),
+                ("Autonomía real",                        f"{bats2['autonomia_real_h']:.1f} h ({bats2['autonomia_real_d']:.2f} días)"),
             ]),
             ("🎛 CONTROLADOR MPPT", [
                 ("Tensión del sistema",                 f"{vdc2} V"),
@@ -981,7 +1033,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         isc_p         = panel_row[5] if panel_row else 8.02
         pot_inst_p    = consumo_fs / hsp_p
         n_pan_p       = num_paneles(pot_inst_p, pp_wp_p)
-        bats_p        = calcular_baterias(consumo_fs, vdc_p)
+        bats_p        = calcular_baterias(consumo_fs, vdc_p, **_bat_params(st.session_state))
         corr_p        = isc_p * n_pan_p
         if corr_p <= 40:   mppt_p = "MPPT 40A"
         elif corr_p <= 60: mppt_p = "MPPT 60A"
@@ -1126,9 +1178,18 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ["",          "Potencia mínima instalada (Wp)",   f"{pot_inst_p:,.0f} Wp"],
             ["",          "Número de paneles",                 f"{n_pan_p} paneles"],
             ["",          "Potencia real instalada (Wp)",      f"{n_pan_p*pp_wp_p:,} Wp"],
-            ["🔋 Baterías","Ah = consumo÷(V×DoD)",           f"{bats_p['ah_dod']:,.1f} Ah"],
-            ["",          "Número baterías 200Ah",             f"{bats_p['num_baterias']} unidades"],
-            ["",          "Energía almacenada",                f"{bats_p['energia_kwh']:.2f} kWh"],
+            ["🔋 Baterías","① Consumo diario con FS (Wh/día)",    f"{consumo_fs:,.1f} Wh"],
+            ["",          "② Días autonomía",                       f"{bats_p['dias_autonomia']:.3f} d ({bats_p['dias_autonomia']*24:.0f} h)"],
+            ["",          "③ Voltaje banco",                        f"{vdc_p} V DC"],
+            ["",          f"④ DoD",                                 f"{int(bats_p['dod']*100)}%"],
+            ["",          f"⑤ Eficiencia sistema (η)",              f"{int(bats_p['eficiencia']*100)}%"],
+            ["",          "E_total = consumo × días ÷ η",           f"{bats_p['e_total_wh']:,.1f} Wh"],
+            ["",          "Ah = E_total ÷ (V × DoD)",               f"{bats_p['ah_dod']:,.1f} Ah"],
+            ["",          f"Nº baterías {int(bats_p['cap_bat_ah'])} Ah", f"{bats_p['num_baterias']} u."],
+            ["",          "Cap. real instalada",                    f"{bats_p['cap_real_ah']:,} Ah @ {vdc_p}V"],
+            ["",          "Energía bruta",                          f"{bats_p['energia_kwh']:.2f} kWh"],
+            ["",          "✅ Energía utilizable",                  f"{bats_p['energia_util_kwh']:.2f} kWh"],
+            ["",          "Autonomía real",                         f"{bats_p['autonomia_real_h']:.1f} h ({bats_p['autonomia_real_d']:.2f} d)"],
             ["🎛 MPPT",   f"Isc ({isc_p}A) × {n_pan_p} paneles",
                           f"{corr_p:.1f} A"],
             ["",          "Controlador recomendado",           mppt_p],
@@ -3244,7 +3305,7 @@ with tab6:
             st.session_state["calc_inv_w"]   = _inv5["inv_w"]
 
             # Baterías estimadas (para la tabla resumen técnica)
-            bats5 = calcular_baterias(consumo5_fs, vdc5)
+            bats5 = calcular_baterias(consumo5_fs, vdc5, **_bat_params(st.session_state))
 
             st.markdown(f"""
             <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
@@ -3338,11 +3399,16 @@ with tab7:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
             vdc_input6 = st.selectbox("Tensión DC del sistema (V)", [12, 24, 48],
                                        index=[12,24,48].index(vdc6) if vdc6 in [12,24,48] else 2)
-            dod_input6 = st.slider("Profundidad de descarga (DOD %)", 50, 100, 80,
-                                    help="80% recomendado para baterías LiFePO4")
+            dod_input6 = st.slider("Profundidad de descarga — DoD (%)", 50, 100, 80,
+                                    help="80% recomendado para baterías LiFePO4 | 50% para baterías AGM/GEL")
+            eff_input6 = st.slider("Eficiencia del sistema — η (%)", 70, 98, 90,
+                                    help="Incluye pérdidas por inversor (~5%), cableado (~2%), autodescarga (~3%). "
+                                         "Típico: 85-92% para sistemas bien diseñados.")
             bat_cap6 = st.number_input("Capacidad por batería (Ah)", min_value=10, max_value=500, value=100)
 
             dod_dec   = dod_input6 / 100.0
+            eff_dec   = eff_input6 / 100.0
+
             # Horas de autonomía — desde Tab 3 (recibo) si está configurado
             _horas_default6 = st.session_state.get("horas_autonomia_deseada", 24.0)
             horas_aut6 = st.number_input(
@@ -3354,16 +3420,25 @@ with tab7:
                 key="horas_aut_bat6")
             dias_aut6 = horas_aut6 / 24.0
 
-            # 3. Ah = (consumo × días_autonomía) / (V × DoD)
-            ah_req6   = (consumo6_fs * dias_aut6) / (vdc_input6 * dod_dec)
+            # Fórmula 5 parámetros:
+            # E_total = consumo × días / η
+            # Ah_req  = E_total / (V × DoD)
+            e_total6  = (consumo6_fs * dias_aut6) / max(eff_dec, 0.01)
+            ah_req6   = e_total6 / (vdc_input6 * dod_dec)
             num_bat6  = math.ceil(ah_req6 / bat_cap6)
+            if num_bat6 > 1 and num_bat6 % 2 != 0:
+                num_bat6 += 1
+            cap_real6      = num_bat6 * bat_cap6
+            energia_real6  = cap_real6 * vdc_input6 / 1000
+            autonomia_real6 = (cap_real6 * vdc_input6 * dod_dec * eff_dec) / max(consumo6_fs / 24, 0.001)
 
-            # ── Guardar en session_state para Tabs 9 y 10 ──────────────────
+            # ── Guardar en session_state para Tabs 8, 9 y 10 ───────────────
             st.session_state["calc_num_baterias"]     = num_bat6
             st.session_state["calc_bat_cap_ah"]       = bat_cap6
             st.session_state["calc_ah_final"]         = ah_req6
             st.session_state["calc_vdc"]              = vdc_input6
             st.session_state["calc_dod_pct"]          = dod_input6
+            st.session_state["calc_eff_pct"]          = eff_input6
             st.session_state["calc_horas_autonomia"]  = horas_aut6
             st.session_state["calc_dias_autonomia"]   = dias_aut6
 
@@ -3372,31 +3447,47 @@ with tab7:
         with col6b:
             st.markdown(f"""
             <div class='sol-card'>
-            <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; margin-bottom:1rem;'>PASO A PASO</div>
-            <table style='width:100%; font-size:0.85rem; border-collapse:collapse;'>
+            <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; margin-bottom:1rem;'>PASO A PASO — 5 PARÁMETROS</div>
+            <table style='width:100%; font-size:0.82rem; border-collapse:collapse;'>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Consumo diario (con FS 20%)</td>
-                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{consumo6_fs:,.0f} Wh</td>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>① Consumo diario (con FS 20%)</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{consumo6_fs:,.0f} Wh/día</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Autonomía deseada</td>
-                    <td style='font-family:Share Tech Mono; color:#00BCD4; text-align:right;'>{horas_aut6:.0f} h = {dias_aut6:.3f} días</td>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>② Días de autonomía</td>
+                    <td style='font-family:Share Tech Mono; color:#00BCD4; text-align:right;'>{dias_aut6:.3f} días ({horas_aut6:.0f} h)</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Tensión DC × DoD ({dod_input6}%)</td>
-                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_input6} × {dod_dec:.2f} = {vdc_input6*dod_dec:.1f}</td>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>③ Voltaje banco</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_input6} V DC</td>
                 </tr>
-                <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                    <td style='color:#FFB300; padding:0.4rem 0; font-weight:600;'>({consumo6_fs:,.0f} × {dias_aut6:.3f}) ÷ {vdc_input6*dod_dec:.1f} =</td>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>④ DoD</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{dod_input6}% ({dod_dec:.2f})</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>⑤ Eficiencia sistema (η)</td>
+                    <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{eff_input6}% ({eff_dec:.2f})</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55; background:#1A2235;'>
+                    <td style='color:#FFB300; padding:0.35rem 0; font-weight:600;'>E_total = {consumo6_fs:,.0f} × {dias_aut6:.3f} ÷ {eff_dec:.2f}</td>
+                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right; font-weight:700;'>{e_total6:,.1f} Wh</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55; background:#1A2235;'>
+                    <td style='color:#FFB300; padding:0.35rem 0; font-weight:600;'>Ah = {e_total6:,.1f} ÷ ({vdc_input6} × {dod_dec:.2f})</td>
                     <td style='font-family:Share Tech Mono; color:#00E676; text-align:right; font-weight:700;'>{ah_req6:.1f} Ah</td>
                 </tr>
                 <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>Capacidad por batería</td>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>Capacidad por batería</td>
                     <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{bat_cap6} Ah</td>
                 </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>{ah_req6:.1f} ÷ {bat_cap6} → par más cercano</td>
+                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right;'><b>{num_bat6} baterías</b></td>
+                </tr>
                 <tr>
-                    <td style='color:#8A9BBD; padding:0.4rem 0;'>{ah_req6:.1f} ÷ {bat_cap6} =</td>
-                    <td style='font-family:Share Tech Mono; color:#00E676; text-align:right;'>{num_bat6} baterías</td>
+                    <td style='color:#8A9BBD; padding:0.35rem 0;'>Autonomía real</td>
+                    <td style='font-family:Share Tech Mono; color:#00BCD4; text-align:right;'>{autonomia_real6:.1f} h ({autonomia_real6/24:.2f} días)</td>
                 </tr>
             </table>
             </div>
@@ -3404,7 +3495,7 @@ with tab7:
 
         st.markdown(f"""
         <div class='result-highlight'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Ah requeridos</div>
+            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>Ah requeridos (con DoD {dod_input6}% y η {eff_input6}%)</div>
             <div class='val'>{ah_req6:.0f} Ah @ {vdc_input6} V</div>
         </div>
         <div class='metric-grid'>
@@ -3414,7 +3505,7 @@ with tab7:
                 <div class='metric-label'>BATERÍAS {bat_cap6} Ah</div>
             </div>
             <div class='metric-box'>
-                <div class='metric-val'>{num_bat6 * bat_cap6}</div>
+                <div class='metric-val'>{cap_real6:,}</div>
                 <div class='metric-unit'>Ah</div>
                 <div class='metric-label'>CAPACIDAD REAL INSTALADA</div>
             </div>
@@ -3424,9 +3515,19 @@ with tab7:
                 <div class='metric-label'>TENSIÓN DEL BANCO</div>
             </div>
             <div class='metric-box'>
-                <div class='metric-val'>{(num_bat6 * bat_cap6 * vdc_input6 / 1000):.1f}</div>
+                <div class='metric-val'>{energia_real6:.2f}</div>
                 <div class='metric-unit'>kWh</div>
-                <div class='metric-label'>ENERGÍA ALMACENADA</div>
+                <div class='metric-label'>ENERGÍA BRUTA</div>
+            </div>
+            <div class='metric-box' style='border-color:rgba(0,188,212,0.4);'>
+                <div class='metric-val' style='color:#00BCD4;'>{energia_real6 * dod_dec * eff_dec:.2f}</div>
+                <div class='metric-unit'>kWh útiles</div>
+                <div class='metric-label'>ENERGÍA UTILIZABLE</div>
+            </div>
+            <div class='metric-box' style='border-color:rgba(167,139,250,0.4);'>
+                <div class='metric-val' style='color:#A78BFA;'>{autonomia_real6:.1f}</div>
+                <div class='metric-unit'>horas ({autonomia_real6/24:.2f} días)</div>
+                <div class='metric-label'>AUTONOMÍA REAL</div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -3523,7 +3624,7 @@ with tab8:
             </div>
             """, unsafe_allow_html=True)
 
-        bats7 = calcular_baterias(consumo7_fs, vdc7)
+        bats7 = calcular_baterias(consumo7_fs, vdc7, **_bat_params(st.session_state))
         # Isc del panel: priorizar el de la BD (Módulo 5), luego session_state
         isc7 = (panel7[2] if panel7 and len(panel7) > 2 and panel7[2] else
                 st.session_state.get("calc_isc", st.session_state.get("panel_isc", 8.02)))
@@ -4458,7 +4559,7 @@ with tab10:
         vdc10          = calc_vdc10
         pot_panel10    = calc_pp10
         n_pan10        = calc_n_pan10
-        n_bat10        = calc_n_bat10 if calc_n_bat10 else calcular_baterias(consumo10_fs, vdc10)["num_baterias"]
+        n_bat10        = calc_n_bat10 if calc_n_bat10 else calcular_baterias(consumo10_fs, vdc10, **_bat_params(st.session_state))["num_baterias"]
         fuente_label10 = f"Módulos 6+7 · {n_pan10} paneles · {n_bat10} baterías"
         fuente_color10 = "#00E676"
     elif "Recibo" in fuente10_sel and consumo_rec10 > 0:
@@ -4468,7 +4569,7 @@ with tab10:
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
         n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
-        bats_r10       = calcular_baterias(consumo10_fs, vdc10)
+        bats_r10       = calcular_baterias(consumo10_fs, vdc10, **_bat_params(st.session_state))
         n_bat10        = bats_r10["num_baterias"]
         fuente_label10 = f"Recibo · {consumo_rec10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
         fuente_color10 = "#00BCD4"
@@ -4479,7 +4580,7 @@ with tab10:
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
         n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
-        bats_m10       = calcular_baterias(consumo10_fs, vdc10)
+        bats_m10       = calcular_baterias(consumo10_fs, vdc10, **_bat_params(st.session_state))
         n_bat10        = bats_m10["num_baterias"]
         fuente_label10 = f"Mayor de los dos · {consumo_mayor10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
         fuente_color10 = "#FFB300"
@@ -4490,7 +4591,7 @@ with tab10:
         vdc10          = tension_dc(consumo10_fs)
         pot_panel10    = calc_pp10
         n_pan10        = num_paneles(consumo10_fs / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 1
-        bats_i10       = calcular_baterias(consumo10_fs, vdc10)
+        bats_i10       = calcular_baterias(consumo10_fs, vdc10, **_bat_params(st.session_state))
         n_bat10        = bats_i10["num_baterias"]
         fuente_label10 = f"Inventario · {consumo_inv10:,.0f} Wh/día → {n_pan10} paneles · {n_bat10} baterías"
         fuente_color10 = "#FFB300"
@@ -4535,7 +4636,7 @@ with tab10:
                 fs_c10  = cons_c10 * 1.20
                 vdc_c10 = tension_dc(fs_c10)
                 n_c10   = num_paneles(fs_c10 / (hsp10 * calc_pr10), pot_panel10) if hsp10 * calc_pr10 > 0 else 0
-                nb_c10  = calcular_baterias(fs_c10, vdc_c10)["num_baterias"]
+                nb_c10  = calcular_baterias(fs_c10, vdc_c10, **_bat_params(st.session_state))["num_baterias"]
                 col_c10.markdown(f"""
                 <div style='background:#1A2235;border:1px solid {clr_c10}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
@@ -4983,7 +5084,7 @@ with tab11:
         n_pan_eco   = num_paneles(consumo_fs_eco / hsp_ef_eco, pot_panel_eco) \
                       if hsp_ef_eco > 0 else 1
         n_pan_eco   = max(1, int(n_pan_eco))
-        bats_eco    = calcular_baterias(float(consumo_fs_eco), int(vdc_eco))
+        bats_eco    = calcular_baterias(float(consumo_fs_eco), int(vdc_eco), **_bat_params(st.session_state))
         n_bat_eco   = int(bats_eco["num_baterias"])
         bat_cap_eco = 100   # capacidad estándar por batería (Ah)
         ah_eco      = n_bat_eco * bat_cap_eco

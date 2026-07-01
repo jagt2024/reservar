@@ -31,15 +31,44 @@ def num_paneles(pot_inst: float, pot_panel: float) -> int:
     if pot_panel <= 0: return 0
     return math.ceil(pot_inst / pot_panel)
 
-def calcular_baterias(wh: float, vdc: int, dod: float = 0.50, cap: float = 200) -> dict:
-    """Ah = (consumo × días) / (V × DoD). días=1 por defecto."""
-    ah_req = wh / (vdc * dod)
-    n      = math.ceil(ah_req / cap)
-    return {"ah_bruto": wh / vdc,
-            "ah_dod":   ah_req,
-            "ah_final": ah_req,
-            "num": n,
-            "energia_kwh": n * cap * vdc / 1000}
+def calcular_baterias(wh: float, vdc: int,
+                      dod: float = 0.50,
+                      cap: float = 100,
+                      dias_autonomia: float = 1.0,
+                      eficiencia: float = 0.90) -> dict:
+    """Dimensionamiento de banco de baterías — 5 parámetros (espejo de solar_app.py).
+    1. wh             : Consumo diario (Wh/día)
+    2. dias_autonomia : Días de autonomía sin sol
+    3. vdc            : Voltaje banco (12/24/48 V)
+    4. dod            : Profundidad de descarga (fracción)
+    5. eficiencia     : Eficiencia global del sistema (fracción)
+    Fórmula: Ah = (wh × días / η) / (V × DoD)
+    """
+    e_total  = (wh * dias_autonomia) / max(eficiencia, 0.01)
+    ah_bruto = e_total / max(vdc, 1)
+    ah_req   = e_total / (max(vdc, 1) * max(dod, 0.01))
+    n        = math.ceil(ah_req / max(cap, 1))
+    if n > 1 and n % 2 != 0:
+        n += 1
+    cap_real_ah  = n * cap
+    energia_real = cap_real_ah * vdc / 1000
+    autonomia_real_h = (cap_real_ah * vdc * dod * eficiencia) / max(wh / 24, 0.001)
+    return {"ah_bruto":         ah_bruto,
+            "ah_dod":           ah_req,
+            "ah_final":         ah_req,
+            "num":              n,
+            "num_baterias":     n,
+            "cap_real_ah":      cap_real_ah,
+            "energia_kwh":      energia_real,
+            "energia_util_kwh": energia_real * dod * eficiencia,
+            "autonomia_real_h": autonomia_real_h,
+            "autonomia_real_d": autonomia_real_h / 24,
+            "e_total_wh":       e_total,
+            "eficiencia":       eficiencia,
+            "dod":              dod,
+            "dias_autonomia":   dias_autonomia,
+            "vdc":              vdc,
+            "cap_bat_ah":       cap}
 
 # Tamaños comerciales de inversores (kW) — debe coincidir con solar_app.py
 _KW_COMERCIALES = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
