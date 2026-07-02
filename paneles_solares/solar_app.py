@@ -456,6 +456,9 @@ from modulo_seguridad import (
 )
 init_seguridad_db()
 
+# ─── Módulo de cableado ──────────────────────────────────────────────────────
+from modulo_cableado import mostrar_cableado
+
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys
 print(f"\n☀  SolarCalc Pro — Base de datos en: {DB_PATH}\n", file=_sys.stderr)
@@ -1735,7 +1738,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs principales
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
     "⚡ 1 · Cargas",
     "🧾 2 · Recibo Luz",
     "🔋 3 · Tensión DC",
@@ -1747,6 +1750,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs([
     "🔲 9 · Plano Paneles",
     "📐 10 · Plano General",
     "💹 11 · Económico",
+    "🔌 12 · Cableado",
 ])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -5291,6 +5295,16 @@ with tab11:
             <b>Normas aplicables: RETIE, NTC 2050, CREG 030-2018.</b>
         </div>
         """, unsafe_allow_html=True)
+
+# ════════════════════════════════════════════════════════════════════════════
+# TAB 12 — CABLEADO
+# ════════════════════════════════════════════════════════════════════════════
+with tab12:
+    if not proyecto_id:
+        st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral para calcular el cableado.</div>",
+                    unsafe_allow_html=True)
+    else:
+        mostrar_cableado(proyecto_id, st.session_state)
 
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("""

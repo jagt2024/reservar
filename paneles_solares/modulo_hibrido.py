@@ -19,6 +19,13 @@ import pathlib
 from datetime import datetime
 import base64
 
+# ─── Módulo de cableado ──────────────────────────────────────────────────────
+try:
+    from modulo_cableado import mostrar_cableado as _mostrar_cableado_hib
+    _CABLEADO_DISPONIBLE = True
+except ImportError:
+    _CABLEADO_DISPONIBLE = False
+
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
     env = os.environ.get("SOLARCALC_DB_PATH")
@@ -701,7 +708,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     # ── TABS HÍBRIDO ──────────────────────────────────────────────────────────
-    tab_h1,tab_h2,tab_h3,tab_h4,tab_h5,tab_h6,tab_h7,tab_h8 = st.tabs([
+    tab_h1,tab_h2,tab_h3,tab_h4,tab_h5,tab_h6,tab_h7,tab_h8,tab_h9 = st.tabs([
         "⚡ 1 · Consumo",
         "🌞 2 · Irradiación",
         "🔆 3 · Panel",
@@ -710,6 +717,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         "💹 6 · Económico",
         "🔲 7 · Plano Paneles",
         "📋 8 · Diagrama Unifilar",
+        "🔌 9 · Cableado",
     ])
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1684,6 +1692,23 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.download_button("⬇ Descargar Diagrama Unifilar (SVG)",
                                data=svg8.encode(), file_name=fname8,
                                mime="image/svg+xml", use_container_width=True, key="hib_dl_uni")
+
+    # ── TAB H9 — CABLEADO ────────────────────────────────────────────────────
+    with tab_h9:
+        if _CABLEADO_DISPONIBLE:
+            # Pasar datos relevantes del sistema híbrido al módulo de cableado
+            # via session_state (ya están guardados desde tabs anteriores)
+            _ss_hib = dict(session_state)
+            # Complementar con datos específicos del híbrido si están disponibles
+            if "_hib_v_bat" in session_state:
+                _ss_hib.setdefault("calc_vdc",       session_state.get("_hib_v_bat", 48))
+            if "hib_isc" in session_state:
+                _ss_hib.setdefault("calc_isc",        session_state.get("hib_isc", 8.02))
+            if "hib_nstr" in session_state:
+                _ss_hib.setdefault("calc_paralelo",   session_state.get("hib_nstr", 1))
+            _mostrar_cableado_hib(proyecto_id, _ss_hib)
+        else:
+            st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
 
     # Footer
     st.markdown("""

@@ -27,6 +27,13 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import base64
 
+# ─── Módulo de cableado ──────────────────────────────────────────────────────
+try:
+    from modulo_cableado import mostrar_cableado as _mostrar_cableado_og
+    _CABLEADO_OG = True
+except ImportError:
+    _CABLEADO_OG = False
+
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
     env = os.environ.get("SOLARCALC_DB_PATH")
@@ -737,7 +744,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     # ── TABS ON-GRID ──────────────────────────────────────────────────────────
-    tab_og1, tab_og2, tab_og3, tab_og4, tab_og5, tab_og6, tab_og7 = st.tabs([
+    tab_og1, tab_og2, tab_og3, tab_og4, tab_og5, tab_og6, tab_og7, tab_og8 = st.tabs([
         "⚡ 1 · Consumo",
         "🌞 2 · Irradiación",
         "🔆 3 · Panel",
@@ -745,6 +752,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         "💹 5 · Económico",
         "🔲 6 · Plano Paneles",
         "📋 7 · Diagrama Unifilar",
+        "🔌 8 · Cableado",
     ])
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -1669,6 +1677,19 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             st.download_button("⬇ Descargar Diagrama Unifilar (SVG)",
                                data=svg7.encode(), file_name=fname_svg7,
                                mime="image/svg+xml", use_container_width=True, key="og_dl_uni_svg")
+
+    # ── TAB OG8 — CABLEADO ───────────────────────────────────────────────────
+    with tab_og8:
+        if _CABLEADO_OG:
+            _ss_og = dict(session_state)
+            # ON-GRID no tiene baterías — pasar VDC del array como referencia
+            if "og_v_bat" in session_state:
+                _ss_og.setdefault("calc_vdc", session_state.get("og_v_bat", 48))
+            if "og_isc" in session_state:
+                _ss_og.setdefault("calc_isc", session_state.get("og_isc", 8.02))
+            _mostrar_cableado_og(proyecto_id, _ss_og)
+        else:
+            st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
 
     # ── Footer ON-GRID ────────────────────────────────────────────────────────
     st.markdown("""
