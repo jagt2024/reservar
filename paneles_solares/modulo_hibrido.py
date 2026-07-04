@@ -1514,12 +1514,13 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
     with tab_h6:
         st.markdown("""
         <div class='sol-card-title'><span class='step-badge'>6</span>
-        ANÁLISIS ECONÓMICO Y AMBIENTAL</div>""", unsafe_allow_html=True)
+        ANÁLISIS ECONÓMICO Y AMBIENTAL — SISTEMA HÍBRIDO</div>""", unsafe_allow_html=True)
 
         st.markdown("""
         <div class='formula-box'>
-            Ahorro = Autoconsumo×30×Tarifa  |  Ingreso = Excedente×30×Precio_red (≈50% tarifa)<br>
-            Payback = Inversión total ÷ (Ahorro+Ingresos) anuales  |  CO₂ factor Colombia: 0.126 kgCO₂/kWh
+            Basado en dimensionamiento real de Tabs 1-5 ·
+            Ahorro = Autoconsumo×30×Tarifa | Ingreso inyección = Excedente×Precio_red (≈50% tarifa)<br>
+            VPN = Σ FlujoNeto_t/(1+TMAR)^t − Inversión | CO₂ factor Colombia: 0.126 kgCO₂/kWh
         </div>""", unsafe_allow_html=True)
 
         pot_inst_e  = session_state.get("_hib_pot_inst",  0.0)
@@ -1532,93 +1533,166 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         cap_real_e  = session_state.get("_hib_cap_real_wh", 0.0)
         aut_h_e     = session_state.get("_hib_aut_horas", 0.0)
         hsp_e       = session_state.get("_hib_hsp",  hsp_guardado or 4.2)
-        pr_e_raw    = session_state.get("hib_pr_d5", session_state.get("hib_pr", 80))
-        pr_e        = pr_e_raw / 100 if isinstance(pr_e_raw, (int,float)) else 0.80
+        v_bat_e     = session_state.get("_hib_v_bat", 48)
+        cap_bat_e   = session_state.get("_hib_cap_bat_ah", 100)
+        eff_hib_e   = session_state.get("_hib_eff", 90)
+        wp_e        = session_state.get("hib_wp", pot_panel_def)
+        aut_real_h  = session_state.get("_hib_aut_real_h", aut_h_e)
+        gen_anio_e  = gen_dia_e * 365
+        co2_h       = gen_anio_e * 0.126
+        arboles_h   = co2_h / 21
 
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-            tarifa_h      = st.number_input("Tarifa energía ($/kWh)",   100.0, 5000.0, tarifa_bd,  50.0, key="hib_tarifa")
-            precio_pan_h  = st.number_input("Precio panel ($/unidad)", 50000.0,2e6,   320000.0,10000.0, key="hib_ppanel")
-            costo_inv_h   = st.number_input("Costo inversor híbrido ($/kW)", 500000.0,15e6,3500000.0,100000.0, key="hib_cinv")
-            precio_bat_h  = st.number_input("Precio batería ($/unidad)", 50000.0,5e6,  800000.0,50000.0,  key="hib_pbat")
-            otros_h       = st.number_input("Otros costos (estructura, cable, MO) ($)",
-                                             0.0, 50e6, 2000000.0, 200000.0, key="hib_otros")
-            st.markdown("</div>", unsafe_allow_html=True)
+        if pot_inst_e == 0 or consumo_fe == 0:
+            st.markdown("<div class='warn-box'>⚠ Completa el dimensionamiento en los Tabs anteriores primero.</div>",
+                        unsafe_allow_html=True)
+        else:
+            consumo_kwh_h = consumo_fe / 1000
+            autocon_h2    = min(gen_dia_e, consumo_kwh_h)
+            inj_h2        = max(0, gen_dia_e - consumo_kwh_h)
+            autoconsumo_pct_h = autocon_h2 / consumo_kwh_h * 100 if consumo_kwh_h > 0 else 0
 
-        with col_e2:
-            if pot_inst_e == 0 or consumo_fe == 0:
-                st.markdown("<div class='warn-box'>⚠ Completa el Tab 5 primero.</div>",
-                            unsafe_allow_html=True)
-            else:
-                gen_mes_h     = gen_dia_e * 30
-                gen_anio_h    = gen_dia_e * 365
-                consumo_kwh_h = consumo_fe / 1000
-                autocon_h2    = min(gen_dia_e, consumo_kwh_h)
-                inj_h2        = max(0, gen_dia_e - consumo_kwh_h)
-                def_h2        = max(0, consumo_kwh_h - gen_dia_e)
+            st.markdown(f"""
+            <div class='info-note' style='margin-bottom:0.8rem;'>
+                📊 <b>Sistema:</b> {n_pan_e} paneles {wp_e}Wp ({pot_inst_e/1000:.2f} kWp) |
+                {n_bats_e} baterías {cap_bat_e}Ah @ {v_bat_e}V |
+                Inversor híbrido {pot_inv_e:.1f} kW |
+                Gen.: <b style='color:#00E676;'>{gen_dia_e:.2f} kWh/día</b> |
+                Autoconsumo: <b style='color:#FFB300;'>{autoconsumo_pct_h:.0f}%</b> |
+                Autonomía: <b style='color:#A78BFA;'>{aut_real_h:.1f} h</b>
+            </div>""", unsafe_allow_html=True)
 
-                ahorro_mes_h  = autocon_h2 * 30 * tarifa_h
-                ing_iny_h     = inj_h2    * 30 * tarifa_h * 0.50
-                ben_mes_h     = ahorro_mes_h + ing_iny_h
-                ben_anio_h    = ben_mes_h * 12
+            col_e1, col_e2 = st.columns([1, 1.2])
+            with col_e1:
+                st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+                st.markdown("""<div style='color:#F59E0B;font-family:Rajdhani,sans-serif;
+                    font-weight:600;margin-bottom:0.8rem;'>💰 PARÁMETROS ECONÓMICOS</div>""",
+                    unsafe_allow_html=True)
+                tarifa_h     = st.number_input("Tarifa energía ($/kWh)", 100.0, 5000.0, tarifa_bd, 50.0, key="hib_tarifa")
+                precio_pan_h = st.number_input(f"Precio panel {wp_e}Wp ($/u)", 50000.0, 2e6, 320000.0, 10000.0, key="hib_ppanel")
+                costo_inv_h  = st.number_input(f"Costo inversor híbrido {pot_inv_e:.1f}kW ($)", 500000.0, 15e6, pot_inv_e*3500000.0, 100000.0, key="hib_cinv")
+                precio_bat_h = st.number_input(f"Precio batería {cap_bat_e}Ah ($/u)", 50000.0, 5e6, 800000.0, 50000.0, key="hib_pbat")
+                pcable_h     = st.number_input("Cableado + protecciones ($)", 0.0, 10e6, 800000.0, 50000.0, key="hib_pcable")
+                otros_h      = st.number_input("Estructura + mano de obra ($)", 0.0, 50e6, 1500000.0, 100000.0, key="hib_otros")
+                tmar_h       = st.slider("TMAR (%/año)", 5.0, 25.0, 12.0, 0.5, key="hib_tmar")
+                vida_h       = st.slider("Vida útil análisis (años)", 10, 30, 25, 1, key="hib_vida")
+                escal_h      = st.slider("Escalación tarifa (%/año)", 0.0, 15.0, 5.0, 0.5, key="hib_escal")
+                mant_h_pct   = st.slider("Mantenimiento anual (% inversión)", 0.0, 5.0, 1.0, 0.1, key="hib_mant")
+                st.markdown("</div>", unsafe_allow_html=True)
 
-                inv_pan_h     = n_pan_e  * precio_pan_h
-                inv_inv_h     = pot_inv_e * costo_inv_h
-                inv_bat_h     = n_bats_e * precio_bat_h
-                inv_tot_h     = inv_pan_h + inv_inv_h + inv_bat_h + otros_h
-                payback_h     = inv_tot_h / ben_anio_h if ben_anio_h > 0 else 99
-                tir_h         = (ben_anio_h / inv_tot_h) * 100
+            with col_e2:
+                inv_pan_h   = n_pan_e  * precio_pan_h
+                inv_bat_h   = n_bats_e * precio_bat_h
+                inv_tot_h   = inv_pan_h + costo_inv_h + inv_bat_h + pcable_h + otros_h
+                mant_anio_h = inv_tot_h * mant_h_pct / 100
 
-                co2_h         = gen_anio_h * 0.126
-                arboles_h     = co2_h / 21   # 1 árbol ≈ 21 kgCO2/año
+                tmar_dh = tmar_h / 100; escal_dh = escal_h / 100
+                flujos_h = []
+                vpn_hib  = -inv_tot_h
+                for yr in range(1, vida_h + 1):
+                    tarifa_yr  = tarifa_h * ((1 + escal_dh) ** yr)
+                    gen_yr     = gen_dia_e * 365 * ((1 - 0.005) ** yr)
+                    ahorro_yr  = autocon_h2 * 365 * tarifa_yr
+                    ing_iny_yr = inj_h2 * 365 * tarifa_yr * 0.5
+                    neto_yr    = ahorro_yr + ing_iny_yr - mant_anio_h
+                    vp_yr      = neto_yr / ((1 + tmar_dh) ** yr)
+                    vpn_hib   += vp_yr
+                    flujos_h.append({"año": yr, "ahorro": ahorro_yr, "inyeccion": ing_iny_yr,
+                                     "neto": neto_yr, "vp": vp_yr, "vpn_acum": vpn_hib})
+
+                ben_mes_h    = (autocon_h2 * tarifa_h + inj_h2 * tarifa_h * 0.5) * 30
+                ben_anio_h   = ben_mes_h * 12
+                payback_h    = inv_tot_h / max(ben_anio_h - mant_anio_h, 0.01)
+                vpn_final_h  = flujos_h[-1]["vpn_acum"]
+                pb_desc_h    = next((f["año"] for f in flujos_h if f["vpn_acum"] >= 0), vida_h + 1)
+
+                def _bvpn(r):
+                    v = -inv_tot_h
+                    for yr in range(1, vida_h+1):
+                        v += (ben_anio_h - mant_anio_h) / ((1+r)**yr)
+                    return v
+                tlo, thi = 0.001, 2.0
+                for _ in range(60):
+                    tm = (tlo+thi)/2
+                    if _bvpn(tm) > 0: tlo = tm
+                    else: thi = tm
+                tir_h_real = tlo * 100
+
+                _pb_ch  = "#00E676" if payback_h<=8 else "#FFB300" if payback_h<=15 else "#FF5252"
+                _vn_ch  = "#00E676" if vpn_final_h>0 else "#FF5252"
+                _ti_ch  = "#00E676" if tir_h_real>tmar_h else "#FF5252"
 
                 st.markdown(f"""
-                <div class='metric-grid'>
+                <div class='result-highlight' style='border-color:rgba(245,158,11,0.5);'>
+                    <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>Beneficio mensual año 1</div>
+                    <div class='val' style='color:#F59E0B;'>${ben_mes_h:,.0f} / mes</div>
+                </div>
+                <div class='metric-grid' style='margin-top:0.8rem;'>
+                    <div class='metric-box'><div class='metric-val'>${inv_tot_h/1e6:.2f}M</div>
+                        <div class='metric-unit'>COP</div><div class='metric-label'>INVERSIÓN</div></div>
                     <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
-                        <div class='metric-val' style='color:#00E676;'>{gen_dia_e:.2f}</div>
-                        <div class='metric-unit'>kWh/día</div><div class='metric-label'>GENERACIÓN</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(245,158,11,0.5);'>
-                        <div class='metric-val' style='color:#F59E0B;'>{ac_pct_e:.0f}%</div>
-                        <div class='metric-unit'>autoconsumo</div><div class='metric-label'>COBERTURA</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
-                        <div class='metric-val'>${ben_mes_h:,.0f}</div>
-                        <div class='metric-unit'>$/mes</div><div class='metric-label'>BENEFICIO</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
-                        <div class='metric-val' style='color:#00E676;'>{payback_h:.1f}</div>
-                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK</div>
-                    </div>
+                        <div class='metric-val' style='color:#00E676;'>${ben_anio_h/1e6:.2f}M</div>
+                        <div class='metric-unit'>$/año</div><div class='metric-label'>BENEFICIO AÑO 1</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_pb_ch};'>{payback_h:.1f}</div>
+                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:#00BCD4;'>{pb_desc_h}</div>
+                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK DESC.</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_vn_ch};font-size:1.1rem;'>${vpn_final_h/1e6:.2f}M</div>
+                        <div class='metric-unit'>COP</div><div class='metric-label'>VPN {vida_h}a</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_ti_ch};'>{tir_h_real:.1f}%</div>
+                        <div class='metric-unit'>/año</div><div class='metric-label'>TIR</div></div>
                 </div>""", unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div class='sol-card' style='margin-top:0.8rem;'>
-                    <div style='color:#F59E0B;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>
-                    RESUMEN FINANCIERO + AMBIENTAL</div>
+                    <div style='color:#F59E0B;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.6rem;'>
+                    DESGLOSE INVERSIÓN + AMBIENTAL</div>
                     <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversión paneles</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_pan_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversión inversor híbrido</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_inv_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversión baterías</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>${inv_bat_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Otros (estructura+cable+MO)</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${otros_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#F59E0B;font-weight:600;'>Inversión total</td><td style='font-family:Share Tech Mono;color:#F59E0B;text-align:right;font-weight:700;'>${inv_tot_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ahorro autoconsumo/mes</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>${ahorro_mes_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ingreso inyección/mes</td><td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>${ing_iny_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#00E676;font-weight:600;'>Beneficio mensual</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>${ben_mes_h:,.0f}</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Gen. anual estimada</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{gen_anio_h:,.0f} kWh</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>CO₂ evitado / año</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{co2_h:,.0f} kg</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Árboles equivalentes</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>≈{arboles_h:.0f} árboles/año</td></tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>TIR simplificada</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{tir_h:.1f}%/año</td></tr>
-                        <tr><td style='color:#8A9BBD;'>Autonomía batería</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{aut_h_e:.1f} h</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>{n_pan_e} × Panel {wp_e}Wp</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_pan_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversor híbrido {pot_inv_e:.1f}kW</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${costo_inv_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>{n_bats_e} × Batería {cap_bat_e}Ah @ {v_bat_e}V</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>${inv_bat_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Cableado + protecciones</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pcable_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Estructura + MO</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${otros_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#F59E0B;font-weight:600;'>INVERSIÓN TOTAL</td><td style='font-family:Share Tech Mono;color:#F59E0B;text-align:right;font-weight:700;'>${inv_tot_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ahorro autoconsumo/mes ({autoconsumo_pct_h:.0f}%)</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>${autocon_h2*30*tarifa_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ingreso inyección/mes</td><td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>${inj_h2*30*tarifa_h*0.5:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#00E676;font-weight:600;'>BENEFICIO MENSUAL</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>${ben_mes_h:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Gen. anual</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{gen_anio_e:,.0f} kWh</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>CO₂ evitado/año</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{co2_h:,.0f} kg</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Árboles equiv.</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>≈{arboles_h:.0f}/año</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>TIR</td><td style='font-family:Share Tech Mono;text-align:right;color:{_ti_ch};font-weight:700;'>{tir_h_real:.1f}% {"✅>TMAR" if tir_h_real>tmar_h else "⚠<TMAR"}</td></tr>
+                        <tr><td style='color:#8A9BBD;'>Autonomía batería</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{aut_real_h:.1f} h ({aut_real_h/24:.2f} días)</td></tr>
                     </table>
                 </div>""", unsafe_allow_html=True)
 
-                session_state["_hib_inv_tot"]   = inv_tot_h
-                session_state["_hib_ben_anio"]  = ben_anio_h
-                session_state["_hib_payback"]   = payback_h
-                session_state["_hib_gen_anio"]  = gen_anio_h
-                session_state["_hib_co2_anio"]  = co2_h
+            # Flujo de caja
+            st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+            st.markdown("""<div style='color:#F59E0B;font-family:Rajdhani,sans-serif;
+                font-weight:600;font-size:1rem;margin-bottom:0.5rem;'>
+                📈 FLUJO DE CAJA PROYECTADO</div>""", unsafe_allow_html=True)
+            fc_h = {"Año": [f["año"] for f in flujos_h],
+                    "Ahorro ($)": [f"{f['ahorro']:,.0f}" for f in flujos_h],
+                    "Inyección ($)": [f"{f['inyeccion']:,.0f}" for f in flujos_h],
+                    "Flujo neto ($)": [f"{f['neto']:,.0f}" for f in flujos_h],
+                    "VP ($)": [f"{f['vp']:,.0f}" for f in flujos_h],
+                    "VPN acum. ($)": [f"{f['vpn_acum']:,.0f}" for f in flujos_h]}
+            st.dataframe(fc_h, use_container_width=True, height=300)
+
+            st.markdown(f"""
+            <div class='info-note' style='margin-top:0.8rem;font-size:0.8rem;'>
+                TMAR {tmar_h}% | Escalación tarifa {escal_h}%/año | Mantenimiento {mant_h_pct}%/año |
+                TIR {tir_h_real:.1f}% {'> TMAR → VIABLE ✅' if tir_h_real > tmar_h else '< TMAR → REVISAR ⚠'} |
+                Factor CO₂ UPME: 0.126 kgCO₂/kWh | Degradación paneles: 0.5%/año
+            </div>""", unsafe_allow_html=True)
+
+            session_state["_hib_inv_tot"]   = inv_tot_h
+            session_state["_hib_ben_anio"]  = ben_anio_h
+            session_state["_hib_payback"]   = payback_h
+            session_state["_hib_gen_anio"]  = gen_anio_e
+            session_state["_hib_co2_anio"]  = co2_h
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB H7 — PLANO DISTRIBUCIÓN PANELES

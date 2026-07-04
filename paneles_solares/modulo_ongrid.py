@@ -1456,142 +1456,196 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
     with tab_og5:
         st.markdown("""
         <div class='sol-card-title'><span class='step-badge'>5</span>
-        ANÁLISIS ECONÓMICO Y AMBIENTAL</div>""", unsafe_allow_html=True)
+        ANÁLISIS ECONÓMICO Y AMBIENTAL — SISTEMA ON-GRID</div>""", unsafe_allow_html=True)
 
         st.markdown("""
         <div class='formula-box'>
-            Ahorro mensual = Autoconsumo (kWh/día × 30) × Tarifa ($/kWh)<br>
-            Ingreso inyección = Excedente × Precio de compra red (≈ 50% tarifa)<br>
-            Payback = Inversión total ÷ Beneficio anual
+            Basado en dimensionamiento real de Tabs 1–4 (cargas + recibo) ·
+            Ahorro = Autoconsumo×30×Tarifa | Ingreso inyección = Excedente×Precio_red (≈50% tarifa)<br>
+            VPN = Σ FlujoNeto_t/(1+TMAR)^t − Inversión | CO₂ factor Colombia: 0.126 kgCO₂/kWh (UPME)
         </div>""", unsafe_allow_html=True)
 
-        consumo_og2    = session_state.get("og_consumo_fs", consumo_inv * 1.20)
-        hsp_og2        = session_state.get("_og_hsp_calc", hsp_guardado or 4.2)
-        pr_og2         = session_state.get("og_pr_d4", session_state.get("og_pr", 80)) / 100
-        pot_inst_og2   = session_state.get("_og_pot_inst", 0.0)
-        n_pan_og2      = session_state.get("_og_n_paneles", 0)
-        pot_inv_og2    = session_state.get("_og_pot_inv_kw", 3.0)
+        consumo_og2   = session_state.get("og_consumo_fs", consumo_inv * 1.20)
+        hsp_og2       = session_state.get("_og_hsp_calc", hsp_guardado or 4.2)
+        pr_og2        = session_state.get("og_pr_d4", session_state.get("og_pr", 80)) / 100
+        pot_inst_og2  = session_state.get("_og_pot_inst", 0.0)
+        n_pan_og2     = session_state.get("_og_n_paneles", 0)
+        pot_inv_og2   = session_state.get("_og_pot_inv_kw", 3.0)
+        wp_og2        = session_state.get("og_wp", pot_panel_def)
+        n_str_og2     = session_state.get("_og_n_strings", 1)
+        pan_ser_og2   = session_state.get("_og_pan_serie", 1)
 
-        col_e1, col_e2 = st.columns(2)
-        with col_e1:
-            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-            tarifa_kwh = st.number_input(
-                "Tarifa energía ($/kWh)", min_value=100.0, max_value=5000.0,
-                value=tarifa_bd, step=50.0,
-                help="Pre-cargada desde el recibo del proyecto. Tarifa Colombia: ~$600–$900/kWh", key="og_tarifa")
-            precio_panel = st.number_input(
-                "Precio panel solar ($/unidad)", min_value=50000.0, max_value=2000000.0,
-                value=320000.0, step=10000.0, key="og_precio_panel")
-            costo_inv_kw = st.number_input(
-                "Costo inversor ($/kW)", min_value=500000.0, max_value=10000000.0,
-                value=2000000.0, step=100000.0, key="og_costo_inv")
-            otros_costos = st.number_input(
-                "Otros costos (estructura, cableado, mano de obra) ($)",
-                min_value=0.0, max_value=50000000.0, value=1500000.0,
-                step=100000.0, key="og_otros")
-            st.markdown("</div>", unsafe_allow_html=True)
+        if pot_inst_og2 == 0 or consumo_og2 == 0:
+            st.markdown("""<div class='warn-box'>⚠ Completa el dimensionamiento en los Tabs
+            anteriores primero.</div>""", unsafe_allow_html=True)
+        else:
+            gen_dia      = (pot_inst_og2 / 1000) * hsp_og2 * pr_og2
+            gen_mes      = gen_dia * 30
+            gen_anio     = gen_dia * 365
+            consumo_dia_kwh = consumo_og2 / 1000
+            autoconsumo  = min(gen_dia, consumo_dia_kwh)
+            inyeccion    = max(0, gen_dia - consumo_dia_kwh)
+            deficit      = max(0, consumo_dia_kwh - gen_dia)
+            autoconsumo_pct = autoconsumo / consumo_dia_kwh * 100 if consumo_dia_kwh > 0 else 0
+            co2_anio     = gen_anio * 0.126
+            arboles_og   = co2_anio / 21
 
-        with col_e2:
-            if pot_inst_og2 == 0 or consumo_og2 == 0:
-                st.markdown("""
-                <div class='warn-box'>⚠ Completa los módulos 1 y 4 primero.</div>
-                """, unsafe_allow_html=True)
-            else:
-                # Generación
-                gen_dia = (pot_inst_og2 / 1000) * hsp_og2 * pr_og2
-                gen_mes = gen_dia * 30
-                gen_anio = gen_dia * 365
-                consumo_dia_kwh = consumo_og2 / 1000
-                autoconsumo = min(gen_dia, consumo_dia_kwh)
-                inyeccion   = max(0, gen_dia - consumo_dia_kwh)
-                deficit     = max(0, consumo_dia_kwh - gen_dia)
-                autoconsumo_pct = autoconsumo / consumo_dia_kwh * 100 if consumo_dia_kwh > 0 else 0
+            st.markdown(f"""
+            <div class='info-note' style='margin-bottom:0.8rem;'>
+                📊 <b>Sistema:</b> {n_pan_og2} paneles {wp_og2}Wp ({pot_inst_og2/1000:.2f} kWp) |
+                Inversor ON-GRID {pot_inv_og2:.1f} kW |
+                Gen.: <b style='color:#00E676;'>{gen_dia:.2f} kWh/día</b> |
+                Autoconsumo: <b style='color:#FF6B35;'>{autoconsumo_pct:.0f}%</b> |
+                Inyección red: <b style='color:#00BCD4;'>{inyeccion:.2f} kWh/día</b>
+            </div>""", unsafe_allow_html=True)
 
-                # Economía
+            col_e1, col_e2 = st.columns([1, 1.2])
+            with col_e1:
+                st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+                st.markdown("""<div style='color:#FF6B35;font-family:Rajdhani,sans-serif;
+                    font-weight:600;margin-bottom:0.8rem;'>💰 PARÁMETROS ECONÓMICOS</div>""",
+                    unsafe_allow_html=True)
+                tarifa_kwh   = st.number_input("Tarifa energía ($/kWh)", 100.0, 5000.0, tarifa_bd, 50.0,
+                                                help="Pre-cargada desde recibo. Colombia: ~$600–$900/kWh",
+                                                key="og_tarifa")
+                precio_panel = st.number_input(f"Precio panel {wp_og2}Wp ($/u)", 50000.0, 2e6, 320000.0, 10000.0,
+                                                key="og_precio_panel")
+                costo_inv_kw = st.number_input(f"Costo inversor {pot_inv_og2:.1f}kW ON-GRID ($)", 500000.0, 10e6,
+                                                pot_inv_og2 * 2000000.0, 100000.0, key="og_costo_inv")
+                pcable_og    = st.number_input("Cableado + protecciones ($)", 0.0, 10e6, 600000.0, 50000.0,
+                                                key="og_pcable")
+                otros_costos = st.number_input("Estructura + mano de obra ($)", 0.0, 50e6, 1000000.0, 100000.0,
+                                                key="og_otros")
+                tmar_og      = st.slider("TMAR (%/año)", 5.0, 25.0, 12.0, 0.5, key="og_tmar",
+                                          help="Costo de oportunidad. Colombia: 10–15%")
+                vida_og      = st.slider("Vida útil análisis (años)", 10, 30, 25, 1, key="og_vida")
+                escal_og     = st.slider("Escalación tarifa (%/año)", 0.0, 15.0, 5.0, 0.5, key="og_escal")
+                mant_og_pct  = st.slider("Mantenimiento anual (% inversión)", 0.0, 3.0, 0.5, 0.1, key="og_mant",
+                                          help="ON-GRID tiene bajo mantenimiento: ~0.5%/año")
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            with col_e2:
+                inv_paneles  = n_pan_og2 * precio_panel
+                inv_inv      = costo_inv_kw
+                inv_total    = inv_paneles + inv_inv + pcable_og + otros_costos
+                mant_anio_og = inv_total * mant_og_pct / 100
+
+                # Flujo de caja año a año con escalación y degradación
+                tmar_dog = tmar_og / 100; escal_dog = escal_og / 100
+                flujos_og = []
+                vpn_og    = -inv_total
+                for yr in range(1, vida_og + 1):
+                    tarifa_yr   = tarifa_kwh * ((1 + escal_dog) ** yr)
+                    gen_yr      = gen_dia * 365 * ((1 - 0.005) ** yr)   # degradación 0.5%/año
+                    ac_yr       = min(gen_yr / 365, consumo_dia_kwh) * 365
+                    inj_yr      = max(0, gen_yr / 365 - consumo_dia_kwh) * 365
+                    ahorro_yr   = ac_yr * tarifa_yr
+                    ing_iny_yr  = inj_yr * tarifa_yr * 0.5
+                    neto_yr     = ahorro_yr + ing_iny_yr - mant_anio_og
+                    vp_yr       = neto_yr / ((1 + tmar_dog) ** yr)
+                    vpn_og     += vp_yr
+                    flujos_og.append({"año": yr, "tarifa": tarifa_yr,
+                                      "ahorro": ahorro_yr, "inyeccion": ing_iny_yr,
+                                      "neto": neto_yr, "vp": vp_yr, "vpn_acum": vpn_og})
+
                 ahorro_mes    = autoconsumo * 30 * tarifa_kwh
                 ing_iny_mes   = inyeccion * 30 * tarifa_kwh * 0.5
                 beneficio_mes = ahorro_mes + ing_iny_mes
                 beneficio_anio = beneficio_mes * 12
+                payback       = inv_total / max(beneficio_anio - mant_anio_og, 0.01)
+                vpn_final_og  = flujos_og[-1]["vpn_acum"]
+                pb_desc_og    = next((f["año"] for f in flujos_og if f["vpn_acum"] >= 0), vida_og + 1)
 
-                # Inversión
-                inv_paneles = n_pan_og2 * precio_panel
-                inv_inv     = pot_inv_og2 * costo_inv_kw
-                inv_total   = inv_paneles + inv_inv + otros_costos
-                payback     = inv_total / beneficio_anio if beneficio_anio > 0 else 99
-                tir_aprox   = (beneficio_anio / inv_total) * 100   # simplificado
+                # TIR bisección
+                def _tog(r):
+                    v = -inv_total
+                    for yr in range(1, vida_og+1):
+                        v += (beneficio_anio - mant_anio_og) / ((1+r)**yr)
+                    return v
+                tlo, thi = 0.001, 2.0
+                for _ in range(60):
+                    tm = (tlo+thi)/2
+                    if _tog(tm) > 0: tlo = tm
+                    else: thi = tm
+                tir_og = tlo * 100
 
-                # CO2
-                co2_anio = gen_anio * 0.126   # Colombia: 0.126 kgCO2/kWh
+                _pb_co  = "#00E676" if payback<=7 else "#FFB300" if payback<=12 else "#FF5252"
+                _vn_co  = "#00E676" if vpn_final_og>0 else "#FF5252"
+                _ti_co  = "#00E676" if tir_og>tmar_og else "#FF5252"
 
                 st.markdown(f"""
-                <div class='metric-grid'>
+                <div class='result-highlight' style='border-color:rgba(255,107,53,0.5);'>
+                    <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>Beneficio mensual año 1</div>
+                    <div class='val' style='color:#FF6B35;'>${beneficio_mes:,.0f} / mes</div>
+                </div>
+                <div class='metric-grid' style='margin-top:0.8rem;'>
+                    <div class='metric-box'><div class='metric-val'>${inv_total/1e6:.2f}M</div>
+                        <div class='metric-unit'>COP</div><div class='metric-label'>INVERSIÓN</div></div>
                     <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
-                        <div class='metric-val' style='color:#00E676;'>{gen_dia:.2f}</div>
-                        <div class='metric-unit'>kWh/día</div><div class='metric-label'>GENERACIÓN EST.</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(255,107,53,0.5);'>
-                        <div class='metric-val' style='color:#FF6B35;'>{autoconsumo_pct:.0f}%</div>
-                        <div class='metric-unit'>autoconsumo</div><div class='metric-label'>COBERTURA</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
-                        <div class='metric-val'>${beneficio_mes:,.0f}</div>
-                        <div class='metric-unit'>$/mes</div><div class='metric-label'>BENEFICIO MES</div>
-                    </div>
-                    <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
-                        <div class='metric-val' style='color:#00E676;'>{payback:.1f}</div>
-                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK</div>
-                    </div>
+                        <div class='metric-val' style='color:#00E676;'>${beneficio_anio/1e6:.2f}M</div>
+                        <div class='metric-unit'>$/año</div><div class='metric-label'>BENEFICIO AÑO 1</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_pb_co};'>{payback:.1f}</div>
+                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:#00BCD4;'>{pb_desc_og}</div>
+                        <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK DESC.</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_vn_co};font-size:1.1rem;'>${vpn_final_og/1e6:.2f}M</div>
+                        <div class='metric-unit'>COP</div><div class='metric-label'>VPN {vida_og}a</div></div>
+                    <div class='metric-box'>
+                        <div class='metric-val' style='color:{_ti_co};'>{tir_og:.1f}%</div>
+                        <div class='metric-unit'>/año</div><div class='metric-label'>TIR</div></div>
                 </div>""", unsafe_allow_html=True)
 
                 st.markdown(f"""
                 <div class='sol-card' style='margin-top:0.8rem;'>
                     <div style='color:#FF6B35;font-family:Rajdhani,sans-serif;font-weight:600;
-                                margin-bottom:0.8rem;'>RESUMEN FINANCIERO</div>
-                    <table style='width:100%;font-size:0.83rem;border-collapse:collapse;'>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>Inversión paneles</td>
-                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_paneles:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>Inversión inversor</td>
-                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_inv:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>Otros (estructura+cableado)</td>
-                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${otros_costos:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                            <td style='color:#FFB300;padding:0.4rem 0;font-weight:600;'>Inversión total</td>
-                            <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>${inv_total:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>Ahorro mensual (autoconsumo)</td>
-                            <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>${ahorro_mes:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>Ingreso inyección red</td>
-                            <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>${ing_iny_mes:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                            <td style='color:#00E676;padding:0.4rem 0;font-weight:600;'>Beneficio mensual total</td>
-                            <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>${beneficio_mes:,.0f}</td>
-                        </tr>
-                        <tr style='border-bottom:1px solid #2A3A55;'>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>CO₂ evitado / año</td>
-                            <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{co2_anio:.0f} kg</td>
-                        </tr>
-                        <tr>
-                            <td style='color:#8A9BBD;padding:0.4rem 0;'>TIR simplificada</td>
-                            <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{tir_aprox:.1f}% / año</td>
-                        </tr>
+                                margin-bottom:0.6rem;'>DESGLOSE INVERSIÓN + AMBIENTAL</div>
+                    <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>{n_pan_og2} × Panel {wp_og2}Wp</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_paneles:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Inversor ON-GRID {pot_inv_og2:.1f}kW</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_inv:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Cableado + protecciones</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pcable_og:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Estructura + MO</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${otros_costos:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#FFB300;font-weight:600;'>INVERSIÓN TOTAL</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>${inv_total:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ahorro autoconsumo/mes ({autoconsumo_pct:.0f}%)</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>${ahorro_mes:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Ingreso inyección/mes</td><td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>${ing_iny_mes:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'><td style='color:#00E676;font-weight:600;'>BENEFICIO MENSUAL</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>${beneficio_mes:,.0f}</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Gen. anual (año 1)</td><td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{gen_anio:,.0f} kWh</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>CO₂ evitado/año</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{co2_anio:.0f} kg</td></tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Árboles equiv.</td><td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>≈{arboles_og:.0f}/año</td></tr>
+                        <tr><td style='color:#8A9BBD;'>TIR</td><td style='font-family:Share Tech Mono;text-align:right;color:{_ti_co};font-weight:700;'>{tir_og:.1f}% {"✅>TMAR" if tir_og>tmar_og else "⚠<TMAR"}</td></tr>
                     </table>
                 </div>""", unsafe_allow_html=True)
 
-                session_state["_og_inv_total"]      = inv_total
-                session_state["_og_beneficio_anio"] = beneficio_anio
-                session_state["_og_payback"]        = payback
-                session_state["_og_gen_anio"]       = gen_anio
-                session_state["_og_co2_anio"]       = co2_anio
+            # Flujo de caja
+            st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+            st.markdown("""<div style='color:#FF6B35;font-family:Rajdhani,sans-serif;
+                font-weight:600;font-size:1rem;margin-bottom:0.5rem;'>
+                📈 FLUJO DE CAJA PROYECTADO</div>""", unsafe_allow_html=True)
+            fc_og = {"Año": [f["año"] for f in flujos_og],
+                     "Tarifa ($/kWh)": [f"{f['tarifa']:,.0f}" for f in flujos_og],
+                     "Ahorro ($)": [f"{f['ahorro']:,.0f}" for f in flujos_og],
+                     "Inyección ($)": [f"{f['inyeccion']:,.0f}" for f in flujos_og],
+                     "Flujo neto ($)": [f"{f['neto']:,.0f}" for f in flujos_og],
+                     "VP ($)": [f"{f['vp']:,.0f}" for f in flujos_og],
+                     "VPN acum. ($)": [f"{f['vpn_acum']:,.0f}" for f in flujos_og]}
+            st.dataframe(fc_og, use_container_width=True, height=300)
+
+            st.markdown(f"""
+            <div class='info-note' style='margin-top:0.8rem;font-size:0.8rem;'>
+                TMAR {tmar_og}% | Escalación tarifa {escal_og}%/año | Mantenimiento {mant_og_pct}%/año |
+                TIR {tir_og:.1f}% {'> TMAR → VIABLE ✅' if tir_og > tmar_og else '< TMAR → REVISAR ⚠'} |
+                Factor CO₂ UPME: 0.126 kgCO₂/kWh | Degradación paneles: 0.5%/año |
+                Vida útil paneles: 25–30 años | Inversor ON-GRID: 10–15 años.
+                <b>Normas: RETIE · NTC 2050 · CREG 030-2018.</b>
+            </div>""", unsafe_allow_html=True)
+
+            session_state["_og_inv_total"]      = inv_total
+            session_state["_og_beneficio_anio"] = beneficio_anio
+            session_state["_og_payback"]        = payback
+            session_state["_og_gen_anio"]       = gen_anio
+            session_state["_og_co2_anio"]       = co2_anio
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB OG6 — PLANO DISTRIBUCIÓN PANELES

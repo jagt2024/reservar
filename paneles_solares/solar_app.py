@@ -5183,11 +5183,321 @@ with tab11:
 
     st.markdown("""
     <div class='formula-box'>
-        Ahorro mensual = Consumo cubierto (kWh/mes) × Tarifa ($/kWh)<br>
-        Payback simple = Inversión total ÷ Ahorro anual<br>
-        CO₂ evitado = Generación anual (kWh) × 0.126 kgCO₂/kWh (factor Colombia)
+        Basado en el dimensionamiento real de los Módulos 1–8 (cargas + recibo) ·
+        Ahorro mensual = Consumo cubierto (kWh/mes) × Tarifa ($/kWh) ·
+        VPN = Σ FlujoNeto_t/(1+TMAR)^t − Inversión ·
+        CO₂ factor Colombia: 0.126 kgCO₂/kWh (UPME)
     </div>
     """, unsafe_allow_html=True)
+
+    # ── Leer datos del proyecto ──────────────────────────────────────────────
+    conn = get_conn()
+    p_eco = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+    cargas_eco = pd.read_sql(
+        "SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
+        conn, params=(proyecto_id,))
+    panel_eco = conn.execute(
+        "SELECT potencia_wp, voc, isc FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+        (proyecto_id,)).fetchone()
+    conn.close()
+
+    consumo_inv_eco = (cargas_eco["cantidad"] * cargas_eco["potencia_w"] * cargas_eco["horas_dia"]).sum() \
+                      if not cargas_eco.empty else 0.0
+    consumo_rec_eco = st.session_state.get("consumo_recibo_wh", 0.0)
+    hsp_eco         = p_eco[4] if p_eco and p_eco[4] else None
+    try:
+        vdc_eco_bd = int(p_eco[5]) if p_eco and len(p_eco) > 5 and p_eco[5] not in (None,"") else None
+    except (ValueError, TypeError):
+        vdc_eco_bd = None
+    pot_panel_eco = int(panel_eco[0]) if panel_eco else 550
+
+    consumo_base_eco = max(float(consumo_inv_eco), float(consumo_rec_eco)) \
+                       if consumo_rec_eco > 0 else float(consumo_inv_eco)
+    consumo_fs_eco   = consumo_base_eco * 1.20
+
+    if consumo_base_eco == 0:
+        st.markdown("<div class='warn-box'>⚠ Ingresa cargas (Tab 1) o un recibo (Tab 2).</div>",
+                    unsafe_allow_html=True)
+    elif not hsp_eco:
+        st.markdown("<div class='warn-box'>⚠ Completa el Tab 4 (Hora Solar) y guarda el valor.</div>",
+                    unsafe_allow_html=True)
+    else:
+        vdc_eco    = int(vdc_eco_bd) if vdc_eco_bd and int(vdc_eco_bd) in (12,24,48) \
+                     else int(tension_dc(consumo_fs_eco))
+        pr_eco     = float(st.session_state.get("calc_pr", 0.75))
+        hsp_ef_eco = float(hsp_eco) * pr_eco
+
+        # ── Usar dimensionamiento real de Módulos 6-8 ───────────────────────
+        n_pan_eco      = int(st.session_state.get("calc_num_paneles",
+                             max(1, num_paneles(consumo_fs_eco/hsp_ef_eco, pot_panel_eco) if hsp_ef_eco > 0 else 1)))
+        pot_panel_eco  = int(st.session_state.get("calc_pot_panel_wp", pot_panel_eco))
+        pot_real_eco   = int(st.session_state.get("calc_pot_real_wp", n_pan_eco * pot_panel_eco))
+        bats_eco       = calcular_baterias(float(consumo_fs_eco), int(vdc_eco), **_bat_params(st.session_state))
+        n_bat_eco      = int(bats_eco["num_baterias"])
+        bat_cap_eco    = int(st.session_state.get("calc_bat_cap_ah", 100))
+        inv_kw_eco     = float(st.session_state.get("calc_inv_kw", 0))
+        if inv_kw_eco == 0:
+            _inv_tmp    = calcular_inversor(cargas_eco if not cargas_eco.empty else None, vdc=vdc_eco)
+            inv_kw_eco  = _inv_tmp["inv_kw"]
+        ctrl_a_eco     = float(st.session_state.get("calc_corr_mppt", 0))
+        ctrl_mod_eco   = st.session_state.get("calc_mppt_modelo", "MPPT")
+
+        gen_dia_eco    = (pot_real_eco / 1000) * float(hsp_eco) * pr_eco
+        gen_mes_eco    = gen_dia_eco * 30
+        gen_anio_eco   = gen_dia_eco * 365
+        co2_eco        = gen_anio_eco * 0.126
+        arboles_eco    = co2_eco / 21
+
+        fuente_label = ("Inventario de cargas" if consumo_rec_eco == 0
+                        else ("Mayor de los dos" if consumo_base_eco == max(consumo_inv_eco, consumo_rec_eco)
+                              else "Recibo de energía"))
+
+        st.markdown(f"""
+        <div class='info-note' style='margin-bottom:0.8rem;'>
+            📊 <b>Base de cálculo:</b> {fuente_label} —
+            Consumo base: <b style='color:#FFD54F;'>{consumo_base_eco:,.0f} Wh/día</b> →
+            Con FS 20%: <b style='color:#FFB300;'>{consumo_fs_eco:,.0f} Wh/día</b> |
+            Sistema: <b>{n_pan_eco} paneles {pot_panel_eco}Wp</b> |
+            <b>{n_bat_eco} baterías {bat_cap_eco}Ah @ {vdc_eco}V</b> |
+            Inversor: <b>{inv_kw_eco:.1f} kW</b> |
+            Controlador: <b>{ctrl_mod_eco}</b>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col_eco1, col_eco2 = st.columns([1, 1.2])
+
+        with col_eco1:
+            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                font-weight:600;margin-bottom:0.8rem;font-size:1rem;'>
+                💰 PARÁMETROS ECONÓMICOS</div>""", unsafe_allow_html=True)
+
+            tarifa_eco    = st.number_input("Tarifa energía ($/kWh)", 100.0, 5000.0, 700.0, 50.0,
+                                             help="Colombia: ~$600–900/kWh", key="eco_tarifa")
+            ppanel_eco    = st.number_input(f"Precio panel {pot_panel_eco}Wp ($/u)", 50000.0, 2e6, 320000.0, 10000.0,
+                                             key="eco_ppanel")
+            pbat_eco      = st.number_input(f"Precio batería {bat_cap_eco}Ah ($/u)", 50000.0, 5e6, 450000.0, 50000.0,
+                                             key="eco_pbat")
+            pcontrol_eco  = st.number_input(f"Precio controlador ({ctrl_mod_eco}) ($)", 50000.0, 3e6, 600000.0, 50000.0,
+                                             key="eco_pcontrol")
+            pinv_eco      = st.number_input(f"Precio inversor {inv_kw_eco:.1f} kW ($)", 100000.0, 10e6, 1200000.0, 100000.0,
+                                             key="eco_pinv")
+            pcable_eco    = st.number_input("Cableado + protecciones ($)", 0.0, 10e6, 500000.0, 50000.0,
+                                             key="eco_pcable")
+            potros_eco    = st.number_input("Estructura + mano de obra ($)", 0.0, 50e6, 1000000.0, 100000.0,
+                                             key="eco_otros")
+            tmar_eco      = st.slider("TMAR — Tasa mínima aceptable de retorno (%)", 5.0, 25.0, 12.0, 0.5,
+                                       key="eco_tmar",
+                                       help="Costo de oportunidad del dinero. Colombia: 10–15%")
+            vida_eco      = st.slider("Vida útil análisis (años)", 10, 30, 25, 1, key="eco_vida")
+            escal_eco     = st.slider("Escalación tarifa energía (%/año)", 0.0, 15.0, 5.0, 0.5,
+                                       key="eco_escal",
+                                       help="Incremento anual esperado de la tarifa eléctrica")
+            mant_pct_eco  = st.slider("Mantenimiento anual (% inversión)", 0.0, 5.0, 1.0, 0.1,
+                                       key="eco_mant")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with col_eco2:
+            # ── Cálculos económicos ─────────────────────────────────────────
+            inv_pan_eco   = n_pan_eco   * ppanel_eco
+            inv_bat_eco   = n_bat_eco   * pbat_eco
+            inv_total_eco = inv_pan_eco + inv_bat_eco + pcontrol_eco + pinv_eco + pcable_eco + potros_eco
+            mant_anio_eco = inv_total_eco * mant_pct_eco / 100
+
+            # Flujo de caja año a año
+            tmar_d = tmar_eco / 100
+            escal_d= escal_eco / 100
+            flujos = []
+            vpn_acum = -inv_total_eco
+            for yr in range(1, vida_eco + 1):
+                tarifa_yr  = tarifa_eco * ((1 + escal_d) ** yr)
+                ahorro_yr  = (consumo_base_eco / 1000) * 365 * tarifa_yr
+                # Degradación panel: 0.5%/año (LID ya incluida en PR)
+                gen_yr     = gen_anio_eco * ((1 - 0.005) ** yr)
+                ingreso_yr = gen_yr * tarifa_yr / 1000          # kWh×$/kWh (generación cubierta)
+                neto_yr    = ahorro_yr - mant_anio_eco
+                vp_yr      = neto_yr / ((1 + tmar_d) ** yr)
+                vpn_acum  += vp_yr
+                flujos.append({"año": yr, "tarifa": tarifa_yr,
+                               "ahorro": ahorro_yr, "neto": neto_yr,
+                               "vp": vp_yr, "vpn_acum": vpn_acum})
+
+            ahorro_mes_eco   = (consumo_base_eco / 1000) * 30 * tarifa_eco
+            ahorro_anio_eco  = ahorro_mes_eco * 12
+            payback_eco      = inv_total_eco / (ahorro_anio_eco - mant_anio_eco) \
+                               if (ahorro_anio_eco - mant_anio_eco) > 0 else 99
+            vpn_final        = flujos[-1]["vpn_acum"]
+            # TIR: bisección simple
+            def _vpn_tir(r):
+                v = -inv_total_eco
+                for yr in range(1, vida_eco+1):
+                    v += (ahorro_anio_eco - mant_anio_eco) / ((1+r)**yr)
+                return v
+            tir_lo, tir_hi = 0.001, 2.0
+            for _ in range(60):
+                tir_mid = (tir_lo + tir_hi) / 2
+                if _vpn_tir(tir_mid) > 0: tir_lo = tir_mid
+                else: tir_hi = tir_mid
+            tir_eco = tir_lo * 100
+            # Payback descontado
+            pb_desc_eco = next((f["año"] for f in flujos if f["vpn_acum"] >= 0), vida_eco + 1)
+
+            _pb_col  = "#00E676" if payback_eco <= 8 else "#FFB300" if payback_eco <= 15 else "#FF5252"
+            _vpn_col = "#00E676" if vpn_final > 0 else "#FF5252"
+            _tir_col = "#00E676" if tir_eco > tmar_eco else "#FF5252"
+
+            st.markdown(f"""
+            <div class='result-highlight' style='border-color:rgba(0,230,118,0.5);
+                 background:linear-gradient(135deg,rgba(0,230,118,0.08),rgba(0,230,118,0.02));'>
+                <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
+                    Ahorro mensual año 1 (tarifa ${tarifa_eco:,.0f}/kWh)</div>
+                <div class='val' style='color:#00E676;'>${ahorro_mes_eco:,.0f} / mes</div>
+            </div>
+            <div class='metric-grid' style='margin-top:0.8rem;'>
+                <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
+                    <div class='metric-val'>${inv_total_eco/1e6:.2f}M</div>
+                    <div class='metric-unit'>COP</div><div class='metric-label'>INVERSIÓN TOTAL</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
+                    <div class='metric-val' style='color:#00E676;'>${ahorro_anio_eco/1e6:.2f}M</div>
+                    <div class='metric-unit'>$/año</div><div class='metric-label'>AHORRO ANUAL AÑO 1</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba({("0,230,118" if payback_eco<=8 else "255,179,0" if payback_eco<=15 else "255,82,82")},0.5);'>
+                    <div class='metric-val' style='color:{_pb_col};'>{payback_eco:.1f}</div>
+                    <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK SIMPLE</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
+                    <div class='metric-val' style='color:#00BCD4;'>{pb_desc_eco}</div>
+                    <div class='metric-unit'>años</div><div class='metric-label'>PAYBACK DESC.</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba({("0,230,118" if vpn_final>0 else "255,82,82")},0.5);'>
+                    <div class='metric-val' style='color:{_vpn_col};font-size:1.1rem;'>${vpn_final/1e6:.2f}M</div>
+                    <div class='metric-unit'>COP</div><div class='metric-label'>VPN {vida_eco} AÑOS</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba({("0,230,118" if tir_eco>tmar_eco else "255,82,82")},0.5);'>
+                    <div class='metric-val' style='color:{_tir_col};'>{tir_eco:.1f}%</div>
+                    <div class='metric-unit'>/año</div><div class='metric-label'>TIR</div>
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+            # Desglose inversión
+            st.markdown(f"""
+            <div class='sol-card' style='margin-top:0.8rem;'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+                            font-weight:600;margin-bottom:0.6rem;'>DESGLOSE DE INVERSIÓN</div>
+                <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>{n_pan_eco} × Panel {pot_panel_eco}Wp</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${inv_pan_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>{n_bat_eco} × Batería {bat_cap_eco}Ah</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>${inv_bat_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Controlador {ctrl_mod_eco}</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pcontrol_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Inversor {inv_kw_eco:.1f} kW</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pinv_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Cableado + protecciones</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${pcable_eco:,.0f}</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Estructura + MO</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>${potros_eco:,.0f}</td>
+                    </tr>
+                    <tr style='background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.4rem 0;font-weight:700;'>INVERSIÓN TOTAL</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;
+                                   font-weight:700;font-size:0.95rem;'>${inv_total_eco:,.0f}</td>
+                    </tr>
+                </table>
+            </div>""", unsafe_allow_html=True)
+
+        # ── Ambiental + generación ────────────────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        for c_amb, icon_a, lbl_a, val_a, unit_a, col_a in zip(
+            st.columns(5),
+            ["🌿","🌳","☀","💡","📅"],
+            ["CO₂ evitado/año","Árboles equiv.","Gen. anual","Consumo cubierto/mes","Vida útil"],
+            [f"{co2_eco:,.0f}",f"{arboles_eco:.0f}",f"{gen_anio_eco:,.0f}",
+             f"{gen_mes_eco:,.0f}","20–25"],
+            ["kg CO₂","árboles","kWh/año","kWh/mes","años"],
+            ["#00BCD4","#00E676","#FFB300","#FFD54F","#8A9BBD"],
+        ):
+            with c_amb:
+                st.markdown(f"""
+                <div class='metric-box' style='text-align:center;border-top:2px solid {col_a};'>
+                    <div style='font-size:1.5rem;margin-bottom:0.3rem;'>{icon_a}</div>
+                    <div class='metric-val' style='color:{col_a};font-size:1.3rem;'>{val_a}</div>
+                    <div class='metric-unit'>{unit_a}</div>
+                    <div class='metric-label'>{lbl_a}</div>
+                </div>""", unsafe_allow_html=True)
+
+        # ── Flujo de caja proyectado ─────────────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+            font-weight:600;font-size:1rem;margin-bottom:0.6rem;'>
+            📈 FLUJO DE CAJA PROYECTADO</div>""", unsafe_allow_html=True)
+
+        fc_data = {"Año": [f["año"] for f in flujos],
+                   "Tarifa ($/kWh)": [f"{f['tarifa']:,.0f}" for f in flujos],
+                   "Ahorro anual ($)": [f"{f['ahorro']:,.0f}" for f in flujos],
+                   "Flujo neto ($)": [f"{f['neto']:,.0f}" for f in flujos],
+                   "Valor presente ($)": [f"{f['vp']:,.0f}" for f in flujos],
+                   "VPN acumulado ($)": [f"{f['vpn_acum']:,.0f}" for f in flujos]}
+        st.dataframe(fc_data, use_container_width=True, height=320)
+
+        # ── Resumen sistema + nota ────────────────────────────────────────────
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        csum1, csum2, csum3 = st.columns(3)
+        with csum1:
+            st.markdown(f"""<div class='sol-card'>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
+                ARRAY FV</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                    Paneles: <b style='color:#FFD54F;'>{n_pan_eco} × {pot_panel_eco} Wp</b><br>
+                    Pot. instalada: <b style='color:#FFD54F;'>{pot_real_eco/1000:.2f} kWp</b><br>
+                    Gen./día (PR={int(pr_eco*100)}%): <b style='color:#00E676;'>{gen_dia_eco:.2f} kWh</b><br>
+                    Gen./año (degradación 0.5%): <b style='color:#00E676;'>{gen_anio_eco:,.0f} kWh</b><br>
+                    HSP bruta: <b style='color:#00BCD4;'>{hsp_eco} h/día</b>
+                </div></div>""", unsafe_allow_html=True)
+        with csum2:
+            st.markdown(f"""<div class='sol-card'>
+                <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
+                BATERÍAS + INVERSORES</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                    Baterías: <b style='color:#FFD54F;'>{n_bat_eco} × {bat_cap_eco}Ah @ {vdc_eco}V</b><br>
+                    Cap. banco: <b style='color:#A78BFA;'>{bats_eco["energia_kwh"]:.2f} kWh</b><br>
+                    E. útil: <b style='color:#00E676;'>{bats_eco["energia_util_kwh"]:.2f} kWh</b><br>
+                    Autonomía real: <b style='color:#00BCD4;'>{bats_eco["autonomia_real_h"]:.1f} h</b><br>
+                    Inversor: <b style='color:#00E676;'>{inv_kw_eco:.1f} kW</b> |
+                    Ctrl: <b>{ctrl_mod_eco}</b>
+                </div></div>""", unsafe_allow_html=True)
+        with csum3:
+            st.markdown(f"""<div class='sol-card'>
+                <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
+                CONSUMO</div>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                    Base: <b style='color:#FFD54F;'>{consumo_base_eco:,.0f} Wh/día</b><br>
+                    Con FS 20%: <b style='color:#FFD54F;'>{consumo_fs_eco:,.0f} Wh/día</b><br>
+                    Mensual: <b style='color:#00E676;'>{consumo_base_eco*30/1000:.1f} kWh</b><br>
+                    Anual: <b style='color:#00BCD4;'>{consumo_base_eco*365/1000:.0f} kWh</b><br>
+                    VDC: <b style='color:#FFB300;'>{vdc_eco} V DC</b>
+                </div></div>""", unsafe_allow_html=True)
+
+        st.markdown(f"""
+        <div class='info-note' style='margin-top:1rem;font-size:0.8rem;'>
+            <b>Metodología:</b> VPN calculado con TMAR {tmar_eco}% y escalación de tarifa {escal_eco}%/año.
+            TIR = {tir_eco:.1f}% {'> TMAR → PROYECTO VIABLE ✅' if tir_eco > tmar_eco else '< TMAR → REVISAR SUPUESTOS ⚠'}.
+            Factor CO₂ UPME Colombia: 0.126 kgCO₂/kWh. Degradación paneles: 0.5%/año.
+            Vida útil: paneles 25–30 años | baterías AGM 5–8 años / LiFePO4 10–15 años.
+            <b>Normas: RETIE · NTC 2050 · CREG 030-2018.</b>
+        </div>""", unsafe_allow_html=True)
 
     # ── Leer datos del proyecto desde BD ─────────────────────────────────────
     conn = get_conn()
@@ -5425,24 +5735,12 @@ with tab11:
                             font-weight:600;margin-bottom:0.6rem;'>CONSUMO</div>
                 <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono,monospace;'>
                     Base: <b style='color:#FFD54F;'>{consumo_base_eco:,.0f} Wh/día</b><br>
-                    Con 25% FS: <b style='color:#FFD54F;'>{consumo_fs_eco:,.0f} Wh/día</b><br>
+                    Con FS 20%: <b style='color:#FFD54F;'>{consumo_fs_eco:,.0f} Wh/día</b><br>
                     Mensual: <b style='color:#00E676;'>{consumo_base_eco*30/1000:.1f} kWh/mes</b><br>
-                    Anual: <b style='color:#00BCD4;'>{consumo_base_eco*365/1000:.0f} kWh/año</b>
+                    Anual: <b style='color:#00BCD4;'>{consumo_base_eco*365/1000:.0f} kWh/año</b><br>
+                    VDC: <b style='color:#FFB300;'>{vdc_eco} V DC</b>
                 </div>
             </div>""", unsafe_allow_html=True)
-
-        # ── Nota normativa ─────────────────────────────────────────────────
-        st.markdown("""
-        <div class='info-note' style='margin-top:1rem;'>
-            ℹ <b>Notas metodológicas:</b>
-            El ahorro mensual corresponde al costo evitado de comprar esa energía a la red eléctrica
-            (o al generador diésel en zonas aisladas). Para sistemas OFF-GRID totalmente aislados,
-            el análisis compara contra el costo de alternativas (generadores, velas, pilas).
-            El factor CO₂ de 0.126 kgCO₂/kWh corresponde al factor de emisión de la red colombiana
-            (UPME). Vida útil: paneles 25–30 años, baterías AGM/GEL 5–8 años, LiFePO4 10–15 años.
-            <b>Normas aplicables: RETIE, NTC 2050, CREG 030-2018.</b>
-        </div>
-        """, unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 12 — CABLEADO
@@ -5457,6 +5755,6 @@ with tab12:
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style='text-align:center; padding:2rem 0 1rem; color:#2A3A55; font-size:0.75rem; letter-spacing:2px;'>
-    SOLARCALC PRO · DIMENSIONAMIENTO FOTOVOLTAICO OFF-GRID · SQLITE3 + STREAMLIT
+    SOLARCALC PRO | DIMENSIONAMIENTO FOTOVOLTAICO OFF-GRID | SQLITE3 + STREAMLIT
 </div>
 """, unsafe_allow_html=True)
