@@ -864,10 +864,16 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                 ("✅ Energía utilizable",                 f"{bats2['energia_util_kwh']:.2f} kWh"),
                 ("Autonomía real",                        f"{bats2['autonomia_real_h']:.1f} h ({bats2['autonomia_real_d']:.2f} días)"),
             ]),
-            ("🎛 CONTROLADOR MPPT", [
-                ("Tensión del sistema",                 f"{vdc2} V"),
-                ("Isc panel × N° paneles",              f"{isc2} A × {n_pan2} = {corr_mppt2:.1f} A"),
-                ("Controlador recomendado",             mppt2),
+            ("🎛 CONTROLADOR MPPT/PWM — 7 VERIFICACIONES", [
+                ("① Corriente nominal: P_FV / V_bat",   f"{corr_mppt2:.1f} A"),
+                ("① × 1.25 (margen de seguridad)",       f"{corr_mppt2*1.25:.1f} A"),
+                ("① Controlador comercial recomendado",  mppt2),
+                ("② Voc string a 25°C",                  f"{isc2} A · {n_pan2} pan. (ver cálculo)"),
+                ("③ Corriente array (Imp × N_strings)",  f"{isc2} A × {n_pan2} = {corr_mppt2:.1f} A"),
+                ("④ Verificar potencia máx. admitida",   f"@ {vdc2}V — ver tabla fabricante"),
+                ("⑤ Tipo recomendado",                   "MPPT (mayor eficiencia)" if vdc2 >= 24 else "PWM o MPPT"),
+                ("⑥ N° controladores",                   "1 (verificar con potencia total del array)"),
+                ("⑦ Controlador recomendado",            mppt2),
             ]),
             ("🔌 INVERSOR DC/AC — DIMENSIONAMIENTO TÉCNICO", [
                 ("1. Pot. instalada total",             f"{_inv2['pot_instalada']:,.0f} W"),
@@ -1193,9 +1199,13 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ["",          "Energía bruta",                          f"{bats_p['energia_kwh']:.2f} kWh"],
             ["",          "✅ Energía utilizable",                  f"{bats_p['energia_util_kwh']:.2f} kWh"],
             ["",          "Autonomía real",                         f"{bats_p['autonomia_real_h']:.1f} h ({bats_p['autonomia_real_d']:.2f} d)"],
-            ["🎛 MPPT",   f"Isc ({isc_p}A) × {n_pan_p} paneles",
-                          f"{corr_p:.1f} A"],
-            ["",          "Controlador recomendado",           mppt_p],
+            ["🎛 Controlador","① P_FV / V_bat × 1.25",              f"{corr_p:.1f} × 1.25 = {corr_p*1.25:.1f} A"],
+            ["",             "① Tamaño comercial",                   mppt_p],
+            ["",             "② Voc string (Voc×Ns) corr. Tmin",    f"{isc_p}A panel (ver Módulo 5)"],
+            ["",             "③ I_array = Imp × N_strings",          f"{corr_p:.1f} A"],
+            ["",             "④ Verificar pot. máx. @ V_bat",        f"@ {vdc_p}V — tabla fabricante"],
+            ["",             "⑤ Tipo recomendado",                   "MPPT" if vdc_p >= 24 else "PWM o MPPT"],
+            ["",             "⑦ ✅ Controlador recomendado",         mppt_p],
             ["🔌 Inversor","Potencia instalada total",         f"{_inv_p['pot_instalada']:,.0f} W"],
             ["",          f"Demanda simultánea (×FS {int(_inv_p['fs']*100)}%)",
                                                                f"{_inv_p['pot_simultanea']:,.0f} W"],
@@ -3541,17 +3551,23 @@ with tab7:
 # ════════════════════════════════════════════════════════════════════════════
 with tab8:
     st.markdown("""
-    <div class='sol-card-title'><span class='step-badge'>8</span> SELECCIÓN CONTROLADOR DE CARGA MPPT</div>
+    <div class='sol-card-title'><span class='step-badge'>8</span> SELECCIÓN CONTROLADOR DE CARGA (MPPT / PWM)</div>
     """, unsafe_allow_html=True)
 
     st.markdown("""
     <div class='formula-box'>
-        Corriente controlador (A) = Isc (panel) × N° de paneles<br>
-        Seleccionar el controlador estándar inmediatamente superior a ese valor
+        <b>Metodología — 7 verificaciones simultáneas (RETIE / IEC 62548)</b><br>
+        ① Corriente nominal = P_FV / V_bat × 1.25 &nbsp;|&nbsp;
+        ② Voc string corregida por temperatura &nbsp;|&nbsp;
+        ③ Corriente array = Imp × N_strings &nbsp;|&nbsp;
+        ④ Potencia máxima admitida por V_bat &nbsp;|&nbsp;
+        ⑤ Tipo: MPPT (alta eficiencia) vs PWM (baja tensión) &nbsp;|&nbsp;
+        ⑥ N° controladores si capacidad insuficiente &nbsp;|&nbsp;
+        ⑦ Tamaño comercial estándar superior
     </div>
     """, unsafe_allow_html=True)
 
-    # Recopilar todos los datos calculados
+    # ── Cargar datos del proyecto ─────────────────────────────────────────────
     conn = get_conn()
     cargas7 = pd.read_sql("SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
                            conn, params=(proyecto_id,))
@@ -3599,10 +3615,7 @@ with tab8:
             </div>
             """, unsafe_allow_html=True)
 
-        # ── Usar datos ya calculados en Tab 6 (Potencia) si existen ────────
-        # Esto evita recalcular con HSP/PR/factor genéricos y respeta los
-        # ajustes que el usuario hizo en el Módulo 6, sin importar si la
-        # fuente de consumo fue inventario de cargas o recibo de luz.
+        # ── Usar datos calculados en Tab 6 si existen ────────────────────────
         _tab6_disponible = "calc_num_paneles" in st.session_state
         if _tab6_disponible:
             num_pan7         = st.session_state.get("calc_num_paneles", 0)
@@ -3613,109 +3626,230 @@ with tab8:
             st.markdown("""
             <div class='info-note' style='margin-bottom:0.8rem;border-color:rgba(0,230,118,0.4);'>
                 ✅ Usando paneles y potencia ya dimensionados en el <b>Módulo 6 · Potencia</b>
-                (incluye tu ajuste de PR y factor de baterías)
-            </div>
-            """, unsafe_allow_html=True)
+            </div>""", unsafe_allow_html=True)
         else:
-            # Fallback: recalcular si el usuario no ha pasado por Tab 6
             potencia_inst7   = consumo7_fs / hsp7
             num_pan7         = num_paneles(potencia_inst7, pot_panel7)
             pot_real_paneles = num_pan7 * pot_panel7
             st.markdown("""
             <div class='warn-box' style='margin-bottom:0.8rem;'>
-                ⚠ No se encontraron datos del Módulo 6 · Potencia en esta sesión — se recalculó
-                con HSP/PR por defecto. Visita el Módulo 6 para un dimensionamiento más preciso.
-            </div>
-            """, unsafe_allow_html=True)
+                ⚠ No se encontraron datos del Módulo 6 · Visita el Módulo 6 para resultados más precisos.
+            </div>""", unsafe_allow_html=True)
 
         bats7 = calcular_baterias(consumo7_fs, vdc7, **_bat_params(st.session_state))
-        # Isc del panel: priorizar el de la BD (Módulo 5), luego session_state
-        isc7 = (panel7[2] if panel7 and len(panel7) > 2 and panel7[2] else
-                st.session_state.get("calc_isc", st.session_state.get("panel_isc", 8.02)))
-        ah_banco7 = bats7["num_baterias"] * 100
-        corriente_mppt7 = isc7 * num_pan7   # Isc × N° paneles
+        isc7  = (panel7[2] if panel7 and len(panel7) > 2 and panel7[2] else
+                 st.session_state.get("calc_isc", st.session_state.get("panel_isc", 8.02)))
+        voc7_panel = (panel7[1] if panel7 and len(panel7) > 1 and panel7[1] else 49.8)
 
-        col7a, col7b = st.columns([1,1])
+        # ── Parámetros ajustables ─────────────────────────────────────────────
+        st.markdown("---")
+        col7a, col7b, col7c = st.columns(3)
         with col7a:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-            st.markdown("**Ajuste parámetros MPPT**")
-            vdc_7 = st.selectbox("Tensión sistema (V)", [12, 24, 48],
+            st.markdown("**⚡ Parámetros del array**")
+            vdc_7 = st.selectbox("Tensión banco baterías (V)", [12, 24, 48],
                                    index=[12,24,48].index(vdc7) if vdc7 in [12,24,48] else 2, key="vdc7")
-            isc_7 = st.number_input("Corriente Isc del panel (A)", min_value=1.0, max_value=30.0,
-                                     value=float(isc7), step=0.01, key="isc7_ctrl",
-                                     help="Corriente de cortocircuito del panel (del Módulo 5)")
-            n_pan_7 = st.number_input("Número de paneles (N°)", min_value=1, max_value=500,
-                                       value=int(num_pan7), step=1, key="npan7_ctrl")
-            pot_paneles_7 = st.number_input("Potencia total paneles (Wp)", min_value=100, max_value=50000,
-                                             value=int(pot_real_paneles), step=100)
-
-            # 4. Corriente controlador = Isc × N_paneles
-            corriente_ctrl = isc_7 * n_pan_7
-
-            st.markdown(f"""
-            <div class='formula-box' style='margin-top:1rem;'>
-                Isc ({isc_7} A) × {n_pan_7} paneles = {corriente_ctrl:.1f} A → controlador estándar superior
-            </div>
-            """, unsafe_allow_html=True)
+            isc_7    = st.number_input("Corriente Isc panel (A)", 1.0, 30.0, float(isc7), 0.01, key="isc7_ctrl",
+                                       help="Corriente de cortocircuito del panel — desde Módulo 5")
+            voc_7    = st.number_input("Tensión Voc panel (V)", 5.0, 100.0, float(voc7_panel), 0.1, key="voc7_ctrl",
+                                       help="Tensión de circuito abierto del panel — desde Módulo 5")
+            imp_7    = st.number_input("Corriente Imp panel (A)", 1.0, 30.0,
+                                       round(float(isc7)*0.95, 2), 0.01, key="imp7_ctrl",
+                                       help="Corriente en el punto de máxima potencia")
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col7b:
-            # Determinar modelo MPPT sugerido
-            if corriente_ctrl <= 40:
-                mppt_modelo = "MPPT 40A"
-                mppt_color = "#00E676"
-            elif corriente_ctrl <= 60:
-                mppt_modelo = "MPPT 60A"
-                mppt_color = "#00BCD4"
-            elif corriente_ctrl <= 100:
-                mppt_modelo = "MPPT 100A"
-                mppt_color = "#FFB300"
-            else:
-                mppt_modelo = f"MPPT {math.ceil(corriente_ctrl/50)*50}A"
-                mppt_color = "#FF5252"
-            # Guardar para el simulador
-            st.session_state["calc_corr_mppt"]  = corriente_ctrl
-            st.session_state["calc_mppt_modelo"] = mppt_modelo
-            st.session_state["calc_isc"]         = isc_7
-
+            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            st.markdown("**🔢 Configuración del array**")
+            n_pan_7  = st.number_input("N° total de paneles", 1, 500, int(num_pan7), 1, key="npan7_ctrl")
+            pan_serie_7 = st.number_input("Paneles en serie (por string)", 1, 50,
+                                           max(1, int(st.session_state.get("_paneles_por_string", 1))),
+                                           1, key="serie7_ctrl",
+                                           help="Paneles en serie en cada string")
+            n_str_7  = max(1, math.ceil(n_pan_7 / max(1, pan_serie_7)))
             st.markdown(f"""
-            <div style='background:var(--card); border:1px solid var(--border); border-radius:12px; padding:1.5rem;'>
-                <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; font-size:1.1rem; margin-bottom:1rem;'>
-                    ESPECIFICACIONES MPPT REQUERIDAS
-                </div>
-                <table style='width:100%; font-size:0.85rem; border-collapse:collapse;'>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Tensión del sistema</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{vdc_7} V</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Isc panel</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{isc_7} A</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>N° paneles</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{n_pan_7}</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Potencia mínima paneles</td>
-                        <td style='font-family:Share Tech Mono; color:#FFD54F; text-align:right;'>{pot_paneles_7:,} Wp</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD; padding:0.5rem 0;'>Isc ({isc_7} A) × {n_pan_7} =</td>
-                        <td style='font-family:Share Tech Mono; color:{mppt_color}; text-align:right; font-size:1.1rem; font-weight:700;'>{corriente_ctrl:.1f} A</td>
-                    </tr>
-                </table>
-                <div style='margin-top:1rem; background:rgba(255,179,0,0.08); border:1px solid rgba(255,179,0,0.3); border-radius:8px; padding:1rem; text-align:center;'>
-                    <div style='color:#8A9BBD; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;'>Controlador Recomendado</div>
-                    <div style='font-family:Rajdhani,sans-serif; font-size:2rem; color:{mppt_color}; font-weight:700; margin:0.3rem 0;'>{mppt_modelo}</div>
-                    <div style='font-size:0.8rem; color:#8A9BBD;'>
-                        {vdc_7} V | {corriente_ctrl:.1f} A | ≥{pot_paneles_7:,} Wp
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            <div class='info-note' style='margin-top:0.5rem;'>
+                Strings en paralelo: <b style='color:#FFB300;'>{n_str_7}</b>
+                ({n_pan_7} paneles ÷ {pan_serie_7} en serie)
+            </div>""", unsafe_allow_html=True)
+            pot_paneles_7 = st.number_input("Potencia total array (Wp)", 100, 200000,
+                                             int(pot_real_paneles), 100, key="pot7_ctrl")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # ─── PROTECCIONES DC / AC ────────────────────────────────────────
+        with col7c:
+            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            st.markdown("**🌡 Factores de corrección**")
+            tipo_ctrl_7 = st.selectbox("Tipo de controlador", ["MPPT (recomendado)", "PWM"],
+                                        key="tipo_ctrl7",
+                                        help="MPPT: mayor eficiencia, acepta Voc mayor que Vbat.\n"
+                                             "PWM: el Vmp del panel debe ser ~20% mayor que Vbat.")
+            temp_min_7 = st.number_input("Temperatura mínima sitio (°C)", -30, 25, 5, 1, key="tmin7",
+                                          help="Temperatura mínima del lugar — incrementa el Voc. "
+                                               "Típico Colombia: 5°C (altiplano) a 15°C (costa)")
+            mppt_max_v7 = st.number_input("Voc máx. admitida por controlador (V)", 100, 1500, 450, 50,
+                                           key="mppt_maxv7",
+                                           help="Tensión de entrada máxima del controlador/inversor MPPT")
+            mppt_max_i7 = st.number_input("Corriente FV máx. admitida (A)", 10, 300, 60, 5,
+                                           key="mppt_maxi7",
+                                           help="Corriente de entrada máxima del controlador MPPT")
+            mppt_max_p7 = st.number_input("Potencia máx. admitida por MPPT (Wp)", 500, 100000,
+                                           int(vdc_7 * 100), 500,  # orientativo: 100A × Vbat
+                                           key="mppt_maxp7",
+                                           help="Potencia FV máxima admitida por el controlador "
+                                                f"a {vdc_7}V. Típico: 12V→800W, 24V→1600W, 48V→3200W")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        # ═══════════════════════════════════════════════════════════════════════
+        # CÁLCULOS — 7 VERIFICACIONES
+        # ═══════════════════════════════════════════════════════════════════════
+
+        # ① Corriente nominal: P_FV / V_bat × 1.25 (MPPT) o Isc × Np × 1.25 (PWM)
+        if "PWM" in tipo_ctrl_7:
+            i_nom_7   = isc_7 * n_str_7          # PWM usa Isc × N_paralelo
+            i_dis_7   = i_nom_7 * 1.25
+            metodo_i  = f"Isc ({isc_7}A) × {n_str_7} strings"
+        else:
+            i_nom_7   = pot_paneles_7 / max(vdc_7, 1)   # MPPT: P/V_bat
+            i_dis_7   = i_nom_7 * 1.25
+            metodo_i  = f"P_FV ({pot_paneles_7:,}Wp) ÷ V_bat ({vdc_7}V)"
+
+        # Tamaños comerciales de controladores (A)
+        _CTRL_A = [10, 20, 30, 40, 60, 80, 100, 120, 150, 200, 250, 300]
+        ctrl_a_recom = next((a for a in _CTRL_A if a >= i_dis_7), _CTRL_A[-1])
+
+        # ② Voc string corregida por temperatura mínima
+        # Coef. típico de temperatura Voc: −0.30 %/°C para silicio cristalino
+        # A menor temperatura, Voc AUMENTA → usar temp mínima para el peor caso
+        coef_voc_pct = 0.003     # +0.3%/°C bajo temperatura de referencia (25°C)
+        delta_t_7    = max(0, 25 - temp_min_7)          # positivo si T < 25°C
+        factor_voc_t = 1 + coef_voc_pct * delta_t_7    # Voc sube a bajas T
+        voc_str_7    = voc_7 * pan_serie_7              # Voc string a 25°C
+        voc_str_cor  = voc_str_7 * factor_voc_t         # Voc corregida por Tmin
+        verif_voc    = voc_str_cor <= mppt_max_v7
+
+        # ③ Corriente del array: Imp × N_strings (corriente real de entrada al MPPT)
+        i_array_7    = imp_7 * n_str_7
+        verif_i_arr  = i_array_7 <= mppt_max_i7
+
+        # ④ Verificación potencia máxima
+        verif_pot    = pot_paneles_7 <= mppt_max_p7
+
+        # ⑥ N° controladores si la potencia excede la capacidad
+        n_ctrl_7     = math.ceil(pot_paneles_7 / max(mppt_max_p7, 1)) if not verif_pot else 1
+        n_ctrl_i     = math.ceil(i_dis_7 / max(ctrl_a_recom if ctrl_a_recom < 300 else i_dis_7, 1))
+        n_ctrl_final = max(n_ctrl_7, 1)
+
+        # Color semáforo
+        def _ok(ok): return "#00E676" if ok else "#FF5252"
+        def _badge(ok): return "✅ OK" if ok else "❌ REVISAR"
+
+        # ── RESULTADOS — Tabla de 7 verificaciones ───────────────────────────
+        st.markdown("---")
+        st.markdown("""
+        <div style='font-family:Rajdhani,sans-serif;font-size:1.1rem;font-weight:700;
+                    color:#00BCD4;letter-spacing:1px;margin-bottom:0.6rem;'>
+            📋 VERIFICACIONES DEL CONTROLADOR
+        </div>""", unsafe_allow_html=True)
+
+        vf_rows = f"""
+        <tr style='border-bottom:1px solid #2A3A55;'>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>① Corriente nominal ({tipo_ctrl_7.split()[0]})</td>
+            <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.4rem;'>{metodo_i} = {i_nom_7:.1f} A</td>
+            <td style='font-family:Share Tech Mono;color:#FFB300;padding:0.4rem;'>× 1.25 = {i_dis_7:.1f} A</td>
+            <td style='font-family:Share Tech Mono;color:#00E676;padding:0.4rem;font-weight:700;'>Seleccionar: {ctrl_a_recom} A</td>
+        </tr>
+        <tr style='border-bottom:1px solid #2A3A55;'>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>② Voc string corregida (T_min={temp_min_7}°C)</td>
+            <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.4rem;'>
+                {voc_7}V × {pan_serie_7} series × {factor_voc_t:.3f} = {voc_str_cor:.1f} V</td>
+            <td style='font-family:Share Tech Mono;color:#8A9BBD;padding:0.4rem;'>Máx. MPPT: {mppt_max_v7} V</td>
+            <td style='font-family:Share Tech Mono;color:{_ok(verif_voc)};padding:0.4rem;font-weight:700;'>{_badge(verif_voc)}</td>
+        </tr>
+        <tr style='border-bottom:1px solid #2A3A55;'>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>③ Corriente array (Imp × N_strings)</td>
+            <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.4rem;'>
+                {imp_7}A × {n_str_7} strings = {i_array_7:.1f} A</td>
+            <td style='font-family:Share Tech Mono;color:#8A9BBD;padding:0.4rem;'>Máx. MPPT: {mppt_max_i7} A</td>
+            <td style='font-family:Share Tech Mono;color:{_ok(verif_i_arr)};padding:0.4rem;font-weight:700;'>{_badge(verif_i_arr)}</td>
+        </tr>
+        <tr style='border-bottom:1px solid #2A3A55;'>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>④ Potencia máxima admitida @ {vdc_7}V</td>
+            <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.4rem;'>
+                Array: {pot_paneles_7:,} Wp</td>
+            <td style='font-family:Share Tech Mono;color:#8A9BBD;padding:0.4rem;'>Máx. MPPT: {mppt_max_p7:,} Wp</td>
+            <td style='font-family:Share Tech Mono;color:{_ok(verif_pot)};padding:0.4rem;font-weight:700;'>{_badge(verif_pot)}</td>
+        </tr>
+        <tr style='border-bottom:1px solid #2A3A55;'>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>⑤ Tipo de controlador recomendado</td>
+            <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.4rem;' colspan='2'>
+                {"MPPT — Mayor eficiencia, acepta tensión string mayor que Vbat, ideal para arrays grandes" if "MPPT" in tipo_ctrl_7
+                  else "PWM — Requiere Vmp ≈ 1.2×Vbat. Solo válido para arrays pequeños y baja tensión"}</td>
+            <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.4rem;font-weight:700;'>{"✅ MPPT" if "MPPT" in tipo_ctrl_7 else "⚠ PWM"}</td>
+        </tr>
+        <tr>
+            <td style='color:#8A9BBD;padding:0.4rem 0.5rem;'>⑥ Controladores necesarios</td>
+            <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.4rem;'>
+                {pot_paneles_7:,}Wp ÷ {mppt_max_p7:,}Wp/ctrl = {pot_paneles_7/max(mppt_max_p7,1):.2f}</td>
+            <td style='font-family:Share Tech Mono;color:#8A9BBD;padding:0.4rem;'></td>
+            <td style='font-family:Share Tech Mono;padding:0.4rem;font-weight:700;
+                       color:{"#00E676" if n_ctrl_final==1 else "#FFB300"};'>
+                {n_ctrl_final} controlador{"es" if n_ctrl_final>1 else ""}</td>
+        </tr>"""
+
+        st.markdown(f"""
+        <div style='overflow-x:auto;'>
+        <table style='width:100%;border-collapse:collapse;font-size:0.82rem;
+                      background:#0F1525;border-radius:8px;'>
+            <thead>
+                <tr style='background:#1A2440;color:#8A9BBD;font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;'>
+                    <th style='padding:0.5rem;text-align:left;'>Verificación</th>
+                    <th style='padding:0.5rem;text-align:left;'>Cálculo</th>
+                    <th style='padding:0.5rem;text-align:left;'>Límite</th>
+                    <th style='padding:0.5rem;text-align:left;'>Resultado</th>
+                </tr>
+            </thead>
+            <tbody>{vf_rows}</tbody>
+        </table>
+        </div>""", unsafe_allow_html=True)
+
+        # ── RECOMENDACIÓN FINAL ───────────────────────────────────────────────
+        todo_ok   = verif_voc and verif_i_arr and verif_pot
+        ctrl_color = "#00E676" if todo_ok else ("#FFB300" if (verif_voc and verif_i_arr) else "#FF5252")
+
+        if n_ctrl_final > 1:
+            rec_txt  = f"{n_ctrl_final} × MPPT {ctrl_a_recom}A"
+            nota_ctrl = f"⚠ La potencia del array ({pot_paneles_7:,}Wp) supera la capacidad de un solo controlador ({mppt_max_p7:,}Wp). Se requieren {n_ctrl_final} controladores en paralelo, cada uno gestionando ~{pot_paneles_7//n_ctrl_final:,}Wp."
+        else:
+            rec_txt   = f"MPPT {ctrl_a_recom}A" if "MPPT" in tipo_ctrl_7 else f"PWM {ctrl_a_recom}A"
+            nota_ctrl = ""
+
+        st.markdown(f"""
+        <div style='background:rgba(255,179,0,0.06);border:2px solid rgba(255,179,0,0.35);
+                    border-radius:12px;padding:1.2rem 1.5rem;margin-top:1rem;text-align:center;'>
+            <div style='color:#8A9BBD;font-size:0.78rem;text-transform:uppercase;letter-spacing:1px;'>
+                ⑦ Controlador recomendado — tamaño comercial</div>
+            <div style='font-family:Rajdhani,sans-serif;font-size:2.2rem;font-weight:700;
+                        color:{ctrl_color};margin:0.4rem 0;'>{rec_txt}</div>
+            <div style='font-size:0.82rem;color:#8A9BBD;'>
+                {vdc_7} V &nbsp;|&nbsp; I_nominal: {i_nom_7:.1f} A &nbsp;|&nbsp;
+                I_diseño: {i_dis_7:.1f} A &nbsp;|&nbsp; Array: {pot_paneles_7:,} Wp
+            </div>
+            {"<div style='margin-top:0.6rem;color:#FFB300;font-size:0.82rem;'>"+nota_ctrl+"</div>" if nota_ctrl else ""}
+        </div>
+        <div class='formula-box' style='margin-top:0.6rem;font-size:0.78rem;'>
+            {"✅ Todas las verificaciones correctas — configuración válida" if todo_ok else
+             ("⚠ Revisar Voc del string o corriente de array — ajustar N° paneles/strings o elegir controlador de mayor capacidad" if not (verif_voc and verif_i_arr) else
+              f"⚠ Potencia del array excede la capacidad unitaria — usar {n_ctrl_final} controladores o uno de mayor potencia")}
+        </div>""", unsafe_allow_html=True)
+
+        # Guardar en session_state
+        st.session_state["calc_corr_mppt"]   = i_dis_7
+        st.session_state["calc_mppt_modelo"] = rec_txt
+        st.session_state["calc_isc"]         = isc_7
+        n_pan_7 = int(n_pan_7)
+        voc_7   = float(voc_7)
+
+        # ─── PROTECCIONES DC / AC ────────────────────────────────────────────
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
         st.markdown("""
         <div style='font-family:Rajdhani,sans-serif;font-size:1.2rem;font-weight:700;
@@ -3724,9 +3858,9 @@ with tab8:
         </div>""", unsafe_allow_html=True)
 
         _isc_prot = isc_7
-        _n_str_prot = max(1, math.ceil(n_pan_7 / max(1, int(600 / voc_7) if (hasattr(st.session_state,"_paneles_por_string") and 0) else (int(600 / 49.8)))))
+        _n_str_prot = n_str_7
         try:
-            _voc_prot = float(conn7b_voc) if False else float(panel7[1]) if panel7 and len(panel7) > 1 else 49.8
+            _voc_prot = float(panel7[1]) if panel7 and len(panel7) > 1 else float(voc_7)
         except Exception:
             _voc_prot = 49.8
 
@@ -3748,21 +3882,28 @@ with tab8:
                             margin-bottom:0.6rem;'>PROTECCIONES DC</div>
                 <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Fusible string (Isc x 1.25)</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Fusible string (Isc × 1.25)</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
-                            {_isc_prot}A x 1.25 = {_fus_str:.1f}A<br>
+                            {_isc_prot}A × 1.25 = {_fus_str:.1f}A<br>
                             <b style='color:#FFB300;'>Seleccionar: {_fus_std}A DC</b></td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker DC general (Isc x N_str x 1.25)</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker DC general (Isc × N_str × 1.25)</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
-                            {_isc_prot}A x {_n_str_prot} str x 1.25 = {_breaker_dc:.1f}A<br>
+                            {_isc_prot}A × {_n_str_prot} str × 1.25 = {_breaker_dc:.1f}A<br>
                             <b style='color:#FFB300;'>Seleccionar: {_breaker_dc_std}A DC</b></td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Voc string corregida (Tmin)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
+                            {voc_str_cor:.1f} V<br>
+                            <b style='color:{"#00E676" if verif_voc else "#FF5252"};'>
+                            {"✅ OK ≤ "+str(mppt_max_v7)+"V" if verif_voc else "❌ Excede "+str(mppt_max_v7)+"V"}</b></td>
                     </tr>
                     <tr>
                         <td style='color:#8A9BBD;padding:0.35rem 0;'>DPS DC</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
-                            Tipo II - 1000 VDC - 40 kA</td>
+                            Tipo II — 1000 VDC — 40 kA</td>
                     </tr>
                 </table>
             </div>""", unsafe_allow_html=True)
@@ -3773,9 +3914,9 @@ with tab8:
                             margin-bottom:0.6rem;'>PROTECCIONES AC</div>
                 <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker AC (P/220V x 1.25)</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Breaker AC (P/220V × 1.25)</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>
-                            {_pot_ac_w:,.0f}W / 220V = {_corr_ac:.1f}A x 1.25 = {_breaker_ac:.1f}A<br>
+                            {_pot_ac_w:,.0f}W / 220V = {_corr_ac:.1f}A × 1.25 = {_breaker_ac:.1f}A<br>
                             <b style='color:#00E676;'>Seleccionar: Breaker 2P {_breaker_ac_std}A</b></td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>

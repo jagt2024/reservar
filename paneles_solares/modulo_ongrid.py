@@ -1293,6 +1293,74 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                 ({v_mppt_min}–{v_mppt_max}V). Ajusta el número de paneles en serie o el inversor.</div>
                 """, unsafe_allow_html=True)
 
+            # ── CONTROLADOR MPPT ON-GRID — 7 verificaciones ─────────────────
+            # ON-GRID: no hay controlador externo — el MPPT está integrado en el inversor
+            _i_ctrl_og   = pot_inst_real / max(v_string_mpp, 1)  # corriente nominal aproximada
+            _i_ctrl_og_dis = (pot_inst_real / v_mppt_min) * 1.25  # diseño por V mínima MPPT
+            _CTRL_OG     = [10,20,30,40,60,80,100,120,150,200,250,300]
+            _ctrl_og_com = next((a for a in _CTRL_OG if a >= _i_ctrl_og_dis), _CTRL_OG[-1])
+            # ② Voc corregida por temperatura mínima
+            _temp_min_og  = session_state.get("_og_temp_min", 10)
+            _factor_t_og  = 1 + 0.003 * max(0, 25 - _temp_min_og)
+            _voc_str_cor_og = v_string_oc * _factor_t_og
+            _v_voc_ok_og   = _voc_str_cor_og <= (v_mppt_max * 1.15)
+            _v_mpp_ok_og   = v_mppt_min <= v_string_mpp <= v_mppt_max
+            _v_i_ok_og     = i_array <= pot_inv_kw * 1000 / max(v_mppt_min, 1)
+            _n_ctrl_og     = math.ceil(pot_inst_real / max(pot_inv_kw * 1000, 1))
+
+            def _oog(ok): return "#00E676" if ok else "#FF5252"
+
+            st.markdown(f"""
+            <div style='margin-top:1rem;'>
+            <div style='color:#FF6B35;font-family:Rajdhani,sans-serif;font-weight:600;
+                        margin-bottom:0.5rem;font-size:0.95rem;'>
+                🎛 INVERSOR ON-GRID — MPPT INTEGRADO (7 VERIFICACIONES)</div>
+            <div class='info-note' style='margin-bottom:0.6rem;'>
+                En sistemas ON-GRID <b>no existe controlador externo</b>.
+                El MPPT está integrado en el inversor de red. Solo se verifican los límites del array.
+            </div>
+            <table style='width:100%;font-size:0.8rem;border-collapse:collapse;background:#0F1525;border-radius:8px;'>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>① I_ctrl ≈ P_FV / V_mppt_min × 1.25</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {pot_inst_real:,.0f}Wp ÷ {v_mppt_min}V × 1.25 = {_i_ctrl_og_dis:.1f}A</td>
+                    <td style='font-family:Share Tech Mono;color:#00E676;padding:0.35rem;font-weight:700;'>
+                        Ref. MPPT: {_ctrl_og_com}A</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>② Voc string corregida (Tmin={_temp_min_og}°C)</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {v_string_oc:.1f}V × {_factor_t_og:.3f} = {_voc_str_cor_og:.1f}V</td>
+                    <td style='font-family:Share Tech Mono;color:{_oog(_v_voc_ok_og)};padding:0.35rem;font-weight:700;'>
+                        {"✅ ≤ "+str(round(v_mppt_max*1.15,0))+"V" if _v_voc_ok_og else "❌ Excede Vmáx abs."}</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>③ Corriente array (Impp × N_strings)</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {impp_input}A × {n_strings} strings = {i_array:.1f}A</td>
+                    <td style='font-family:Share Tech Mono;color:#00BCD4;padding:0.35rem;'>Verificar vs. máx. inv.</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>④ Vmpp string en rango MPPT</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {v_string_mpp:.1f}V (rango: {v_mppt_min}–{v_mppt_max}V)</td>
+                    <td style='font-family:Share Tech Mono;color:{_oog(_v_mpp_ok_og)};padding:0.35rem;font-weight:700;'>
+                        {"✅ Dentro del rango" if _v_mpp_ok_og else "❌ Fuera de rango"}</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>⑤⑥ Tipo / N° inversores</td>
+                    <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.35rem;' colspan='2'>
+                        MPPT integrado ON-GRID — {_n_ctrl_og} inversor{"es" if _n_ctrl_og>1 else ""}
+                        {"⚠ Considerar 2 inversores o uno de mayor potencia" if _n_ctrl_og > 1 else ""}</td>
+                </tr>
+                <tr>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>⑦ Inversor recomendado</td>
+                    <td style='font-family:Share Tech Mono;color:#00E676;padding:0.35rem;font-weight:700;' colspan='2'>
+                        {pot_inv_kw} kW ON-GRID | I_array: {i_array:.1f}A | V_string: {v_string_mpp:.1f}V Vmpp</td>
+                </tr>
+            </table>
+            </div>""", unsafe_allow_html=True)
+
             # ── PRODUCCIÓN ESTIMADA ──────────────────────────────────────
             gen_dia_og4  = (pot_inst_real / 1000) * hsp_input * pr_dec
             gen_mes_og4  = gen_dia_og4 * 30

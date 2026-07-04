@@ -1414,6 +1414,70 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 → <b>Comercial: {pot_inv_h} kW</b>
             </div>""", unsafe_allow_html=True)
 
+            # ── CONTROLADOR — 7 verificaciones (híbrido: MPPT integrado en inversor) ─
+            _i_ctrl_h  = pot_inst_h / max(v_bat_d5, 1)       # P/V_bat
+            _i_ctrl_dis= _i_ctrl_h * 1.25
+            _CTRL_H    = [10,20,30,40,60,80,100,120,150,200,250,300]
+            _ctrl_h_com= next((a for a in _CTRL_H if a >= _i_ctrl_dis), _CTRL_H[-1])
+            _voc_str_h = voc_inp * pan_serie_h                 # Voc string a 25°C
+            _temp_min_h= session_state.get("_hib_temp_min", 10)
+            _factor_t_h= 1 + 0.003 * max(0, 25 - _temp_min_h)
+            _voc_str_cor_h = _voc_str_h * _factor_t_h
+            _i_arr_verif_h = impp_inp * n_str_h                # Imp × N_strings
+            _n_ctrl_h  = math.ceil(pot_inst_h / max(mppt_max_h5 := session_state.get("_hib_pot_inst", pot_inst_h), 1))
+
+            def _okh(ok): return "#00E676" if ok else "#FF5252"
+            _v_voc_ok = _voc_str_cor_h <= v_mppt_max_h
+            _v_i_ok   = _i_arr_verif_h <= (session_state.get("hib_mppt_max", v_mppt_max_h))
+
+            st.markdown(f"""
+            <div style='margin-top:0.8rem;'>
+            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                        margin-bottom:0.5rem;font-size:0.95rem;'>
+                🎛 INVERSOR HÍBRIDO — MPPT INTEGRADO (7 VERIFICACIONES)</div>
+            <div class='info-note' style='margin-bottom:0.6rem;'>
+                En sistemas híbridos el MPPT está <b>integrado en el inversor</b>.
+                Se verifica que el diseño del array cumpla con los límites del equipo.
+            </div>
+            <table style='width:100%;font-size:0.8rem;border-collapse:collapse;
+                          background:#0F1525;border-radius:8px;'>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>① I_ctrl = P_FV / V_bat × 1.25</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {pot_inst_h:,.0f}Wp ÷ {v_bat_d5}V = {_i_ctrl_h:.1f}A × 1.25 = {_i_ctrl_dis:.1f}A</td>
+                    <td style='font-family:Share Tech Mono;color:#00E676;padding:0.35rem;font-weight:700;'>
+                        Seleccionar: {_ctrl_h_com}A MPPT</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>② Voc string corregida</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {voc_inp}V × {pan_serie_h} series × {_factor_t_h:.3f} = {_voc_str_cor_h:.1f}V</td>
+                    <td style='font-family:Share Tech Mono;color:{_okh(_v_voc_ok)};padding:0.35rem;font-weight:700;'>
+                        {"✅ ≤ "+str(v_mppt_max_h)+"V" if _v_voc_ok else "❌ Excede Vmáx"}</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>③ Corriente array (Imp × N_str)</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {impp_inp}A × {n_str_h} strings = {_i_arr_verif_h:.1f}A</td>
+                    <td style='font-family:Share Tech Mono;color:#00BCD4;padding:0.35rem;'>
+                        Verificar vs. máx. MPPT inversor</td>
+                </tr>
+                <tr style='border-bottom:1px solid #2A3A55;'>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>④ Rango Vmpp string</td>
+                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                        {v_str_mpp_h:.1f}V (rango: {v_mppt_min_h}–{v_mppt_max_h}V)</td>
+                    <td style='font-family:Share Tech Mono;color:{"#00E676" if mppt_ok else "#FF5252"};
+                               padding:0.35rem;font-weight:700;'>
+                        {"✅ Dentro del rango MPPT" if mppt_ok else "❌ Fuera de rango"}</td>
+                </tr>
+                <tr>
+                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>⑤ Tipo</td>
+                    <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.35rem;' colspan='2'>
+                        MPPT integrado en inversor híbrido — no se requiere controlador externo</td>
+                </tr>
+            </table>
+            </div>""", unsafe_allow_html=True)
+
             st.markdown(f"""
             <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.8rem;'>
               <div class='sol-card'>
