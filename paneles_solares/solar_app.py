@@ -4010,11 +4010,16 @@ with tab8:
             </div>
             """, unsafe_allow_html=True)
         with col_r4:
+            _ctrl_i_r4  = st.session_state.get("calc_corr_mppt", 0)
+            _ctrl_m_r4  = st.session_state.get("calc_mppt_modelo", "—")
+            _ctrl_col_r4 = ("#00E676" if _ctrl_i_r4 <= 40 else
+                            "#00BCD4" if _ctrl_i_r4 <= 60 else
+                            "#FFB300" if _ctrl_i_r4 <= 100 else "#FF5252")
             st.markdown(f"""
-            <div class='metric-box' style='border-color:{mppt_color};'>
+            <div class='metric-box' style='border-color:{_ctrl_col_r4};'>
                 <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🎛</div>
-                <div class='metric-val'>{corriente_ctrl:.0f}</div>
-                <div class='metric-unit'>A — {mppt_modelo}</div>
+                <div class='metric-val' style='color:{_ctrl_col_r4};'>{_ctrl_i_r4:.0f}</div>
+                <div class='metric-unit'>A — {_ctrl_m_r4}</div>
                 <div class='metric-label'>CONTROLADOR MPPT</div>
             </div>
             """, unsafe_allow_html=True)
@@ -4055,8 +4060,10 @@ with tab8:
                 INSERT INTO resultados(proyecto_id, consumo_dia_wh, consumo_con_fs, tension_dc,
                     hsp, potencia_instalada_w, num_paneles, capacidad_baterias_ah, num_baterias, corriente_mppt)
                 VALUES(?,?,?,?,?,?,?,?,?,?)
-            """, (proyecto_id, consumo7, consumo7_fs, vdc7, hsp7, potencia_inst7,
-                  num_pan7, bats7["ah_final"], bats7["num_baterias"], corriente_ctrl))
+            """, (proyecto_id, consumo7, consumo7_fs, vdc7, hsp7,
+                  st.session_state.get("calc_pot_real_wp", num_pan7 * pot_panel7),
+                  num_pan7, bats7["ah_final"], bats7["num_baterias"],
+                  st.session_state.get("calc_corr_mppt", 0)))
             conn.commit()
             conn.close()
             st.success("✓ Resultados guardados exitosamente")
