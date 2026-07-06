@@ -1401,7 +1401,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                  background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.02));'>
                 <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
                     Potencia mínima del array</div>
-                <div class='val' style='color:#F59E0B;'>{pot_min_wp/1000:.2f} kWp</div>
+                <div class='val' style='color:#F59E0B;'>{pot_pfv_h5/1000:.2f} kWp</div>
             </div>
             <div class='metric-grid'>
                 <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
