@@ -1269,260 +1269,265 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             # consumo base real (sin FS) para el cálculo horario
             consumo_base_h5 = consumo_inp / 1.20 if consumo_inp > 0 else consumo_inp
 
-            # ── 1. Banco de baterías — 5 parámetros
-            consumo_h_h5    = consumo_base_h5 / 24.0
-            horas_aut_h5    = dias_aut_d5 * 24.0
-            e_auto_wh_h5    = consumo_h_h5 * horas_aut_h5
-            eff_d5_dec      = eff_d5 / 100.0
-            dod_d5_dec      = dod_d5 / 100.0
-            cap_banco_kwh_h5 = e_auto_wh_h5 / 1000.0 / (dod_d5_dec * max(eff_d5_dec, 0.01))
-            cap_bat_ah_t    = cap_banco_kwh_h5 * 1000.0 / v_bat_d5
-            n_bats_calc     = math.ceil(cap_bat_ah_t / cap_bat_d5)
-            if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
-            cap_real        = n_bats_calc * cap_bat_d5 * v_bat_d5
-            cap_real_kwh_h5 = cap_real / 1000.0
-            energia_util_h5 = cap_real_kwh_h5 * dod_d5_dec * eff_d5_dec
-            aut_real_hh     = energia_util_h5 * 1000.0 / max(consumo_h_h5, 0.001)
+            if consumo_base_h5 <= 0:
+                st.markdown("<div class='warn-box'>⚠ Ingresa el consumo en el Tab 1 (Consumo) primero.</div>",
+                            unsafe_allow_html=True)
+            else:
 
-            # ── 2. Paneles — Metodología PDF (5 pasos) Híbrido
-            # ① Ed = consumo_base + E_recarga_batería
-            consumo_kwh_h5  = consumo_base_h5 / 1000.0
-            e_recarga_h5    = e_auto_wh_h5 / 1000.0
-            e_total_h5      = consumo_kwh_h5 + e_recarga_h5    # ① Ed híbrido
-            # ② E_real = Ed / FP
-            e_real_h5       = e_total_h5 / max(pr_dec, 0.01)
-            # ③ P_FV = E_real / HSP
-            pot_pfv_h5      = e_real_h5 / max(hsp_inp, 0.01) * 1000.0   # en W
-            # ④ N = ceil(P_FV / Ppanel) + sobredim
-            n_pan_min_h5    = math.ceil(pot_pfv_h5 / wp_inp)
-            n_pan           = math.ceil(n_pan_min_h5 * (1 + sobredim_h5 / 100))
-            # ⑤ Producción por panel
-            e_panel_h5_wh   = wp_inp * hsp_inp * pr_dec
+                # ── 1. Banco de baterías — 5 parámetros
+                consumo_h_h5    = consumo_base_h5 / 24.0
+                horas_aut_h5    = dias_aut_d5 * 24.0
+                e_auto_wh_h5    = consumo_h_h5 * horas_aut_h5
+                eff_d5_dec      = eff_d5 / 100.0
+                dod_d5_dec      = dod_d5 / 100.0
+                cap_banco_kwh_h5 = e_auto_wh_h5 / 1000.0 / (dod_d5_dec * max(eff_d5_dec, 0.01))
+                cap_bat_ah_t    = cap_banco_kwh_h5 * 1000.0 / v_bat_d5
+                n_bats_calc     = math.ceil(cap_bat_ah_t / cap_bat_d5)
+                if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
+                cap_real        = n_bats_calc * cap_bat_d5 * v_bat_d5
+                cap_real_kwh_h5 = cap_real / 1000.0
+                energia_util_h5 = cap_real_kwh_h5 * dod_d5_dec * eff_d5_dec
+                aut_real_hh     = energia_util_h5 * 1000.0 / max(consumo_h_h5, 0.001)
 
-            # Strings — ajustados para no inflar n_pan
-            pan_s_min    = max(1, math.ceil(v_mppt_min_h / vmpp_inp)) if vmpp_inp > 0 else 1
-            pan_s_max_m  = math.floor(v_mppt_max_h / vmpp_inp)        if vmpp_inp > 0 else 20
-            pan_s_max_v  = math.floor((v_mppt_max_h*1.15) / voc_inp)  if voc_inp  > 0 else 20
-            pan_s_max    = max(min(pan_s_max_m, pan_s_max_v), pan_s_min)
-            pan_serie_h  = 1; n_str_h = n_pan; _bx = 10_000
-            for _s in range(pan_s_min, pan_s_max + 1):
-                _p = math.ceil(n_pan / _s); _t = _s * _p; _ex = _t - n_pan
-                if _ex < _bx or (_ex == _bx and abs(_s-_p) < abs(pan_serie_h-n_str_h)):
-                    _bx = _ex; pan_serie_h = _s; n_str_h = _p
-            if pan_s_min > n_pan: pan_serie_h = n_pan; n_str_h = 1
-            n_pan_real   = pan_serie_h * n_str_h
-            pot_inst_h   = n_pan_real * wp_inp
-            v_str_mpp_h  = pan_serie_h * vmpp_inp
-            v_str_oc_h   = pan_serie_h * voc_inp
-            i_arr_h      = impp_inp * n_str_h
-            # 5. Inversor híbrido: potencia del array × FM 25% → tamaño comercial
-            _KW_COM_H5 = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
-            _inv_w_h5 = pot_inst_h * 1.25
-            pot_inv_h = float(next((k for k in _KW_COM_H5 if k*1000 >= _inv_w_h5),
-                                    math.ceil(_inv_w_h5/1000)))
+                # ── 2. Paneles — Metodología PDF (5 pasos) Híbrido
+                # ① Ed = consumo_base + E_recarga_batería
+                consumo_kwh_h5  = consumo_base_h5 / 1000.0
+                e_recarga_h5    = e_auto_wh_h5 / 1000.0
+                e_total_h5      = consumo_kwh_h5 + e_recarga_h5    # ① Ed híbrido
+                # ② E_real = Ed / FP
+                e_real_h5       = e_total_h5 / max(pr_dec, 0.01)
+                # ③ P_FV = E_real / HSP
+                pot_pfv_h5      = e_real_h5 / max(hsp_inp, 0.01) * 1000.0   # en W
+                # ④ N = ceil(P_FV / Ppanel) + sobredim
+                n_pan_min_h5    = math.ceil(pot_pfv_h5 / wp_inp)
+                n_pan           = math.ceil(n_pan_min_h5 * (1 + sobredim_h5 / 100))
+                # ⑤ Producción por panel
+                e_panel_h5_wh   = wp_inp * hsp_inp * pr_dec
 
-            # ── Display fórmula paso a paso (PDF metodología) ──────────────
-            _gen_dia_h5 = (pot_inst_h/1000)*hsp_inp*pr_dec
-            _exc_h5 = (_gen_dia_h5 / (e_total_h5) - 1) * 100 if e_total_h5 > 0 else 0
-            st.markdown(f"""
-            <div class='sol-card' style='border-color:rgba(255,107,53,0.4);margin-top:0.6rem;'>
+                # Strings — ajustados para no inflar n_pan
+                pan_s_min    = max(1, math.ceil(v_mppt_min_h / vmpp_inp)) if vmpp_inp > 0 else 1
+                pan_s_max_m  = math.floor(v_mppt_max_h / vmpp_inp)        if vmpp_inp > 0 else 20
+                pan_s_max_v  = math.floor((v_mppt_max_h*1.15) / voc_inp)  if voc_inp  > 0 else 20
+                pan_s_max    = max(min(pan_s_max_m, pan_s_max_v), pan_s_min)
+                pan_serie_h  = 1; n_str_h = n_pan; _bx = 10_000
+                for _s in range(pan_s_min, pan_s_max + 1):
+                    _p = math.ceil(n_pan / _s); _t = _s * _p; _ex = _t - n_pan
+                    if _ex < _bx or (_ex == _bx and abs(_s-_p) < abs(pan_serie_h-n_str_h)):
+                        _bx = _ex; pan_serie_h = _s; n_str_h = _p
+                if pan_s_min > n_pan: pan_serie_h = n_pan; n_str_h = 1
+                n_pan_real   = pan_serie_h * n_str_h
+                pot_inst_h   = n_pan_real * wp_inp
+                v_str_mpp_h  = pan_serie_h * vmpp_inp
+                v_str_oc_h   = pan_serie_h * voc_inp
+                i_arr_h      = impp_inp * n_str_h
+                # 5. Inversor híbrido: potencia del array × FM 25% → tamaño comercial
+                _KW_COM_H5 = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
+                _inv_w_h5 = pot_inst_h * 1.25
+                pot_inv_h = float(next((k for k in _KW_COM_H5 if k*1000 >= _inv_w_h5),
+                                        math.ceil(_inv_w_h5/1000)))
+
+                # ── Display fórmula paso a paso (PDF metodología) ──────────────
+                _gen_dia_h5 = (pot_inst_h/1000)*hsp_inp*pr_dec
+                _exc_h5 = (_gen_dia_h5 / (e_total_h5) - 1) * 100 if e_total_h5 > 0 else 0
+                st.markdown(f"""
+                <div class='sol-card' style='border-color:rgba(255,107,53,0.4);margin-top:0.6rem;'>
+                    <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                                margin-bottom:0.6rem;'>PASO A PASO — RETIE/PDF · SISTEMA HÍBRIDO</div>
+                    <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo base diario</td>
+                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_base_h5:,.0f} Wh/día</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>E banco recarga ({horas_aut_h5:.0f}h autonomía)</td>
+                            <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>+ {e_auto_wh_h5:,.0f} Wh</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                            <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>① Ed = consumo + recarga banco</td>
+                            <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{e_total_h5*1000:,.0f} Wh</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                            <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>② E_real = Ed ÷ FP ({pr_inp}%)</td>
+                            <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{e_real_h5*1000:,.0f} Wh</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>③ P_FV = E_real ÷ HSP ({hsp_inp}h)</td>
+                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_pfv_h5:,.0f} W = {pot_pfv_h5/1000:.2f} kWp</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>④ N = ⌈{pot_pfv_h5:.0f}÷{wp_inp}⌉ base + {sobredim_h5}% sobredim</td>
+                            <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{n_pan_min_h5}→{n_pan} paneles</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>⑤ Prod. panel ({wp_inp}×{hsp_inp}×FP)</td>
+                            <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{e_panel_h5_wh:,.0f} Wh/día</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>Config. strings ({pan_serie_h}S × {n_str_h}P)</td>
+                            <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles {wp_inp}Wp</td>
+                        </tr>
+                        <tr style='border-bottom:1px solid #2A3A55;'>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>Potencia instalada</td>
+                            <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{pot_inst_h/1000:.2f} kWp</td>
+                        </tr>
+                        <tr>
+                            <td style='color:#8A9BBD;padding:0.3rem 0;'>Exceso vs. consumo</td>
+                            <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{_exc_h5:+.1f}%</td>
+                        </tr>
+                    </table>
+                </div>
+                """, unsafe_allow_html=True)
+                gen_dia_h     = (pot_inst_h / 1000) * hsp_inp * pr_dec
+                consumo_kwh   = consumo_inp / 1000
+                autocon_h     = min(gen_dia_h, consumo_kwh)
+                inj_h         = max(0, gen_dia_h - consumo_kwh)
+                def_h         = max(0, consumo_kwh - gen_dia_h)
+                ac_pct        = autocon_h / consumo_kwh * 100 if consumo_kwh > 0 else 0
+
+                mppt_ok = v_mppt_min_h <= v_str_mpp_h <= v_mppt_max_h
+
+                # Guardar
+                session_state["_hib_n_pan"]       = n_pan_real
+                session_state["_hib_pan_serie"]   = pan_serie_h
+                session_state["_hib_n_strings"]   = n_str_h
+                session_state["_hib_pot_inst"]    = pot_inst_h
+                session_state["_hib_v_str_mpp"]   = v_str_mpp_h
+                session_state["_hib_v_str_oc"]    = v_str_oc_h
+                session_state["_hib_i_array"]     = i_arr_h
+                session_state["_hib_pot_inv"]     = pot_inv_h
+                session_state["_hib_n_baterias"]  = n_bats_calc
+                session_state["_hib_cap_real_wh"] = cap_real
+                session_state["_hib_aut_horas"]   = aut_real_hh
+                session_state["_hib_gen_dia"]     = gen_dia_h
+                session_state["_hib_autocon_pct"] = ac_pct
+
+                st.markdown(f"""
+                <div class='result-highlight' style='border-color:rgba(245,158,11,0.5);
+                     background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.02));'>
+                    <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
+                        Potencia mínima del array</div>
+                    <div class='val' style='color:#F59E0B;'>{pot_pfv_h5/1000:.2f} kWp</div>
+                </div>
+                <div class='metric-grid'>
+                    <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
+                        <div class='metric-val'>{n_pan_real}</div>
+                        <div class='metric-unit'>paneles</div><div class='metric-label'>TOTAL</div>
+                    </div>
+                    <div class='metric-box'>
+                        <div class='metric-val'>{pot_inst_h/1000:.2f}</div>
+                        <div class='metric-unit'>kWp</div><div class='metric-label'>POT. INST.</div>
+                    </div>
+                    <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
+                        <div class='metric-val'>{pan_serie_h}S×{n_str_h}P</div>
+                        <div class='metric-unit'>config</div><div class='metric-label'>STRINGS</div>
+                    </div>
+                    <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
+                        <div class='metric-val'>{pot_inv_h}</div>
+                        <div class='metric-unit'>kW</div><div class='metric-label'>INVERSOR HIB.</div>
+                    </div>
+                </div>
+                <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
+                    🔌 Inversor: {pot_inst_h/1000:.2f} kWp × 1.25 = {_inv_w_h5/1000:.2f} kW
+                    → <b>Comercial: {pot_inv_h} kW</b>
+                </div>""", unsafe_allow_html=True)
+
+                # ── CONTROLADOR — 7 verificaciones (híbrido: MPPT integrado en inversor) ─
+                _i_ctrl_h  = pot_inst_h / max(v_bat_d5, 1)       # P/V_bat
+                _i_ctrl_dis= _i_ctrl_h * 1.25
+                _CTRL_H    = [10,20,30,40,60,80,100,120,150,200,250,300]
+                _ctrl_h_com= next((a for a in _CTRL_H if a >= _i_ctrl_dis), _CTRL_H[-1])
+                _voc_str_h = voc_inp * pan_serie_h                 # Voc string a 25°C
+                _temp_min_h= session_state.get("_hib_temp_min", 10)
+                _factor_t_h= 1 + 0.003 * max(0, 25 - _temp_min_h)
+                _voc_str_cor_h = _voc_str_h * _factor_t_h
+                _i_arr_verif_h = impp_inp * n_str_h                # Imp × N_strings
+                _n_ctrl_h  = math.ceil(pot_inst_h / max(mppt_max_h5 := session_state.get("_hib_pot_inst", pot_inst_h), 1))
+
+                def _okh(ok): return "#00E676" if ok else "#FF5252"
+                _v_voc_ok = _voc_str_cor_h <= v_mppt_max_h
+                _v_i_ok   = _i_arr_verif_h <= (session_state.get("hib_mppt_max", v_mppt_max_h))
+
+                st.markdown(f"""
+                <div style='margin-top:0.8rem;'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
-                            margin-bottom:0.6rem;'>PASO A PASO — RETIE/PDF · SISTEMA HÍBRIDO</div>
-                <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
+                            margin-bottom:0.5rem;font-size:0.95rem;'>
+                    🎛 INVERSOR HÍBRIDO — MPPT INTEGRADO (7 VERIFICACIONES)</div>
+                <div class='info-note' style='margin-bottom:0.6rem;'>
+                    En sistemas híbridos el MPPT está <b>integrado en el inversor</b>.
+                    Se verifica que el diseño del array cumpla con los límites del equipo.
+                </div>
+                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;
+                              background:#0F1525;border-radius:8px;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo base diario</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_base_h5:,.0f} Wh/día</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>E banco recarga ({horas_aut_h5:.0f}h autonomía)</td>
-                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>+ {e_auto_wh_h5:,.0f} Wh</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>① Ed = consumo + recarga banco</td>
-                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{e_total_h5*1000:,.0f} Wh</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>② E_real = Ed ÷ FP ({pr_inp}%)</td>
-                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{e_real_h5*1000:,.0f} Wh</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>① I_ctrl = P_FV / V_bat × 1.25</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                            {pot_inst_h:,.0f}Wp ÷ {v_bat_d5}V = {_i_ctrl_h:.1f}A × 1.25 = {_i_ctrl_dis:.1f}A</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;padding:0.35rem;font-weight:700;'>
+                            Seleccionar: {_ctrl_h_com}A MPPT</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>③ P_FV = E_real ÷ HSP ({hsp_inp}h)</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_pfv_h5:,.0f} W = {pot_pfv_h5/1000:.2f} kWp</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>② Voc string corregida</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                            {voc_inp}V × {pan_serie_h} series × {_factor_t_h:.3f} = {_voc_str_cor_h:.1f}V</td>
+                        <td style='font-family:Share Tech Mono;color:{_okh(_v_voc_ok)};padding:0.35rem;font-weight:700;'>
+                            {"✅ ≤ "+str(v_mppt_max_h)+"V" if _v_voc_ok else "❌ Excede Vmáx"}</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>④ N = ⌈{pot_pfv_h5:.0f}÷{wp_inp}⌉ base + {sobredim_h5}% sobredim</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{n_pan_min_h5}→{n_pan} paneles</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>③ Corriente array (Imp × N_str)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                            {impp_inp}A × {n_str_h} strings = {_i_arr_verif_h:.1f}A</td>
+                        <td style='font-family:Share Tech Mono;color:#00BCD4;padding:0.35rem;'>
+                            Verificar vs. máx. MPPT inversor</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>⑤ Prod. panel ({wp_inp}×{hsp_inp}×FP)</td>
-                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{e_panel_h5_wh:,.0f} Wh/día</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Config. strings ({pan_serie_h}S × {n_str_h}P)</td>
-                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles {wp_inp}Wp</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Potencia instalada</td>
-                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{pot_inst_h/1000:.2f} kWp</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>④ Rango Vmpp string</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
+                            {v_str_mpp_h:.1f}V (rango: {v_mppt_min_h}–{v_mppt_max_h}V)</td>
+                        <td style='font-family:Share Tech Mono;color:{"#00E676" if mppt_ok else "#FF5252"};
+                                   padding:0.35rem;font-weight:700;'>
+                            {"✅ Dentro del rango MPPT" if mppt_ok else "❌ Fuera de rango"}</td>
                     </tr>
                     <tr>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Exceso vs. consumo</td>
-                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{_exc_h5:+.1f}%</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>⑤ Tipo</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.35rem;' colspan='2'>
+                            MPPT integrado en inversor híbrido — no se requiere controlador externo</td>
                     </tr>
                 </table>
-            </div>
-            """, unsafe_allow_html=True)
-            gen_dia_h     = (pot_inst_h / 1000) * hsp_inp * pr_dec
-            consumo_kwh   = consumo_inp / 1000
-            autocon_h     = min(gen_dia_h, consumo_kwh)
-            inj_h         = max(0, gen_dia_h - consumo_kwh)
-            def_h         = max(0, consumo_kwh - gen_dia_h)
-            ac_pct        = autocon_h / consumo_kwh * 100 if consumo_kwh > 0 else 0
+                </div>""", unsafe_allow_html=True)
 
-            mppt_ok = v_mppt_min_h <= v_str_mpp_h <= v_mppt_max_h
-
-            # Guardar
-            session_state["_hib_n_pan"]       = n_pan_real
-            session_state["_hib_pan_serie"]   = pan_serie_h
-            session_state["_hib_n_strings"]   = n_str_h
-            session_state["_hib_pot_inst"]    = pot_inst_h
-            session_state["_hib_v_str_mpp"]   = v_str_mpp_h
-            session_state["_hib_v_str_oc"]    = v_str_oc_h
-            session_state["_hib_i_array"]     = i_arr_h
-            session_state["_hib_pot_inv"]     = pot_inv_h
-            session_state["_hib_n_baterias"]  = n_bats_calc
-            session_state["_hib_cap_real_wh"] = cap_real
-            session_state["_hib_aut_horas"]   = aut_real_hh
-            session_state["_hib_gen_dia"]     = gen_dia_h
-            session_state["_hib_autocon_pct"] = ac_pct
-
-            st.markdown(f"""
-            <div class='result-highlight' style='border-color:rgba(245,158,11,0.5);
-                 background:linear-gradient(135deg,rgba(245,158,11,0.1),rgba(245,158,11,0.02));'>
-                <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
-                    Potencia mínima del array</div>
-                <div class='val' style='color:#F59E0B;'>{pot_pfv_h5/1000:.2f} kWp</div>
-            </div>
-            <div class='metric-grid'>
-                <div class='metric-box' style='border-color:rgba(255,179,0,0.5);'>
-                    <div class='metric-val'>{n_pan_real}</div>
-                    <div class='metric-unit'>paneles</div><div class='metric-label'>TOTAL</div>
-                </div>
-                <div class='metric-box'>
-                    <div class='metric-val'>{pot_inst_h/1000:.2f}</div>
-                    <div class='metric-unit'>kWp</div><div class='metric-label'>POT. INST.</div>
-                </div>
-                <div class='metric-box' style='border-color:rgba(0,188,212,0.5);'>
-                    <div class='metric-val'>{pan_serie_h}S×{n_str_h}P</div>
-                    <div class='metric-unit'>config</div><div class='metric-label'>STRINGS</div>
-                </div>
-                <div class='metric-box' style='border-color:rgba(0,230,118,0.5);'>
-                    <div class='metric-val'>{pot_inv_h}</div>
-                    <div class='metric-unit'>kW</div><div class='metric-label'>INVERSOR HIB.</div>
-                </div>
-            </div>
-            <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
-                🔌 Inversor: {pot_inst_h/1000:.2f} kWp × 1.25 = {_inv_w_h5/1000:.2f} kW
-                → <b>Comercial: {pot_inv_h} kW</b>
-            </div>""", unsafe_allow_html=True)
-
-            # ── CONTROLADOR — 7 verificaciones (híbrido: MPPT integrado en inversor) ─
-            _i_ctrl_h  = pot_inst_h / max(v_bat_d5, 1)       # P/V_bat
-            _i_ctrl_dis= _i_ctrl_h * 1.25
-            _CTRL_H    = [10,20,30,40,60,80,100,120,150,200,250,300]
-            _ctrl_h_com= next((a for a in _CTRL_H if a >= _i_ctrl_dis), _CTRL_H[-1])
-            _voc_str_h = voc_inp * pan_serie_h                 # Voc string a 25°C
-            _temp_min_h= session_state.get("_hib_temp_min", 10)
-            _factor_t_h= 1 + 0.003 * max(0, 25 - _temp_min_h)
-            _voc_str_cor_h = _voc_str_h * _factor_t_h
-            _i_arr_verif_h = impp_inp * n_str_h                # Imp × N_strings
-            _n_ctrl_h  = math.ceil(pot_inst_h / max(mppt_max_h5 := session_state.get("_hib_pot_inst", pot_inst_h), 1))
-
-            def _okh(ok): return "#00E676" if ok else "#FF5252"
-            _v_voc_ok = _voc_str_cor_h <= v_mppt_max_h
-            _v_i_ok   = _i_arr_verif_h <= (session_state.get("hib_mppt_max", v_mppt_max_h))
-
-            st.markdown(f"""
-            <div style='margin-top:0.8rem;'>
-            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
-                        margin-bottom:0.5rem;font-size:0.95rem;'>
-                🎛 INVERSOR HÍBRIDO — MPPT INTEGRADO (7 VERIFICACIONES)</div>
-            <div class='info-note' style='margin-bottom:0.6rem;'>
-                En sistemas híbridos el MPPT está <b>integrado en el inversor</b>.
-                Se verifica que el diseño del array cumpla con los límites del equipo.
-            </div>
-            <table style='width:100%;font-size:0.8rem;border-collapse:collapse;
-                          background:#0F1525;border-radius:8px;'>
-                <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>① I_ctrl = P_FV / V_bat × 1.25</td>
-                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
-                        {pot_inst_h:,.0f}Wp ÷ {v_bat_d5}V = {_i_ctrl_h:.1f}A × 1.25 = {_i_ctrl_dis:.1f}A</td>
-                    <td style='font-family:Share Tech Mono;color:#00E676;padding:0.35rem;font-weight:700;'>
-                        Seleccionar: {_ctrl_h_com}A MPPT</td>
-                </tr>
-                <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>② Voc string corregida</td>
-                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
-                        {voc_inp}V × {pan_serie_h} series × {_factor_t_h:.3f} = {_voc_str_cor_h:.1f}V</td>
-                    <td style='font-family:Share Tech Mono;color:{_okh(_v_voc_ok)};padding:0.35rem;font-weight:700;'>
-                        {"✅ ≤ "+str(v_mppt_max_h)+"V" if _v_voc_ok else "❌ Excede Vmáx"}</td>
-                </tr>
-                <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>③ Corriente array (Imp × N_str)</td>
-                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
-                        {impp_inp}A × {n_str_h} strings = {_i_arr_verif_h:.1f}A</td>
-                    <td style='font-family:Share Tech Mono;color:#00BCD4;padding:0.35rem;'>
-                        Verificar vs. máx. MPPT inversor</td>
-                </tr>
-                <tr style='border-bottom:1px solid #2A3A55;'>
-                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>④ Rango Vmpp string</td>
-                    <td style='font-family:Share Tech Mono;color:#FFD54F;padding:0.35rem;'>
-                        {v_str_mpp_h:.1f}V (rango: {v_mppt_min_h}–{v_mppt_max_h}V)</td>
-                    <td style='font-family:Share Tech Mono;color:{"#00E676" if mppt_ok else "#FF5252"};
-                               padding:0.35rem;font-weight:700;'>
-                        {"✅ Dentro del rango MPPT" if mppt_ok else "❌ Fuera de rango"}</td>
-                </tr>
-                <tr>
-                    <td style='color:#8A9BBD;padding:0.35rem 0.5rem;'>⑤ Tipo</td>
-                    <td style='font-family:Share Tech Mono;color:#A78BFA;padding:0.35rem;' colspan='2'>
-                        MPPT integrado en inversor híbrido — no se requiere controlador externo</td>
-                </tr>
-            </table>
-            </div>""", unsafe_allow_html=True)
-
-            st.markdown(f"""
-            <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.8rem;'>
-              <div class='sol-card'>
-                <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>ARRAY DC</div>
-                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Vmpp string</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{v_str_mpp_h:.0f} V</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Voc string</td><td style='font-family:Share Tech Mono;color:#FF5252;text-align:right;'>{v_str_oc_h:.0f} V</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>I array</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{i_arr_h:.1f} A</td></tr>
-                  <tr><td style='color:#8A9BBD;'>MPPT</td><td style='text-align:right;font-family:Share Tech Mono;color:{"#00E676" if mppt_ok else "#FF5252"};'>{"✓ OK" if mppt_ok else "✗ REVISAR"}</td></tr>
-                </table>
-              </div>
-              <div class='sol-card'>
-                <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>BATERÍAS — 5 PARÁMETROS</div>
-                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>N° unidades</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{n_bats_calc}</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Cap. banco real</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{cap_real_kwh_h5:.2f} kWh</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>DoD / η</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{dod_d5}% / {eff_d5}%</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>✅ Energía utilizable</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{energia_util_h5:.2f} kWh</td></tr>
-                  <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Autonomía real</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{aut_real_hh:.1f} h ({aut_real_hh/24:.2f} días)</td></tr>
-                  <tr><td style='color:#8A9BBD;'>Autoconsumo</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{ac_pct:.0f}%</td></tr>
-                </table>
-              </div>
-            </div>""", unsafe_allow_html=True)
-
-            if not mppt_ok:
                 st.markdown(f"""
-                <div class='warn-box'>⚠ Vmpp del string ({v_str_mpp_h:.0f}V) fuera del rango MPPT
-                ({v_mppt_min_h}–{v_mppt_max_h}V). Ajusta el N° de paneles en serie o cambia el inversor.</div>
-                """, unsafe_allow_html=True)
+                <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.8rem;'>
+                  <div class='sol-card'>
+                    <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>ARRAY DC</div>
+                    <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Vmpp string</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{v_str_mpp_h:.0f} V</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Voc string</td><td style='font-family:Share Tech Mono;color:#FF5252;text-align:right;'>{v_str_oc_h:.0f} V</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>I array</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{i_arr_h:.1f} A</td></tr>
+                      <tr><td style='color:#8A9BBD;'>MPPT</td><td style='text-align:right;font-family:Share Tech Mono;color:{"#00E676" if mppt_ok else "#FF5252"};'>{"✓ OK" if mppt_ok else "✗ REVISAR"}</td></tr>
+                    </table>
+                  </div>
+                  <div class='sol-card'>
+                    <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>BATERÍAS — 5 PARÁMETROS</div>
+                    <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>N° unidades</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{n_bats_calc}</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Cap. banco real</td><td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{cap_real_kwh_h5:.2f} kWh</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>DoD / η</td><td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{dod_d5}% / {eff_d5}%</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>✅ Energía utilizable</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{energia_util_h5:.2f} kWh</td></tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'><td style='color:#8A9BBD;'>Autonomía real</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{aut_real_hh:.1f} h ({aut_real_hh/24:.2f} días)</td></tr>
+                      <tr><td style='color:#8A9BBD;'>Autoconsumo</td><td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{ac_pct:.0f}%</td></tr>
+                    </table>
+                  </div>
+                </div>""", unsafe_allow_html=True)
 
-    # ══════════════════════════════════════════════════════════════════════════
-    # TAB H6 — ANÁLISIS ECONÓMICO
-    # ══════════════════════════════════════════════════════════════════════════
+                if not mppt_ok:
+                    st.markdown(f"""
+                    <div class='warn-box'>⚠ Vmpp del string ({v_str_mpp_h:.0f}V) fuera del rango MPPT
+                    ({v_mppt_min_h}–{v_mppt_max_h}V). Ajusta el N° de paneles en serie o cambia el inversor.</div>
+                    """, unsafe_allow_html=True)
+
+        # ══════════════════════════════════════════════════════════════════════════
+        # TAB H6 — ANÁLISIS ECONÓMICO
+        # ══════════════════════════════════════════════════════════════════════════
     with tab_h6:
         st.markdown("""
         <div class='sol-card-title'><span class='step-badge'>6</span>
