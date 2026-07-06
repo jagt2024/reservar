@@ -34,6 +34,26 @@ try:
 except ImportError:
     _CABLEADO_OG = False
 
+# ─── Helper de paneles (misma logica que solar_app.py) ───────────────────────
+def calcular_paneles_fv(consumo_wh_dia, hsp, pot_panel_wp, fp=0.80,
+                         sistema="ongrid", porcentaje_respaldo=1.0, sobredim_pct=0.0):
+    """PDF RETIE - 5 pasos: Ed / E_real=Ed/FP / P_FV=E_real/HSP / N / prod.panel"""
+    import math
+    ed       = consumo_wh_dia * max(0.01, min(porcentaje_respaldo, 1.0))
+    e_real   = ed / max(fp, 0.01)
+    pfv_w    = e_real / max(hsp, 0.01)
+    n_min    = math.ceil(pfv_w / max(pot_panel_wp, 1))
+    n_final  = math.ceil(n_min * (1 + sobredim_pct / 100))
+    pot_wp   = n_final * pot_panel_wp
+    e_panel  = pot_panel_wp * hsp * fp
+    gen_wh   = pot_wp * hsp * fp
+    exceso   = (gen_wh / ed - 1) * 100 if ed > 0 else 0
+    return {"ed_wh": ed, "e_real_wh": e_real, "pfv_w": pfv_w, "pfv_kw": pfv_w/1000,
+            "n_min": n_min, "n_final": n_final, "pot_inst_wp": pot_wp,
+            "pot_inst_kwp": pot_wp/1000, "e_panel_wh": e_panel,
+            "gen_dia_wh": gen_wh, "gen_dia_kwh": gen_wh/1000,
+            "exceso_pct": exceso, "fp": fp, "hsp": hsp, "pot_panel_wp": pot_panel_wp}
+
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
     env = os.environ.get("SOLARCALC_DB_PATH")
@@ -1114,9 +1134,13 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             hsp_input = st.number_input(
                 "HSP (h/día)", min_value=0.5, max_value=12.0,
                 value=float(hsp_og_use), step=0.01, key="og_hsp_input")
-            pr_input  = st.slider("Performance Ratio PR (%)", 70, 90,
+            pr_input  = st.slider("Factor perdidas FP (%)", 70, 90,
                                    int(pr_og_use) if isinstance(pr_og_use, (int,float)) else 80,
+                                   help="FP tipico ON-GRID: 78-85%",
                                    key="og_pr_d4")
+            sobredim_og = st.slider("Sobredim. ON-GRID (%)", 0, 20, 10,
+                                     help="PDF recomienda 5-15% para on-grid.",
+                                     key="og_sobredim_d4")
             wp_input  = st.number_input(
                 "Potencia panel (Wp)", 50, 1000, wp_og_use, key="og_wp_input")
             vmpp_input = st.number_input(
@@ -1137,14 +1161,14 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col_d2:
-            # Calcular
             pr_dec = pr_input / 100.0
-            # ON-GRID: Pot_array = Consumo_kWh / (HSP × PR)  — sin factor baterías
             consumo_kwh_calc = consumo_input / 1000.0
-            pot_array_kw   = consumo_kwh_calc / (hsp_input * pr_dec) if (hsp_input * pr_dec) > 0 else 0
-            pot_array_wp   = pot_array_kw * 1000
-            n_pan          = math.ceil(pot_array_wp / wp_input)
-            pot_inst       = n_pan * wp_input
+            res_og = calcular_paneles_fv(
+                consumo_wh_dia=consumo_input, hsp=hsp_input, pot_panel_wp=wp_input,
+                fp=pr_dec, sistema="ongrid", sobredim_pct=sobredim_og)
+            n_pan     = res_og["n_final"]
+            pot_inst  = res_og["pot_inst_wp"]
+            pot_array_wp = res_og["pfv_w"]  # for downstream references
 
             # ── String design ─────────────────────────────────────────────
             # Rango de paneles en serie según voltajes MPPT del inversor
@@ -1201,28 +1225,35 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
 
             st.markdown(f"""
             <div class='sol-card' style='border-color:rgba(255,107,53,0.4);margin-bottom:0.8rem;'>
-                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.6rem;'>
-                    FÓRMULA ON-GRID</div>
+                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.6rem;'>PASO A PASO - PDF RETIE | SISTEMA ON-GRID</div>
                 <table style='width:100%;font-size:0.83rem;border-collapse:collapse;'>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Consumo diario</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo_input/1000:.3f} kWh</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>HSP × PR ({pr_input}%)</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{hsp_input} × {pr_dec:.2f} = {hsp_input*pr_dec:.2f} h ef.</td>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.35rem 0;font-weight:600;'>1. Ed - Consumo base</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;font-weight:700;'>{consumo_input:,.0f} Wh/dia</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                        <td style='color:#FF6B35;padding:0.35rem 0;font-weight:600;'>Pot. array mínima</td>
-                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;font-weight:700;'>{pot_array_wp/1000:.3f} kWp</td>
+                        <td style='color:#FFB300;padding:0.35rem 0;font-weight:600;'>2. E_real = Ed / FP ({pr_input}%)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{res_og["e_real_wh"]:,.0f} Wh/dia</td>
                     </tr>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>{pot_array_wp:.0f} W ÷ {wp_input} Wp/panel</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{pot_array_wp/wp_input:.2f} → ↑ {n_pan} paneles</td>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>3. P_FV = E_real / HSP ({hsp_input}h)</td>
+                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;font-weight:700;'>{res_og["pfv_w"]:,.0f} W = {res_og["pfv_kw"]:.2f} kWp</td>
                     </tr>
-                    <tr style='background:#0D1B2A;'>
-                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Configuración strings</td>
-                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{pan_serie}S × {n_strings}P = {n_pan_real} paneles{"" if n_pan_real == n_pan else f" (+{n_pan_real-n_pan})"}</td>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>4. N = ceil / {wp_input}Wp + {sobredim_og}% sobredim</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{res_og["n_min"]} -> {n_pan} paneles</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.35rem 0;font-weight:600;'>5. Prod. panel ({wp_input}x{hsp_input}xFP)</td>
+                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;font-weight:700;'>{res_og["e_panel_wh"]:,.0f} Wh/dia</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Config. strings ({pan_serie}S x {n_strings}P)</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{n_pan_real} paneles{f" (+{n_pan_real-n_pan})" if n_pan_real != n_pan else ""}</td>
+                    </tr>
+                    <tr>
+                        <td style='color:#8A9BBD;padding:0.35rem 0;'>Pot. real instalada</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{pot_inst_real/1000:.2f} kWp</td>
                     </tr>
                 </table>
             </div>

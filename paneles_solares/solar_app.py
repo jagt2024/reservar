@@ -483,6 +483,69 @@ def num_paneles(potencia_instalada: float, potencia_panel: float) -> int:
         return 0
     return math.ceil(potencia_instalada / potencia_panel)
 
+def calcular_paneles_fv(
+    consumo_wh_dia: float,
+    hsp: float,
+    pot_panel_wp: float,
+    fp: float = 0.80,
+    sistema: str = "offgrid",
+    porcentaje_respaldo: float = 1.0,
+    sobredim_pct: float = 0.0,
+) -> dict:
+    """
+    Dimensionamiento del campo FV según metodología RETIE / PDF adjunto.
+
+    Pasos (iguales para off-grid, on-grid e híbrido):
+      Paso 1  Ed  = consumo_wh_dia  (Wh/día base)
+      Paso 2  E_parcial = Ed × porcentaje_respaldo   (híbrido: fracción del consumo)
+      Paso 3  E_real = E_parcial / FP                (pérdidas: temperatura, inv., cableado, suciedad)
+      Paso 4  P_FV  = E_real / HSP                  (kWp mínimo requerido)
+      Paso 5  N     = ceil(P_FV / Ppanel)            (número de paneles)
+      Paso 6  N_final = N × (1 + sobredim_pct/100)  (sobredimensionamiento recomendado)
+      Producción por panel: E_panel = Ppanel × HSP × FP
+
+    Sobredimensionamiento recomendado (PDF):
+      Off-grid:  15–30 %
+      On-grid:    5–15 %
+      Híbrido:  10–20 %
+
+    FP (Factor de pérdidas / Performance Ratio): 0.75–0.85 típico.
+    """
+    ed          = consumo_wh_dia
+    e_parcial   = ed * max(0.01, min(porcentaje_respaldo, 1.0))
+    e_real      = e_parcial / max(fp, 0.01)
+    pfv_w       = e_real / max(hsp, 0.01)
+    n_min       = math.ceil(pfv_w / max(pot_panel_wp, 1))
+    n_final     = math.ceil(n_min * (1 + sobredim_pct / 100))
+    pot_inst_wp = n_final * pot_panel_wp
+    e_panel_wh  = pot_panel_wp * hsp * fp
+    gen_dia_wh  = pot_inst_wp * hsp * fp
+    exceso_pct  = (gen_dia_wh / e_parcial - 1) * 100 if e_parcial > 0 else 0
+
+    return {
+        "ed_wh":           ed,
+        "e_parcial_wh":    e_parcial,
+        "e_real_wh":       e_real,
+        "pfv_w":           pfv_w,
+        "pfv_kw":          pfv_w / 1000,
+        "n_min":           n_min,
+        "n_final":         n_final,
+        "pot_inst_wp":     pot_inst_wp,
+        "pot_inst_kwp":    pot_inst_wp / 1000,
+        "e_panel_wh":      e_panel_wh,
+        "gen_dia_wh":      gen_dia_wh,
+        "gen_dia_kwh":     gen_dia_wh / 1000,
+        "gen_mes_kwh":     gen_dia_wh / 1000 * 30,
+        "gen_anio_kwh":    gen_dia_wh / 1000 * 365,
+        "exceso_pct":      exceso_pct,
+        "fp":              fp,
+        "hsp":             hsp,
+        "pot_panel_wp":    pot_panel_wp,
+        "sistema":         sistema,
+        "porcentaje_resp": porcentaje_respaldo,
+        "sobredim_pct":    sobredim_pct,
+    }
+
 def calcular_baterias(consumo_wh: float, vdc: int,
                       dod: float = 0.50,
                       cap: float = 100,
@@ -811,10 +874,13 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         hsp2           = proyecto_info[4] or 4.2
         pp_wp          = panel_row[3] if panel_row else 550
         isc2           = panel_row[5] if panel_row else 8.02
-        pot_inst2      = consumo_fs2 / hsp2
-        n_pan2         = num_paneles(pot_inst2, pp_wp)
+        _fp2           = float(st.session_state.get("calc_pr", 0.80))
+        _sd2           = float(st.session_state.get("calc_sobredim", 15))
+        _res2          = calcular_paneles_fv(consumo_fs2, hsp2, pp_wp, fp=_fp2,
+                                             sistema="offgrid", sobredim_pct=_sd2)
+        pot_inst2      = _res2["pfv_w"]
+        n_pan2         = _res2["n_final"]
         bats2          = calcular_baterias(consumo_fs2, vdc2, **_bat_params(st.session_state))
-        # 4. Controlador: Isc × N_paneles
         corr_mppt2     = isc2 * n_pan2
 
         if corr_mppt2 <= 40:   mppt2 = "MPPT 40A"
@@ -844,11 +910,16 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ("🔆 CAMPO FOTOVOLTAICO", [
                 ("Panel solar",                         panel_row[2] if panel_row else "—"),
                 ("Potencia por panel",                  f"{pp_wp} Wp"),
-                ("Tensión Voc",                         f"{panel_row[4] if panel_row else '—'} V"),
-                ("Corriente Isc",                       f"{isc2} A"),
-                ("Potencia mínima instalada (Wp)",      f"{pot_inst2:,.0f} Wp"),
-                ("Número de paneles requeridos",        f"{n_pan2} paneles"),
-                ("Potencia real instalada (Wp)",        f"{n_pan2 * pp_wp:,} Wp"),
+                ("Factor pérdidas FP",                  f"{int(_fp2*100)}%  (E_real = Ed÷FP)"),
+                ("Sobredimensionamiento",               f"{int(_sd2)}%  (off-grid: 15–30% recomendado)"),
+                ("① Ed consumo con FS 20% (Wh/día)",    f"{consumo_fs2:,.1f} Wh"),
+                (f"② E_real = Ed ÷ FP ({int(_fp2*100)}%)",f"{_res2['e_real_wh']:,.1f} Wh"),
+                (f"③ P_FV = E_real ÷ HSP ({hsp2}h)",   f"{_res2['pfv_w']:,.0f} W = {_res2['pfv_kw']:.2f} kWp"),
+                (f"④ N = ⌈P_FV÷{pp_wp}Wp⌉+{int(_sd2)}% sobredim",f"{n_pan2} paneles"),
+                (f"⑤ Prod. panel ({pp_wp}×{hsp2}×FP)", f"{_res2['e_panel_wh']:,.0f} Wh/panel/día"),
+                ("Potencia real instalada",             f"{_res2['pot_inst_wp']:,} Wp = {_res2['pot_inst_kwp']:.2f} kWp"),
+                ("Generación estimada/día",             f"{_res2['gen_dia_kwh']:.2f} kWh/día"),
+                ("Exceso vs consumo FS",                f"{_res2['exceso_pct']:+.1f}%"),
             ]),
             ("🔋 BANCO DE BATERÍAS", [
                 ("① Consumo diario con FS (Wh/día)",    f"{consumo_fs2:,.1f} Wh"),
@@ -1040,8 +1111,12 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         hsp_p         = proyecto_info[4] or 4.2
         pp_wp_p       = panel_row[3] if panel_row else 550
         isc_p         = panel_row[5] if panel_row else 8.02
-        pot_inst_p    = consumo_fs / hsp_p
-        n_pan_p       = num_paneles(pot_inst_p, pp_wp_p)
+        _fp_p         = float(st.session_state.get("calc_pr", 0.80))
+        _sd_p         = float(st.session_state.get("calc_sobredim", 15))
+        _res_p        = calcular_paneles_fv(consumo_fs, hsp_p, pp_wp_p, fp=_fp_p,
+                                            sistema="offgrid", sobredim_pct=_sd_p)
+        pot_inst_p    = _res_p["pfv_w"]
+        n_pan_p       = _res_p["n_final"]
         bats_p        = calcular_baterias(consumo_fs, vdc_p, **_bat_params(st.session_state))
         corr_p        = isc_p * n_pan_p
         if corr_p <= 40:   mppt_p = "MPPT 40A"
@@ -1184,9 +1259,13 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ["",          "Municipio",                        proyecto_info[2] or "—"],
             ["🔆 Paneles",f"Panel: {panel_row[2] if panel_row else '—'}  {pp_wp_p}Wp",
                           f"Voc={panel_row[4] if panel_row else '—'}V / Isc={isc_p}A"],
-            ["",          "Potencia mínima instalada (Wp)",   f"{pot_inst_p:,.0f} Wp"],
-            ["",          "Número de paneles",                 f"{n_pan_p} paneles"],
-            ["",          "Potencia real instalada (Wp)",      f"{n_pan_p*pp_wp_p:,} Wp"],
+            ["",          "① Ed (consumo con FS 20%)",              f"{consumo_fs:,.0f} Wh"],
+            ["",          f"② E_real = Ed ÷ FP ({int(_fp_p*100)}%)", f"{_res_p['e_real_wh']:,.0f} Wh"],
+            ["",          f"③ P_FV = E_real ÷ HSP ({hsp_p}h)",      f"{_res_p['pfv_w']:,.0f} W = {_res_p['pfv_kw']:.2f} kWp"],
+            ["",          f"④ N = ⌈P_FV ÷ {pp_wp_p}Wp⌉ + {int(_sd_p)}% sobredim", f"{n_pan_p} paneles"],
+            ["",          f"⑤ Prod. por panel ({pp_wp_p}×{hsp_p}×{int(_fp_p*100)}%)", f"{_res_p['e_panel_wh']:,.0f} Wh/día"],
+            ["",          "Potencia real instalada",                 f"{_res_p['pot_inst_wp']:,} Wp = {_res_p['pot_inst_kwp']:.2f} kWp"],
+            ["",          "Generación estimada/día",                 f"{_res_p['gen_dia_kwh']:.2f} kWh"],
             ["🔋 Baterías","① Consumo diario con FS (Wh/día)",    f"{consumo_fs:,.1f} Wh"],
             ["",          "② Días autonomía",                       f"{bats_p['dias_autonomia']:.3f} d ({bats_p['dias_autonomia']*24:.0f} h)"],
             ["",          "③ Voltaje banco",                        f"{vdc_p} V DC"],
@@ -3124,12 +3203,12 @@ with tab6:
 
     st.markdown("""
     <div class='formula-box'>
-        Potencia Instalada (Wp) = Consumo día con FS 20% (Wh) ÷ (HSP × PR)<br>
-        Número de paneles = Potencia Instalada ÷ Potencia del panel (Wp)<br>
-        <span style='font-size:0.85em;color:#8A9BBD;'>
-        PR (Performance Ratio): pérdidas reales del sistema
-        (temperatura ~5%, inversor ~3%, sombreado ~2%, suciedad ~2%, cableado ~2%)
-        </span>
+        Metodología RETIE (PDF adjunto) — 5 pasos:<br>
+        <b>① Ed</b> = consumo base (Wh/día) &nbsp;|&nbsp;
+        <b>② E_real = Ed ÷ FP</b> (pérdidas: temperatura, inversor, suciedad, cableado) &nbsp;|&nbsp;
+        <b>③ P_FV = E_real ÷ HSP</b> &nbsp;|&nbsp;
+        <b>④ N = ⌈P_FV ÷ Ppanel⌉</b> &nbsp;|&nbsp;
+        <b>⑤ Producción panel = Ppanel × HSP × FP</b>
     </div>
     """, unsafe_allow_html=True)
 
@@ -3181,22 +3260,22 @@ with tab6:
         col5a, col5b = st.columns([1,1])
         with col5a:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-            st.markdown("**Parámetros de cálculo**")
+            st.markdown("**Parámetros de cálculo OFF-GRID**")
 
             hsp_input5 = st.number_input("HSP (h/día)",
                                           min_value=0.5, max_value=12.0,
                                           value=float(hsp5) if hsp5 else 4.2, step=0.01,
                                           help="Horas Solar Pico del Módulo 4")
-            pr_input5 = st.slider(
-                "Performance Ratio — PR (%)", 65, 90, 75,
-                help="PR típico OFF-GRID: 70–80%. Incluye pérdidas de temperatura, "
-                     "inversor, sombreado, suciedad y cableado.",
+            fp_input5 = st.slider(
+                "Factor de pérdidas FP (%)", 65, 90, 80,
+                help="FP típico OFF-GRID: 75–85%. Incluye pérdidas de temperatura (~5%), "
+                     "inversor (~3%), sombreado (~2%), suciedad (~2%), cableado (~2%).\n"
+                     "FP = 1 − suma de pérdidas. PDF RETIE recomienda 0.75–0.85.",
                 key="pr_offgrid")
-            factor_bat5 = st.slider(
-                "Factor baterías (OFF-GRID)", 120, 150, 130,
-                help="Compensa pérdidas de carga/descarga. Típico: 120-150%. "
-                     "P_FV = Consumo/(HSP×PR) × Factor_bat",
-                key="factor_bat_offgrid")
+            sobredim5 = st.slider(
+                "Sobredimensionamiento OFF-GRID (%)", 0, 30, 15,
+                help="PDF recomienda 15–30% para off-grid. Compensa días nublados y pérdidas adicionales.",
+                key="sobredim_offgrid")
             pot_panel_input5 = st.number_input("Potencia panel (Wp)",
                                                 min_value=10, max_value=1000,
                                                 value=int(pot_panel5) if pot_panel5 else 550,
@@ -3209,44 +3288,46 @@ with tab6:
                 st.markdown("<div class='warn-box'>⚠ Panel no configurado. Usa el valor arriba o guarda desde Módulo 5</div>",
                             unsafe_allow_html=True)
 
-            pr_dec5             = pr_input5 / 100.0
-            factor_bat5_dec     = factor_bat5 / 100.0
-            consumo5_kwh        = consumo5 / 1000.0         # base sin FS
-            hsp_efectiva5       = hsp_input5 * pr_dec5      # para mostrar en tabla
-            # OFF-GRID: Pot_FV = (Consumo_kWh / (HSP × PR)) × Factor_baterías
-            pot_base5_kw        = consumo5_kwh / (hsp_input5 * pr_dec5) if (hsp_input5 * pr_dec5) > 0 else 0
-            potencia_instalada5 = pot_base5_kw * factor_bat5_dec * 1000
-            num_pan5            = num_paneles(potencia_instalada5, pot_panel_input5)
-            pot_real5           = num_pan5 * pot_panel_input5
-            gen_dia5_kwh        = (pot_real5 / 1000) * hsp_input5 * pr_dec5
+            fp_dec5 = fp_input5 / 100.0
 
-            # ── Guardar en session_state para Tabs 9, 10 y 11 ─────────────
+            # Calcular usando la función central (metodología PDF)
+            res5 = calcular_paneles_fv(
+                consumo_wh_dia    = consumo5_fs,   # con FS 20%
+                hsp               = hsp_input5,
+                pot_panel_wp      = pot_panel_input5,
+                fp                = fp_dec5,
+                sistema           = "offgrid",
+                porcentaje_respaldo = 1.0,
+                sobredim_pct      = sobredim5,
+            )
+            num_pan5            = res5["n_final"]
+            pot_real5           = res5["pot_inst_wp"]
+            gen_dia5_kwh        = res5["gen_dia_kwh"]
+            potencia_instalada5 = res5["pfv_w"]
+
+            # ── Guardar en session_state para Tabs 8, 9, 10 y 11 ──────────
             st.session_state["calc_num_paneles"]       = num_pan5
             st.session_state["calc_pot_panel_wp"]      = pot_panel_input5
             st.session_state["calc_hsp"]               = hsp_input5
-            st.session_state["calc_pr"]                = pr_dec5
+            st.session_state["calc_pr"]                = fp_dec5
+            st.session_state["calc_sobredim"]          = sobredim5
             st.session_state["calc_consumo_fs_wh"]     = consumo5_fs
             st.session_state["calc_potencia_inst_wp"]  = potencia_instalada5
             st.session_state["calc_pot_real_wp"]       = pot_real5
             st.session_state["calc_gen_dia_kwh"]       = gen_dia5_kwh
-            st.session_state["calc_serie"]             = 1   # OFF-GRID no usa strings en serie
+            st.session_state["calc_serie"]             = 1
             st.session_state["calc_paralelo"]          = num_pan5
+            st.session_state["calc_isc"]               = st.session_state.get("calc_isc", 8.02)
 
-            st.markdown(f"""
-            <hr class='sep'>
-            <div style='color:#8A9BBD; font-size:0.8rem; margin-bottom:0.5rem;'>
-                ({consumo5_kwh:.3f} kWh ÷ ({hsp_input5}h × {pr_input5}%)) × {factor_bat5}% =
-                <b style='color:#FFD54F;'>{potencia_instalada5:,.0f} Wp mínimos</b>
-            </div>
-            """, unsafe_allow_html=True)
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col5b:
             st.markdown(f"""
             <div class='result-highlight'>
                 <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
-                    Pot. Mínima OFF-GRID (PR {pr_input5}% × Fact.bat {factor_bat5}%)</div>
-                <div class='val'>{potencia_instalada5:,.0f} Wp</div>
+                    Potencia mínima requerida OFF-GRID (FP={fp_input5}%)</div>
+                <div class='val'>{res5["pfv_w"]:,.0f} Wp &nbsp;
+                    <span style='font-size:1.2rem;color:#FFD54F;'>({res5["pfv_kw"]:.2f} kWp)</span></div>
             </div>
             <div class='metric-grid'>
                 <div class='metric-box'>
@@ -3270,34 +3351,55 @@ with tab6:
                     <div class='metric-label'>GENERACIÓN ESTIMADA</div>
                 </div>
             </div>
+
             <div class='sol-card' style='margin-top:0.8rem;'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
-                            margin-bottom:0.5rem;font-size:0.9rem;'>
-                    DESGLOSE PÉRDIDAS (PR {pr_input5}%)</div>
-                <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                            margin-bottom:0.6rem;'>PASO A PASO — METODOLOGÍA RETIE/PDF</div>
+                <table style='width:100%;font-size:0.82rem;border-collapse:collapse;'>
                     <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>HSP bruta (PVGIS)</td>
-                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{hsp_input5:.2f} h/día</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Performance Ratio</td>
-                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>{pr_input5}%</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
-                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>HSP efectiva</td>
-                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{hsp_efectiva5:.2f} h/día</td>
-                    </tr>
-                    <tr style='border-bottom:1px solid #2A3A55;'>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Consumo con FS 20%</td>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>① Ed — Consumo con FS 20%</td>
                         <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{consumo5_fs:,.0f} Wh/día</td>
                     </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>② E_real = Ed ÷ FP ({fp_input5}%)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;font-weight:700;'>{res5["e_real_wh"]:,.0f} Wh/día</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>③ P_FV = E_real ÷ HSP ({hsp_input5}h)</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{res5["pfv_w"]:,.0f} W = {res5["pfv_kw"]:.2f} kWp</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>④ N = ⌈P_FV ÷ {pot_panel_input5}Wp⌉</td>
+                        <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:right;'>{res5["n_min"]} paneles base</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>  + Sobredim. {sobredim5}% (días nublados)</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;font-weight:700;'>{num_pan5} paneles finales</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;background:#1A2235;'>
+                        <td style='color:#FFB300;padding:0.3rem 0;font-weight:600;'>⑤ Producción por panel</td>
+                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{pot_panel_input5}×{hsp_input5}×{fp_input5}% = {res5["e_panel_wh"]:,.0f} Wh/día</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Potencia real instalada</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{pot_real5:,} Wp = {pot_real5/1000:.2f} kWp</td>
+                    </tr>
+                    <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Generación real/día</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia5_kwh:.2f} kWh/día</td>
+                    </tr>
                     <tr>
-                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Generación anual est.</td>
-                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia5_kwh*365:,.0f} kWh/año</td>
+                        <td style='color:#8A9BBD;padding:0.3rem 0;'>Exceso vs consumo FS</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{res5["exceso_pct"]:+.1f}%</td>
                     </tr>
                 </table>
             </div>
-            """, unsafe_allow_html=True)
+
+            <div class='formula-box' style='margin-top:0.6rem;font-size:0.78rem;'>
+                DESGLOSE PÉRDIDAS (FP {fp_input5}%) → restante para generación útil:<br>
+                Temperatura ≈5% | Inversor ≈3% | Sombreado ≈2% | Suciedad ≈2% | Cableado ≈2%
+                → Total pérdidas ≈{100-fp_input5}% | FP = {fp_input5}%
+            </div>""", unsafe_allow_html=True)
 
             # ── Inversor — metodología técnica (igual a la usada en el resto del sistema)
             conn = get_conn()
