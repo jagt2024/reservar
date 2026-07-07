@@ -6,7 +6,18 @@
 #   3. El calibre final = máximo entre los dos criterios anteriores
 # ═══════════════════════════════════════════════════════════════════════════════
 import math
+import io
 import streamlit as st
+from datetime import datetime
+from collections import defaultdict
+
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                 Paragraph, Spacer, HRFlowable)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
 # ── Tablas de referencia ─────────────────────────────────────────────────────
 # Calibres comerciales (mm²) ordenados
@@ -251,6 +262,308 @@ def _criterio_badge(crit: str) -> str:
     if crit == "Caída de tensión":
         return "<span style='background:#1A3A55;color:#00BCD4;padding:2px 7px;border-radius:4px;font-size:0.72rem;'>ΔV</span>"
     return "<span style='background:#1A3520;color:#00E676;padding:2px 7px;border-radius:4px;font-size:0.72rem;'>AMP</span>"
+
+
+def generar_pdf_cableado(tramos: list, params: dict,
+                          proyecto_nombre: str = "—",
+                          proyecto_municipio: str = "—") -> bytes:
+    """Genera PDF técnico del dimensionamiento de cableado FV.
+    Incluye: portada, tabla resumen, fichas por tramo, cuadro de materiales y nota normativa."""
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=1.5*cm, rightMargin=1.5*cm,
+                            topMargin=1.5*cm, bottomMargin=1.5*cm)
+
+    # ── Paleta de colores ─────────────────────────────────────────────────────
+    SOL   = colors.HexColor("#FFB300")
+    DARK  = colors.HexColor("#0A0E1A")
+    CARD  = colors.HexColor("#1A2235")
+    CARD2 = colors.HexColor("#111A2E")
+    TEXT  = colors.HexColor("#E8EDF5")
+    TEXT2 = colors.HexColor("#8A9BBD")
+    GREEN = colors.HexColor("#00E676")
+    CYAN  = colors.HexColor("#00BCD4")
+    MONO  = colors.HexColor("#FFD54F")
+    RED   = colors.HexColor("#FF5252")
+    WARN  = colors.HexColor("#FFB300")
+    PURP  = colors.HexColor("#A78BFA")
+    BORD  = colors.HexColor("#2A3A55")
+    WHITE = colors.white
+
+    # ── Estilos de párrafo ────────────────────────────────────────────────────
+    titulo_st = ParagraphStyle("titulo", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub",    fontName="Helvetica",      fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec",    fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    body_st   = ParagraphStyle("body",   fontName="Helvetica",      fontSize=8,
+                                textColor=TEXT, spaceAfter=2)
+    mono_st   = ParagraphStyle("mono",   fontName="Courier",        fontSize=8,
+                                textColor=MONO)
+    note_st   = ParagraphStyle("note",   fontName="Helvetica",      fontSize=7.5,
+                                textColor=TEXT2, spaceAfter=3)
+
+    def tbl_style_base(header_rows=1):
+        return TableStyle([
+            # Header
+            ("BACKGROUND",   (0, 0), (-1, header_rows-1), CARD),
+            ("TEXTCOLOR",    (0, 0), (-1, header_rows-1), WARN),
+            ("FONTNAME",     (0, 0), (-1, header_rows-1), "Helvetica-Bold"),
+            ("FONTSIZE",     (0, 0), (-1, header_rows-1), 7.5),
+            ("ALIGN",        (0, 0), (-1, header_rows-1), "CENTER"),
+            # Body
+            ("FONTNAME",     (0, header_rows), (-1, -1), "Helvetica"),
+            ("FONTSIZE",     (0, header_rows), (-1, -1), 7.5),
+            ("TEXTCOLOR",    (0, header_rows), (-1, -1), TEXT),
+            ("ROWBACKGROUNDS",(0, header_rows), (-1, -1), [DARK, CARD2]),
+            ("ALIGN",        (1, header_rows), (-1, -1), "CENTER"),
+            ("ALIGN",        (0, header_rows), (0, -1),  "LEFT"),
+            # Grid
+            ("GRID",         (0, 0), (-1, -1), 0.3, BORD),
+            ("BOTTOMPADDING",(0, 0), (-1, -1), 4),
+            ("TOPPADDING",   (0, 0), (-1, -1), 4),
+            ("LEFTPADDING",  (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+        ])
+
+    story = []
+
+    # ── Portada / Encabezado ──────────────────────────────────────────────────
+    story.append(Paragraph("SOLARCALC PRO — MEMORIA TECNICA DE CABLEADO FV", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_nombre}</b>  |  Municipio: {proyecto_municipio}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        sub_st))
+    story.append(Paragraph(
+        "Metodologia: RETIE (Colombia) | IEC 60364-7-712 | IEC 62548 | IEC 60228  |  "
+        "3 criterios: Ampacidad + Caida de tension + Calibre comercial",
+        sub_st))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=SOL, spaceAfter=10))
+
+    # ── Parametros generales ──────────────────────────────────────────────────
+    story.append(Paragraph("1. PARAMETROS GENERALES DEL SISTEMA", sec_st))
+    mat = params.get("material", "Cobre")
+    gamma = "56 m/(ohm*mm2)" if mat == "Cobre" else "35 m/(ohm*mm2)"
+    ft = _factor_temp(params.get("temp_amb", 35))
+    fa = _factor_agrup(params.get("n_agrup", 1))
+    v_ac = params.get("v_ac", 220)
+    trifasico = params.get("trifasico", False)
+    vdc = params.get("vdc", 24)
+    inv_w = params.get("pot_inv_w", 0)
+    isc = params.get("isc", 0)
+    nstr = params.get("n_strings", 1)
+
+    gen_data = [
+        ["Parametro", "Valor", "Parametro", "Valor"],
+        ["Material conductor",     mat,
+         "Tension DC banco/MPPT",  f"{vdc} V"],
+        ["Conductividad (gamma)",  gamma,
+         "Potencia inversor",      f"{inv_w:,.0f} W"],
+        ["Temp. ambiente",         f"{params.get('temp_amb',35)} degC",
+         "Corriente Isc panel",    f"{isc:.2f} A"],
+        ["Factor temp. Ft",        f"{ft:.2f}",
+         "Strings en paralelo",    str(nstr)],
+        ["Circuitos agrupados",    str(params.get("n_agrup",1)),
+         "Factor agrupamiento Fa", f"{fa:.2f}"],
+        ["Factor seguridad DC",    "x1.25 (IEC 62548)",
+         "Tension AC salida",      f"{'3x' if trifasico else '1x'}{v_ac} V"],
+    ]
+    gen_tbl = Table(gen_data, colWidths=[5.5*cm, 4.5*cm, 5.5*cm, 4.5*cm])
+    ts_gen = tbl_style_base(1)
+    ts_gen.add("SPAN", (0,0), (1,0))
+    ts_gen.add("SPAN", (2,0), (3,0))
+    ts_gen.add("TEXTCOLOR", (0,1), (0,-1), CYAN)
+    ts_gen.add("TEXTCOLOR", (2,1), (2,-1), CYAN)
+    ts_gen.add("FONTNAME",  (1,1), (1,-1), "Courier")
+    ts_gen.add("FONTNAME",  (3,1), (3,-1), "Courier")
+    ts_gen.add("TEXTCOLOR", (1,1), (1,-1), MONO)
+    ts_gen.add("TEXTCOLOR", (3,1), (3,-1), MONO)
+    gen_tbl.setStyle(ts_gen)
+    story.append(gen_tbl)
+    story.append(Spacer(1, 10))
+
+    # ── Tabla resumen de tramos ───────────────────────────────────────────────
+    story.append(Paragraph("2. TABLA RESUMEN DE TRAMOS", sec_st))
+    story.append(Paragraph(
+        "Criterio gobernante: AMP = ampacidad | DV = caida de tension. "
+        "El calibre final satisface ambos criterios simultaneamente.",
+        note_st))
+
+    hdr_res = ["Tramo", "I\n(A)", "I_dis\n(A)", "Long.\n(m)",
+               "S_amp\n(mm2)", "S_DV\n(mm2)", "Calibre\nfinal", "Amp.\nreal (A)",
+               "DV\nreal (%)", "Limite\n(%)", "Estado"]
+    res_data = [hdr_res]
+
+    cdt_total = 0.0
+    for t in tramos:
+        cumple = t["cumple_cdt"]
+        estado = "CUMPLE" if cumple else "REVISAR"
+        if "AC" not in t["tipo"]:
+            cdt_total += t["dv_real_pct"]
+        res_data.append([
+            t["nombre"].replace("🔆","").replace("🔋","").replace("⚡","").replace("🔌","").strip(),
+            f"{t['corriente_a']:.1f}",
+            f"{t['i_dis']:.1f}",
+            f"{t['longitud_m']:.0f}",
+            f"{t['s_amp_mm2']}",
+            f"{t['s_cdt_mm2']}",
+            f"{t['cal_final_mm2']} mm2",
+            f"{t['amp_final_a']:.1f}",
+            f"{t['dv_real_pct']:.3f}",
+            f"{t['cdt_max_pct']:.1f}",
+            estado,
+        ])
+    # Fila total DV DC
+    res_data.append([
+        "DV TOTAL DC (Paneles+MPPT+Bat+Inv)", "", "", "", "", "", "",
+        "", f"{cdt_total:.2f}", "5.0",
+        "CUMPLE" if cdt_total <= 5.0 else "REVISAR"
+    ])
+
+    col_w_res = [5.5*cm, 1.2*cm, 1.2*cm, 1.2*cm, 1.3*cm, 1.3*cm,
+                 2.0*cm, 1.5*cm, 1.4*cm, 1.2*cm, 1.5*cm]
+    res_tbl = Table(res_data, colWidths=col_w_res, repeatRows=1)
+    ts_res = tbl_style_base(1)
+    # Color calibre final
+    for row_i in range(1, len(res_data)):
+        if row_i < len(res_data) - 1:
+            cumple_row = tramos[row_i-1]["cumple_cdt"]
+            ts_res.add("TEXTCOLOR", (6, row_i), (6, row_i), GREEN)
+            ts_res.add("FONTNAME",  (6, row_i), (6, row_i), "Courier-Bold")
+            ts_res.add("TEXTCOLOR", (8, row_i), (8, row_i), GREEN if cumple_row else RED)
+            ts_res.add("TEXTCOLOR", (10,row_i), (10,row_i), GREEN if cumple_row else RED)
+    # Fila total
+    last = len(res_data) - 1
+    ts_res.add("SPAN",      (0, last), (7, last))
+    ts_res.add("FONTNAME",  (0, last), (-1, last), "Helvetica-Bold")
+    ts_res.add("BACKGROUND",(0, last), (-1, last), CARD)
+    ts_res.add("TEXTCOLOR", (0, last), (7, last), WARN)
+    ts_res.add("TEXTCOLOR", (8, last), (8, last), GREEN if cdt_total<=5.0 else RED)
+    ts_res.add("TEXTCOLOR",(10, last),(10, last), GREEN if cdt_total<=5.0 else RED)
+    res_tbl.setStyle(ts_res)
+    story.append(res_tbl)
+    story.append(Spacer(1, 10))
+
+    # ── Fichas tecnicas por tramo ─────────────────────────────────────────────
+    story.append(Paragraph("3. FICHA TECNICA POR TRAMO", sec_st))
+
+    for t in tramos:
+        cumple = t["cumple_cdt"]
+        estado = "CUMPLE" if cumple else "NO CUMPLE"
+        nombre_clean = t["nombre"].replace("🔆","").replace("🔋","").replace("⚡","").replace("🔌","").strip()
+
+        ficha_hdr = [[Paragraph(f"<b>{nombre_clean}</b>  —  Tipo: {t['tipo']}  |  Material: {t['material']}",
+                                ParagraphStyle("fh", fontName="Helvetica-Bold", fontSize=8,
+                                               textColor=SOL))]]
+        ficha_hdr_tbl = Table(ficha_hdr, colWidths=[27*cm])
+        ficha_hdr_tbl.setStyle(TableStyle([
+            ("BACKGROUND", (0,0), (-1,-1), CARD),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 4),
+            ("TOPPADDING",   (0,0),(-1,-1), 4),
+            ("LEFTPADDING",  (0,0),(-1,-1), 6),
+        ]))
+        story.append(ficha_hdr_tbl)
+
+        ficha_data = [
+            ["Parametro", "Valor", "Parametro", "Valor", "Parametro", "Valor"],
+            ["Corriente nominal", f"{t['corriente_a']:.2f} A",
+             "Factor seguridad",  f"x{t['factor_seg']:.2f}",
+             "I diseno",         f"{t['i_dis']:.2f} A"],
+            ["Longitud tramo",   f"{t['longitud_m']} m",
+             "Tension referencia",f"{t['voltaje_v']} V",
+             "DV maximo",        f"{t['cdt_max_pct']}%"],
+            ["F. temperatura",   f"({t['temp_amb']}C) = {t['ft']:.2f}",
+             "F. agrupamiento",  f"({t['n_agrup']} circ.) = {t['fa']:.2f}",
+             "F. total",         f"{t['factor_total']:.2f}"],
+            ["S minima amp.",    f"{t['s_amp_mm2']} mm2",
+             "S minima DV",      f"{t['s_cdt_raw']:.2f} -> {t['s_cdt_mm2']} mm2",
+             "Criterio gov.",    t["criterio_gov"]],
+            ["CALIBRE FINAL",   f"{t['cal_final_mm2']} mm2",
+             "Ampacidad real",   f"{t['amp_final_a']:.1f} A",
+             "DV real",         f"{t['dv_real_pct']:.3f}% — {estado}"],
+        ]
+        ficha_tbl = Table(ficha_data, colWidths=[3.5*cm, 3.5*cm, 3.5*cm, 4.5*cm, 3.5*cm, 4.5*cm])
+        ts_f = tbl_style_base(1)
+        # Resaltar fila de resultado final
+        ts_f.add("FONTNAME",   (0, 5), (-1, 5), "Helvetica-Bold")
+        ts_f.add("TEXTCOLOR",  (0, 5), (0, 5),  WARN)
+        ts_f.add("TEXTCOLOR",  (1, 5), (1, 5),  GREEN)
+        ts_f.add("FONTNAME",   (1, 5), (1, 5),  "Courier-Bold")
+        ts_f.add("TEXTCOLOR",  (5, 5), (5, 5),  GREEN if cumple else RED)
+        ts_f.add("BACKGROUND", (0, 5), (-1, 5), CARD)
+        ficha_tbl.setStyle(ts_f)
+        story.append(ficha_tbl)
+        story.append(Spacer(1, 5))
+
+    # ── Cuadro de materiales ──────────────────────────────────────────────────
+    story.append(Paragraph("4. CUADRO DE MATERIALES — CONDUCTORES", sec_st))
+    mat_agrup = defaultdict(float)
+    for t in tramos:
+        clave = f"{t['material']} {t['cal_final_mm2']} mm2"
+        mat_agrup[clave] += t["longitud_m"] * 2 * (3 if t["tipo"] == "AC_tri" else 2) / 2
+
+    mat_hdr = [["Conductor", "Calibre", "Longitud estimada", "Tipo recomendado", "Norma"]]
+    mat_body = []
+    for cab, metros in sorted(mat_agrup.items()):
+        parts = cab.split(" ")
+        mat_body.append([
+            parts[0],
+            " ".join(parts[1:]),
+            f"{metros:.1f} m",
+            "Cable FV PV1-F / H07RN-F",
+            "IEC 62930 / UL 4703",
+        ])
+    mat_data = mat_hdr + mat_body
+    mat_tbl = Table(mat_data, colWidths=[3*cm, 3*cm, 4*cm, 7*cm, 4*cm])
+    ts_m = tbl_style_base(1)
+    ts_m.add("TEXTCOLOR", (1, 1), (1, -1), GREEN)
+    ts_m.add("FONTNAME",  (1, 1), (1, -1), "Courier-Bold")
+    ts_m.add("TEXTCOLOR", (2, 1), (2, -1), MONO)
+    mat_tbl.setStyle(ts_m)
+    story.append(mat_tbl)
+    story.append(Spacer(1, 10))
+
+    # ── Limites de caida de tension ───────────────────────────────────────────
+    story.append(Paragraph("5. LIMITES DE CAIDA DE TENSION (RETIE / IEC 60364-7-712)", sec_st))
+    lim_data = [
+        ["Tramo", "Limite recomendado", "Referencia normativa"],
+        ["Paneles -> Controlador/MPPT",  "<=2%",  "IEC 62548 §10 / RETIE Art.11"],
+        ["Controlador/MPPT -> Baterias", "<=1%",  "RETIE Art.11"],
+        ["Baterias -> Inversor DC",      "<=1%",  "RETIE Art.11"],
+        ["Salida AC (distribucion)",     "<=3%",  "IEC 60364-7-712 / NTC 2050"],
+        ["Total sistema DC",             "<=5%",  "IEC 60364-7-712 §712.52.1"],
+    ]
+    lim_tbl = Table(lim_data, colWidths=[8*cm, 4.5*cm, 7*cm])
+    ts_l = tbl_style_base(1)
+    ts_l.add("TEXTCOLOR", (1, 1), (1, -1), GREEN)
+    ts_l.add("FONTNAME",  (1, 1), (1, -1), "Courier-Bold")
+    ts_l.add("TEXTCOLOR", (2, 1), (2, -1), TEXT2)
+    lim_tbl.setStyle(ts_l)
+    story.append(lim_tbl)
+    story.append(Spacer(1, 8))
+
+    # ── Nota normativa ────────────────────────────────────────────────────────
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORD, spaceAfter=6))
+    notas = [
+        "<b>Notas normativas y metodologicas:</b>",
+        "• RETIE (Colombia) | IEC 60364-7-712 (instalaciones FV) | IEC 62548 (diseno arrays FV) | IEC 60228 (conductores)",
+        f"• Factor de seguridad: x1.25 en circuitos DC (cargas continuas) — IEC 62548 §10.4",
+        f"• Conductividad usada: {gamma}",
+        f"• Factor de temperatura ({params.get('temp_amb',35)}C) = {ft:.2f}  |  "
+        f"Factor de agrupamiento ({params.get('n_agrup',1)} circuitos) = {fa:.2f}",
+        "• Los calibres indicados son MINIMOS de diseno. Verificar con el instalador segun metodo de "
+        "instalacion y temperatura ambiente especifica del proyecto.",
+        "• Criterio final: el calibre comercial seleccionado satisface SIMULTANEAMENTE ampacidad "
+        "corregida Y caida de tension dentro de los limites.",
+        f"• Generado por SOLARCALC PRO — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+    ]
+    for n in notas:
+        story.append(Paragraph(n, note_st))
+
+    doc.build(story)
+    return buf.getvalue()
 
 
 def mostrar_cableado(proyecto_id: int, session_state: dict) -> None:
@@ -550,3 +863,56 @@ def mostrar_cableado(proyecto_id: int, session_state: dict) -> None:
           AC ≤ {CDT_LIMITES["salida_ac"]}%
     </div>
     """, unsafe_allow_html=True)
+
+    # ── 10. Botón descarga PDF ────────────────────────────────────────────────
+    st.markdown("---")
+    st.markdown("""
+    <div style='font-family:Rajdhani,sans-serif;font-size:1.1rem;font-weight:700;
+                color:#FFB300;letter-spacing:1px;margin-bottom:0.6rem;'>
+        📄 EXPORTAR MEMORIA TÉCNICA DE CABLEADO
+    </div>""", unsafe_allow_html=True)
+
+    col_pdf1, col_pdf2 = st.columns([1, 2])
+    with col_pdf1:
+        if st.button("📄 Generar PDF de Cableado", use_container_width=True,
+                     key="btn_gen_pdf_cableado"):
+            st.session_state["_gen_pdf_cab"] = True
+
+    if st.session_state.get("_gen_pdf_cab", False):
+        with st.spinner("Generando PDF de cableado..."):
+            try:
+                # Obtener nombre del proyecto
+                from db_utils import get_conn as _get_conn_pdf
+                _conn_pdf = _get_conn_pdf()
+                _p_row = _conn_pdf.execute(
+                    "SELECT nombre, municipio FROM proyectos WHERE id=?",
+                    (proyecto_id,)).fetchone()
+                _conn_pdf.close()
+                _proy_nom = _p_row[0] if _p_row else "Proyecto"
+                _proy_mun = _p_row[1] if _p_row and len(_p_row) > 1 else "—"
+
+                pdf_bytes = generar_pdf_cableado(
+                    tramos            = tramos,
+                    params            = params_calc,
+                    proyecto_nombre   = _proy_nom,
+                    proyecto_municipio= _proy_mun,
+                )
+                fname_pdf = f"cableado_{_proy_nom.replace(' ','_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+                st.download_button(
+                    label       = "⬇ Descargar Memoria Técnica PDF",
+                    data        = pdf_bytes,
+                    file_name   = fname_pdf,
+                    mime        = "application/pdf",
+                    use_container_width=True,
+                    key         = "dl_pdf_cableado",
+                )
+                st.session_state["_gen_pdf_cab"] = False
+                st.markdown(f"""
+                <div class='info-note' style='margin-top:0.5rem;'>
+                    ✅ PDF generado: <b>{fname_pdf}</b><br>
+                    Incluye: parámetros generales · tabla resumen · fichas técnicas por tramo ·
+                    cuadro de materiales · límites normativos · notas RETIE/IEC
+                </div>""", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error generando PDF: {e}")
+                st.session_state["_gen_pdf_cab"] = False
