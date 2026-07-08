@@ -650,15 +650,19 @@ def mostrar_cableado(proyecto_id: int, session_state: dict) -> None:
     st.markdown("### ⚡ Datos del sistema (auto-completados desde tus módulos)")
     dc1, dc2, dc3, dc4 = st.columns(4)
     with dc1:
-        vdc_i   = st.number_input("Tensión DC banco/MPPT (V)", 12, 1000, vdc, key="cab_vdc")
+        vdc_i   = st.number_input("Tensión DC banco/MPPT (V)", 12, 1000,
+                                   max(12, min(int(vdc), 1000)), key="cab_vdc")
     with dc2:
         isc_i   = st.number_input("Corriente Isc panel (A)", 0.1, 50.0,
-                                   round(isc, 2), 0.1, key="cab_isc")
+                                   max(0.1, min(round(float(isc), 2), 50.0)),
+                                   0.1, key="cab_isc")
     with dc3:
-        nstr_i  = st.number_input("Strings en paralelo", 1, 50, n_str, key="cab_nstr")
+        nstr_i  = st.number_input("Strings en paralelo", 1, 50,
+                                   max(1, min(int(n_str), 50)), key="cab_nstr")
     with dc4:
         inv_w_i = st.number_input("Potencia inversor (W)", 500, 100000,
-                                   int(inv_w), 100, key="cab_inv_w")
+                                   max(500, min(int(inv_w), 100000)),
+                                   100, key="cab_inv_w")
 
     # ── 5. Calcular tramos ────────────────────────────────────────────────────
     params_calc = {
