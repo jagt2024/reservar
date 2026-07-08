@@ -1542,7 +1542,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                 precio_panel = st.number_input(f"Precio panel {wp_og2}Wp ($/u)", 50000.0, 2e6, 320000.0, 10000.0,
                                                 key="og_precio_panel")
                 costo_inv_kw = st.number_input(f"Costo inversor {pot_inv_og2:.1f}kW ON-GRID ($)", 500000.0, 10e6,
-                                                pot_inv_og2 * 2000000.0, 100000.0, key="og_costo_inv")
+                                                min(pot_inv_og2 * 2000000.0, 10e6), 100000.0, key="og_costo_inv")
                 pcable_og    = st.number_input("Cableado + protecciones ($)", 0.0, 10e6, 600000.0, 50000.0,
                                                 key="og_pcable")
                 otros_costos = st.number_input("Estructura + mano de obra ($)", 0.0, 50e6, 1000000.0, 100000.0,
