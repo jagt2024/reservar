@@ -920,10 +920,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 placeholder="Ej: Canadian Solar CS6W-550T",
                 value=session_state.get("_hib_panel_cat", _sv(panel_row[0] if panel_row else "")), key="hib_modelo")
             hib_wp   = st.number_input("Potencia pico (Wp)", 50, 1000, int(_hib_cat_params.get("wp", pot_panel_def)), key="hib_wp")
-            hib_voc  = st.number_input("Tension Voc (V)", 5.0, 100.0, float(_hib_cat_params.get("voc", voc_def)), step=0.1, key="hib_voc")
+            hib_voc  = st.number_input("Tension Voc (V)", 5.0, 100.0, max(5.0, min(float(_hib_cat_params.get("voc", voc_def)), 100.0)), step=0.1, key="hib_voc")
             hib_vmpp = st.number_input("Tension Vmpp (V)", 5.0, 80.0,
                                         float(_hib_cat_params.get("vmpp", round(voc_def*0.82,1))), step=0.1, key="hib_vmpp")
-            hib_isc  = st.number_input("Corriente Isc (A)", 0.1, 30.0, float(_hib_cat_params.get("isc", isc_def)), step=0.1, key="hib_isc")
+            hib_isc  = st.number_input("Corriente Isc (A)", 0.1, 30.0, max(0.1, min(float(_hib_cat_params.get("isc", isc_def)), 30.0)), step=0.1, key="hib_isc")
             hib_impp = st.number_input("Corriente Impp (A)", 0.1, 25.0,
                                         float(_hib_cat_params.get("impp", round(isc_def*0.95,1))), step=0.1, key="hib_impp")
 
@@ -1253,10 +1253,10 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                                      help="PDF recomienda 10–20% para híbrido.",
                                      key="hib_sobredim_d5")
             wp_inp  = st.number_input("Potencia panel (Wp)", 50, 1000,
-                int(wp_d5), key="hib_wp_inp")
-            vmpp_inp= st.number_input("Vmpp (V)", 5.0, 80.0, float(vmpp_d5), step=0.1, key="hib_vmpp_inp")
-            voc_inp = st.number_input("Voc (V)", 5.0, 100.0, float(voc_d5), step=0.1, key="hib_voc_inp")
-            impp_inp= st.number_input("Impp (A)", 0.1, 25.0, float(impp_d5), step=0.1, key="hib_impp_inp")
+                max(50, min(int(wp_d5), 1000)), key="hib_wp_inp")
+            vmpp_inp= st.number_input("Vmpp (V)", 5.0, 80.0, max(5.0, min(float(vmpp_d5), 80.0)), step=0.1, key="hib_vmpp_inp")
+            voc_inp = st.number_input("Voc (V)", 5.0, 100.0, max(5.0, min(float(voc_d5), 100.0)), step=0.1, key="hib_voc_inp")
+            impp_inp= st.number_input("Impp (A)", 0.1, 25.0, max(0.1, min(float(impp_d5), 25.0)), step=0.1, key="hib_impp_inp")
 
             st.markdown("<hr style='border-color:#2A3A55;margin:0.5rem 0;'>", unsafe_allow_html=True)
             st.markdown("<small style='color:#A78BFA;'>Rango MPPT del inversor híbrido:</small>",
@@ -1586,7 +1586,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                     unsafe_allow_html=True)
                 tarifa_h     = st.number_input("Tarifa energía ($/kWh)", 100.0, 5000.0, tarifa_bd, 50.0, key="hib_tarifa")
                 precio_pan_h = st.number_input(f"Precio panel {wp_e}Wp ($/u)", 50000.0, 2e6, 320000.0, 10000.0, key="hib_ppanel")
-                costo_inv_h  = st.number_input(f"Costo inversor híbrido {pot_inv_e:.1f}kW ($)", 500000.0, 15e6, pot_inv_e*3500000.0, 100000.0, key="hib_cinv")
+                costo_inv_h  = st.number_input(f"Costo inversor híbrido {pot_inv_e:.1f}kW ($)", 500000.0, 15e6, min(pot_inv_e*3500000.0, 15e6), 100000.0, key="hib_cinv")
                 precio_bat_h = st.number_input(f"Precio batería {cap_bat_e}Ah ($/u)", 50000.0, 5e6, 800000.0, 50000.0, key="hib_pbat")
                 pcable_h     = st.number_input("Cableado + protecciones ($)", 0.0, 10e6, 800000.0, 50000.0, key="hib_pcable")
                 otros_h      = st.number_input("Estructura + mano de obra ($)", 0.0, 50e6, 1500000.0, 100000.0, key="hib_otros")
