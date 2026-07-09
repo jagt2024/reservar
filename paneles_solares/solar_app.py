@@ -3751,21 +3751,24 @@ with tab8:
             st.markdown("**⚡ Parámetros del array**")
             vdc_7 = st.selectbox("Tensión banco baterías (V)", [12, 24, 48],
                                    index=[12,24,48].index(vdc7) if vdc7 in [12,24,48] else 2, key="vdc7")
-            isc_7    = st.number_input("Corriente Isc panel (A)", 1.0, 30.0, float(isc7), 0.01, key="isc7_ctrl",
+            isc_7    = st.number_input("Corriente Isc panel (A)", 1.0, 30.0,
+                                       max(1.0, min(float(isc7), 30.0)), 0.01, key="isc7_ctrl",
                                        help="Corriente de cortocircuito del panel — desde Módulo 5")
-            voc_7    = st.number_input("Tensión Voc panel (V)", 5.0, 100.0, float(voc7_panel), 0.1, key="voc7_ctrl",
+            voc_7    = st.number_input("Tensión Voc panel (V)", 5.0, 100.0,
+                                       max(5.0, min(float(voc7_panel), 100.0)), 0.1, key="voc7_ctrl",
                                        help="Tensión de circuito abierto del panel — desde Módulo 5")
             imp_7    = st.number_input("Corriente Imp panel (A)", 1.0, 30.0,
-                                       round(float(isc7)*0.95, 2), 0.01, key="imp7_ctrl",
+                                       max(1.0, min(round(float(isc7)*0.95, 2), 30.0)), 0.01, key="imp7_ctrl",
                                        help="Corriente en el punto de máxima potencia")
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col7b:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
             st.markdown("**🔢 Configuración del array**")
-            n_pan_7  = st.number_input("N° total de paneles", 1, 500, int(num_pan7), 1, key="npan7_ctrl")
+            n_pan_7  = st.number_input("N° total de paneles", 1, 500,
+                                        max(1, min(int(num_pan7), 500)), 1, key="npan7_ctrl")
             pan_serie_7 = st.number_input("Paneles en serie (por string)", 1, 50,
-                                           max(1, int(st.session_state.get("_paneles_por_string", 1))),
+                                           max(1, min(int(st.session_state.get("_paneles_por_string", 1)), 50)),
                                            1, key="serie7_ctrl",
                                            help="Paneles en serie en cada string")
             n_str_7  = max(1, math.ceil(n_pan_7 / max(1, pan_serie_7)))
@@ -3775,7 +3778,8 @@ with tab8:
                 ({n_pan_7} paneles ÷ {pan_serie_7} en serie)
             </div>""", unsafe_allow_html=True)
             pot_paneles_7 = st.number_input("Potencia total array (Wp)", 100, 200000,
-                                             int(pot_real_paneles), 100, key="pot7_ctrl")
+                                             max(100, min(int(pot_real_paneles), 200000)),
+                                             100, key="pot7_ctrl")
             st.markdown("</div>", unsafe_allow_html=True)
 
         with col7c:
@@ -3795,7 +3799,7 @@ with tab8:
                                            key="mppt_maxi7",
                                            help="Corriente de entrada máxima del controlador MPPT")
             mppt_max_p7 = st.number_input("Potencia máx. admitida por MPPT (Wp)", 500, 100000,
-                                           int(vdc_7 * 100), 500,  # orientativo: 100A × Vbat
+                                           max(500, min(int(vdc_7 * 100), 100000)), 500,
                                            key="mppt_maxp7",
                                            help="Potencia FV máxima admitida por el controlador "
                                                 f"a {vdc_7}V. Típico: 12V→800W, 24V→1600W, 48V→3200W")
