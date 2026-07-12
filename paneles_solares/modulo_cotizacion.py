@@ -141,7 +141,7 @@ ITEMS_OTROS = [
 
 # ─── HELPER: calcular totales de un proyecto ──────────────────────────────────
 def leer_dimensionamiento(proyecto_id: int, tipo_sistema: str, ss: dict) -> dict:
-    """Lee la BD y session_state para obtener el dimensionamiento actual."""
+    """Lee BD y session_state — prioriza datos calculados en cada modulo de sistema."""
     conn = get_conn()
     p    = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
     pan  = conn.execute("SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
@@ -153,50 +153,114 @@ def leer_dimensionamiento(proyecto_id: int, tipo_sistema: str, ss: dict) -> dict
         (proyecto_id,)).fetchone()
     conn.close()
 
-    hsp      = (p[4] if p and p[4] else None) or ss.get("calc_hsp", 4.2)
-    vdc      = (p[3] if p and p[3] else None) or ss.get("calc_vdc", 48)
-    pot_pan  = (pan[3] if pan else None) or ss.get("calc_pot_panel_wp", 550)
-    voc_pan  = (pan[4] if pan else 49.9)
-    isc_pan  = (pan[5] if pan else 14.0)
-    mod_pan  = (pan[2] if pan else "Panel solar 550Wp")
+    hsp     = float((p[4] if p and p[4] else None) or ss.get("calc_hsp", 4.2))
+    vdc     = int((p[3] if p and p[3] else None) or ss.get("calc_vdc", 48))
+    pot_pan = int((pan[3] if pan else None) or ss.get("calc_pot_panel_wp", 550))
+    voc_pan = float(pan[4] if pan else 49.9)
+    isc_pan = float(pan[5] if pan else 14.0)
+    mod_pan = str(pan[2] if pan else "Panel solar 550Wp")
 
-    consumo_inv = (cargas["cantidad"] * cargas["potencia_w"] * cargas["horas_dia"]).sum() \
-                  if not cargas.empty else 0.0
-    consumo_rec = (recibo[0] / recibo[1] * 1000) if recibo else 0.0
+    consumo_inv  = (cargas["cantidad"]*cargas["potencia_w"]*cargas["horas_dia"]).sum() if not cargas.empty else 0.0
+    consumo_rec  = (recibo[0]/recibo[1]*1000) if recibo else 0.0
     consumo_base = max(consumo_inv, consumo_rec) if consumo_rec > 0 else consumo_inv
     consumo_fs   = consumo_base * 1.20
 
-    n_pan   = ss.get("calc_num_paneles")  or math.ceil(consumo_fs / max(hsp * 0.75, 0.1) / max(pot_pan, 1))
-    n_bat   = ss.get("calc_num_baterias") or math.ceil(consumo_fs / (vdc * 0.8))
-    bat_cap = ss.get("calc_bat_cap_ah", 100)
-
-    if not cargas.empty:
-        def _inv_pot(r):
-            return r["cantidad"] * r["potencia_w"] * (4 if int(r["es_motor"]) else 1)
-        pot_cargas = cargas.apply(_inv_pot, axis=1).sum()
+    # Paneles
+    if tipo_sistema == "HIBRIDO":
+        n_pan     = int(ss.get("_hib_n_pan", ss.get("calc_num_paneles", 0)) or 0)
+        pot_inst  = float(ss.get("_hib_pot_inst", n_pan * pot_pan))
+        pan_serie = int(ss.get("_hib_pan_serie", 1))
+        n_strings = int(ss.get("_hib_n_strings", max(1, n_pan // max(pan_serie,1))))
+        gen_dia   = float(ss.get("_hib_gen_dia", 0.0))
+    elif tipo_sistema == "ON-GRID":
+        n_pan     = int(ss.get("_og_n_paneles", ss.get("calc_num_paneles", 0)) or 0)
+        pot_inst  = float(ss.get("_og_pot_inst", n_pan * pot_pan))
+        pan_serie = int(ss.get("_og_pan_serie", 1))
+        n_strings = int(ss.get("_og_n_strings", max(1, n_pan // max(pan_serie,1))))
+        gen_dia   = float(ss.get("_og_gen_dia", 0.0))
     else:
-        pot_cargas = consumo_fs
+        n_pan     = int(ss.get("calc_num_paneles", 0) or
+                        math.ceil(consumo_fs / max(hsp*0.75,0.1) / max(pot_pan,1)))
+        pot_inst  = float(ss.get("calc_pot_real_wp", n_pan * pot_pan))
+        pan_serie = int(ss.get("calc_serie", 1))
+        n_strings = int(ss.get("calc_paralelo", n_pan))
+        gen_dia   = float(ss.get("calc_gen_dia_kwh", 0.0))
 
-    inv_w = pot_cargas * 1.2
-    kw_std = [1,2,3,5,8,10,15,20,25,30,40,50]
-    inv_kw = float(next((k for k in kw_std if k * 1000 >= inv_w), math.ceil(inv_w / 1000)))
+    # Baterias
+    if tipo_sistema == "HIBRIDO":
+        n_bat   = int(ss.get("_hib_n_baterias", 0) or 0)
+        bat_cap = float(ss.get("_hib_cap_bat_ah", 100))
+        vdc_bat = int(ss.get("_hib_v_bat", vdc))
+        aut_h   = float(ss.get("_hib_aut_real_h", ss.get("_hib_aut_horas", 0.0)))
+        e_util  = float(ss.get("_hib_cap_real_wh", n_bat*bat_cap*vdc_bat) * 0.8 / 1000)
+        dod_bat = int(ss.get("hib_dod", 80))
+        eff_bat = int(ss.get("_hib_eff", 90))
+    elif tipo_sistema == "ON-GRID":
+        n_bat=0; bat_cap=0; vdc_bat=vdc; aut_h=0.0; e_util=0.0; dod_bat=0; eff_bat=0
+    else:
+        n_bat   = int(ss.get("calc_num_baterias", 0) or math.ceil(consumo_fs/(vdc*0.8)))
+        bat_cap = float(ss.get("calc_bat_cap_ah", 100))
+        vdc_bat = int(ss.get("calc_vdc", vdc))
+        aut_h   = float(ss.get("calc_horas_autonomia", 24.0))
+        e_util  = float(bat_cap * n_bat * vdc_bat * 0.8 / 1000)
+        dod_bat = int(ss.get("calc_dod_pct", 80))
+        eff_bat = int(ss.get("calc_eff_pct", 90))
+
+    # Inversor
+    if tipo_sistema == "HIBRIDO":
+        inv_kw = float(ss.get("_hib_pot_inv", ss.get("calc_inv_kw", 3.0)) or 3.0)
+    elif tipo_sistema == "ON-GRID":
+        inv_kw = float(ss.get("_og_pot_inv_kw", ss.get("calc_inv_kw", 3.0)) or 3.0)
+    else:
+        inv_kw = float(ss.get("calc_inv_kw", 0.0))
+        if inv_kw == 0:
+            pot_c = (cargas.apply(lambda r: r["cantidad"]*r["potencia_w"]*(3 if r["es_motor"] else 1),
+                                  axis=1).sum() if not cargas.empty else consumo_fs)
+            kw_std = [0.5,1,1.5,2,3,3.5,4,5,6,8,10,12,15,20,25,30,40,50]
+            inv_kw = float(next((k for k in kw_std if k*1000 >= pot_c*0.8*1.25),
+                                math.ceil(pot_c*0.8*1.25/1000)))
+
+    # Controlador
+    ctrl_modelo = ss.get("calc_mppt_modelo", "")
+    ctrl_a      = float(ss.get("calc_corr_mppt", 0.0))
+    if not ctrl_modelo:
+        isc_ctrl   = isc_pan * max(n_strings, 1)
+        ctrl_a_est = isc_ctrl * 1.25
+        ctrl_modelo= f"MPPT {next((a for a in [10,20,30,40,60,80,100,120,150,200] if a>=ctrl_a_est), 200)}A"
+
+    # Financiero
+    if tipo_sistema == "HIBRIDO":
+        inv_eco=float(ss.get("_hib_inv_tot",0.0)); ben_eco=float(ss.get("_hib_ben_anio",0.0))
+        pb_eco=float(ss.get("_hib_payback",0.0)); ga_eco=float(ss.get("_hib_gen_anio",gen_dia*365))
+        co2_eco=float(ss.get("_hib_co2_anio",ga_eco*0.126))
+    elif tipo_sistema == "ON-GRID":
+        inv_eco=float(ss.get("_og_inv_total",0.0)); ben_eco=float(ss.get("_og_beneficio_anio",0.0))
+        pb_eco=float(ss.get("_og_payback",0.0)); ga_eco=float(ss.get("_og_gen_anio",gen_dia*365))
+        co2_eco=float(ss.get("_og_co2_anio",ga_eco*0.126))
+    else:
+        inv_eco=0.0; ben_eco=float(ss.get("eco_tarifa",700)*consumo_base/1000*30*12)
+        pb_eco=0.0; ga_eco=gen_dia*365; co2_eco=ga_eco*0.126
 
     return {
-        "tipo_sistema": tipo_sistema,
-        "proyecto":     p[1] if p else "Proyecto",
-        "municipio":    p[2] if p else "",
-        "hsp":          hsp,
-        "vdc":          vdc,
-        "n_paneles":    int(n_pan),
-        "pot_panel_wp": int(pot_pan),
-        "voc_pan":      voc_pan,
-        "isc_pan":      isc_pan,
-        "modelo_panel": mod_pan,
-        "n_baterias":   int(n_bat),
-        "bat_cap_ah":   int(bat_cap),
-        "inv_kw":       inv_kw,
-        "consumo_fs":   consumo_fs,
-        "consumo_base": consumo_base,
+        "tipo_sistema":   tipo_sistema,
+        "proyecto":       p[1] if p else "Proyecto",
+        "municipio":      p[2] if p else "",
+        "hsp": hsp, "vdc": vdc_bat if vdc_bat else vdc,
+        "n_paneles":      max(int(n_pan),0), "pot_panel_wp": int(pot_pan),
+        "pot_inst_kwp":   round(pot_inst/1000,2), "pan_serie": pan_serie,
+        "n_strings":      n_strings, "voc_pan": voc_pan, "isc_pan": isc_pan,
+        "modelo_panel":   mod_pan, "gen_dia_kwh": gen_dia, "gen_anio_kwh": ga_eco,
+        "n_baterias":     max(int(n_bat),0), "bat_cap_ah": int(bat_cap),
+        "bat_dod_pct":    dod_bat, "bat_eff_pct": eff_bat,
+        "bat_autonomia_h": aut_h, "bat_e_util_kwh": e_util,
+        "inv_kw":         inv_kw, "ctrl_modelo": ctrl_modelo, "ctrl_a": ctrl_a,
+        "cal_pan_mppt":   ss.get("_cab_cal_pan_mppt","4-6 mm2"),
+        "cal_bat_inv":    ss.get("_cab_cal_bat_inv","25-35 mm2"),
+        "cal_ac":         ss.get("_cab_cal_ac","4-6 mm2"),
+        "long_total_m":   ss.get("_cab_long_total_m",0),
+        "consumo_fs": consumo_fs, "consumo_base": consumo_base,
+        "inv_total_eco": inv_eco, "ben_anio_eco": ben_eco,
+        "payback_eco": pb_eco, "co2_anio_eco": co2_eco,
     }
 
 # ─── GENERADOR PDF COTIZACIÓN ─────────────────────────────────────────────────
@@ -771,30 +835,82 @@ def mostrar_cotizacion(proyecto_id: int, session_state: dict):
         """, unsafe_allow_html=True)
 
         # Precios por defecto según dimensionamiento
-        _pan_precio_def = 320_000
-        _bat_precio_def = 1_800_000
-        _inv_precio_def = 2_500_000
+        _pan_precio_def  = 320_000
+        _bat_precio_def  = 1_800_000
+        _inv_precio_def  = 2_500_000
         _estr_precio_def = 85_000
-        _mo_precio_def  = 250_000
+        _mo_precio_def   = 250_000
+        _ctrl_precio_def = 600_000
 
-        # ── Items pre-cargados del dimensionamiento ──────────────────────────
+        # Banner de datos dimensionados
+        _src = ("Modulo Hibrido" if tipo_sel=="HIBRIDO" else
+                "Modulo ON-GRID" if tipo_sel=="ON-GRID" else "Modulo OFF-GRID")
+        st.markdown(f"""
+        <div class='info-note' style='margin-bottom:0.8rem;border-color:rgba(0,230,118,0.4);border-left:4px solid #00E676;'>
+            Datos cargados desde <b>{_src}</b>:
+            &nbsp; {dim['n_paneles']} paneles {dim['pot_panel_wp']}Wp ({dim['pot_inst_kwp']:.2f} kWp)
+            &nbsp;| Inversor: <b>{dim['inv_kw']:.1f} kW</b>
+            {"&nbsp;| Baterias: <b>"+str(dim['n_baterias'])+" x "+str(dim['bat_cap_ah'])+"Ah @ "+str(dim['vdc'])+"V</b>" if dim['n_baterias']>0 else ""}
+            &nbsp;| Ctrl: <b>{dim['ctrl_modelo']}</b>
+            &nbsp;| Gen: <b>{dim['gen_dia_kwh']:.2f} kWh/dia</b>
+            &nbsp;| CO2 evitado: <b>{dim['co2_anio_eco']:.0f} kg/año</b>
+        </div>""", unsafe_allow_html=True)
+
+        # Resumen financiero del modulo economico
+        if dim["ben_anio_eco"] > 0:
+            st.markdown(f"""
+            <div style='display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem;margin-bottom:0.8rem;'>
+                <div class='metric-box' style='border-color:rgba(0,230,118,0.4);'>
+                    <div class='metric-val' style='color:#00E676;font-size:1.1rem;'>${dim['ben_anio_eco']/1e6:.2f}M</div>
+                    <div class='metric-unit'>$/año</div>
+                    <div class='metric-label'>AHORRO/BENEFICIO</div>
+                </div>
+                <div class='metric-box'>
+                    <div class='metric-val' style='font-size:1.1rem;'>{dim['payback_eco']:.1f}</div>
+                    <div class='metric-unit'>años</div>
+                    <div class='metric-label'>PAYBACK</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(0,188,212,0.4);'>
+                    <div class='metric-val' style='color:#00BCD4;font-size:1.1rem;'>{dim['gen_anio_kwh']:,.0f}</div>
+                    <div class='metric-unit'>kWh/año</div>
+                    <div class='metric-label'>GENERACION ANUAL</div>
+                </div>
+                <div class='metric-box' style='border-color:rgba(167,139,250,0.4);'>
+                    <div class='metric-val' style='color:#A78BFA;font-size:1.1rem;'>{dim['co2_anio_eco']:,.0f}</div>
+                    <div class='metric-unit'>kg CO2/año</div>
+                    <div class='metric-label'>HUELLA EVITADA</div>
+                </div>
+            </div>""", unsafe_allow_html=True)
+
+        # Items pre-cargados del dimensionamiento
         items_auto = []
         if dim["n_paneles"] > 0:
             items_auto.append({
-                "desc": f"Panel solar {dim['modelo_panel']} {dim['pot_panel_wp']}Wp — Voc {dim['voc_pan']}V",
+                "desc": (f"Panel solar {dim['modelo_panel']} {dim['pot_panel_wp']}Wp"
+                         f" Voc {dim['voc_pan']}V / Isc {dim['isc_pan']}A"
+                         f" ({dim['pan_serie']}S x {dim['n_strings']}P)"),
                 "cant": dim["n_paneles"], "unidad": "und",
                 "precio": _pan_precio_def, "key": "pan"
             })
         items_auto.append({
-            "desc": f"Inversor {tipo_sel} {dim['inv_kw']:.0f} kW (según sistema seleccionado)",
+            "desc": f"Inversor {tipo_sel} {dim['inv_kw']:.1f} kW",
             "cant": 1, "unidad": "und",
             "precio": _inv_precio_def, "key": "inv"
         })
         if dim["n_baterias"] > 0 and tipo_sel in ["OFF-GRID","HIBRIDO"]:
             items_auto.append({
-                "desc": f"Batería LiFePO4 {dim['bat_cap_ah']}Ah @ {dim['vdc']}V",
+                "desc": (f"Bateria LiFePO4 {dim['bat_cap_ah']}Ah @ {dim['vdc']}V"
+                         f" DoD {dim['bat_dod_pct']}% / efic {dim['bat_eff_pct']}%"
+                         f" Autonomia {dim['bat_autonomia_h']:.1f}h"
+                         f" E.util {dim['bat_e_util_kwh']:.2f}kWh"),
                 "cant": dim["n_baterias"], "unidad": "und",
                 "precio": _bat_precio_def, "key": "bat"
+            })
+        if tipo_sel != "ON-GRID" and dim["ctrl_modelo"]:
+            items_auto.append({
+                "desc": f"Controlador {dim['ctrl_modelo']} @ {dim['vdc']}V DC",
+                "cant": 1, "unidad": "und",
+                "precio": _ctrl_precio_def, "key": "ctrl"
             })
         items_auto.append({
             "desc": "Estructura soporte aluminio anodizado para paneles",
@@ -802,22 +918,23 @@ def mostrar_cotizacion(proyecto_id: int, session_state: dict):
             "precio": _estr_precio_def, "key": "estr"
         })
         items_auto.append({
-            "desc": "Cable DC 10mm² (rojo/negro) + conectores MC4",
-            "cant": dim["n_paneles"] * 2, "unidad": "m",
-            "precio": 4_500, "key": "cable"
+            "desc": f"Cable DC {dim['cal_pan_mppt']} (rojo/negro) paneles->MPPT + MC4",
+            "cant": max(dim["n_paneles"]*2, 20),
+            "unidad": "m", "precio": 5_500, "key": "cable_dc"
         })
-
-        # Protecciones calculadas
-        isc_p = dim.get("isc_pan", 14.0)
-        fus_dc_a = isc_p * 1.25
-        fus_std_a = next((f for f in [10,15,20,25,30,40,50] if f >= fus_dc_a), 50)
-        inv_w_a = dim["inv_kw"] * 1000
-        brk_a = (inv_w_a / 220) * 1.25
-        brk_std_a = next((f for f in [16,20,25,32,40,50,63] if f >= brk_a), 63)
-        n_str_a = math.ceil(dim["n_paneles"] / max(1, int(600 / max(dim["voc_pan"],1))))
-
         items_auto.append({
-            "desc": f"Fusible DC {fus_std_a}A para strings (protección DC)",
+            "desc": f"Cable AC {dim['cal_ac']} salida inversor -> tablero",
+            "cant": 20, "unidad": "m", "precio": 4_500, "key": "cable_ac"
+        })
+        isc_p     = dim.get("isc_pan", 14.0)
+        fus_dc_a  = isc_p * 1.25
+        fus_std_a = next((f for f in [10,15,20,25,30,40,50] if f >= fus_dc_a), 50)
+        inv_w_a   = dim["inv_kw"] * 1000
+        brk_a     = (inv_w_a / 220) * 1.25
+        brk_std_a = next((f for f in [16,20,25,32,40,50,63] if f >= brk_a), 63)
+        n_str_a   = max(1, dim["n_strings"])
+        items_auto.append({
+            "desc": f"Fusible DC {fus_std_a}A por string (IEC 62548)",
             "cant": n_str_a, "unidad": "und", "precio": 35_000, "key": "fus"
         })
         items_auto.append({
@@ -829,13 +946,13 @@ def mostrar_cotizacion(proyecto_id: int, session_state: dict):
             "cant": 1, "unidad": "und", "precio": 180_000, "key": "dps"
         })
         items_auto.append({
-            "desc": "Mano de obra instalación, puesta en servicio y capacitación",
+            "desc": "Mano de obra instalacion, puesta en servicio y capacitacion",
             "cant": 1, "unidad": "gl",
-            "precio": _mo_precio_def * dim["n_paneles"], "key": "mo"
+            "precio": _mo_precio_def * max(dim["n_paneles"], 1), "key": "mo"
         })
         items_auto.append({
-            "desc": "Transporte y logística",
-            "cant": 1, "unidad": "gl", "precio": 150_000, "key": "transp"
+            "desc": "Transporte, logistica y gestion de obra",
+            "cant": 1, "unidad": "gl", "precio": 200_000, "key": "transp"
         })
 
         # ── Tabla editable de ítems ──────────────────────────────────────────
