@@ -1223,12 +1223,20 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         voc_d5      = session_state.get("hib_voc",     voc_def)
         vmpp_d5     = session_state.get("hib_vmpp",    round(voc_def*0.82,1))
         impp_d5     = session_state.get("hib_impp",    round(isc_def*0.95,1))
-        n_bat_d5    = session_state.get("_hib_n_baterias", 4)
-        v_bat_d5    = session_state.get("_hib_v_bat",      48)
-        cap_bat_d5  = session_state.get("_hib_cap_bat_ah", 200)
         dias_aut_d5 = session_state.get("hib_dias_aut", 1.0)
         dod_d5      = session_state.get("hib_dod", 80)
-        eff_d5      = session_state.get("_hib_eff", 90)   # ← eficiencia del sistema
+        eff_d5      = session_state.get("_hib_eff", 90)
+
+        # ── Baterías: priorizar resultados reales de Tab H4 ──────────────────
+        _bat_h4_ok   = "_hib_n_baterias" in session_state and "_hib_v_bat" in session_state
+        n_bat_d5     = int(session_state.get("_hib_n_baterias",  4))
+        v_bat_d5     = int(session_state.get("_hib_v_bat",       48))
+        cap_bat_d5   = float(session_state.get("_hib_cap_bat_ah", 100))
+        cap_real_h4  = float(session_state.get("_hib_cap_real_wh", n_bat_d5 * cap_bat_d5 * v_bat_d5))
+        aut_real_h4  = float(session_state.get("_hib_aut_real_h",  0))
+        dod_h4       = float(session_state.get("hib_dod", 80)) / 100
+        eff_h4       = float(session_state.get("_hib_eff", 90)) / 100
+        energia_util_h4 = (cap_real_h4 / 1000) * dod_h4 * eff_h4
 
         if consumo_d5 == 0:
             st.markdown("<div class='warn-box'>⚠ Completa los tabs 1 y 4 primero.</div>",
@@ -1279,20 +1287,49 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                             unsafe_allow_html=True)
             else:
 
-                # ── 1. Banco de baterías — 5 parámetros
-                consumo_h_h5    = consumo_base_h5 / 24.0
-                horas_aut_h5    = dias_aut_d5 * 24.0
-                e_auto_wh_h5    = consumo_h_h5 * horas_aut_h5
-                eff_d5_dec      = eff_d5 / 100.0
-                dod_d5_dec      = dod_d5 / 100.0
-                cap_banco_kwh_h5 = e_auto_wh_h5 / 1000.0 / (dod_d5_dec * max(eff_d5_dec, 0.01))
-                cap_bat_ah_t    = cap_banco_kwh_h5 * 1000.0 / v_bat_d5
-                n_bats_calc     = math.ceil(cap_bat_ah_t / cap_bat_d5)
-                if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
-                cap_real        = n_bats_calc * cap_bat_d5 * v_bat_d5
-                cap_real_kwh_h5 = cap_real / 1000.0
-                energia_util_h5 = cap_real_kwh_h5 * dod_d5_dec * eff_d5_dec
-                aut_real_hh     = energia_util_h5 * 1000.0 / max(consumo_h_h5, 0.001)
+                # ── 1. Banco de baterías — usar resultados de Tab H4 directamente
+                if _bat_h4_ok:
+                    # Valores reales calculados en Tab H4 (Baterías)
+                    n_bats_calc     = n_bat_d5
+                    cap_real        = cap_real_h4
+                    cap_real_kwh_h5 = cap_real_h4 / 1000.0
+                    energia_util_h5 = energia_util_h4
+                    aut_real_hh     = aut_real_h4
+                    horas_aut_h5    = aut_real_h4
+                    e_auto_wh_h5    = energia_util_h4 * 1000.0  # energía útil para referencia
+                    consumo_h_h5    = consumo_base_h5 / 24.0
+
+                    st.markdown(f"""
+                    <div class='info-note' style='border-color:rgba(167,139,250,0.5);
+                                margin-bottom:0.6rem;'>
+                        🔋 <b>Banco de baterías — datos actualizados desde Tab 4:</b>
+                        &nbsp; {n_bats_calc} baterías {cap_bat_d5:.0f}Ah @ {v_bat_d5}V
+                        &nbsp;|&nbsp; Cap. banco: <b style='color:#A78BFA;'>{cap_real_kwh_h5:.2f} kWh</b>
+                        &nbsp;|&nbsp; E. útil: <b style='color:#00E676;'>{energia_util_h5:.2f} kWh</b>
+                        &nbsp;|&nbsp; Autonomía: <b style='color:#00BCD4;'>{aut_real_h4:.1f} h ({aut_real_h4/24:.2f} días)</b>
+                        &nbsp;|&nbsp; DoD: {int(dod_h4*100)}% | η: {int(eff_h4*100)}%
+                    </div>""", unsafe_allow_html=True)
+                else:
+                    # Fallback: recalcular si Tab H4 no ha sido visitado
+                    consumo_h_h5    = consumo_base_h5 / 24.0
+                    horas_aut_h5    = dias_aut_d5 * 24.0
+                    e_auto_wh_h5    = consumo_h_h5 * horas_aut_h5
+                    eff_d5_dec      = eff_d5 / 100.0
+                    dod_d5_dec      = dod_d5 / 100.0
+                    cap_banco_kwh_h5 = e_auto_wh_h5 / 1000.0 / (dod_d5_dec * max(eff_d5_dec, 0.01))
+                    cap_bat_ah_t    = cap_banco_kwh_h5 * 1000.0 / v_bat_d5
+                    n_bats_calc     = math.ceil(cap_bat_ah_t / cap_bat_d5)
+                    if n_bats_calc % 2 != 0 and n_bats_calc > 1: n_bats_calc += 1
+                    cap_real        = n_bats_calc * cap_bat_d5 * v_bat_d5
+                    cap_real_kwh_h5 = cap_real / 1000.0
+                    energia_util_h5 = cap_real_kwh_h5 * dod_d5_dec * eff_d5_dec
+                    aut_real_hh     = energia_util_h5 * 1000.0 / max(consumo_h_h5, 0.001)
+
+                    st.markdown("""
+                    <div class='warn-box' style='margin-bottom:0.6rem;'>
+                        ⚠ No se encontraron datos del <b>Tab 4 · Baterías</b>.
+                        Visita ese tab y configura el banco para sincronizar los datos aquí.
+                    </div>""", unsafe_allow_html=True)
 
                 # ── 2. Paneles — Metodología PDF Híbrido (5 pasos)
                 # PDF: Ed = consumo × porcentaje_respaldo
@@ -1409,7 +1446,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 session_state["_hib_pot_inv"]     = pot_inv_h
                 session_state["_hib_n_baterias"]  = n_bats_calc
                 session_state["_hib_cap_real_wh"] = cap_real
-                session_state["_hib_aut_horas"]   = aut_real_hh
+                session_state["_hib_aut_horas"]   = aut_real_hh if not _bat_h4_ok else aut_real_h4
                 session_state["_hib_gen_dia"]     = gen_dia_h
                 session_state["_hib_autocon_pct"] = ac_pct
 
@@ -1441,6 +1478,58 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                 <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
                     🔌 Inversor: {pot_inst_h/1000:.2f} kWp × 1.25 = {_inv_w_h5/1000:.2f} kW
                     → <b>Comercial: {pot_inv_h} kW</b>
+                </div>""", unsafe_allow_html=True)
+
+                # ── Resumen de baterías (desde Tab H4) ───────────────────────
+                st.markdown(f"""
+                <div style='display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;margin-top:0.8rem;'>
+                  <div class='sol-card'>
+                    <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
+                    BANCO BATERIAS {"(Tab 4)" if _bat_h4_ok else "(estimado)"}</div>
+                    <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>N° unidades</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{n_bats_calc}</td>
+                      </tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Tensión banco</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{v_bat_d5} V DC</td>
+                      </tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Cap. real banco</td>
+                        <td style='font-family:Share Tech Mono;color:#A78BFA;text-align:right;'>{cap_real_kwh_h5:.2f} kWh</td>
+                      </tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Energia utilizable</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{energia_util_h5:.2f} kWh</td>
+                      </tr>
+                      <tr>
+                        <td style='color:#8A9BBD;'>Autonomia real</td>
+                        <td style='font-family:Share Tech Mono;color:#00BCD4;text-align:right;'>{aut_real_h4 if _bat_h4_ok else aut_real_hh:.1f} h ({(aut_real_h4 if _bat_h4_ok else aut_real_hh)/24:.2f} dias)</td>
+                      </tr>
+                    </table>
+                  </div>
+                  <div class='sol-card'>
+                    <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>GENERACION FV</div>
+                    <table style='width:100%;font-size:0.8rem;border-collapse:collapse;'>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Gen. diaria</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia_h:.2f} kWh/dia</td>
+                      </tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Autoconsumo</td>
+                        <td style='font-family:Share Tech Mono;color:#FFB300;text-align:right;'>{ac_pct:.1f}%</td>
+                      </tr>
+                      <tr style='border-bottom:1px solid #2A3A55;'>
+                        <td style='color:#8A9BBD;'>Inyeccion red</td>
+                        <td style='font-family:Share Tech Mono;color:#FF6B35;text-align:right;'>{inj_h:.2f} kWh/dia</td>
+                      </tr>
+                      <tr>
+                        <td style='color:#8A9BBD;'>Gen. anual est.</td>
+                        <td style='font-family:Share Tech Mono;color:#00E676;text-align:right;'>{gen_dia_h*365:,.0f} kWh/ano</td>
+                      </tr>
+                    </table>
+                  </div>
                 </div>""", unsafe_allow_html=True)
 
                 # ── CONTROLADOR — 7 verificaciones (híbrido: MPPT integrado en inversor) ─
