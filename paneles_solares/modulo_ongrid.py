@@ -719,7 +719,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         periodo_rec = session_state.get("recibo_ref_periodo", "")
         tarifa_bd   = 700.0
 
-    hsp_guardado  = p_info[4] if p_info and p_info[4] else None
+    hsp_guardado  = p_info[3] if p_info and p_info[3] else None
     pot_panel_def = int(panel_row[0]) if panel_row else 550
     voc_def       = float(panel_row[1]) if panel_row else 49.9
     isc_def       = float(panel_row[2]) if panel_row else 14.0

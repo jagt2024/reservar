@@ -1503,8 +1503,8 @@ with st.sidebar:
         p_sb = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
         conn.close()
         if p_sb:
-            hsp_sb  = p_sb[4] if p_sb[4] else "—"
-            vdc_sb  = p_sb[3] if p_sb[3] else "—"
+            hsp_sb  = p_sb[3] if p_sb[3] else "—"
+            vdc_sb  = p_sb[4] if p_sb[4] else "—"
             mun_sb  = p_sb[2] if p_sb[2] else "Sin municipio"
             mod_sb  = st.session_state.get("modulo_activo","dimensionamiento")
             st.markdown(f"""
@@ -4238,8 +4238,8 @@ with tab9:
     conn.close()
 
     # ── Calcular consumos de cada fuente ──────────────────────────────────────
-    _hsp9_base  = p9[4] if p9 and p9[4] else 4.2
-    _vdc9_base  = p9[3] if p9 and p9[3] else 48
+    _hsp9_base  = p9[3] if p9 and p9[3] else 4.2
+    _vdc9_base  = p9[4] if p9 and p9[4] else 48
     _pp9        = pan9[3] if pan9 else 550
     voc9        = pan9[4] if pan9 else 49.9
     isc9        = pan9[5] if pan9 else 14.0
@@ -4766,8 +4766,8 @@ with tab10:
     conn.close()
 
     # ── Calcular consumos de cada fuente ──────────────────────────────────────
-    _hsp10_base = p10[4] if p10 and p10[4] else 4.2
-    _vdc10_base = p10[3] if p10 and p10[3] else 48
+    _hsp10_base = p10[3] if p10 and p10[3] else 4.2
+    _vdc10_base = p10[4] if p10 and p10[4] else 48
     _pp10       = pan10[3] if pan10 else 550
     voc10       = pan10[4] if pan10 else 49.9
     isc10       = pan10[5] if pan10 else 14.0
@@ -5310,7 +5310,7 @@ with tab11:
     consumo_inv_eco = (cargas_eco["cantidad"] * cargas_eco["potencia_w"] * cargas_eco["horas_dia"]).sum() \
                       if not cargas_eco.empty else 0.0
     consumo_rec_eco = st.session_state.get("consumo_recibo_wh", 0.0)
-    hsp_eco         = p_eco[4] if p_eco and p_eco[4] else None
+    hsp_eco         = p_eco[3] if p_eco and p_eco[3] else None
     try:
         vdc_eco_bd = int(p_eco[5]) if p_eco and len(p_eco) > 5 and p_eco[5] not in (None,"") else None
     except (ValueError, TypeError):
