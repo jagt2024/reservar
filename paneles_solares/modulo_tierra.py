@@ -916,7 +916,8 @@ def generar_pdf_tierra(datos: dict) -> bytes:
         [p("[Insertar fotografia]", est("fp3",size=8,color=TEXT2,align=TA_CENTER)),
          p("[Insertar fotografia]", est("fp4",size=8,color=TEXT2,align=TA_CENTER))],
     ]
-    t_fotos = Table(foto_rows, colWidths=[8*cm, 8*cm])
+    t_fotos = Table(foto_rows, colWidths=[8*cm, 8*cm],
+                    rowHeights=[0.8*cm, 4.5*cm, 0.8*cm, 4.5*cm])
     t_fotos.setStyle(TableStyle([
         ("FONTNAME",     (0,0), (-1,-1), "Helvetica-Bold"),
         ("FONTSIZE",     (0,0), (-1,-1), 8),
@@ -926,8 +927,6 @@ def generar_pdf_tierra(datos: dict) -> bytes:
         ("BACKGROUND",   (0,2), (-1,2), LGRAY),
         ("TEXTCOLOR",    (0,0), (-1,0), BLUE),
         ("TEXTCOLOR",    (0,2), (-1,2), BLUE),
-        ("ROWHEIGHT",    1, 100),
-        ("ROWHEIGHT",    3, 100),
         ("GRID",         (0,0), (-1,-1), 0.8, BORDER),
         ("TOPPADDING",   (0,0), (-1,-1), 6),
         ("BOTTOMPADDING",(0,0), (-1,-1), 6),
