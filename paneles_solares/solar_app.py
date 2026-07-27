@@ -2929,19 +2929,13 @@ with tab4:
             </div>
         </div>""", unsafe_allow_html=True)
 
+        st.link_button("🔗 Global Solar Atlas en nueva pestaña",
+                           "https://globalsolaratlas.info/map/",
+                           use_container_width=True)
+
         # Embed Global Solar Atlas via iframe
         st.markdown("""
-        <div style='border:2px solid rgba(255,179,0,0.4);border-radius:10px;overflow:hidden;
-                    margin-bottom:0.6rem;'>
-            <iframe
-                src="https://globalsolaratlas.info/map"
-                width="100%"
-                height="480"
-                style="border:none;display:block;"
-                allow="geolocation"
-                title="Global Solar Atlas — Banco Mundial">
-            </iframe>
-        </div>
+        
         <div class='info-note' style='margin-bottom:0.6rem;font-size:0.8rem;'>
             📌 <b>Cómo usar:</b>
             1. Haz clic en la ubicación del proyecto en el mapa<br>

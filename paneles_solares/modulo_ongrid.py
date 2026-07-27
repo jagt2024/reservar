@@ -886,16 +886,12 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                 </div>
             </div>""", unsafe_allow_html=True)
 
+            st.link_button("🔗 Global Solar Atlas en nueva pestaña",
+                           "https://globalsolaratlas.info/map/",
+                           use_container_width=True)
+
             st.markdown("""
-            <div style='border:2px solid rgba(255,107,53,0.4);border-radius:10px;
-                        overflow:hidden;margin-bottom:0.6rem;'>
-                <iframe src="https://globalsolaratlas.info/map"
-                    width="100%" height="460"
-                    style="border:none;display:block;"
-                    allow="geolocation"
-                    title="Global Solar Atlas">
-                </iframe>
-            </div>
+            
             <div class='info-note' style='font-size:0.8rem;margin-bottom:0.5rem;'>
                 📌 <b>Cómo usar:</b> Clic en la ubicación del proyecto → Panel lateral →
                 <b>PVOUT</b> (h/día) = HSP directa &nbsp;|&nbsp;
