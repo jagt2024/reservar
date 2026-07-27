@@ -2908,96 +2908,190 @@ with tab4:
 
     st.markdown("""
     <div class='formula-box'>
-        HSP = Irradiación mes menor (kWh/m²/mes) ÷ 30 días
+        HSP = Irradiación mes menor (kWh/m²/mes) ÷ 30 días &nbsp;|&nbsp;
+        Fuentes recomendadas: <b>Global Solar Atlas</b> (Banco Mundial) y <b>PVGIS</b> (Europa JRC)
     </div>
     """, unsafe_allow_html=True)
 
-    col_pvg1, col_pvg2 = st.columns([1,1])
+    col_pvg1, col_pvg2 = st.columns([1.1, 0.9])
     with col_pvg1:
+        # ── Global Solar Atlas ────────────────────────────────────────────────
         st.markdown("""
-        <div class='sol-card'>
-            <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-size:1.1rem; font-weight:600; margin-bottom:0.8rem;'>🌐 Herramienta PVGIS (Europa JRC)</div>
-            <div style='color:#8A9BBD; font-size:0.85rem; margin-bottom:1rem;'>
-                Accede a la herramienta oficial de la Comisión Europea para obtener la irradiación mensual de cualquier ubicación.
-                Busca el mes con menor irradiación y anota el valor.
+        <div class='sol-card' style='border-color:rgba(255,179,0,0.5);'>
+            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-size:1.1rem;
+                        font-weight:600;margin-bottom:0.4rem;'>
+                🌍 Global Solar Atlas — Banco Mundial (Recomendado)
             </div>
-            <div class='info-note'>
-                📌 URL: <code>https://re.jrc.ec.europa.eu/pvg_tools/es/</code>
+            <div style='color:#8A9BBD;font-size:0.83rem;margin-bottom:0.7rem;'>
+                Herramienta oficial del Banco Mundial con datos de irradiación global.
+                Muestra GHI, DNI, DIF y <b>HSP directamente en el mapa</b> para cualquier
+                coordenada de Colombia y el mundo. Datos: PVGIS 5.1 + Solargis.
             </div>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
-        if st.button("🔗 Abrir PVGIS en nueva pestaña", use_container_width=True):
+        # Embed Global Solar Atlas via iframe
+        st.markdown("""
+        <div style='border:2px solid rgba(255,179,0,0.4);border-radius:10px;overflow:hidden;
+                    margin-bottom:0.6rem;'>
+            <iframe
+                src="https://globalsolaratlas.info/map"
+                width="100%"
+                height="480"
+                style="border:none;display:block;"
+                allow="geolocation"
+                title="Global Solar Atlas — Banco Mundial">
+            </iframe>
+        </div>
+        <div class='info-note' style='margin-bottom:0.6rem;font-size:0.8rem;'>
+            📌 <b>Cómo usar:</b>
+            1. Haz clic en la ubicación del proyecto en el mapa<br>
+            2. Aparece el panel lateral con los datos de irradiación<br>
+            3. Busca <b>PVOUT</b> (kWh/kWp/día) = HSP directa, o usa
+               <b>GHI</b> (kWh/m²/año) ÷ 365 para HSP diaria<br>
+            4. También puedes descargar el informe mensual con el ícono de descarga
+        </div>""", unsafe_allow_html=True)
+
+        with st.expander("📋 También disponible: PVGIS (Europa JRC)", expanded=False):
             st.markdown("""
-            <script>window.open('https://re.jrc.ec.europa.eu/pvg_tools/es/', '_blank');</script>
-            """, unsafe_allow_html=True)
+            <div style='color:#8A9BBD;font-size:0.83rem;margin-bottom:0.5rem;'>
+                Herramienta oficial de la Comisión Europea. Útil como segunda fuente de verificación.
+                <br>URL: <code>https://re.jrc.ec.europa.eu/pvg_tools/es/</code>
+            </div>
+            <div style='color:#8A9BBD;font-size:0.82rem;line-height:1.8;'>
+                <b>Pasos:</b> Abre PVGIS → Selecciona ubicación → Elige "Radiation" →
+                Selecciona "Monthly irradiation" → Identifica el mes con menor valor →
+                Ingresa ese valor abajo.
+            </div>""", unsafe_allow_html=True)
+            st.link_button("🔗 Abrir PVGIS en nueva pestaña",
+                           "https://re.jrc.ec.europa.eu/pvg_tools/es/",
+                           use_container_width=True)
 
+        # Referencia HSP Colombia
         st.markdown("""
-        <div class='sol-card' style='margin-top:1rem;'>
-            <div style='color:#FFB300; font-family:Rajdhani,sans-serif; font-weight:600; margin-bottom:0.8rem;'>📋 Instrucciones PVGIS</div>
-            <ol style='color:#8A9BBD; font-size:0.85rem; line-height:1.8;'>
-                <li>Abre la herramienta PVGIS</li>
-                <li>Selecciona la ubicación del proyecto en el mapa</li>
-                <li>En "PV Power" o "Solar radiation", selecciona irradiación mensual</li>
-                <li>Identifica el mes con el valor más bajo (ej: noviembre = 126.72 kWh/m²)</li>
-                <li>Ingresa ese valor a la derecha</li>
-            </ol>
-        </div>
-        """, unsafe_allow_html=True)
+        <div class='sol-card' style='margin-top:0.5rem;'>
+            <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;
+                        margin-bottom:0.5rem;font-size:0.9rem;'>📊 HSP de referencia Colombia (IDEAM)</div>
+            <table style='width:100%;font-size:0.78rem;border-collapse:collapse;'>
+                <tr style='background:#1A2235;color:#8A9BBD;'>
+                    <th style='padding:3px 6px;text-align:left;'>Ciudad</th>
+                    <th style='padding:3px 6px;text-align:center;'>HSP (h/día)</th>
+                    <th style='padding:3px 6px;text-align:left;'>Ciudad</th>
+                    <th style='padding:3px 6px;text-align:center;'>HSP (h/día)</th>
+                </tr>
+                <tr><td style='color:#8A9BBD;padding:3px 6px;'>Bogotá D.C.</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.5</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Barranquilla</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.8</td></tr>
+                <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Medellín</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.8</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Cali</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.6</td></tr>
+                <tr><td style='color:#8A9BBD;padding:3px 6px;'>Bucaramanga</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.9</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Cartagena</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.5</td></tr>
+                <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Manizales</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.2</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Villavicencio</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.1</td></tr>
+                <tr><td style='color:#8A9BBD;padding:3px 6px;'>Pereira</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.3</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Leticia</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.4</td></tr>
+                <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Santa Marta</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.6</td>
+                    <td style='color:#8A9BBD;padding:3px 6px;'>Pasto</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.0</td></tr>
+            </table>
+        </div>""", unsafe_allow_html=True)
 
     with col_pvg2:
         st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
-        st.markdown("**Cálculo de HSP**")
+        st.markdown("**📐 Cálculo de HSP**")
 
-        municipio_hsp = st.text_input("Municipio analizado", placeholder="Ej: Bogotá, Medellín, Cali...", key="municipio_hsp")
+        municipio_hsp = st.text_input("Municipio analizado",
+                                       placeholder="Ej: Bogotá, Medellín, Cali...",
+                                       key="municipio_hsp")
+
+        st.markdown("""
+        <div style='color:#8A9BBD;font-size:0.8rem;margin:0.4rem 0;'>
+            <b>Opción A</b> — Desde irradiación mensual (PVGIS / Global Solar Atlas):
+        </div>""", unsafe_allow_html=True)
+
         mes_menor = st.selectbox("Mes con menor irradiación",
             ["Enero","Febrero","Marzo","Abril","Mayo","Junio",
-             "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"])
-        irradiacion = st.number_input("Irradiación del mes menor (kWh/m²/mes)",
-                                       min_value=10.0, max_value=300.0, value=126.72, step=0.01,
-                                       help="Valor obtenido de PVGIS para el mes más desfavorable")
+             "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"],
+            key="mes_menor_hsp")
+        irradiacion = st.number_input(
+            "Irradiación mes menor (kWh/m²/mes)",
+            min_value=10.0, max_value=300.0, value=126.72, step=0.01,
+            help="Valor del mes más desfavorable desde Global Solar Atlas o PVGIS",
+            key="irrad_mes_hsp")
+        hsp_calc_a = irradiacion / 30
 
-        hsp_calc = irradiacion / 30
+        st.markdown("""
+        <div style='color:#8A9BBD;font-size:0.8rem;margin:0.6rem 0 0.2rem 0;'>
+            <b>Opción B</b> — Desde HSP diaria directa (Global Solar Atlas — PVOUT):
+        </div>""", unsafe_allow_html=True)
+        hsp_directa = st.number_input(
+            "HSP diaria directa (h/día)",
+            min_value=1.0, max_value=8.0, value=hsp_calc_a,
+            step=0.01,
+            help="Valor PVOUT del Global Solar Atlas en h/día (equivale directamente a HSP)",
+            key="hsp_directa_input")
+
+        # Selector de fuente
+        fuente_hsp = st.radio("Usar como HSP del proyecto:",
+                               [f"Opción A: {hsp_calc_a:.2f} h/día (desde irradiación mensual)",
+                                f"Opción B: {hsp_directa:.2f} h/día (desde HSP directa)"],
+                               key="fuente_hsp_sel", horizontal=False)
+        hsp_final = hsp_calc_a if "Opción A" in fuente_hsp else hsp_directa
 
         st.markdown(f"""
         <div class='result-highlight'>
-            <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase;'>
-                {irradiacion} kWh/m²/mes ÷ 30 días =
+            <div style='color:#8A9BBD;font-size:0.8rem;text-transform:uppercase;'>
+                HSP seleccionada — {mes_menor}</div>
+            <div class='val'>{hsp_final:.2f} h/día</div>
+            <div style='color:#FFD54F;font-size:0.82rem;margin-top:0.2rem;'>
+                {"Fuente: "+str(irradiacion)+" kWh/m²/mes ÷ 30 días" if "Opción A" in fuente_hsp
+                 else "Fuente: Global Solar Atlas PVOUT directo"}
             </div>
-            <div class='val'>{hsp_calc:.2f} h</div>
-            <div style='color:#FFD54F; font-size:0.85rem; margin-top:0.3rem;'>Horas Solar Pico ({mes_menor})</div>
-        </div>
-        """, unsafe_allow_html=True)
+        </div>""", unsafe_allow_html=True)
 
-        dias_autonomia = st.slider("Días de autonomía (opcional)", 1, 5, 1)
-        hsp_ajustada = hsp_calc / dias_autonomia if dias_autonomia > 1 else hsp_calc
+        dias_autonomia = st.slider("Días de autonomía (opcional)", 1, 5, 1,
+                                    key="dias_aut_hsp")
+        hsp_ajustada = hsp_final / dias_autonomia if dias_autonomia > 1 else hsp_final
         if dias_autonomia > 1:
             st.markdown(f"""
             <div class='result-ok'>
-                <div style='color:#8A9BBD; font-size:0.8rem;'>HSP ajustada ({dias_autonomia} días)</div>
-                <div class='val'>{hsp_ajustada:.2f} h</div>
-            </div>
-            """, unsafe_allow_html=True)
+                <div style='color:#8A9BBD;font-size:0.8rem;'>HSP ajustada ({dias_autonomia} días autonomía)</div>
+                <div class='val'>{hsp_ajustada:.2f} h/día</div>
+            </div>""", unsafe_allow_html=True)
 
-        if st.button("💾 Guardar HSP al Proyecto", use_container_width=True):
+        if st.button("💾 Guardar HSP al Proyecto", use_container_width=True,
+                     key="btn_guardar_hsp4"):
             conn = get_conn()
             conn.execute("UPDATE proyectos SET hsp=?, municipio=? WHERE id=?",
-                         (round(hsp_calc, 2), municipio_hsp or None, proyecto_id))
+                         (round(hsp_final, 2), municipio_hsp or None, proyecto_id))
             conn.commit()
             conn.close()
-            st.success(f"HSP = {hsp_calc:.2f} h guardado ✓")
+            if usuario_activo():
+                _u4 = usuario_activo()
+                registrar_auditoria(_u4["id"], _u4["username"], "GUARDAR_HSP",
+                    f"Proyecto #{proyecto_id}: HSP={hsp_final:.2f}h — {municipio_hsp}", "tab4")
+            st.success(f"✅ HSP = {hsp_final:.2f} h/día guardado — {municipio_hsp or ''}")
             st.rerun()
 
         # Leer HSP guardado
         conn = get_conn()
-        p3 = conn.execute("SELECT hsp, municipio FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+        p3 = conn.execute("SELECT hsp, municipio FROM proyectos WHERE id=?",
+                           (proyecto_id,)).fetchone()
         conn.close()
         if p3 and p3[0]:
             st.markdown(f"""
             <div class='info-note' style='margin-top:0.5rem;'>
-                ✓ HSP guardado en proyecto: <b>{p3[0]} h</b> — {p3[1] or ""}
-            </div>
-            """, unsafe_allow_html=True)
+                ✅ HSP guardada: <b>{p3[0]} h/día</b> — {p3[1] or ""}
+            </div>""", unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════════

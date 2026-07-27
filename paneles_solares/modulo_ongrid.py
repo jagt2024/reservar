@@ -867,80 +867,124 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
 
         st.markdown("""
         <div class='formula-box'>
-            HSP = Irradiación mes promedio (kWh/m²/mes) ÷ 30 días<br>
-            Para ON-GRID se recomienda usar el promedio anual (no el mes menor),
-            ya que la red compensa los déficits mensuales.
+            HSP = Irradiación promedio (kWh/m²/mes) ÷ 30 días &nbsp;|&nbsp;
+            Para ON-GRID usar el <b>promedio anual</b> — la red compensa los meses bajos.
         </div>""", unsafe_allow_html=True)
 
-        col_hsp1, col_hsp2 = st.columns(2)
+        col_hsp1, col_hsp2 = st.columns([1.1, 0.9])
         with col_hsp1:
             st.markdown("""
-            <div class='sol-card'>
-                <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.8rem;'>
-                    🌐 Fuentes de Irradiación Recomendadas
+            <div class='sol-card' style='border-color:rgba(255,107,53,0.5);'>
+                <div style='color:#FF6B35;font-family:Rajdhani,sans-serif;font-weight:600;
+                            margin-bottom:0.4rem;font-size:1.05rem;'>
+                    🌍 Global Solar Atlas — Banco Mundial (Recomendado)
                 </div>
-                <div style='font-size:0.85rem;color:#8A9BBD;line-height:1.9;'>
-                    <b style='color:#E8EDF5;'>PVGIS (Europa JRC)</b><br>
-                    https://re.jrc.ec.europa.eu/pvg_tools/es/<br><br>
-                    <b style='color:#E8EDF5;'>SolarGIS</b><br>
-                    https://solargis.com/maps-and-gis-data<br><br>
-                    <b style='color:#E8EDF5;'>NASA POWER</b><br>
-                    https://power.larc.nasa.gov/data-access-viewer/<br><br>
-                    <b style='color:#FF6B35;'>💡 Para ON-GRID:</b>
-                    <span style='color:#8A9BBD;'>Usa el promedio anual,
-                    no el mes con menor irradiación.</span>
+                <div style='font-size:0.82rem;color:#8A9BBD;margin-bottom:0.6rem;'>
+                    Herramienta oficial del Banco Mundial. Clic en el mapa →
+                    Panel lateral con <b>GHI, DNI y PVOUT (HSP directa)</b>.
+                    Para ON-GRID usa el promedio anual.
                 </div>
             </div>""", unsafe_allow_html=True)
 
+            st.markdown("""
+            <div style='border:2px solid rgba(255,107,53,0.4);border-radius:10px;
+                        overflow:hidden;margin-bottom:0.6rem;'>
+                <iframe src="https://globalsolaratlas.info/map"
+                    width="100%" height="460"
+                    style="border:none;display:block;"
+                    allow="geolocation"
+                    title="Global Solar Atlas">
+                </iframe>
+            </div>
+            <div class='info-note' style='font-size:0.8rem;margin-bottom:0.5rem;'>
+                📌 <b>Cómo usar:</b> Clic en la ubicación del proyecto → Panel lateral →
+                <b>PVOUT</b> (h/día) = HSP directa &nbsp;|&nbsp;
+                <b>GHI</b> (kWh/m²/año) ÷ 365 = HSP diaria promedio
+            </div>""", unsafe_allow_html=True)
+
+            with st.expander("📋 Otras fuentes de irradiación", expanded=False):
+                st.markdown("""
+                <div style='font-size:0.83rem;color:#8A9BBD;line-height:1.9;'>
+                    <b style='color:#E8EDF5;'>PVGIS (JRC Europa)</b><br>
+                    re.jrc.ec.europa.eu/pvg_tools/es/<br><br>
+                    <b style='color:#E8EDF5;'>NASA POWER</b><br>
+                    power.larc.nasa.gov/data-access-viewer/<br><br>
+                    <b style='color:#FF6B35;'>💡 Para ON-GRID:</b>
+                    <span style='color:#8A9BBD;'>Usar promedio anual.
+                    La red compensa los meses bajos.</span>
+                </div>""", unsafe_allow_html=True)
+                st.link_button("🔗 Abrir PVGIS en nueva pestaña",
+                               "https://re.jrc.ec.europa.eu/pvg_tools/es/",
+                               use_container_width=True)
+
         with col_hsp2:
-            # HSP válida: entre 1.0 y 8.0 h/día. Si viene un valor fuera de rango
-            # (ej: tensión DC guardada en el campo HSP), se ignora y usa 150 kWh/m²/mes
             _hsp_val     = float(hsp_guardado) if hsp_guardado else 0.0
             _hsp_valida  = 1.0 <= _hsp_val <= 8.0
-            _irr_def_og  = round(_hsp_val * 30, 1) if _hsp_valida else 150.0
-            _irr_def_og  = max(50.0, min(_irr_def_og, 300.0))   # clamp seguro
+            _irr_def_og  = max(50.0, min(round(_hsp_val * 30, 1) if _hsp_valida else 150.0, 300.0))
+            _pvout_def   = max(1.0, min(_hsp_val if _hsp_valida else 5.0, 8.0))
+
+            st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            st.markdown("**📐 Calcular HSP del proyecto**")
+
+            # Opción A — desde irradiación mensual
             irr_og = st.number_input(
-                "Irradiación promedio anual (kWh/m²/mes)",
-                min_value=50.0, max_value=300.0,
-                value=_irr_def_og, step=0.5,
-                help="Pre-cargado desde la HSP del proyecto. Ajusta según PVGIS o NASA POWER.",
+                "Opción A — Irradiación mensual promedio (kWh/m²/mes)",
+                min_value=50.0, max_value=300.0, value=_irr_def_og, step=0.5,
+                help="Valor promedio anual desde Global Solar Atlas (GHI) o PVGIS. "
+                     "Para ON-GRID usar promedio anual.",
                 key="og_irr")
-            hsp_og = irr_og / 30
+            hsp_og_a = irr_og / 30
+
+            # Opción B — PVOUT directo
+            hsp_og_b = st.number_input(
+                "Opción B — PVOUT directo (h/día) desde Global Solar Atlas",
+                min_value=1.0, max_value=8.0, value=_pvout_def, step=0.01,
+                help="Valor PVOUT del Global Solar Atlas en h/día = HSP directa",
+                key="og_pvout")
+
+            fuente_og = st.radio(
+                "Usar como HSP del proyecto:",
+                [f"Opción A: {hsp_og_a:.2f} h/día (desde irradiación mensual)",
+                 f"Opción B: {hsp_og_b:.2f} h/día (desde PVOUT directo)"],
+                key="og_fuente_hsp", horizontal=False)
+            hsp_og = hsp_og_a if "Opción A" in fuente_og else hsp_og_b
 
             pr_og = st.slider(
-                "Performance Ratio PR (%)", 70, 90, 80,
-                help="Eficiencia global del sistema. Típico: 75-85% para sistemas residenciales.",
-                key="og_pr")
+                "Factor pérdidas FP (%)", 70, 90, 80,
+                help="FP típico ON-GRID: 78-85%.", key="og_pr")
 
             hsp_efectiva = hsp_og * (pr_og / 100)
 
             st.markdown(f"""
             <div class='result-highlight'>
                 <div style='color:#8A9BBD;font-size:0.8rem;'>
-                    {irr_og} kWh/m²/mes ÷ 30 =
+                    {""+str(irr_og)+" kWh/m²/mes ÷ 30 = " if "Opción A" in fuente_og
+                     else "PVOUT Global Solar Atlas = "}
                 </div>
                 <div class='val'>{hsp_og:.2f} h/día (HSP)</div>
-                <div style='color:#FFD54F;font-size:0.85rem;margin-top:0.3rem;'>
-                    HSP efectiva (×PR {pr_og}%) = <b>{hsp_efectiva:.2f} h/día</b>
+                <div style='color:#FFD54F;font-size:0.82rem;margin-top:0.2rem;'>
+                    HSP efectiva (×FP {pr_og}%) = <b>{hsp_efectiva:.2f} h/día</b>
                 </div>
             </div>""", unsafe_allow_html=True)
 
             if st.button("💾 Guardar HSP al Proyecto", use_container_width=True, key="og_save_hsp"):
                 conn = get_conn()
-                conn.execute("UPDATE proyectos SET hsp=? WHERE id=?", (round(hsp_og,2), proyecto_id))
+                conn.execute("UPDATE proyectos SET hsp=? WHERE id=?",
+                             (round(hsp_og, 2), proyecto_id))
                 conn.commit(); conn.close()
-                st.success(f"HSP = {hsp_og:.2f} h guardado ✓")
+                st.success(f"✅ HSP = {hsp_og:.2f} h/día guardado")
+                st.rerun()
 
             if hsp_guardado:
                 st.markdown(f"""
                 <div class='info-note' style='margin-top:0.5rem;'>
-                    ✓ HSP guardado en proyecto: <b>{hsp_guardado} h</b>
+                    ✅ HSP del proyecto: <b>{hsp_guardado} h/día</b>
                 </div>""", unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # Solo guardamos valores DERIVADOS (no son keys de widgets)
-        session_state["_og_hsp_calc"]    = hsp_og
-        session_state["_og_hsp_ef"]      = hsp_efectiva
-        session_state["_og_pr_dec"]      = pr_og / 100
+        session_state["_og_hsp_calc"] = hsp_og
+        session_state["_og_hsp_ef"]   = hsp_efectiva
+        session_state["_og_pr_dec"]   = pr_og / 100
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB OG3 — PANEL SOLAR
