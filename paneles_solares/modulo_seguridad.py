@@ -492,7 +492,7 @@ def mostrar_gestion_usuarios():
                             st.rerun()
 
                         if tiene_permiso("eliminar_usuarios") and row["rol"] != "superadmin":
-                            with st.expander("⚠ Eliminar"):
+                            if st.checkbox("⚠ Eliminar usuario", key=f"chk_del_{row['id']}"):
                                 st.markdown("<div style='color:#FF5252;font-size:0.75rem;'>Esta acción es permanente.</div>", unsafe_allow_html=True)
                                 if st.button("🗑 Confirmar eliminación",
                                              key=f"del_{row['id']}",
@@ -505,7 +505,7 @@ def mostrar_gestion_usuarios():
                                     st.success("Usuario eliminado ✓"); st.rerun()
 
                         # Reset contraseña
-                        with st.expander("🔑 Reset contraseña"):
+                        if st.checkbox("🔑 Reset contraseña", key=f"chk_pwd_{row['id']}"):
                             nueva_pwd = st.text_input("Nueva contraseña",
                                                        type="password",
                                                        key=f"npwd_{row['id']}")
