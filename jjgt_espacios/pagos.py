@@ -2183,7 +2183,7 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
     pin_hash = _hash_pin(pin)
 
     PINS_SEED = {
-        "Admin JJGT": "6789",
+        "Admin JJGT": "00##",
         "Op. Mañana": "0001",
         "Op. Tarde":  "0002",
         "Op. Noche":  "0003",
@@ -2256,7 +2256,7 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                 }
 
     if not rows_activos:
-        if pin in ("admin", "6789", "0000"):
+        if pin in ("admin", "00##", "0000"):
             if not rol or rol == "admin":
                 return {
                     "id": "0", "nombre": "Admin (emergencia)", "rol": "admin",
