@@ -1626,6 +1626,7 @@ with st.sidebar:
                 ("🔬  Simulador ON-GRID",        "simulador"),
                 ("💰  Cotización Comercial",     "cotizacion"),
                 ("⏚   Puesta a Tierra",          "tierra"),
+                ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1639,6 +1640,7 @@ with st.sidebar:
                 ("🔬  Simulador HÍBRIDO",        "simulador"),
                 ("💰  Cotización Comercial",     "cotizacion"),
                 ("⏚   Puesta a Tierra",          "tierra"),
+                ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1652,6 +1654,7 @@ with st.sidebar:
                 ("🔬  Simulador OFF-GRID",        "simulador"),
                 ("💰  Cotización Comercial",      "cotizacion"),
                 ("⏚   Puesta a Tierra",           "tierra"),
+                ("✅  Checklist Puesta Marcha",   "checklist"),
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
@@ -1783,6 +1786,11 @@ if modulo_activo in ("cotizacion", "presupuesto"):
 if modulo_activo == "tierra":
     from modulo_tierra import mostrar_tierra
     mostrar_tierra(proyecto_id, st.session_state)
+
+# ── Módulo CHECKLIST PUESTA EN MARCHA ─────────────────────────────────────────
+if modulo_activo == "checklist":
+    from modulo_checklist import mostrar_checklist
+    mostrar_checklist(proyecto_id, st.session_state)
     st.stop()
 
 # ── Módulo ON-GRID ────────────────────────────────────────────────────────────
