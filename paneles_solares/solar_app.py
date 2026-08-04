@@ -3497,22 +3497,57 @@ with tab6:
                 → Total pérdidas ≈{100-fp_input5}% | FP = {fp_input5}%
             </div>""", unsafe_allow_html=True)
 
-            # ── Inversor — metodología técnica (igual a la usada en el resto del sistema)
+            # ── Inversor — metodología técnica
+            # Si la fuente es recibo de luz (sin inventario de cargas detallado),
+            # se estima la potencia del inversor desde el consumo del recibo
+            # aplicando la misma metodología que en el inventario de cargas:
+            # P_inversor = Consumo_fs / (Horas_uso_promedio × FS) → tamaño comercial
             conn = get_conn()
             _cargas_t6 = pd.read_sql(
                 "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
                 conn, params=(proyecto_id,))
             conn.close()
             vdc5 = st.session_state.get("calc_vdc", tension_dc(consumo5_fs))
-            _inv5 = calcular_inversor(_cargas_t6 if not _cargas_t6.empty else None,
-                                      fs=0.80, fm=1.25, vdc=vdc5)
-            if _inv5["inv_w"] == 0:
+
+            _cargas_disponibles = not _cargas_t6.empty
+
+            if _cargas_disponibles:
+                # Metodología exacta: cargas reales con motores y factor de arranque
+                _inv5 = calcular_inversor(_cargas_t6, fs=0.80, fm=1.25, vdc=vdc5)
+                _inv5_metodo = "Inventario de cargas (7 pasos técnicos)"
+            else:
+                # Fallback desde recibo: P_instalada = Consumo_Wh/día ÷ horas_uso_estimadas
+                # Horas de uso típico: 8h para residencial, asumimos 8h como base conservadora
+                _horas_uso_est  = 8.0
+                _pot_inst_rec   = consumo5_fs / _horas_uso_est          # W instalados estimados
+                _pot_simultanea = _pot_inst_rec * 0.80                  # FS 80%
+                _pot_arranque   = _pot_simultanea * 0.25                # 25% arranque motores
+                _pot_requerida  = (_pot_simultanea + _pot_arranque) * 1.25  # FM 25%
+                _inv5_w = float(next(
+                    (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_requerida),
+                    math.ceil(_pot_requerida/1000)*1000))
+                _inv5 = {
+                    "pot_instalada":  _pot_inst_rec,
+                    "pot_simultanea": _pot_simultanea,
+                    "pot_arranque":   _pot_arranque,
+                    "pot_requerida":  _pot_requerida,
+                    "inv_w":          _inv5_w,
+                    "inv_kw":         _inv5_w / 1000,
+                    "corr_dc":        _inv5_w / vdc5 if vdc5 > 0 else 0,
+                    "fs":             0.80,
+                    "fm":             1.25,
+                }
+                _inv5_metodo = f"Desde recibo de luz ({consumo5_fs:,.0f} Wh/día ÷ {_horas_uso_est:.0f}h)"
+
+            # Verificar que el inversor sea suficiente para el consumo fs
+            if _inv5["inv_w"] < consumo5_fs * 0.5:
                 _inv5_w_fb = consumo5_fs * 1.25
                 _inv5["inv_w"]  = float(next(
                     (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
                     math.ceil(_inv5_w_fb/1000)*1000))
                 _inv5["inv_kw"] = _inv5["inv_w"] / 1000
                 _inv5["corr_dc"] = _inv5["inv_w"] / vdc5 if vdc5 > 0 else 0
+
             st.session_state["calc_inv_kw"]  = _inv5["inv_kw"]
             st.session_state["calc_inv_w"]   = _inv5["inv_w"]
 
@@ -3521,10 +3556,17 @@ with tab6:
 
             st.markdown(f"""
             <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
-                🔌 Inversor: P_inst={_inv5['pot_instalada']:,.0f}W × FS {int(_inv5['fs']*100)}%
-                → P_sim={_inv5['pot_simultanea']:,.0f}W + Arr.motor={_inv5['pot_arranque']:,.0f}W
+                🔌 Inversor ({_inv5_metodo}):<br>
+                P_inst={_inv5['pot_instalada']:,.0f}W × FS {int(_inv5['fs']*100)}%
+                → P_sim={_inv5['pot_simultanea']:,.0f}W + Arr.={_inv5['pot_arranque']:,.0f}W
                 → P_req={_inv5['pot_requerida']:,.0f}W × FM {int(_inv5['fm']*100)}%
                 → <b>Comercial: {_inv5['inv_kw']:.1f} kW</b>
+            </div>
+            <div class='info-note' style='font-size:0.78rem;margin-top:0.3rem;'>
+                {"✅ Metodología: cargas reales del inventario (considera motores y factor de arranque)"
+                 if _cargas_disponibles else
+                 "ℹ️ Sin inventario de cargas — inversor estimado desde recibo de luz. "
+                 "Para mayor precisión, ingresa el inventario de cargas en el Módulo 1."}
             </div>
             """, unsafe_allow_html=True)
 
