@@ -4184,25 +4184,67 @@ with tab8:
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Inversor desde metodología técnica ─────────────────────────────
+        # ── Inversor: priorizar el calculado en Tab 6 (ambas fuentes) ──────────
+        # Tab 6 ya aplica la metodología correcta tanto para inventario de cargas
+        # como para recibo de luz. Si el usuario pasó por Tab 6, usamos ese valor.
         conn = get_conn()
         _cargas_r8 = pd.read_sql(
             "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
             conn, params=(proyecto_id,))
         conn.close()
-        _inv8 = calcular_inversor(_cargas_r8 if not _cargas_r8.empty else None,
-                                  fs=0.80, fm=1.25, vdc=vdc7)
-        if _inv8["inv_w"] == 0:
-            # Fallback cuando no hay inventario de cargas: usar consumo×FM
-            _inv8_w_fallback = consumo7_fs * 1.25
-            _inv8["inv_w"]  = float(next(
-                (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv8_w_fallback),
-                math.ceil(_inv8_w_fallback/1000)*1000))
-            _inv8["inv_kw"] = _inv8["inv_w"] / 1000
-            _inv8["corr_dc"] = _inv8["inv_w"] / vdc7 if vdc7 > 0 else 0
-            _inv8["_fallback"] = True
+
+        _inv8_kw_saved = st.session_state.get("calc_inv_kw", 0.0)
+        _inv8_w_saved  = st.session_state.get("calc_inv_w",  0.0)
+
+        if _inv8_kw_saved > 0:
+            # Usar el inversor ya calculado en Tab 6 (inventario o recibo)
+            _fuente_inv8 = ("inventario de cargas" if not _cargas_r8.empty
+                            else "recibo de luz (desde Tab 6)")
+            _inv8 = {
+                "inv_kw":        _inv8_kw_saved,
+                "inv_w":         _inv8_w_saved if _inv8_w_saved > 0 else _inv8_kw_saved * 1000,
+                "pot_instalada": st.session_state.get("calc_potencia_inst_wp",
+                                  consumo7_fs / max(st.session_state.get("calc_hsp",4.2)*0.75, 0.01)),
+                "pot_simultanea":_inv8_kw_saved * 1000 / 1.25 / 1.25,
+                "pot_arranque":  _inv8_kw_saved * 1000 / 1.25 / 1.25 * 0.25,
+                "pot_requerida": _inv8_kw_saved * 1000 / 1.25,
+                "fs": 0.80, "fm": 1.25,
+                "corr_dc":       (_inv8_w_saved / vdc7) if vdc7 > 0 else 0,
+                "_fallback":     _cargas_r8.empty,
+                "_from_tab6":    True,
+            }
+        elif not _cargas_r8.empty:
+            # Recalcular desde inventario si no hay dato de Tab 6
+            _inv8 = calcular_inversor(_cargas_r8, fs=0.80, fm=1.25, vdc=vdc7)
+            _inv8["_fallback"]  = False
+            _inv8["_from_tab6"] = False
+            _fuente_inv8 = "inventario de cargas (recalculado)"
         else:
-            _inv8["_fallback"] = False
+            # Fallback desde consumo cuando no hay inventario ni Tab 6
+            _horas_uso_est8  = 8.0
+            _pot_inst8       = consumo7_fs / _horas_uso_est8
+            _pot_sim8        = _pot_inst8 * 0.80
+            _pot_arr8        = _pot_sim8 * 0.25
+            _pot_req8        = (_pot_sim8 + _pot_arr8) * 1.25
+            _inv8_w_fb       = float(next(
+                (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_req8),
+                math.ceil(_pot_req8/1000)*1000))
+            _inv8 = {
+                "inv_w":         _inv8_w_fb,
+                "inv_kw":        _inv8_w_fb / 1000,
+                "pot_instalada": _pot_inst8,
+                "pot_simultanea":_pot_sim8,
+                "pot_arranque":  _pot_arr8,
+                "pot_requerida": _pot_req8,
+                "fs": 0.80, "fm": 1.25,
+                "corr_dc":       _inv8_w_fb / vdc7 if vdc7 > 0 else 0,
+                "_fallback":     True,
+                "_from_tab6":    False,
+            }
+            _fuente_inv8 = f"recibo de luz ({consumo7_fs:,.0f} Wh ÷ {_horas_uso_est8:.0f}h)"
+            # Guardar en session_state para Tab 6 y Tab 11
+            st.session_state["calc_inv_kw"] = _inv8["inv_kw"]
+            st.session_state["calc_inv_w"]  = _inv8["inv_w"]
 
         # Recibo info banner
         if not recibo_res.empty:
@@ -4278,8 +4320,16 @@ with tab8:
             """, unsafe_allow_html=True)
 
         # Desglose técnico del inversor
-        if _inv8["_fallback"]:
-            _inv8_desc = f"Consumo {consumo7_fs:,.0f} Wh/día × FM 125% (sin inventario de cargas)"
+        if _inv8.get("_from_tab6"):
+            _inv8_desc = (f"Calculado en Tab 6 desde {_fuente_inv8} → "
+                          f"<b>Comercial: {_inv8['inv_kw']:.1f} kW</b>")
+        elif _inv8["_fallback"]:
+            _inv8_desc = (f"Desde {_fuente_inv8} — "
+                          f"P_inst={_inv8['pot_instalada']:,.0f}W × FS 80%"
+                          f" → P_sim={_inv8['pot_simultanea']:,.0f}W"
+                          f" + Arr.={_inv8['pot_arranque']:,.0f}W"
+                          f" → P_req={_inv8['pot_requerida']:,.0f}W × FM 125%"
+                          f" → <b>Comercial: {_inv8['inv_kw']:.1f} kW</b>")
         else:
             _inv8_desc = (
                 f"P_inst={_inv8['pot_instalada']:,.0f}W · FS {int(_inv8['fs']*100)}%"
@@ -4287,7 +4337,7 @@ with tab8:
                 f" + Arr.motor={_inv8['pot_arranque']:,.0f}W"
                 f" → P_req={_inv8['pot_requerida']:,.0f}W"
                 f" × FM {int(_inv8['fm']*100)}%"
-                f" → {_inv8['pot_inv_minima']:,.0f}W"
+                f" → {_inv8.get('pot_inv_minima', _inv8['pot_requerida']):,.0f}W"
                 f" → <b>Comercial: {_inv8['inv_kw']:.1f} kW</b>"
             )
         st.markdown(f"""
