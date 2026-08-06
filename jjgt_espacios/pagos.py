@@ -1280,7 +1280,7 @@ CREATE TABLE IF NOT EXISTS cubiculos_estado (
     codigo_acceso       TEXT,
     wifi_ssid           TEXT,
     wifi_pass           TEXT,
-    precio_hora_base    TEXT DEFAULT '15000'
+    precio_hora_base    TEXT DEFAULT '10000'
 );
 
 CREATE TABLE IF NOT EXISTS facturas (
@@ -1398,8 +1398,8 @@ _SEED_SQL = """
 INSERT INTO tarifas_config (id, nombre, descripcion, precio_hora_cop, desc_3h_pct,
     desc_6h_pct, hora_ini_espec, hora_fin_espec, aplica_festivos, activo, horas_a_reservar)
 VALUES
-    ('1','Estándar','Tarifa estándar diurna','15000','0','0','','','0','1',''),
-    ('2','Madrugada','Tarifa madrugada 00-06h','15000','0','0','00:00','06:00','0','1',''),
+    ('1','Estándar','Tarifa estándar diurna','10000','0','0','','','0','1',''),
+    ('2','Madrugada','Tarifa madrugada 00-06h','10000','0','0','00:00','06:00','0','1',''),
     ('3','Noche Completa','Noche completa','40000','0','0','22:00','06:00','0','1','8')
 ON CONFLICT (id) DO NOTHING;
 
@@ -2354,7 +2354,7 @@ def calcular_valor(horas):
         return 0
 
     if horas == 1:
-        return 15000
+        return 10000
 
     return horas * 10000
 
@@ -2381,7 +2381,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
     rows = _gs_read_sheet("Tarifas_Config")
 
     # Valores por defecto
-    precio_hora = 15000
+    precio_hora = 10000
     hora_ini_espec = ""
     hora_fin_espec = ""
     tarifa_row = None
@@ -2394,7 +2394,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
             tarifa_row = r
 
             # Precio base primera hora
-            precio_hora = _gs_float(r, "Precio_Hora_COP", 15000)
+            precio_hora = _gs_float(r, "Precio_Hora_COP", 10000)
 
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
@@ -2515,7 +2515,7 @@ def get_cubiculos() -> list:
         hora_inicio = _gs_val(row, "Hora_Inicio")
         wifi_ssid = _gs_val(row, "WiFi_SSID")
         wifi_pass = _gs_val(row, "WiFi_Pass")
-        precio_base = _gs_float(row, "Precio_Hora_Base", 15000)
+        precio_base = _gs_float(row, "Precio_Hora_Base", 10000)
         cub_id = _gs_val(row, "Cubiculo_ID") or str(i + 1)
 
         cub = {
@@ -3339,7 +3339,7 @@ def show_bienvenida():
     libres     = sum(1 for c in cubiculos if c["estado"] == "libre")
     total      = len(cubiculos)
     tarifa_act = "Madrugada" if 0 <= ahora_col().hour < 6 else "Estándar"
-    precio_min = 15000 if tarifa_act == "Madrugada" else 15000
+    precio_min = 10000 if tarifa_act == "Madrugada" else 10000
 
     # Disponibilidad
     color_disp = "#00ff88" if libres > 3 else ("#ffd32a" if libres > 0 else "#ff4757")
@@ -6515,7 +6515,7 @@ def _op_configuracion():
             df_t = pd.DataFrame([{
                 "Nombre":       _gs_val(r, "Nombre"),
                 "Descripción":  _gs_val(r, "Descripcion"),
-                "Precio/hora":  fmt_cop(_gs_float(r, "Precio_Hora_COP", 15000)),
+                "Precio/hora":  fmt_cop(_gs_float(r, "Precio_Hora_COP", 10000)),
                 "Desc 3h%":     _gs_val(r, "Desc_3h_Pct"),
                 "Desc 6h%":     _gs_val(r, "Desc_6h_Pct"),
                 "Activo":       _gs_val(r, "Activo"),
