@@ -3520,7 +3520,7 @@ with tab6:
                 # Horas de uso típico: 8h para residencial, asumimos 8h como base conservadora
                 _horas_uso_est  = 8.0
                 _pot_inst_rec   = consumo5_fs / _horas_uso_est          # W instalados estimados
-                _pot_simultanea = _pot_inst_rec * 0.80                  # FS 80%
+                _pot_simultanea = _pot_inst_rec #* 0.80                  # FS 80%
                 _pot_arranque   = _pot_simultanea * 0.25                # 25% arranque motores
                 _pot_requerida  = (_pot_simultanea + _pot_arranque) * 1.25  # FM 25%
                 _inv5_w = float(next(
