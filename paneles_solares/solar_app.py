@@ -608,7 +608,7 @@ def _bat_params(ss: dict = None) -> dict:
 _KW_COMERCIALES = [0.5, 1, 1.5, 2, 3, 3.5, 4, 5, 6, 8, 10, 12, 15, 20, 25, 30, 40, 50]
 
 def calcular_inversor(cargas_df: "pd.DataFrame",
-                      fs: float = 0.00,
+                      fs: float = 0.80,
                       fm: float = 1.25,
                       vdc: int = 24) -> dict:
     """Dimensionamiento de inversor según metodología del documento técnico.
@@ -774,7 +774,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         cargas_df["consumo_wh"]    = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
 
         _vdc_xl = proyecto_info[3] or 24
-        _inv_xl = calcular_inversor(cargas_df, fs=0.00, fm=1.25, vdc=_vdc_xl)
+        _inv_xl = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=_vdc_xl)
 
         alt = False
         for _, row in cargas_df.iterrows():
@@ -888,7 +888,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         elif corr_mppt2 <= 100:mppt2 = "MPPT 100A"
         else: mppt2 = f"MPPT {math.ceil(corr_mppt2/50)*50}A"
         # Inversor — metodología técnica
-        _inv2 = calcular_inversor(cargas_df, fs=0.00, fm=1.25, vdc=vdc2)
+        _inv2 = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc2)
         inv_kw2 = _inv2["inv_kw"]
         _db2 = _inv2.get("desglose_arranque", [])
         _arr_desc2 = " | ".join(f"{d['equipo']}(×{d['factor_arranque']})" for d in _db2) or "—"
@@ -1125,7 +1125,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         else: mppt_p = f"MPPT {math.ceil(corr_p/50)*50}A"
 
         # Inversor con metodología técnica
-        _inv_p = calcular_inversor(cargas_df, fs=0.00, fm=1.25, vdc=vdc_p)
+        _inv_p = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc_p)
         inv_kw_p  = _inv_p["inv_kw"]
         pot_inv_fs = _inv_p["inv_w"]
 
@@ -2221,7 +2221,7 @@ with tab1:
         consumo_total      = cargas["consumo_dia_wh"].sum()
         consumo_fs         = consumo_total * 1.20
         _vdc_t1 = st.session_state.get("calc_vdc", 24)
-        _inv_t1 = calcular_inversor(cargas, fs=0.00, fm=1.25, vdc=_vdc_t1)
+        _inv_t1 = calcular_inversor(cargas, fs=0.80, fm=1.25, vdc=_vdc_t1)
 
         st.markdown(f"""
         <div class='metric-grid'>
@@ -3513,7 +3513,7 @@ with tab6:
 
             if _cargas_disponibles:
                 # Metodología exacta: cargas reales con motores y factor de arranque
-                _inv5 = calcular_inversor(_cargas_t6, fs=0.00, fm=1.25, vdc=vdc5)
+                _inv5 = calcular_inversor(_cargas_t6, fs=0.80, fm=1.25, vdc=vdc5)
                 _inv5_metodo = "Inventario de cargas (7 pasos técnicos)"
             else:
                 # Fallback desde recibo: P_instalada = Consumo_Wh/día ÷ horas_uso_estimadas
@@ -3525,7 +3525,7 @@ with tab6:
                 _pot_requerida  = (_pot_simultanea + _pot_arranque) * 1.25  # FM 25%
                 _inv5_w = float(next(
                     (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_requerida),
-                    math.ceil(_pot_requerida/1000)*1000))
+                    math.ceil(_pot_requerida/1000)))
                 _inv5 = {
                     "pot_instalada":  _pot_inst_rec,
                     "pot_simultanea": _pot_simultanea,
@@ -3534,7 +3534,7 @@ with tab6:
                     "inv_w":          _inv5_w,
                     "inv_kw":         _inv5_w / 1000,
                     "corr_dc":        _inv5_w / vdc5 if vdc5 > 0 else 0,
-                    "fs":             0.00,
+                    "fs":             0.80,
                     "fm":             1.25,
                 }
                 _inv5_metodo = f"Desde recibo de luz ({consumo5_fs:,.0f} Wh/día ÷ {_horas_uso_est:.0f}h)"
@@ -3544,7 +3544,7 @@ with tab6:
                 _inv5_w_fb = consumo5_fs * 1.25
                 _inv5["inv_w"]  = float(next(
                     (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
-                    math.ceil(_inv5_w_fb/1000)*1000))
+                    math.ceil(_inv5_w_fb/1000)))
                 _inv5["inv_kw"] = _inv5["inv_w"] / 1000
                 _inv5["corr_dc"] = _inv5["inv_w"] / vdc5 if vdc5 > 0 else 0
 
@@ -4208,14 +4208,14 @@ with tab8:
                 "pot_simultanea":_inv8_kw_saved * 1000 / 1.25 / 1.25,
                 "pot_arranque":  _inv8_kw_saved * 1000 / 1.25 / 1.25 * 0.25,
                 "pot_requerida": _inv8_kw_saved * 1000 / 1.25,
-                "fs": 0.00, "fm": 1.25,
+                "fs": 0.80, "fm": 1.25,
                 "corr_dc":       (_inv8_w_saved / vdc7) if vdc7 > 0 else 0,
                 "_fallback":     _cargas_r8.empty,
                 "_from_tab6":    True,
             }
         elif not _cargas_r8.empty:
             # Recalcular desde inventario si no hay dato de Tab 6
-            _inv8 = calcular_inversor(_cargas_r8, fs=0.00, fm=1.25, vdc=vdc7)
+            _inv8 = calcular_inversor(_cargas_r8, fs=0.80, fm=1.25, vdc=vdc7)
             _inv8["_fallback"]  = False
             _inv8["_from_tab6"] = False
             _fuente_inv8 = "inventario de cargas (recalculado)"
@@ -4223,12 +4223,12 @@ with tab8:
             # Fallback desde consumo cuando no hay inventario ni Tab 6
             _horas_uso_est8  = 8.0
             _pot_inst8       = consumo7_fs / _horas_uso_est8
-            _pot_sim8        = _pot_inst8 * 0.00
+            _pot_sim8        = _pot_inst8 * 0.80
             _pot_arr8        = _pot_sim8 * 0.25
             _pot_req8        = (_pot_sim8 + _pot_arr8) * 1.25
             _inv8_w_fb       = float(next(
                 (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_req8),
-                math.ceil(_pot_req8/1000)*1000))
+                math.ceil(_pot_req8/1000)))
             _inv8 = {
                 "inv_w":         _inv8_w_fb,
                 "inv_kw":        _inv8_w_fb / 1000,
@@ -4236,7 +4236,7 @@ with tab8:
                 "pot_simultanea":_pot_sim8,
                 "pot_arranque":  _pot_arr8,
                 "pot_requerida": _pot_req8,
-                "fs": 0.00, "fm": 1.25,
+                "fs": 0.80, "fm": 1.25,
                 "corr_dc":       _inv8_w_fb / vdc7 if vdc7 > 0 else 0,
                 "_fallback":     True,
                 "_from_tab6":    False,
@@ -5107,13 +5107,13 @@ with tab10:
     corr_mppt10   = isc10 * n_pan10
     # 5. Inversor — metodología técnica
     _inv10 = calcular_inversor(cargas10 if not cargas10.empty else None,
-                               fs=0.00, fm=1.25, vdc=vdc10)
+                               fs=0.80, fm=1.25, vdc=vdc10)
     if _inv10["inv_w"] == 0:
         # Fallback: sin inventario de cargas → usar consumo seleccionado × FM
         _inv10_fallback_w = consumo10_fs * 1.25
         _inv10["inv_w"]   = float(next(
             (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv10_fallback_w),
-            math.ceil(_inv10_fallback_w/1000)*1000))
+            math.ceil(_inv10_fallback_w/1000)))
         _inv10["inv_kw"]  = _inv10["inv_w"] / 1000
         _inv10["corr_dc"] = _inv10["inv_w"] / vdc10 if vdc10 > 0 else 0
     pot_inv10_w = _inv10["inv_w"]
