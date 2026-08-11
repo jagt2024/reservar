@@ -774,7 +774,12 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         cargas_df["consumo_wh"]    = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
 
         _vdc_xl = proyecto_info[3] or 24
-        _inv_xl = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=_vdc_xl)
+        _pot_xl=float(st.session_state.get('calc_pot_real_wp',
+            st.session_state.get('calc_num_paneles',1)*st.session_state.get('calc_pot_panel_wp',550)))
+        if _pot_xl==0 and not cargas_df.empty:
+            _pot_xl=cargas_df.apply(lambda r:r['cantidad']*r['potencia_w'],axis=1).sum()
+        _inv_xl_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_xl*1.25),max(_pot_xl*1.25,500)))
+        _inv_xl={'inv_kw':_inv_xl_w/1000,'inv_w':_inv_xl_w,'pot_instalada':_pot_xl,'pot_requerida':_pot_xl*1.25,'pot_simultanea':_pot_xl,'pot_arranque':_pot_xl*0.25,'corr_dc':_inv_xl_w/_vdc_xl if _vdc_xl>0 else 0,'fm':1.25}
 
         alt = False
         for _, row in cargas_df.iterrows():
@@ -888,7 +893,9 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         elif corr_mppt2 <= 100:mppt2 = "MPPT 100A"
         else: mppt2 = f"MPPT {math.ceil(corr_mppt2/50)*50}A"
         # Inversor — metodología técnica
-        _inv2 = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc2)
+        _pot2=float(st.session_state.get('calc_pot_real_wp',n_pan2*pp_wp))
+        _inv2_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot2*1.25),max(_pot2*1.25,500)))
+        _inv2={'inv_kw':_inv2_w/1000,'inv_w':_inv2_w,'pot_instalada':_pot2,'pot_requerida':_pot2*1.25,'pot_simultanea':_pot2,'pot_arranque':_pot2*0.25,'corr_dc':_inv2_w/vdc2 if vdc2>0 else 0,'fm':1.25}
         inv_kw2 = _inv2["inv_kw"]
         _db2 = _inv2.get("desglose_arranque", [])
         _arr_desc2 = " | ".join(f"{d['equipo']}(×{d['factor_arranque']})" for d in _db2) or "—"
@@ -1125,7 +1132,9 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         else: mppt_p = f"MPPT {math.ceil(corr_p/50)*50}A"
 
         # Inversor con metodología técnica
-        _inv_p = calcular_inversor(cargas_df, fs=0.80, fm=1.25, vdc=vdc_p)
+        _pot_p=float(st.session_state.get('calc_pot_real_wp',n_pan_p*pp_wp_p))
+        _inv_p_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_p*1.25),max(_pot_p*1.25,500)))
+        _inv_p={'inv_kw':_inv_p_w/1000,'inv_w':_inv_p_w,'pot_instalada':_pot_p,'pot_requerida':_pot_p*1.25,'pot_simultanea':_pot_p,'pot_arranque':_pot_p*0.25,'corr_dc':_inv_p_w/vdc_p if vdc_p>0 else 0,'fm':1.25}
         inv_kw_p  = _inv_p["inv_kw"]
         pot_inv_fs = _inv_p["inv_w"]
 
@@ -2221,7 +2230,12 @@ with tab1:
         consumo_total      = cargas["consumo_dia_wh"].sum()
         consumo_fs         = consumo_total * 1.20
         _vdc_t1 = st.session_state.get("calc_vdc", 24)
-        _inv_t1 = calcular_inversor(cargas, fs=0.80, fm=1.25, vdc=_vdc_t1)
+        _pot_t1=float(st.session_state.get('calc_pot_real_wp',
+            st.session_state.get('calc_num_paneles',1)*st.session_state.get('calc_pot_panel_wp',550)))
+        if _pot_t1==0 and not cargas.empty:
+            _pot_t1=cargas.apply(lambda r:r['cantidad']*r['potencia_w'],axis=1).sum()
+        _inv_t1_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_t1*1.25),max(_pot_t1*1.25,500)))
+        _inv_t1={'inv_kw':_inv_t1_w/1000,'inv_w':_inv_t1_w,'pot_instalada':_pot_t1,'pot_requerida':_pot_t1*1.25,'pot_simultanea':_pot_t1,'pot_arranque':_pot_t1*0.25,'corr_dc':_inv_t1_w/_vdc_t1 if _vdc_t1>0 else 0,'fm':1.25}
 
         st.markdown(f"""
         <div class='metric-grid'>
@@ -3497,76 +3511,39 @@ with tab6:
                 → Total pérdidas ≈{100-fp_input5}% | FP = {fp_input5}%
             </div>""", unsafe_allow_html=True)
 
-            # ── Inversor — metodología técnica
-            # Si la fuente es recibo de luz (sin inventario de cargas detallado),
-            # se estima la potencia del inversor desde el consumo del recibo
-            # aplicando la misma metodología que en el inventario de cargas:
-            # P_inversor = Consumo_fs / (Horas_uso_promedio × FS) → tamaño comercial
-            conn = get_conn()
-            _cargas_t6 = pd.read_sql(
-                "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
-                conn, params=(proyecto_id,))
-            conn.close()
+            # Inversor: metodología array (igual que módulo híbrido)
+            # P_inversor = Potencia_array_instalada × 1.25 → tamaño comercial
+            # Aplica igual para inventario de cargas y recibo de luz.
             vdc5 = st.session_state.get("calc_vdc", tension_dc(consumo5_fs))
+            _pot_array_wp5   = float(pot_real5)
+            _inv_w_req5      = _pot_array_wp5 * 1.25
+            _inv_w5          = float(next(
+                (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv_w_req5),
+                math.ceil(_inv_w_req5/1000)*1000))
+            _inv_kw5         = _inv_w5 / 1000
+            _inv5 = {
+                "inv_w": _inv_w5, "inv_kw": _inv_kw5,
+                "pot_instalada": _pot_array_wp5, "pot_requerida": _inv_w_req5,
+                "pot_simultanea": _pot_array_wp5, "pot_arranque": _pot_array_wp5*0.25,
+                "fs": 1.0, "fm": 1.25,
+                "corr_dc": _inv_w5/vdc5 if vdc5>0 else 0,
+            }
+            st.session_state["calc_inv_kw"] = _inv_kw5
+            st.session_state["calc_inv_w"]  = _inv_w5
 
-            _cargas_disponibles = not _cargas_t6.empty
-
-            if _cargas_disponibles:
-                # Metodología exacta: cargas reales con motores y factor de arranque
-                _inv5 = calcular_inversor(_cargas_t6, fs=0.80, fm=1.25, vdc=vdc5)
-                _inv5_metodo = "Inventario de cargas (7 pasos técnicos)"
-            else:
-                # Fallback desde recibo: P_instalada = Consumo_Wh/día ÷ horas_uso_estimadas
-                # Horas de uso típico: 8h para residencial, asumimos 8h como base conservadora
-                _horas_uso_est  = 8.0
-                _pot_inst_rec   = consumo5_fs / _horas_uso_est          # W instalados estimados
-                _pot_simultanea = _pot_inst_rec #* 0.80                  # FS 80%
-                _pot_arranque   = _pot_simultanea * 0.25                # 25% arranque motores
-                _pot_requerida  = (_pot_simultanea + _pot_arranque) * 1.25  # FM 25%
-                _inv5_w = float(next(
-                    (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_requerida),
-                    math.ceil(_pot_requerida/1000)))
-                _inv5 = {
-                    "pot_instalada":  _pot_inst_rec,
-                    "pot_simultanea": _pot_simultanea,
-                    "pot_arranque":   _pot_arranque,
-                    "pot_requerida":  _pot_requerida,
-                    "inv_w":          _inv5_w,
-                    "inv_kw":         _inv5_w / 1000,
-                    "corr_dc":        _inv5_w / vdc5 if vdc5 > 0 else 0,
-                    "fs":             0.80,
-                    "fm":             1.25,
-                }
-                _inv5_metodo = f"Desde recibo de luz ({consumo5_fs:,.0f} Wh/día ÷ {_horas_uso_est:.0f}h)"
-
-            # Verificar que el inversor sea suficiente para el consumo fs
-            if _inv5["inv_w"] < consumo5_fs * 0.5:
-                _inv5_w_fb = consumo5_fs * 1.25
-                _inv5["inv_w"]  = float(next(
-                    (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
-                    math.ceil(_inv5_w_fb/1000)))
-                _inv5["inv_kw"] = _inv5["inv_w"] / 1000
-                _inv5["corr_dc"] = _inv5["inv_w"] / vdc5 if vdc5 > 0 else 0
-
-            st.session_state["calc_inv_kw"]  = _inv5["inv_kw"]
-            st.session_state["calc_inv_w"]   = _inv5["inv_w"]
-
-            # Baterías estimadas (para la tabla resumen técnica)
+            # Baterías estimadas para la tabla resumen
             bats5 = calcular_baterias(consumo5_fs, vdc5, **_bat_params(st.session_state))
 
             st.markdown(f"""
             <div class='formula-box' style='font-size:0.78rem;margin-top:0.4rem;'>
-                🔌 Inversor ({_inv5_metodo}):<br>
-                P_inst={_inv5['pot_instalada']:,.0f}W × FS {int(_inv5['fs']*100)}%
-                → P_sim={_inv5['pot_simultanea']:,.0f}W + Arr.={_inv5['pot_arranque']:,.0f}W
-                → P_req={_inv5['pot_requerida']:,.0f}W × FM {int(_inv5['fm']*100)}%
-                → <b>Comercial: {_inv5['inv_kw']:.1f} kW</b>
+                Inversor OFF-GRID (metodología array):
+                P_instalada = {_pot_array_wp5:,.0f} Wp x FM 1.25
+                = P_req {_inv_w_req5:,.0f} W
+                -> <b>Comercial: {_inv_kw5:.1f} kW</b>
             </div>
             <div class='info-note' style='font-size:0.78rem;margin-top:0.3rem;'>
-                {"✅ Metodología: cargas reales del inventario (considera motores y factor de arranque)"
-                 if _cargas_disponibles else
-                 "ℹ️ Sin inventario de cargas — inversor estimado desde recibo de luz. "
-                 "Para mayor precisión, ingresa el inventario de cargas en el Módulo 1."}
+                El inversor se dimensiona para la potencia pico del array FV
+                ({_pot_array_wp5/1000:.2f} kWp). Aplica para inventario de cargas y recibo de luz.
             </div>
             """, unsafe_allow_html=True)
 
@@ -4184,162 +4161,32 @@ with tab8:
         </div>
         """, unsafe_allow_html=True)
 
-        # ── Inversor: priorizar el calculado en Tab 6 (ambas fuentes) ──────────
-        # Tab 6 ya aplica la metodología correcta tanto para inventario de cargas
-        # como para recibo de luz. Si el usuario pasó por Tab 6, usamos ese valor.
-        conn = get_conn()
-        _cargas_r8 = pd.read_sql(
-            "SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?",
-            conn, params=(proyecto_id,))
-        conn.close()
-
-        _inv8_kw_saved = st.session_state.get("calc_inv_kw", 0.0)
-        _inv8_w_saved  = st.session_state.get("calc_inv_w",  0.0)
-
+        # Inversor: metodología array (igual que módulo híbrido)
+        _inv8_kw_saved   = st.session_state.get("calc_inv_kw", 0.0)
+        _inv8_w_saved    = st.session_state.get("calc_inv_w",  0.0)
+        _pot_real_saved8 = float(st.session_state.get("calc_pot_real_wp",
+                           num_pan7 * st.session_state.get("calc_pot_panel_wp", 550)))
         if _inv8_kw_saved > 0:
-            # Usar el inversor ya calculado en Tab 6 (inventario o recibo)
-            _fuente_inv8 = ("inventario de cargas" if not _cargas_r8.empty
-                            else "recibo de luz (desde Tab 6)")
-            _inv8 = {
-                "inv_kw":        _inv8_kw_saved,
-                "inv_w":         _inv8_w_saved if _inv8_w_saved > 0 else _inv8_kw_saved * 1000,
-                "pot_instalada": st.session_state.get("calc_potencia_inst_wp",
-                                  consumo7_fs / max(st.session_state.get("calc_hsp",4.2)*0.75, 0.01)),
-                "pot_simultanea":_inv8_kw_saved * 1000 / 1.25 / 1.25,
-                "pot_arranque":  _inv8_kw_saved * 1000 / 1.25 / 1.25 * 0.25,
-                "pot_requerida": _inv8_kw_saved * 1000 / 1.25,
-                "fs": 0.80, "fm": 1.25,
-                "corr_dc":       (_inv8_w_saved / vdc7) if vdc7 > 0 else 0,
-                "_fallback":     _cargas_r8.empty,
-                "_from_tab6":    True,
-            }
-        elif not _cargas_r8.empty:
-            # Recalcular desde inventario si no hay dato de Tab 6
-            _inv8 = calcular_inversor(_cargas_r8, fs=0.80, fm=1.25, vdc=vdc7)
-            _inv8["_fallback"]  = False
-            _inv8["_from_tab6"] = False
-            _fuente_inv8 = "inventario de cargas (recalculado)"
+            _inv8 = {"inv_kw": _inv8_kw_saved,
+                     "inv_w":  _inv8_w_saved if _inv8_w_saved > 0 else _inv8_kw_saved*1000,
+                     "pot_instalada": _pot_real_saved8,
+                     "pot_requerida": _pot_real_saved8*1.25,
+                     "corr_dc": _inv8_w_saved/vdc7 if vdc7>0 else 0, "fm": 1.25}
+            _fuente_inv8 = "Tab 6 (array FV)"
         else:
-            # Fallback desde consumo cuando no hay inventario ni Tab 6
-            _horas_uso_est8  = 8.0
-            _pot_inst8       = consumo7_fs / _horas_uso_est8
-            _pot_sim8        = _pot_inst8 * 0.80
-            _pot_arr8        = _pot_sim8 * 0.25
-            _pot_req8        = (_pot_sim8 + _pot_arr8) * 1.25
-            _inv8_w_fb       = float(next(
-                (k*1000 for k in _KW_COMERCIALES if k*1000 >= _pot_req8),
-                math.ceil(_pot_req8/1000)))
-            _inv8 = {
-                "inv_w":         _inv8_w_fb,
-                "inv_kw":        _inv8_w_fb / 1000,
-                "pot_instalada": _pot_inst8,
-                "pot_simultanea":_pot_sim8,
-                "pot_arranque":  _pot_arr8,
-                "pot_requerida": _pot_req8,
-                "fs": 0.80, "fm": 1.25,
-                "corr_dc":       _inv8_w_fb / vdc7 if vdc7 > 0 else 0,
-                "_fallback":     True,
-                "_from_tab6":    False,
-            }
-            _fuente_inv8 = f"recibo de luz ({consumo7_fs:,.0f} Wh ÷ {_horas_uso_est8:.0f}h)"
-            # Guardar en session_state para Tab 6 y Tab 11
+            _inv8_req  = _pot_real_saved8 * 1.25
+            _inv8_com  = float(next((k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv8_req),
+                                    max(_inv8_req, 500)))
+            _inv8 = {"inv_kw": _inv8_com/1000, "inv_w": _inv8_com,
+                     "pot_instalada": _pot_real_saved8, "pot_requerida": _inv8_req,
+                     "corr_dc": _inv8_com/vdc7 if vdc7>0 else 0, "fm": 1.25}
+            _fuente_inv8 = "array FV (calculado)"
             st.session_state["calc_inv_kw"] = _inv8["inv_kw"]
             st.session_state["calc_inv_w"]  = _inv8["inv_w"]
+        _inv8_desc = (f"P_array = {_inv8['pot_instalada']:,.0f} Wp x FM 1.25"
+                      f" -> P_req = {_inv8['pot_requerida']:,.0f} W"
+                      f" -> Comercial: {_inv8['inv_kw']:.1f} kW ({_fuente_inv8})")
 
-        # Recibo info banner
-        if not recibo_res.empty:
-            r0 = recibo_res.iloc[0]
-            kwh_dia_r0 = r0["kwh_periodo"] / r0["dias_periodo"]
-            st.markdown(f"""
-            <div style='background:rgba(0,188,212,0.08); border:1px solid rgba(0,188,212,0.3);
-                        border-radius:10px; padding:0.8rem 1.2rem; margin-bottom:1rem;
-                        display:flex; gap:2.5rem; flex-wrap:wrap; align-items:center;'>
-                <span style='font-size:1.4rem;'>🧾</span>
-                <span style='font-size:0.82rem; color:#8A9BBD;'>Último recibo:
-                    <b style='color:#00BCD4;'>{r0['periodo']}</b></span>
-                <span style='font-size:0.82rem; color:#8A9BBD;'>Total período:
-                    <b style='color:#FFD54F; font-family:Share Tech Mono;'>{r0['kwh_periodo']:.1f} kWh</b></span>
-                <span style='font-size:0.82rem; color:#8A9BBD;'>Promedio diario:
-                    <b style='color:#FFD54F; font-family:Share Tech Mono;'>{kwh_dia_r0:.2f} kWh/día
-                    ({kwh_dia_r0*1000:,.0f} Wh/día)</b></span>
-                <span style='font-size:0.82rem; color:#8A9BBD;'>Base usada:
-                    <b style='color:#00E676;'>{consumo7:,.0f} Wh/día</b></span>
-            </div>
-            """, unsafe_allow_html=True)
-
-        col_r1, col_r2, col_r3, col_r4, col_r5 = st.columns(5)
-        with col_r1:
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:#FFB300;'>
-                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>⚡</div>
-                <div class='metric-val'>{consumo7_fs:,.0f}</div>
-                <div class='metric-unit'>Wh/día</div>
-                <div class='metric-label'>CONSUMO + 20% FS</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_r2:
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:#00BCD4;'>
-                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🔆</div>
-                <div class='metric-val'>{num_pan7}</div>
-                <div class='metric-unit'>paneles {pot_panel7}Wp</div>
-                <div class='metric-label'>CAMPO FOTOVOLTAICO</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_r3:
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:#00E676;'>
-                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🔋</div>
-                <div class='metric-val'>{bats7["num_baterias"]}</div>
-                <div class='metric-unit'>bat. 100Ah @ {vdc7}V</div>
-                <div class='metric-label'>BANCO DE BATERÍAS</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_r4:
-            _ctrl_i_r4  = st.session_state.get("calc_corr_mppt", 0)
-            _ctrl_m_r4  = st.session_state.get("calc_mppt_modelo", "—")
-            _ctrl_col_r4 = ("#00E676" if _ctrl_i_r4 <= 40 else
-                            "#00BCD4" if _ctrl_i_r4 <= 60 else
-                            "#FFB300" if _ctrl_i_r4 <= 100 else "#FF5252")
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:{_ctrl_col_r4};'>
-                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🎛</div>
-                <div class='metric-val' style='color:{_ctrl_col_r4};'>{_ctrl_i_r4:.0f}</div>
-                <div class='metric-unit'>A — {_ctrl_m_r4}</div>
-                <div class='metric-label'>CONTROLADOR MPPT</div>
-            </div>
-            """, unsafe_allow_html=True)
-        with col_r5:
-            st.markdown(f"""
-            <div class='metric-box' style='border-color:rgba(255,107,53,0.6);'>
-                <div style='font-size:1.5rem; margin-bottom:0.3rem;'>🔌</div>
-                <div class='metric-val' style='color:#FF6B35;'>{_inv8['inv_kw']:.1f}</div>
-                <div class='metric-unit'>kW / {_inv8['inv_w']:,.0f} W</div>
-                <div class='metric-label'>INVERSOR REC.</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        # Desglose técnico del inversor
-        if _inv8.get("_from_tab6"):
-            _inv8_desc = (f"Calculado en Tab 6 desde {_fuente_inv8} → "
-                          f"<b>Comercial: {_inv8['inv_kw']:.1f} kW</b>")
-        elif _inv8["_fallback"]:
-            _inv8_desc = (f"Desde {_fuente_inv8} — "
-                          f"P_inst={_inv8['pot_instalada']:,.0f}W × FS 80%"
-                          f" → P_sim={_inv8['pot_simultanea']:,.0f}W"
-                          f" + Arr.={_inv8['pot_arranque']:,.0f}W"
-                          f" → P_req={_inv8['pot_requerida']:,.0f}W × FM 125%"
-                          f" → <b>Comercial: {_inv8['inv_kw']:.1f} kW</b>")
-        else:
-            _inv8_desc = (
-                f"P_inst={_inv8['pot_instalada']:,.0f}W · FS {int(_inv8['fs']*100)}%"
-                f" → P_sim={_inv8['pot_simultanea']:,.0f}W"
-                f" + Arr.motor={_inv8['pot_arranque']:,.0f}W"
-                f" → P_req={_inv8['pot_requerida']:,.0f}W"
-                f" × FM {int(_inv8['fm']*100)}%"
-                f" → {_inv8.get('pot_inv_minima', _inv8['pot_requerida']):,.0f}W"
-                f" → <b>Comercial: {_inv8['inv_kw']:.1f} kW</b>"
-            )
         st.markdown(f"""
         <div class='formula-box' style='margin-top:0.6rem;font-size:0.78rem;'>
             🔌 Inversor (metodología técnica): {_inv8_desc}
@@ -5105,17 +4952,12 @@ with tab10:
     pot_inst10    = consumo10_fs / hsp10 if hsp10 > 0 else 0
     # 4. Controlador: Isc × N_paneles
     corr_mppt10   = isc10 * n_pan10
-    # 5. Inversor — metodología técnica
-    _inv10 = calcular_inversor(cargas10 if not cargas10.empty else None,
-                               fs=0.80, fm=1.25, vdc=vdc10)
-    if _inv10["inv_w"] == 0:
-        # Fallback: sin inventario de cargas → usar consumo seleccionado × FM
-        _inv10_fallback_w = consumo10_fs * 1.25
-        _inv10["inv_w"]   = float(next(
-            (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv10_fallback_w),
-            math.ceil(_inv10_fallback_w/1000)))
-        _inv10["inv_kw"]  = _inv10["inv_w"] / 1000
-        _inv10["corr_dc"] = _inv10["inv_w"] / vdc10 if vdc10 > 0 else 0
+    # 5. Inversor — metodología array
+    _pot10=float(st.session_state.get('calc_pot_real_wp',n_pan10*st.session_state.get('calc_pot_panel_wp',550)))
+    if _pot10==0 and not cargas10.empty:
+        _pot10=cargas10.apply(lambda r:r['cantidad']*r['potencia_w'],axis=1).sum()
+    _inv10_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot10*1.25),max(_pot10*1.25,500)))
+    _inv10={'inv_kw':_inv10_w/1000,'inv_w':_inv10_w,'pot_instalada':_pot10,'pot_requerida':_pot10*1.25,'pot_simultanea':_pot10,'pot_arranque':_pot10*0.25,'corr_dc':_inv10_w/vdc10 if vdc10>0 else 0,'fm':1.25}
     pot_inv10_w = _inv10["inv_w"]
     vmp10    = round(voc10 * 0.80, 1)
     serie10  = max(1, round(vdc10 / vmp10)) if vmp10 > 0 else 1
@@ -5531,7 +5373,10 @@ with tab11:
         bat_cap_eco    = int(st.session_state.get("calc_bat_cap_ah", 100))
         inv_kw_eco     = float(st.session_state.get("calc_inv_kw", 0))
         if inv_kw_eco == 0:
-            _inv_tmp    = calcular_inversor(cargas_eco if not cargas_eco.empty else None, vdc=vdc_eco)
+            _pot_eco_tmp=float(st.session_state.get('calc_pot_real_wp',
+                st.session_state.get('calc_num_paneles',1)*st.session_state.get('calc_pot_panel_wp',550)))
+            _inv_tmp_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_eco_tmp*1.25),max(_pot_eco_tmp*1.25,500)))
+            _inv_tmp={'inv_kw':_inv_tmp_w/1000,'inv_w':_inv_tmp_w}
             inv_kw_eco  = _inv_tmp["inv_kw"]
         ctrl_a_eco     = float(st.session_state.get("calc_corr_mppt", 0))
         ctrl_mod_eco   = st.session_state.get("calc_mppt_modelo", "MPPT")
