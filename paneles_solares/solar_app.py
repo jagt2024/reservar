@@ -3534,7 +3534,7 @@ with tab6:
                     "inv_w":          _inv5_w,
                     "inv_kw":         _inv5_w / 1000,
                     "corr_dc":        _inv5_w / vdc5 if vdc5 > 0 else 0,
-                    "fs":             0.80,
+                    "fs":             0.00,
                     "fm":             1.25,
                 }
                 _inv5_metodo = f"Desde recibo de luz ({consumo5_fs:,.0f} Wh/día ÷ {_horas_uso_est:.0f}h)"
