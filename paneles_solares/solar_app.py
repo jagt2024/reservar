@@ -3543,8 +3543,8 @@ with tab6:
             if _inv5["inv_w"] < consumo5_fs * 0.5:
                 _inv5_w_fb = consumo5_fs * 1.25
                 _inv5["inv_w"]  = float(next(
-                    (k for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
-                    math.ceil(_inv5_w_fb/1000)*1000))
+                    (k*1000 for k in _KW_COMERCIALES if k*1000 >= _inv5_w_fb),
+                    math.ceil(_inv5_w_fb/1000)))
                 _inv5["inv_kw"] = _inv5["inv_w"] / 1000
                 _inv5["corr_dc"] = _inv5["inv_w"] / vdc5 if vdc5 > 0 else 0
 
