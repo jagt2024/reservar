@@ -3513,7 +3513,7 @@ with tab6:
 
             if _cargas_disponibles:
                 # Metodología exacta: cargas reales con motores y factor de arranque
-                _inv5 = calcular_inversor(_cargas_t6, fs=0.80, fm=1.25, vdc=vdc5)
+                _inv5 = calcular_inversor(_cargas_t6, fs=0.00, fm=1.25, vdc=vdc5)
                 _inv5_metodo = "Inventario de cargas (7 pasos técnicos)"
             else:
                 # Fallback desde recibo: P_instalada = Consumo_Wh/día ÷ horas_uso_estimadas
