@@ -2268,7 +2268,7 @@ with tab1:
         st.markdown(f"""
         <div class='result-highlight'>
             <div style='color:#8A9BBD; font-size:0.8rem; text-transform:uppercase; letter-spacing:1px;'>
-                Inversor Recomendado — Metodología técnica (FS={int(_inv_t1[0.80]*100)}% · FM={int(_inv_t1[1.25]*100)}%)</div>
+                Inversor Recomendado — Metodología técnica (FS={int(_inv_t1['fs']*100)}% · FM={int(_inv_t1['fm']*100)}%)</div>
             <div class='val'>{_inv_t1['inv_kw']:.1f} kW &nbsp;<span style='font-size:1.2rem;color:#FFD54F;'>({_inv_t1['inv_w']:,.0f} W)</span></div>
         </div>
         <div class='formula-box' style='margin-top:0.5rem;font-size:0.78rem;'>
