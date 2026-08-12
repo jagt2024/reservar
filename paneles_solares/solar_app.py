@@ -830,7 +830,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             (f"Demanda simultánea (×FS {int(_inv_xl['fs']*100)}%)",  round(_inv_xl["pot_simultanea"],1), C_CYAN),
             ("Pot. arranque motores (excedente)",    round(_inv_xl["pot_arranque"],1),                   C_WARN),
             ("Pot. requerida (sim+arranque)",        round(_inv_xl["pot_requerida"],1),                  C_HEADER),
-            #(f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)",round(_inv_xl["pot_inv_minima"],1), C_HEADER),
+            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)", C_HEADER),  #round(_inv_xl["pot_inv_minima"],1), 
             ("✅ Inversor recomendado (comercial)",  f"{_inv_xl['inv_kw']:.1f} kW / {_inv_xl['inv_w']:,.0f} W", C_GREEN),
             (f"Corriente DC @ {_vdc_xl}V",          f"{_inv_xl['corr_dc']:.1f} A",                      C_MONO),
         ]
