@@ -2275,7 +2275,6 @@ with tab1:
             + Arr.motor={_inv_t1['pot_arranque']:,.0f}W
             → P_req={_inv_t1['pot_requerida']:,.0f}W
             × FM {int(_inv_t1['fm']*100)}%
-            → {_inv_t1['pot_inv_minima']:,.0f}W
             → <b>Comercial: {_inv_t1['inv_kw']:.1f} kW</b>
         </div>
         """, unsafe_allow_html=True)
