@@ -2202,8 +2202,6 @@ with tab1:
             st.error("Completa nombre y potencia")
     st.markdown("</div>", unsafe_allow_html=True)
 
-    fs = 0.80
-    fm = 1.25
 
     # ── TABLA DE CARGAS REGISTRADAS ──────────────────────────────────────────
     conn = get_conn()
@@ -2238,7 +2236,7 @@ with tab1:
         if _pot_t1==0 and not cargas.empty:
             _pot_t1=cargas.apply(lambda r:r['cantidad']*r['potencia_w'],axis=1).sum()
         _inv_t1_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_t1*1.25),max(_pot_t1*1.25,500)))
-        _inv_t1={'inv_kw':_inv_t1_w/1000,'inv_w':_inv_t1_w,'pot_instalada':_pot_t1,'pot_requerida':_pot_t1*1.25,'pot_simultanea':_pot_t1,'pot_arranque':_pot_t1*0.25,'corr_dc':_inv_t1_w/_vdc_t1 if _vdc_t1>0 else 0,'fm':1.25}
+        _inv_t1={'inv_kw':_inv_t1_w/1000,'inv_w':_inv_t1_w,'pot_instalada':_pot_t1,'pot_requerida':_pot_t1*1.25,'pot_simultanea':_pot_t1,'pot_arranque':_pot_t1*0.25,'corr_dc':_inv_t1_w/_vdc_t1 if _vdc_t1>0 else 0,'fm':1.25, 'fs':0.80}
 
         st.markdown(f"""
         <div class='metric-grid'>
