@@ -1631,6 +1631,7 @@ with st.sidebar:
                 ("🔌  Dimensionamiento ON-GRID", "ongrid"),
                 ("🔬  Simulador ON-GRID",        "simulador"),
                 ("💰  Cotización Comercial",     "cotizacion"),
+                ("📋  Presupuesto de Obra",       "presupuesto"),
                 ("⏚   Puesta a Tierra",          "tierra"),
                 ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
@@ -1645,6 +1646,7 @@ with st.sidebar:
                 ("⚡  Dimensionamiento HÍBRIDO", "hibrido"),
                 ("🔬  Simulador HÍBRIDO",        "simulador"),
                 ("💰  Cotización Comercial",     "cotizacion"),
+                ("📋  Presupuesto de Obra",       "presupuesto"),
                 ("⏚   Puesta a Tierra",          "tierra"),
                 ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
@@ -1659,6 +1661,7 @@ with st.sidebar:
                 ("🔋  Dimensionamiento OFF-GRID", "dimensionamiento"),
                 ("🔬  Simulador OFF-GRID",        "simulador"),
                 ("💰  Cotización Comercial",      "cotizacion"),
+                ("📋  Presupuesto de Obra",       "presupuesto"),
                 ("⏚   Puesta a Tierra",           "tierra"),
                 ("✅  Checklist Puesta Marcha",   "checklist"),
             ]),
@@ -1783,9 +1786,14 @@ if modulo_activo == "simulador":
     mostrar_simulador(proyecto_id, st.session_state)
     st.stop()
 
-if modulo_activo in ("cotizacion", "presupuesto"):
+if modulo_activo == "cotizacion":
     from modulo_cotizacion import mostrar_cotizacion
     mostrar_cotizacion(proyecto_id, st.session_state)
+    st.stop()
+
+if modulo_activo == "presupuesto":
+    from modulo_presupuesto import mostrar_presupuesto
+    mostrar_presupuesto(proyecto_id, st.session_state)
     st.stop()
 
 # ── Módulo PUESTA A TIERRA ────────────────────────────────────────────────────
