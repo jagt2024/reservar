@@ -779,7 +779,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
         if _pot_xl==0 and not cargas_df.empty:
             _pot_xl=cargas_df.apply(lambda r:r['cantidad']*r['potencia_w'],axis=1).sum()
         _inv_xl_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_xl*1.25),max(_pot_xl*1.25,500)))
-        _inv_xl={'inv_kw':_inv_xl_w/1000,'inv_w':_inv_xl_w,'pot_instalada':_pot_xl,'pot_requerida':_pot_xl*1.25,'pot_simultanea':_pot_xl,'pot_arranque':_pot_xl*0.25,'corr_dc':_inv_xl_w/_vdc_xl if _vdc_xl>0 else 0,'fm':1.25,'fs':0.80}
+        _inv_xl={'inv_kw':_inv_xl_w/1000,'inv_w':_inv_xl_w,'pot_instalada':_pot_xl,'pot_requerida':_pot_xl*1.25,'pot_simultanea':_pot_xl,'pot_arranque':_pot_xl*0.25,'corr_dc':_inv_xl_w/_vdc_xl if _vdc_xl>0 else 0,'fm':1.25,'fs':0.80,'pot_inv_minima':0}
 
         alt = False
         for _, row in cargas_df.iterrows():
@@ -830,7 +830,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             (f"Demanda simultánea (×FS {int(_inv_xl['fs']*100)}%)",  round(_inv_xl["pot_simultanea"],1), C_CYAN),
             ("Pot. arranque motores (excedente)",    round(_inv_xl["pot_arranque"],1),                   C_WARN),
             ("Pot. requerida (sim+arranque)",        round(_inv_xl["pot_requerida"],1),                  C_HEADER),
-            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)", round(_inv_xl["pot_requerida"],1), C_HEADER),
+            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)",round(_inv_xl["pot_inv_minima"],1), C_HEADER),
             ("✅ Inversor recomendado (comercial)",  f"{_inv_xl['inv_kw']:.1f} kW / {_inv_xl['inv_w']:,.0f} W", C_GREEN),
             (f"Corriente DC @ {_vdc_xl}V",          f"{_inv_xl['corr_dc']:.1f} A",                      C_MONO),
         ]
@@ -959,8 +959,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                                                         f"{_inv2['pot_simultanea']:,.0f} W"),
                 (f"3. Pico de arranque motores",        f"{_inv2['pot_arranque']:,.0f} W — {_arr_desc2}"),
                 ("4. Potencia requerida (2+3)",         f"{_inv2['pot_requerida']:,.0f} W"),
-                (f"5. Pot. mínima inversor (×FM {int(_inv2['fm']*100)}%)"),
-                                                        #f"{_inv2['pot_inv_minima']:,.0f} W"),
+                (f"5. Pot. mínima inversor (×FM {int(_inv2['fm']*100)}%)",f"{_inv2['pot_inv_minima']:,.0f} W"),
                 ("✅ INVERSOR RECOMENDADO",             f"{inv_kw2:.1f} kW / {_inv2['inv_w']:,.0f} W"),
                 (f"Corriente DC @ {vdc2}V",             f"{_inv2['corr_dc']:.1f} A"),
             ]),
@@ -1134,7 +1133,7 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
         # Inversor con metodología técnica
         _pot_p=float(st.session_state.get('calc_pot_real_wp',n_pan_p*pp_wp_p))
         _inv_p_w=float(next((k*1000 for k in _KW_COMERCIALES if k*1000>=_pot_p*1.25),max(_pot_p*1.25,500)))
-        _inv_p={'inv_kw':_inv_p_w/1000,'inv_w':_inv_p_w,'pot_instalada':_pot_p,'pot_requerida':_pot_p*1.25,'pot_simultanea':_pot_p,'pot_arranque':_pot_p*0.25,'corr_dc':_inv_p_w/vdc_p if vdc_p>0 else 0,'fm':1.25,'fs':0.80}
+        _inv_p={'inv_kw':_inv_p_w/1000,'inv_w':_inv_p_w,'pot_instalada':_pot_p,'pot_requerida':_pot_p*1.25,'pot_simultanea':_pot_p,'pot_arranque':_pot_p*0.25,'corr_dc':_inv_p_w/vdc_p if vdc_p>0 else 0,'fm':1.25,'fs':0.80,'pot_inv_minima':0}
         inv_kw_p  = _inv_p["inv_kw"]
         pot_inv_fs = _inv_p["inv_w"]
 
@@ -1300,10 +1299,8 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
             ["",          f"Pico arranque motores{': '+_arr_desc if _arr_desc else ''}",
                                                                f"{_inv_p['pot_arranque']:,.0f} W"],
             ["",          "Potencia requerida (sim+arranque)", f"{_inv_p['pot_requerida']:,.0f} W"],
-            ["",          f"Pot. mínima (×FM {int(_inv_p['fm']*100)}%)"],
-                                                               #f"{_inv_p['pot_inv_minima']:,.0f} W"],
-            ["",          "✅ INVERSOR RECOMENDADO (comercial)",
-                                                               f"{inv_kw_p:.1f} kW / {_inv_p['inv_w']:,.0f} W"],
+            ["",          f"Pot. mínima (×FM {int(_inv_p['fm']*100)}%)",f"{_inv_p['pot_inv_minima']:,.0f} W"],
+            ["",          "✅ INVERSOR RECOMENDADO (comercial)",f"{inv_kw_p:.1f} kW / {_inv_p['inv_w']:,.0f} W"],
             ["",          f"Corriente DC @ {vdc_p}V",          f"{_inv_p['corr_dc']:.1f} A"],
         ]
 
