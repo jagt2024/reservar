@@ -830,7 +830,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
             (f"Demanda simultánea (×FS {int(_inv_xl['fs']*100)}%)",  round(_inv_xl["pot_simultanea"],1), C_CYAN),
             ("Pot. arranque motores (excedente)",    round(_inv_xl["pot_arranque"],1),                   C_WARN),
             ("Pot. requerida (sim+arranque)",        round(_inv_xl["pot_requerida"],1),                  C_HEADER),
-            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)",round(_inv_xl["pot_inv_minima"],1), C_HEADER),
+            (f"Pot. mínima inversor (×FM {int(_inv_xl['fm']*100)}%)",round(_inv_xl["pot_requerida"],1), C_HEADER),
             ("✅ Inversor recomendado (comercial)",  f"{_inv_xl['inv_kw']:.1f} kW / {_inv_xl['inv_w']:,.0f} W", C_GREEN),
             (f"Corriente DC @ {_vdc_xl}V",          f"{_inv_xl['corr_dc']:.1f} A",                      C_MONO),
         ]
@@ -959,7 +959,7 @@ def generar_excel(proyecto_id: int, proyecto_info: tuple) -> bytes:
                                                         f"{_inv2['pot_simultanea']:,.0f} W"),
                 (f"3. Pico de arranque motores",        f"{_inv2['pot_arranque']:,.0f} W — {_arr_desc2}"),
                 ("4. Potencia requerida (2+3)",         f"{_inv2['pot_requerida']:,.0f} W"),
-                (f"5. Pot. mínima inversor (×FM {int(_inv2['fm']*100)}%)",f"{_inv2['pot_inv_minima']:,.0f} W"),
+                (f"5. Pot. mínima inversor (×FM {int(_inv2['fm']*100)}%)",f"{_inv2['pot_requerida']:,.0f} W"),
                 ("✅ INVERSOR RECOMENDADO",             f"{inv_kw2:.1f} kW / {_inv2['inv_w']:,.0f} W"),
                 (f"Corriente DC @ {vdc2}V",             f"{_inv2['corr_dc']:.1f} A"),
             ]),
