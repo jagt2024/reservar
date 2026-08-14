@@ -1707,7 +1707,7 @@ with st.sidebar:
     <div style='text-align:center;padding:0.3rem 0;'>
         <div style='font-size:0.62rem;color:#2A3A55;letter-spacing:1px;'>
             SolarCalc Pro v1.2<br>
-            SQLite3 + Streamlit<br>
+            Creado por JAGT<br>
             Sistema: <span style='color:{_col_ts};'>
                 {tipo_sistema_activo}</span><br>
             Módulo: <span style='color:#8A9BBD;'>
@@ -5659,6 +5659,6 @@ with tab12:
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <div style='text-align:center; padding:2rem 0 1rem; color:#2A3A55; font-size:0.75rem; letter-spacing:2px;'>
-    SOLARCALC PRO | DIMENSIONAMIENTO FOTOVOLTAICO OFF-GRID | SQLITE3 + STREAMLIT
+    SOLARCALC PRO | DIMENSIONAMIENTO FOTOVOLTAICO OFF-GRID | Creado por JAGT
 </div>
 """, unsafe_allow_html=True)
