@@ -61,9 +61,10 @@ st.markdown("""
     --card2: #1E2A3F;
     --border: #2A3A55;
     --text: #E8EDF5;
-    --text2: #8A9BBD;
+    --text2: #FFFFFF;
     --green: #00E676;
-    --cyan: #00BCD4;
+    --green2: #1F4E78;
+    --cyan: #17A2B8;
     --red: #FF5252;
 }
 
@@ -73,7 +74,7 @@ html, body, [class*="css"] {
     color: var(--text) !important;
 }
 
-.stApp { background: var(--bg) !important; }
+.stApp { background: var(--green2) !important; }
 
 /* Sidebar */
 [data-testid="stSidebar"] {
