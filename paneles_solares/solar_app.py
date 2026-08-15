@@ -63,7 +63,7 @@ st.markdown("""
     --text: #E8EDF5;
     --text2: #FFFFFF;
     --green: #00E676;
-    --green2: #1F4E78;
+    --green2: #B9F6CA;
     --cyan: #17A2B8;
     --red: #FF5252;
 }
@@ -459,6 +459,10 @@ init_seguridad_db()
 
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
 from modulo_cableado import mostrar_cableado
+
+# ─── Módulo de monitoreo de sesiones (solo administradores) ─────────────────
+from modulo_monitoreo import init_monitoreo_db, registrar_latido, verificar_expulsion
+init_monitoreo_db()
 
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys
@@ -1421,6 +1425,9 @@ if not usuario_activo():
 
 _u = usuario_activo()
 
+# ── Si un administrador cerró esta sesión desde el monitor, se corta aquí ────
+verificar_expulsion()
+
 with st.sidebar:
     # ── Logo ─────────────────────────────────────────────────────────────────
     st.markdown("""
@@ -1545,11 +1552,18 @@ with st.sidebar:
         if st.button("✦ Crear", use_container_width=True, key="sb_crear"):
             if nuevo_nombre.strip():
                 conn = get_conn()
-                conn.execute("INSERT INTO proyectos(nombre, municipio) VALUES(?,?)",
-                             (nuevo_nombre.strip(), nuevo_municipio.strip()))
+                conn.execute(
+                    "INSERT INTO proyectos(nombre, municipio, creado_por_id, creado_por) "
+                    "VALUES(?,?,?,?)",
+                    (nuevo_nombre.strip(), nuevo_municipio.strip(),
+                     _u.get("id"), _u.get("username")))
                 conn.commit()
                 nuevo_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
                 conn.close()
+                if usuario_activo():
+                    registrar_auditoria(_u["id"], _u["username"], "CREAR_PROYECTO",
+                                        f"Proyecto #{nuevo_id} '{nuevo_nombre.strip()}' creado",
+                                        "app")
                 st.success(f"✓ Proyecto #{nuevo_id} creado")
                 st.rerun()
             else:
@@ -1638,8 +1652,9 @@ with st.sidebar:
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
-                ("🔐  Usuarios",  "usuarios"),
-                ("👤  Mi perfil", "perfil"),
+                ("🔐  Usuarios",             "usuarios"),
+                ("🖥  Monitoreo de Sesiones", "monitoreo"),
+                ("👤  Mi perfil",            "perfil"),
               ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
     elif tipo_sistema_activo == "HIBRIDO":
         GRUPOS_MODULOS = [
@@ -1653,8 +1668,9 @@ with st.sidebar:
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
-                ("🔐  Usuarios",  "usuarios"),
-                ("👤  Mi perfil", "perfil"),
+                ("🔐  Usuarios",             "usuarios"),
+                ("🖥  Monitoreo de Sesiones", "monitoreo"),
+                ("👤  Mi perfil",            "perfil"),
               ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
     else:
         GRUPOS_MODULOS = [
@@ -1668,8 +1684,9 @@ with st.sidebar:
             ]),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
-                ("🔐  Usuarios",  "usuarios"),
-                ("👤  Mi perfil", "perfil"),
+                ("🔐  Usuarios",             "usuarios"),
+                ("🖥  Monitoreo de Sesiones", "monitoreo"),
+                ("👤  Mi perfil",            "perfil"),
               ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
 
     for grupo_label, modulos in GRUPOS_MODULOS:
@@ -1721,8 +1738,17 @@ with st.sidebar:
 modulo_activo = st.session_state.get("modulo_activo", "dimensionamiento")
 tipo_sistema_activo = st.session_state.get("tipo_sistema", "OFF-GRID")
 
+# ── Latido de sesión: registra que este usuario sigue conectado, en qué
+#    módulo y en qué proyecto está trabajando (para el monitor de admin) ─────
+registrar_latido(
+    _u,
+    modulo_activo=modulo_activo,
+    proyecto_id=proyecto_id,
+    proyecto_nombre=(sel.split(" | ", 1)[1] if proyecto_id and " | " in sel else None),
+)
+
 # ── Guard: project required for most modules ─────────────────────────────────
-if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal"):
+if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal", "monitoreo"):
     st.markdown("""
     <div class='hero-header'>
         <div class='hero-title'>☀ SOLARCALC PRO</div>
@@ -1823,6 +1849,12 @@ if modulo_activo == "hibrido" or tipo_sistema_activo == "HIBRIDO":
 # ── Gestión de usuarios ───────────────────────────────────────────────────────
 if modulo_activo == "usuarios":
     mostrar_gestion_usuarios()
+    st.stop()
+
+# ── Monitoreo de sesiones conectadas (solo administradores) ──────────────────
+if modulo_activo == "monitoreo":
+    from modulo_monitoreo import mostrar_monitoreo
+    mostrar_monitoreo()
     st.stop()
 
 # ── Perfil / cambio de contraseña ─────────────────────────────────────────────
