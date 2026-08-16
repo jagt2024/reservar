@@ -39,7 +39,7 @@ try:
 except ImportError:
     _AUTOREFRESH_DISPONIBLE = False
 
-INTERVALO_VIGILANCIA_MS = 180000  # cada cuánto se revisa si la sesión sigue viva
+INTERVALO_VIGILANCIA_MS = 360000  # cada cuánto se revisa si la sesión sigue viva
 
 # ─── Colores (coherentes con el resto de la app) ─────────────────────────────
 SOL   = "#FFB300"; GREEN = "#00E676"; RED = "#FF5252"; CYAN = "#00BCD4"
@@ -193,6 +193,12 @@ def verificar_expulsion():
     mostrando un aviso. Debe llamarse justo después de confirmar que hay
     un usuario autenticado.
 
+    Es esta función (la de la propia sesión expulsada) la que archiva su
+    registro al historial y lo borra de las sesiones activas — así se
+    garantiza que el cierre ocurre una sola vez y no se duplica si el
+    administrador vuelve a intentarlo o si otra pestaña dispara la
+    limpieza de sesiones viejas primero.
+
     Además activa un rerun periódico (streamlit-autorefresh) para que la
     desconexión se aplique en segundos, sin depender de que el usuario
     expulsado haga clic en algo."""
@@ -204,10 +210,22 @@ def verificar_expulsion():
         st_autorefresh(interval=INTERVALO_VIGILANCIA_MS, key="_monitor_watchdog")
 
     conn = get_conn()
-    row = conn.execute("SELECT kicked FROM sesiones_activas WHERE session_id=?",
-                        (sid,)).fetchone()
-    conn.close()
+    row = conn.execute(
+        "SELECT kicked, usuario_id, username, rol, modulos_usados, ip, login_time "
+        "FROM sesiones_activas WHERE session_id=?", (sid,)).fetchone()
+
     if row and row[0]:
+        (_kicked, uid, uname, rol, mods, ip, login_t) = row
+        conn.execute("""
+            INSERT INTO sesiones_historial
+                (session_id, usuario_id, username, rol, modulos_usados, ip,
+                 login_time, fin_time, motivo_fin)
+            VALUES (?,?,?,?,?,?,?,?,'expulsada_por_admin')
+        """, (sid, uid, uname, rol, mods, ip, login_t, _now()))
+        conn.execute("DELETE FROM sesiones_activas WHERE session_id=?", (sid,))
+        conn.commit()
+        conn.close()
+
         st.markdown(f"""
         <div style='max-width:480px;margin:15vh auto;text-align:center;
              background:{CARD};border:1px solid {RED};border-radius:14px;
@@ -227,16 +245,26 @@ def verificar_expulsion():
             del st.session_state[k]
         st.stop()
 
+    conn.close()
+
 
 def _limpiar_sesiones_viejas(minutos: int = MINUTOS_INACTIVO):
     """Mueve al historial las sesiones sin actividad reciente (pestaña
-    cerrada, computador apagado, etc.) o las que fueron expulsadas."""
+    cerrada, computador apagado, etc.).
+
+    Las sesiones marcadas como "kicked" (expulsadas) NO se tocan aquí:
+    las archiva y elimina su propia sesión (ver `verificar_expulsion`) en
+    cuanto detecta la marca — normalmente en segundos gracias a la
+    vigilancia activa. Si esa sesión nunca vuelve a responder (p. ej. el
+    navegador ya estaba cerrado cuando se pidió la desconexión), esta
+    limpieza la termina archivando de todas formas una vez que su
+    `last_seen` se vuelve viejo, sin crear registros duplicados."""
     limite = (datetime.now() - timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_conn()
     viejas = conn.execute(
         "SELECT session_id, usuario_id, username, rol, modulos_usados, ip, "
         "login_time, kicked FROM sesiones_activas "
-        "WHERE last_seen < ? OR kicked = 1", (limite,)).fetchall()
+        "WHERE last_seen < ?", (limite,)).fetchall()
     for (sid, uid, uname, rol, mods, ip, login_t, kicked) in viejas:
         motivo = "expulsada_por_admin" if kicked else "expirada"
         conn.execute("""
@@ -379,12 +407,20 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                     st.markdown(f"""<div style='font-size:0.8rem;color:{TEXT2};'>
                         📁 {r['proyecto_nombre'] or 'Sin proyecto'}</div>""", unsafe_allow_html=True)
                 with cD:
-                    st.markdown(f"""<div style='font-size:0.75rem;color:{col};'>
-                        {estado}<br><span style='color:#4A5A75;'>desde {r['login_time']}</span>
-                    </div>""", unsafe_allow_html=True)
+                    if r["kicked"]:
+                        st.markdown(f"""<div style='font-size:0.75rem;color:{RED};'>
+                            🔌 Cerrando sesión…<br>
+                            <span style='color:#4A5A75;'>desde {r['login_time']}</span>
+                        </div>""", unsafe_allow_html=True)
+                    else:
+                        st.markdown(f"""<div style='font-size:0.75rem;color:{col};'>
+                            {estado}<br><span style='color:#4A5A75;'>desde {r['login_time']}</span>
+                        </div>""", unsafe_allow_html=True)
                 with cE:
                     if es_propia:
                         st.caption("—")
+                    elif r["kicked"]:
+                        st.caption("⏳ en proceso")
                     else:
                         if st.button("🔌 Desconectar", key=f"kick_{r['session_id']}",
                                      use_container_width=True):
@@ -402,8 +438,9 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     with mt2:
         conn = get_conn()
         hist = pd.read_sql(
-            "SELECT username AS Usuario, rol AS Rol, modulos_usados AS 'Módulos usados', "
-            "ip AS IP, login_time AS 'Conectado', fin_time AS 'Finalizó', "
+            "SELECT id AS ID, username AS Usuario, rol AS Rol, "
+            "modulos_usados AS 'Módulos usados', ip AS IP, "
+            "login_time AS 'Conectado', fin_time AS 'Finalizó', "
             "motivo_fin AS Motivo FROM sesiones_historial ORDER BY id DESC LIMIT 300",
             conn)
         conn.close()
@@ -414,7 +451,56 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                 "expulsada_por_admin": "🔌 Expulsada por admin",
                 "expirada": "⏱ Expirada / cerró pestaña"
             }).fillna(hist["Motivo"])
-            st.dataframe(hist, use_container_width=True, height=420)
+
+            hist.insert(0, "Eliminar", False)
+            editado = st.data_editor(
+                hist, use_container_width=True, height=420, hide_index=True,
+                key="hist_editor",
+                disabled=[c for c in hist.columns if c != "Eliminar"],
+                column_config={
+                    "Eliminar": st.column_config.CheckboxColumn(
+                        "🗑", help="Marcar para eliminar este registro"),
+                    "ID": st.column_config.NumberColumn(width="small"),
+                },
+            )
+            seleccionados = editado.loc[editado["Eliminar"], "ID"].tolist()
+
+            cdel1, cdel2 = st.columns([1.6, 3])
+            with cdel1:
+                if st.button(f"🗑 Eliminar seleccionados ({len(seleccionados)})",
+                             use_container_width=True, disabled=not seleccionados):
+                    conn = get_conn()
+                    conn.executemany("DELETE FROM sesiones_historial WHERE id=?",
+                                      [(i,) for i in seleccionados])
+                    conn.commit()
+                    conn.close()
+                    registrar_auditoria_fn(
+                        _u["id"], _u["username"], "ELIMINAR_HISTORIAL_SESIONES",
+                        f"{len(seleccionados)} registro(s) de historial eliminados",
+                        "monitoreo")
+                    st.success(f"{len(seleccionados)} registro(s) eliminados.")
+                    st.rerun()
+
+            with st.expander("⚠ Vaciar todo el historial de sesiones"):
+                st.caption("Esta acción borra permanentemente todos los "
+                           "registros del historial (no afecta a las "
+                           "sesiones activas en este momento).")
+                confirmar = st.checkbox(
+                    "Confirmo que deseo eliminar TODO el historial de sesiones",
+                    key="confirmar_vaciar_historial")
+                if st.button("🗑 Vaciar historial completo", disabled=not confirmar):
+                    conn = get_conn()
+                    total = conn.execute(
+                        "SELECT COUNT(*) FROM sesiones_historial").fetchone()[0]
+                    conn.execute("DELETE FROM sesiones_historial")
+                    conn.commit()
+                    conn.close()
+                    registrar_auditoria_fn(
+                        _u["id"], _u["username"], "VACIAR_HISTORIAL_SESIONES",
+                        f"Historial de sesiones vaciado por completo ({total} registros)",
+                        "monitoreo")
+                    st.success("Historial de sesiones vaciado.")
+                    st.rerun()
 
     # ══ TAB 3 — Proyectos creados ════════════════════════════════════════════
     with mt3:
