@@ -1,5 +1,6 @@
 # ── Core Streamlit (versión compatible con starlette y uvicorn) ──────────────
 streamlit==1.41.0
+streamlit-autorefresh==1.0.1
 
 # ── Dependencias web (versiones compatibles entre sí) ────────────────────────
 starlette==0.41.3

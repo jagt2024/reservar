@@ -830,7 +830,7 @@ def mostrar_cableado(proyecto_id: int, session_state: dict) -> None:
     for cab, metros in sorted(resumen_cables.items()):
         mat_rows += f"""
         <tr style='border-bottom:1px solid #2A3A55;'>
-            <td style='color:#E0E6F0;padding:0.4rem 0.6rem;'>{cab}</td>
+            <td style='color:#212529;padding:0.4rem 0.6rem;'>{cab}</td>
             <td style='font-family:Share Tech Mono;color:#FFD54F;text-align:center;padding:0.4rem;'>{metros:.1f} m</td>
             <td style='font-family:Share Tech Mono;color:#8A9BBD;text-align:center;padding:0.4rem;'>Cable FV tipo PV1-F / H07RN-F</td>
         </tr>"""
