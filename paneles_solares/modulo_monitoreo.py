@@ -39,7 +39,7 @@ try:
 except ImportError:
     _AUTOREFRESH_DISPONIBLE = False
 
-INTERVALO_VIGILANCIA_MS = 10000  # cada cuánto se revisa si la sesión sigue viva
+INTERVALO_VIGILANCIA_MS = 180000  # cada cuánto se revisa si la sesión sigue viva
 
 # ─── Colores (coherentes con el resto de la app) ─────────────────────────────
 SOL   = "#FFB300"; GREEN = "#00E676"; RED = "#FF5252"; CYAN = "#00BCD4"
