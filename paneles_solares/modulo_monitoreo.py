@@ -27,6 +27,20 @@ from datetime import datetime, timedelta
 
 from db_utils import get_conn
 
+# ─── Vigilancia activa de la sesión ──────────────────────────────────────────
+# Para que "Desconectar" se aplique de inmediato (y no solo hasta el próximo
+# clic del usuario expulsado), forzamos un rerun periódico de Streamlit con
+# streamlit-autorefresh. A diferencia de un F5 del navegador, esto SÍ
+# conserva st.session_state; solo vuelve a ejecutar el script, que es
+# exactamente donde revisamos si la sesión fue marcada como expulsada.
+try:
+    from streamlit_autorefresh import st_autorefresh
+    _AUTOREFRESH_DISPONIBLE = True
+except ImportError:
+    _AUTOREFRESH_DISPONIBLE = False
+
+INTERVALO_VIGILANCIA_MS = 5000  # cada cuánto se revisa si la sesión sigue viva
+
 # ─── Colores (coherentes con el resto de la app) ─────────────────────────────
 SOL   = "#FFB300"; GREEN = "#00E676"; RED = "#FF5252"; CYAN = "#00BCD4"
 YEL   = "#FFD54F"; TEXT2 = "#8A9BBD"; BRD  = "#2A3A55"; CARD = "#1A2235"
@@ -177,10 +191,18 @@ def verificar_expulsion():
     """Si un administrador marcó esta sesión como expulsada, cierra la
     sesión localmente (limpia session_state) y detiene la ejecución
     mostrando un aviso. Debe llamarse justo después de confirmar que hay
-    un usuario autenticado."""
+    un usuario autenticado.
+
+    Además activa un rerun periódico (streamlit-autorefresh) para que la
+    desconexión se aplique en segundos, sin depender de que el usuario
+    expulsado haga clic en algo."""
     sid = st.session_state.get("_monitor_session_id")
     if not sid:
         return
+
+    if _AUTOREFRESH_DISPONIBLE:
+        st_autorefresh(interval=INTERVALO_VIGILANCIA_MS, key="_monitor_watchdog")
+
     conn = get_conn()
     row = conn.execute("SELECT kicked FROM sesiones_activas WHERE session_id=?",
                         (sid,)).fetchone()
@@ -294,6 +316,14 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     with c_ref:
         if st.button("🔄 Actualizar", use_container_width=True):
             st.rerun()
+
+    if not _AUTOREFRESH_DISPONIBLE:
+        st.warning(
+            "⚠ El paquete **streamlit-autorefresh** no está instalado. "
+            "Sin él, al pulsar “Desconectar” la sesión se cerrará hasta que "
+            "ese usuario haga clic en algo, no de inmediato. "
+            "Instálalo con `pip install streamlit-autorefresh` y reinicia la app "
+            "para que la desconexión sea instantánea.")
 
     mt1, mt2, mt3 = st.tabs(["🟢 Conectados ahora", "📜 Historial de sesiones",
                               "📁 Proyectos creados"])
