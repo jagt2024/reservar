@@ -291,7 +291,7 @@ def mostrar_login():
     with col_c:
         st.markdown("""
         <div class='login-logo'>
-            <div class='brand'>☀ SOLAR<br>CALC</div>
+            <div class='brand'>☀ SOLAR<br>CALC PRO</div>
             <div class='sub'>DIMENSIONAMIENTO FOTOVOLTAICO</div>
         </div>
         """, unsafe_allow_html=True)
