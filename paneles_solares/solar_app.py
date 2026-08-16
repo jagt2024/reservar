@@ -63,7 +63,7 @@ st.markdown("""
     --text: #E8EDF5;
     --text2: #FFFFFF;
     --green: #00E676;
-    --green2: #B9F6CA;
+    --green2: #F5F7FA;
     --cyan: #17A2B8;
     --red: #FF5252;
 }
