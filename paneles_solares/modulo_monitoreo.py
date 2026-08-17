@@ -23,9 +23,19 @@ efecto se aplica en su siguiente interacción.
 import streamlit as st
 import pandas as pd
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from db_utils import get_conn
+
+# ─── Zona horaria de Colombia ─────────────────────────────────────────────────
+# Colombia usa UTC-5 todo el año (no aplica horario de verano). Se intenta
+# usar la base de datos de zonas horarias del sistema (zoneinfo); si no está
+# disponible (p. ej. imagen mínima sin tzdata), se usa el offset fijo -5.
+try:
+    from zoneinfo import ZoneInfo
+    _TZ_CO = ZoneInfo("America/Bogota")
+except Exception:
+    _TZ_CO = timezone(timedelta(hours=-5))
 
 # ─── Vigilancia activa de la sesión ──────────────────────────────────────────
 # Para que "Desconectar" se aplique de inmediato (y no solo hasta el próximo
@@ -107,8 +117,34 @@ def init_monitoreo_db():
     conn.close()
 
 
+def _ahora_co() -> datetime:
+    """Fecha/hora actual en la zona horaria de Colombia (America/Bogota,
+    UTC-5), sin tzinfo adjunto para poder compararla y restarla directamente
+    con los timestamps ya guardados como texto en la base de datos."""
+    return datetime.now(_TZ_CO).replace(tzinfo=None)
+
+
 def _now():
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return _ahora_co().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def _formatear_duracion(total_minutos: float) -> str:
+    """Convierte minutos a un texto legible: '5 min' o '1h 12min'."""
+    total_minutos = max(0, int(round(total_minutos)))
+    horas, minutos = divmod(total_minutos, 60)
+    if horas:
+        return f"{horas}h {minutos:02d}min"
+    return f"{minutos} min"
+
+
+def _tiempo_conectado(login_time_str: str) -> str:
+    """Tiempo transcurrido desde login_time hasta ahora, en formato legible."""
+    try:
+        login_t = datetime.strptime(login_time_str, "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return "—"
+    minutos = (_ahora_co() - login_t).total_seconds() / 60
+    return _formatear_duracion(minutos)
 
 
 def _session_id() -> str:
@@ -259,7 +295,7 @@ def _limpiar_sesiones_viejas(minutos: int = MINUTOS_INACTIVO):
     navegador ya estaba cerrado cuando se pidió la desconexión), esta
     limpieza la termina archivando de todas formas una vez que su
     `last_seen` se vuelve viejo, sin crear registros duplicados."""
-    limite = (datetime.now() - timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M:%S")
+    limite = (_ahora_co() - timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_conn()
     viejas = conn.execute(
         "SELECT session_id, usuario_id, username, rol, modulos_usados, ip, "
@@ -295,7 +331,7 @@ def _estado_conexion(last_seen_str: str):
         last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
     except Exception:
         return "⚪ Desconocido", TEXT2
-    delta_min = (datetime.now() - last_seen).total_seconds() / 60
+    delta_min = (_ahora_co() - last_seen).total_seconds() / 60
     if delta_min <= MINUTOS_EN_LINEA:
         return "🟢 En línea", GREEN
     elif delta_min <= MINUTOS_INACTIVO:
@@ -391,8 +427,9 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
 
             for _, r in df.iterrows():
                 estado, col = _estado_conexion(r["last_seen"])
+                duracion = _tiempo_conectado(r["login_time"])
                 es_propia = (r["session_id"] == st.session_state.get("_monitor_session_id"))
-                cA, cB, cC, cD, cE = st.columns([2, 1.6, 1.8, 1.6, 1.2])
+                cA, cB, cC, cD, cF, cE = st.columns([1.8, 1.4, 1.6, 1.3, 1.1, 1.2])
                 with cA:
                     st.markdown(f"""
                     <div style='padding:0.3rem 0;'>
@@ -416,6 +453,9 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                         st.markdown(f"""<div style='font-size:0.75rem;color:{col};'>
                             {estado}<br><span style='color:#4A5A75;'>desde {r['login_time']}</span>
                         </div>""", unsafe_allow_html=True)
+                with cF:
+                    st.markdown(f"""<div style='font-size:0.78rem;color:{CYAN};'>
+                        ⏱ {duracion}</div>""", unsafe_allow_html=True)
                 with cE:
                     if es_propia:
                         st.caption("—")
@@ -451,6 +491,17 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                 "expulsada_por_admin": "🔌 Expulsada por admin",
                 "expirada": "⏱ Expirada / cerró pestaña"
             }).fillna(hist["Motivo"])
+
+            def _duracion_hist(row):
+                try:
+                    inicio = datetime.strptime(row["Conectado"], "%Y-%m-%d %H:%M:%S")
+                    fin = datetime.strptime(row["Finalizó"], "%Y-%m-%d %H:%M:%S")
+                    return _formatear_duracion((fin - inicio).total_seconds() / 60)
+                except Exception:
+                    return "—"
+
+            hist.insert(hist.columns.get_loc("Finalizó") + 1, "Duración",
+                        hist.apply(_duracion_hist, axis=1))
 
             hist.insert(0, "Eliminar", False)
             editado = st.data_editor(
