@@ -1499,17 +1499,46 @@ with st.sidebar:
      text-transform:uppercase;margin-bottom:0.4rem;'>📁 PROYECTO ACTIVO</div>
     """, unsafe_allow_html=True)
 
+    # Un proyecto solo lo puede ver/cargar quien lo creó, o un administrador.
+    _es_admin_proy = tiene_permiso("ver_usuarios")
+
     conn = get_conn()
-    proyectos_df = pd.read_sql("SELECT id, nombre FROM proyectos ORDER BY id DESC", conn)
+    if _es_admin_proy:
+        proyectos_df = pd.read_sql(
+            "SELECT id, nombre, creado_por FROM proyectos ORDER BY id DESC", conn)
+    else:
+        proyectos_df = pd.read_sql(
+            "SELECT id, nombre, creado_por FROM proyectos "
+            "WHERE creado_por_id=? ORDER BY id DESC", conn, params=(_u.get("id"),))
     conn.close()
 
     opciones = ["── Seleccionar proyecto ──"] + \
                [f"{r['id']} | {r['nombre']}" for _, r in proyectos_df.iterrows()]
+
+    # Si el proyecto guardado en la sesión ya no está entre los permitidos
+    # (por ejemplo, pertenece a otro usuario), se limpia para evitar un
+    # error del widget y que quede seleccionado algo a lo que no debe acceder.
+    if st.session_state.get("sel_proyecto") not in opciones:
+        st.session_state["sel_proyecto"] = opciones[0]
+
     sel = st.selectbox("Proyecto:", opciones, label_visibility="collapsed", key="sel_proyecto")
 
     proyecto_id = None
     if sel != "── Seleccionar proyecto ──":
         proyecto_id = int(sel.split(" | ")[0])
+
+    # Verificación adicional (defensa en profundidad): confirma que el
+    # proyecto activo realmente pertenece al usuario o que es administrador,
+    # por si el id llegó por otra vía distinta al selector de arriba.
+    if proyecto_id and not _es_admin_proy:
+        conn = get_conn()
+        _dueno = conn.execute(
+            "SELECT creado_por_id FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+        conn.close()
+        if not _dueno or _dueno[0] != _u.get("id"):
+            st.warning("⛔ No tienes acceso a ese proyecto.")
+            proyecto_id = None
+            st.session_state["sel_proyecto"] = opciones[0]
 
     # Mostrar datos del proyecto activo
     if proyecto_id:
