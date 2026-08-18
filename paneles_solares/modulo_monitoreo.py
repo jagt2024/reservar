@@ -49,7 +49,7 @@ try:
 except ImportError:
     _AUTOREFRESH_DISPONIBLE = False
 
-INTERVALO_VIGILANCIA_MS = 5000  # cada cuánto se revisa si la sesión sigue viva
+INTERVALO_VIGILANCIA_MS = 600000  # cada cuánto se revisa si la sesión sigue viva
                                  # (también controla cada cuánto se actualiza
                                  # el contador de tiempo restante que ve el usuario)
 
