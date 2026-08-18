@@ -461,7 +461,8 @@ init_seguridad_db()
 from modulo_cableado import mostrar_cableado
 
 # ─── Módulo de monitoreo de sesiones (solo administradores) ─────────────────
-from modulo_monitoreo import init_monitoreo_db, registrar_latido, verificar_expulsion
+from modulo_monitoreo import (init_monitoreo_db, registrar_latido,
+                               verificar_expulsion, mostrar_widget_chat_usuario)
 init_monitoreo_db()
 
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
@@ -1434,7 +1435,7 @@ with st.sidebar:
     <div style='text-align:center; padding:0.8rem 0 0.5rem;'>
         <div style='font-family:Rajdhani,sans-serif; font-size:2rem; color:#FFB300;
                     font-weight:700; letter-spacing:3px; line-height:1.1;'>
-            ☀ SOLAR<br>CALC PRO
+            ☀ SOLAR<br>CALC
         </div>
         <div style='font-size:0.65rem; color:#8A9BBD; letter-spacing:3px;
                     margin-top:0.3rem; text-transform:uppercase;'>
@@ -1446,6 +1447,9 @@ with st.sidebar:
 
     # ── Usuario activo + logout ───────────────────────────────────────────────
     mostrar_usuario_sidebar()
+
+    # ── Chat con Administración (solo se muestra a usuarios no admin) ────────
+    mostrar_widget_chat_usuario()
 
     # ── 0. Selector de TIPO DE SISTEMA ───────────────────────────────────────
     st.markdown("""
@@ -4800,11 +4804,11 @@ with tab9:
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>LEYENDA</div>
             <div style='font-size:0.82rem; line-height:2;'>
-                <span style='color:#8A9BBD;'>█</span> Panel solar {pot_panel9}Wp<br>
+                <span style='color:#1976D2;'>█</span> Panel solar {pot_panel9}Wp<br>
                 <span style='color:{C_WIRE};'>━ ━</span> Cable positivo (+) serie<br>
                 <span style='color:{C_WIRE2};'>━━</span> Cable negativo (−) string<br>
                 <span style='color:{C_DIM};'>- - -</span> Límite cubierta<br>
-                <span style='color:#8A9BBD;'>□</span> Caja de conexiones MPPT
+                <span style='color:#FFB300;'>□</span> Caja de conexiones MPPT
             </div>
         </div>""", unsafe_allow_html=True)
     with col9_leg2:
@@ -4812,11 +4816,11 @@ with tab9:
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>RESUMEN DEL ARRAY</div>
             <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;'>
-                Paneles totales: <b style='color:#8A9BBD;'>{total_array}</b><br>
-                Configuración: <b style='color:#8A9BBD;'>{serie_sel}S × {paralelo_sel}P</b><br>
-                Vtotal array: <b style='color:#8A9BBD;'>{v_array} V</b><br>
-                Itotal array: <b style='color:#8A9BBD;'>{i_array} A</b><br>
-                Potencia total: <b style='color:#8A9BBD;'>{pot_array} kWp</b>
+                Paneles totales: <b style='color:#FFD54F;'>{total_array}</b><br>
+                Configuración: <b style='color:#FFD54F;'>{serie_sel}S × {paralelo_sel}P</b><br>
+                Vtotal array: <b style='color:#FFD54F;'>{v_array} V</b><br>
+                Itotal array: <b style='color:#FFD54F;'>{i_array} A</b><br>
+                Potencia total: <b style='color:#00E676;'>{pot_array} kWp</b>
             </div>
         </div>""", unsafe_allow_html=True)
     with col9_leg3:
@@ -4824,11 +4828,11 @@ with tab9:
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>DIMENSIONES FÍSICAS</div>
             <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;'>
-                Panel: <b style='color:#8A9BBD;'>{pw_disp}×{ph_disp} mm</b><br>
-                Ancho array: <b style='color:#8A9BBD;'>{total_w/ESCALA/1000:.2f} m</b><br>
-                Alto array: <b style='color:#8A9BBD;'>{total_h/ESCALA/1000:.2f} m</b><br>
-                Área neta: <b style='color:#8A9BBD;'>{(total_w/ESCALA/1000)*(total_h/ESCALA/1000):.1f} m²</b><br>
-                Inclinación: <b style='color:#8A9BBD;'>{techo_inclin}° — {techo_azimut}</b>
+                Panel: <b style='color:#FFD54F;'>{pw_disp}×{ph_disp} mm</b><br>
+                Ancho array: <b style='color:#FFD54F;'>{total_w/ESCALA/1000:.2f} m</b><br>
+                Alto array: <b style='color:#FFD54F;'>{total_h/ESCALA/1000:.2f} m</b><br>
+                Área neta: <b style='color:#FFD54F;'>{(total_w/ESCALA/1000)*(total_h/ESCALA/1000):.1f} m²</b><br>
+                Inclinación: <b style='color:#00E676;'>{techo_inclin}° — {techo_azimut}</b>
             </div>
         </div>""", unsafe_allow_html=True)
 

@@ -98,6 +98,19 @@ def init_monitoreo_db():
             motivo_fin      TEXT
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mensajes_chat (
+            id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id          INTEGER,
+            usuario_username    TEXT,
+            remitente           TEXT,   -- 'admin' o 'usuario'
+            remitente_username  TEXT,
+            texto               TEXT,
+            fecha               TEXT,
+            leido_admin         INTEGER DEFAULT 0,
+            leido_usuario       INTEGER DEFAULT 0
+        )
+    """)
     conn.commit()
 
     # Atribución de "creado por" en proyectos (columna opcional agregada
@@ -324,6 +337,100 @@ def desconectar_sesion(session_id: str, admin_username: str):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# CHAT — mensajería entre administrador(es) y usuario
+# ═══════════════════════════════════════════════════════════════════════════
+# Cada usuario tiene UN solo hilo de conversación con "Administración": no
+# importa cuál administrador responda, todos ven y contestan el mismo hilo
+# (identificado por usuario_id). Así evitamos depender de si hay uno o
+# varios administradores en el sistema.
+
+def enviar_mensaje(usuario_id: int, usuario_username: str,
+                    remitente: str, remitente_username: str, texto: str):
+    """remitente: 'admin' o 'usuario'. Quien envía ya lo tiene 'leído'."""
+    texto = (texto or "").strip()
+    if not texto:
+        return
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO mensajes_chat
+            (usuario_id, usuario_username, remitente, remitente_username,
+             texto, fecha, leido_admin, leido_usuario)
+        VALUES (?,?,?,?,?,?,?,?)
+    """, (usuario_id, usuario_username, remitente, remitente_username, texto,
+          _now(),
+          1 if remitente == "admin" else 0,
+          1 if remitente == "usuario" else 0))
+    conn.commit()
+    conn.close()
+
+
+def obtener_hilo(usuario_id: int) -> pd.DataFrame:
+    conn = get_conn()
+    df = pd.read_sql(
+        "SELECT * FROM mensajes_chat WHERE usuario_id=? ORDER BY id", conn,
+        params=(usuario_id,))
+    conn.close()
+    return df
+
+
+def marcar_leido_admin(usuario_id: int):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE mensajes_chat SET leido_admin=1 "
+        "WHERE usuario_id=? AND leido_admin=0", (usuario_id,))
+    conn.commit()
+    conn.close()
+
+
+def marcar_leido_usuario(usuario_id: int):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE mensajes_chat SET leido_usuario=1 "
+        "WHERE usuario_id=? AND leido_usuario=0", (usuario_id,))
+    conn.commit()
+    conn.close()
+
+
+def contar_no_leidos_usuario(usuario_id: int) -> int:
+    conn = get_conn()
+    n = conn.execute(
+        "SELECT COUNT(*) FROM mensajes_chat "
+        "WHERE usuario_id=? AND leido_usuario=0 AND remitente='admin'",
+        (usuario_id,)).fetchone()[0]
+    conn.close()
+    return n
+
+
+def _lista_hilos_para_admin() -> pd.DataFrame:
+    """Usuarios con quienes existe (o existió) contacto: cualquiera que se
+    haya conectado alguna vez (activo o en historial) o que ya tenga un
+    hilo de mensajes, junto con su cantidad de mensajes sin leer."""
+    conn = get_conn()
+    personas = pd.read_sql("""
+        SELECT usuario_id, username FROM sesiones_activas WHERE usuario_id IS NOT NULL
+        UNION
+        SELECT usuario_id, username FROM sesiones_historial WHERE usuario_id IS NOT NULL
+        UNION
+        SELECT usuario_id, usuario_username AS username FROM mensajes_chat
+            WHERE usuario_id IS NOT NULL
+    """, conn)
+    no_leidos = pd.read_sql("""
+        SELECT usuario_id, COUNT(*) AS no_leidos FROM mensajes_chat
+        WHERE leido_admin=0 AND remitente='usuario'
+        GROUP BY usuario_id
+    """, conn)
+    conn.close()
+    if personas.empty:
+        return personas
+    personas = (personas.dropna(subset=["usuario_id"])
+                .drop_duplicates(subset=["usuario_id"], keep="last")
+                .merge(no_leidos, on="usuario_id", how="left"))
+    personas["no_leidos"] = personas["no_leidos"].fillna(0).astype(int)
+    personas = personas.sort_values(["no_leidos", "username"], ascending=[False, True])
+    return personas
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # UI — Panel de administrador
 # ═══════════════════════════════════════════════════════════════════════════
 def _estado_conexion(last_seen_str: str):
@@ -389,8 +496,14 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
             "Instálalo con `pip install streamlit-autorefresh` y reinicia la app "
             "para que la desconexión sea instantánea.")
 
-    mt1, mt2, mt3 = st.tabs(["🟢 Conectados ahora", "📜 Historial de sesiones",
-                              "📁 Proyectos creados"])
+    _hilos_admin = _lista_hilos_para_admin()
+    n_no_leidos_total = int(_hilos_admin["no_leidos"].sum()) if not _hilos_admin.empty else 0
+
+    mt1, mt2, mt3, mt4 = st.tabs([
+        "🟢 Conectados ahora", "📜 Historial de sesiones",
+        "📁 Proyectos creados",
+        f"💬 Mensajes{f' ({n_no_leidos_total})' if n_no_leidos_total else ''}",
+    ])
 
     # ══ TAB 1 — Sesiones activas ═══════════════════════════════════════════
     with mt1:
@@ -588,9 +701,108 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
             proys["Creado_por"] = proys["Creado_por"].fillna("— (sin registrar)")
             st.dataframe(proys, use_container_width=True, hide_index=True)
 
+    # ══ TAB 4 — Mensajes / Chat con usuarios ═════════════════════════════════
+    with mt4:
+        if _hilos_admin.empty:
+            st.info("Todavía no hay usuarios con quienes chatear. En cuanto "
+                     "alguien se conecte a la aplicación aparecerá aquí.")
+        else:
+            def _etiqueta_usuario(row):
+                base = row["username"] or "—"
+                n = int(row["no_leidos"])
+                if n:
+                    plural = "s" if n != 1 else ""
+                    return f"🔴 {base} ({n} nuevo{plural})"
+                return base
+
+            etiquetas = {
+                int(row["usuario_id"]): _etiqueta_usuario(row)
+                for _, row in _hilos_admin.iterrows()
+            }
+            ids_ordenados = list(etiquetas.keys())
+
+            cS1, cS2 = st.columns([2, 4])
+            with cS1:
+                usuario_sel_id = st.selectbox(
+                    "Conversación con:", ids_ordenados,
+                    format_func=lambda i: etiquetas[i], key="chat_usuario_sel")
+
+            if usuario_sel_id is not None:
+                marcar_leido_admin(usuario_sel_id)
+                hilo = obtener_hilo(usuario_sel_id)
+                nombre_usuario = (_hilos_admin.loc[
+                    _hilos_admin["usuario_id"] == usuario_sel_id, "username"]
+                    .iloc[0] or "usuario")
+
+                chat_box = st.container(height=380, border=True)
+                with chat_box:
+                    if hilo.empty:
+                        st.caption("Aún no hay mensajes con este usuario. "
+                                   "Escribe abajo para iniciar la conversación.")
+                    for _, m in hilo.iterrows():
+                        es_admin_msg = (m["remitente"] == "admin")
+                        with st.chat_message("assistant" if es_admin_msg else "user",
+                                              avatar="🛡️" if es_admin_msg else "👤"):
+                            st.markdown(m["texto"])
+                            st.caption(
+                                f"{'Administración' if es_admin_msg else nombre_usuario} · {m['fecha']}")
+
+                nuevo_msg = st.chat_input(
+                    f"Escribir a {nombre_usuario}…", key=f"chat_input_{usuario_sel_id}")
+                if nuevo_msg:
+                    enviar_mensaje(usuario_sel_id, nombre_usuario,
+                                    "admin", _u["username"], nuevo_msg)
+                    registrar_auditoria_fn(
+                        _u["id"], _u["username"], "ENVIAR_MENSAJE",
+                        f"Mensaje enviado a '{nombre_usuario}'", "monitoreo")
+                    st.rerun()
+
     st.markdown(f"""
     <div style='margin-top:1rem;font-size:0.72rem;color:#4A5A75;text-align:center;'>
         Un usuario se considera "en línea" si tuvo actividad en los últimos {MINUTOS_EN_LINEA} min,
         "inactivo" hasta {MINUTOS_INACTIVO} min sin actividad; después se archiva en el historial.
         La desconexión se aplica en la próxima interacción o recarga de esa sesión.
     </div>""", unsafe_allow_html=True)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# UI — Widget de chat para el usuario normal (responder a Administración)
+# ═══════════════════════════════════════════════════════════════════════════
+def mostrar_widget_chat_usuario(usuario_activo_fn=None, tiene_permiso_fn=None):
+    """Muestra, para cualquier usuario NO administrador, un panel compacto
+    (pensado para el sidebar) donde puede ver los mensajes que le ha
+    enviado Administración y responder. Los administradores no ven este
+    widget: ellos usan la pestaña "💬 Mensajes" del monitor."""
+    from modulo_seguridad import tiene_permiso, usuario_activo
+    tiene_permiso_fn  = tiene_permiso_fn or tiene_permiso
+    usuario_activo_fn = usuario_activo_fn or usuario_activo
+
+    _u = usuario_activo_fn()
+    if not _u or tiene_permiso_fn("ver_usuarios"):
+        return  # los administradores no necesitan este widget
+
+    init_monitoreo_db()
+    n_nuevos = contar_no_leidos_usuario(_u["id"])
+    etiqueta = f"💬 Mensajes de Administración{f' ({n_nuevos})' if n_nuevos else ''}"
+
+    with st.expander(etiqueta, expanded=bool(n_nuevos)):
+        hilo = obtener_hilo(_u["id"])
+        marcar_leido_usuario(_u["id"])
+
+        chat_box = st.container(height=280, border=True)
+        with chat_box:
+            if hilo.empty:
+                st.caption("No tienes mensajes todavía. Si necesitas ayuda, "
+                           "escríbele a Administración aquí abajo.")
+            for _, m in hilo.iterrows():
+                es_admin_msg = (m["remitente"] == "admin")
+                with st.chat_message("assistant" if es_admin_msg else "user",
+                                      avatar="🛡️" if es_admin_msg else "👤"):
+                    st.markdown(m["texto"])
+                    st.caption(
+                        f"{'Administración' if es_admin_msg else 'Tú'} · {m['fecha']}")
+
+        nuevo_msg = st.chat_input("Escribe tu mensaje…", key="chat_input_usuario")
+        if nuevo_msg:
+            enviar_mensaje(_u["id"], _u["username"], "usuario", _u["username"], nuevo_msg)
+            st.rerun()
