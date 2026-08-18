@@ -391,6 +391,27 @@ def marcar_leido_usuario(usuario_id: int):
     conn.close()
 
 
+def eliminar_mensaje(mensaje_id: int):
+    """Elimina un único mensaje del chat por su ID."""
+    conn = get_conn()
+    conn.execute("DELETE FROM mensajes_chat WHERE id=?", (mensaje_id,))
+    conn.commit()
+    conn.close()
+
+
+def eliminar_hilo_completo(usuario_id: int) -> int:
+    """Elimina TODOS los mensajes de la conversación con un usuario.
+    Devuelve la cantidad de mensajes que fueron eliminados."""
+    conn = get_conn()
+    total = conn.execute(
+        "SELECT COUNT(*) FROM mensajes_chat WHERE usuario_id=?",
+        (usuario_id,)).fetchone()[0]
+    conn.execute("DELETE FROM mensajes_chat WHERE usuario_id=?", (usuario_id,))
+    conn.commit()
+    conn.close()
+    return total
+
+
 def contar_no_leidos_usuario(usuario_id: int) -> int:
     conn = get_conn()
     n = conn.execute(
@@ -744,8 +765,36 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                         with st.chat_message("assistant" if es_admin_msg else "user",
                                               avatar="🛡️" if es_admin_msg else "👤"):
                             st.markdown(m["texto"])
-                            st.caption(
-                                f"{'Administración' if es_admin_msg else nombre_usuario} · {m['fecha']}")
+                            cap_col, del_col = st.columns([6, 1])
+                            with cap_col:
+                                st.caption(
+                                    f"{'Administración' if es_admin_msg else nombre_usuario} · {m['fecha']}")
+                            with del_col:
+                                if st.button("🗑", key=f"del_msg_{m['id']}",
+                                             help="Eliminar este mensaje"):
+                                    eliminar_mensaje(int(m["id"]))
+                                    registrar_auditoria_fn(
+                                        _u["id"], _u["username"], "ELIMINAR_MENSAJE",
+                                        f"Mensaje eliminado de la conversación con '{nombre_usuario}'",
+                                        "monitoreo")
+                                    st.rerun()
+
+                with st.expander("⚠ Vaciar conversación completa"):
+                    st.caption("Esta acción borra permanentemente todos los "
+                               f"mensajes intercambiados con {nombre_usuario}.")
+                    confirmar_chat = st.checkbox(
+                        "Confirmo que deseo eliminar TODA esta conversación",
+                        key=f"confirmar_vaciar_chat_{usuario_sel_id}")
+                    if st.button("🗑 Vaciar conversación",
+                                  key=f"vaciar_chat_{usuario_sel_id}",
+                                  disabled=not confirmar_chat):
+                        total_eliminados = eliminar_hilo_completo(usuario_sel_id)
+                        registrar_auditoria_fn(
+                            _u["id"], _u["username"], "VACIAR_CONVERSACION",
+                            f"Conversación con '{nombre_usuario}' vaciada por completo "
+                            f"({total_eliminados} mensaje(s))", "monitoreo")
+                        st.success("Conversación vaciada.")
+                        st.rerun()
 
                 nuevo_msg = st.chat_input(
                     f"Escribir a {nombre_usuario}…", key=f"chat_input_{usuario_sel_id}")
@@ -799,8 +848,17 @@ def mostrar_widget_chat_usuario(usuario_activo_fn=None, tiene_permiso_fn=None):
                 with st.chat_message("assistant" if es_admin_msg else "user",
                                       avatar="🛡️" if es_admin_msg else "👤"):
                     st.markdown(m["texto"])
-                    st.caption(
-                        f"{'Administración' if es_admin_msg else 'Tú'} · {m['fecha']}")
+                    if es_admin_msg:
+                        st.caption(f"Administración · {m['fecha']}")
+                    else:
+                        cap_col, del_col = st.columns([6, 1])
+                        with cap_col:
+                            st.caption(f"Tú · {m['fecha']}")
+                        with del_col:
+                            if st.button("🗑", key=f"del_msg_user_{m['id']}",
+                                         help="Eliminar este mensaje"):
+                                eliminar_mensaje(int(m["id"]))
+                                st.rerun()
 
         nuevo_msg = st.chat_input("Escribe tu mensaje…", key="chat_input_usuario")
         if nuevo_msg:
