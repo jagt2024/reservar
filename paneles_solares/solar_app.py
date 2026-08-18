@@ -1435,7 +1435,7 @@ with st.sidebar:
     <div style='text-align:center; padding:0.8rem 0 0.5rem;'>
         <div style='font-family:Rajdhani,sans-serif; font-size:2rem; color:#FFB300;
                     font-weight:700; letter-spacing:3px; line-height:1.1;'>
-            ☀ SOLAR<br>CALC
+            ☀ SOLAR<br>CALC PRO
         </div>
         <div style='font-size:0.65rem; color:#8A9BBD; letter-spacing:3px;
                     margin-top:0.3rem; text-transform:uppercase;'>
