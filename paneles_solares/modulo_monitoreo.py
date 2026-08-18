@@ -258,7 +258,7 @@ def _mostrar_tiempo_restante(last_seen_str: str):
     m, s = divmod(restantes, 60)
     color = RED if restantes <= 60 else (YEL if restantes <= 180 else TEXT2)
     st.markdown(f"""
-    <div style='position:fixed;bottom:14px;right:14px;z-index:9999;
+    <div style='position:fixed;bottom:14px;left:14px;z-index:9999;
          background:{CARD};border:1px solid {BRD};border-radius:8px;
          padding:0.4rem 0.7rem;font-family:Rajdhani,sans-serif;
          font-size:0.78rem;color:{TEXT2};box-shadow:0 2px 8px rgba(0,0,0,.4);'>
