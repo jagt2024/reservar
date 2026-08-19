@@ -823,6 +823,24 @@ def _mostrar_tareas_dashboard(usuario, es_admin):
         _fila_tarea(t, mostrar_cliente=True)
 
 
+def _barra_html(etiqueta: str, valor, maximo, color: str, sufijo: str = ""):
+    """Una fila de barra horizontal en HTML/CSS puro — sin depender de
+    altair/vega (que en algunos entornos de despliegue, p. ej. Python 3.14
+    en Streamlit Cloud, falla al importarse)."""
+    pct = 0 if not maximo else max(2, round(valor / maximo * 100))
+    st.markdown(f"""
+    <div style='margin-bottom:0.55rem;'>
+        <div style='display:flex;justify-content:space-between;font-size:0.78rem;
+                    color:{TEXT2};margin-bottom:0.15rem;'>
+            <span>{etiqueta}</span>
+            <span style='color:{color};font-family:Share Tech Mono,monospace;'>{valor}{sufijo}</span>
+        </div>
+        <div style='background:{BRD};border-radius:5px;height:10px;overflow:hidden;'>
+            <div style='background:{color};width:{pct}%;height:100%;border-radius:5px;'></div>
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+
 def _mostrar_metricas(df: pd.DataFrame):
     if df.empty:
         st.info("Aún no hay datos suficientes para mostrar métricas.")
@@ -832,14 +850,18 @@ def _mostrar_metricas(df: pd.DataFrame):
         font-weight:600;margin-bottom:0.4rem;'>DISTRIBUCIÓN POR ETAPA</div>""",
         unsafe_allow_html=True)
     conteo_etapa = df["etapa"].value_counts().reindex(ETAPAS, fill_value=0)
-    st.bar_chart(conteo_etapa)
+    max_etapa = int(conteo_etapa.max()) if len(conteo_etapa) else 0
+    for etapa, valor in conteo_etapa.items():
+        _barra_html(etapa, int(valor), max_etapa, COLOR_ETAPA.get(etapa, SOL))
 
     fuente_conteo = df["fuente"].replace("", None).dropna().value_counts()
     if not fuente_conteo.empty:
         st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
             font-weight:600;margin:1rem 0 0.4rem;'>CLIENTES POR FUENTE</div>""",
             unsafe_allow_html=True)
-        st.bar_chart(fuente_conteo)
+        max_fuente = int(fuente_conteo.max())
+        for fuente, valor in fuente_conteo.items():
+            _barra_html(fuente, int(valor), max_fuente, CYAN)
 
     if df["propietario_username"].nunique(dropna=True) > 1:
         st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
