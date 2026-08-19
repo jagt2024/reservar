@@ -18,6 +18,7 @@ Uso desde solar_app.py:
         mostrar_clientes()
 """
 import sqlite3
+import io
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta, timezone
@@ -376,6 +377,122 @@ def obtener_proyectos_vinculables(usuario: dict, es_admin: bool) -> pd.DataFrame
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# EXPORTAR / IMPORTAR
+# ═══════════════════════════════════════════════════════════════════════════
+def obtener_interacciones_de(cliente_ids: list) -> pd.DataFrame:
+    """Todas las interacciones de un conjunto de clientes (para exportar
+    exactamente lo que el usuario puede ver en el CRM)."""
+    if not cliente_ids:
+        return pd.DataFrame()
+    conn = get_conn()
+    marcador = ",".join("?" * len(cliente_ids))
+    df = pd.read_sql(
+        f"SELECT * FROM interacciones_clientes WHERE cliente_id IN ({marcador}) "
+        f"ORDER BY cliente_id, fecha", conn, params=cliente_ids)
+    conn.close()
+    return df
+
+
+def obtener_tareas_de(cliente_ids: list) -> pd.DataFrame:
+    """Todas las tareas de un conjunto de clientes (para exportar)."""
+    if not cliente_ids:
+        return pd.DataFrame()
+    conn = get_conn()
+    marcador = ",".join("?" * len(cliente_ids))
+    df = pd.read_sql(
+        f"SELECT * FROM tareas_clientes WHERE cliente_id IN ({marcador}) "
+        f"ORDER BY cliente_id, fecha_limite", conn, params=cliente_ids)
+    conn.close()
+    return df
+
+
+def _generar_excel(df_clientes: pd.DataFrame, df_inter: pd.DataFrame,
+                    df_tareas: pd.DataFrame) -> bytes:
+    """Arma un .xlsx en memoria con una hoja por tabla del CRM. Siempre
+    incluye la columna 'id' de cada registro para que, si el archivo se
+    vuelve a cargar más adelante, los clientes existentes se actualicen en
+    vez de duplicarse."""
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        (df_clientes if not df_clientes.empty
+         else pd.DataFrame(columns=["id", "nombre"])).to_excel(
+            writer, sheet_name="Clientes", index=False)
+        (df_inter if not df_inter.empty
+         else pd.DataFrame(columns=["id", "cliente_id"])).to_excel(
+            writer, sheet_name="Interacciones", index=False)
+        (df_tareas if not df_tareas.empty
+         else pd.DataFrame(columns=["id", "cliente_id"])).to_excel(
+            writer, sheet_name="Tareas", index=False)
+    return buffer.getvalue()
+
+
+def _generar_csv(df: pd.DataFrame) -> bytes:
+    """CSV con codificación utf-8-sig para que Excel en Windows muestre
+    bien las tildes y la ñ al abrirlo directamente."""
+    return df.to_csv(index=False).encode("utf-8-sig")
+
+
+COLUMNAS_IMPORT_CLIENTE = [
+    "nombre", "tipo_persona", "documento", "email", "telefono", "direccion",
+    "municipio", "departamento", "etapa", "fuente", "valor_estimado", "notas",
+]
+
+
+def importar_clientes_df(df: pd.DataFrame, usuario: dict, es_admin: bool) -> dict:
+    """Crea o actualiza clientes a partir de un DataFrame (leído de un
+    .xlsx o .csv exportado desde este mismo módulo, u otro archivo con las
+    mismas columnas). Si una fila trae un 'id' que corresponde a un
+    cliente existente sobre el que el usuario tiene permiso, se actualiza;
+    si no, se crea un cliente nuevo (asignado a quien importa)."""
+    resumen = {"creados": 0, "actualizados": 0, "omitidos": 0, "errores": []}
+    if df is None or df.empty:
+        resumen["errores"].append("El archivo está vacío.")
+        return resumen
+    if "nombre" not in df.columns:
+        resumen["errores"].append(
+            "El archivo no tiene una columna 'nombre'. Usa el archivo tal como se "
+            "descarga desde “⬇ Descargar información”.")
+        return resumen
+
+    for _, fila in df.iterrows():
+        nombre = str(fila.get("nombre", "") or "").strip()
+        if not nombre or nombre.lower() == "nan":
+            resumen["omitidos"] += 1
+            continue
+
+        datos = {}
+        for col in COLUMNAS_IMPORT_CLIENTE:
+            val = fila.get(col, "") if col in df.columns else ""
+            if pd.isna(val):
+                val = ""
+            datos[col] = val
+        datos["nombre"] = nombre
+        try:
+            datos["valor_estimado"] = float(fila.get("valor_estimado", 0) or 0)
+        except (TypeError, ValueError):
+            datos["valor_estimado"] = 0.0
+        if datos.get("etapa") not in ETAPAS:
+            datos["etapa"] = "Lead"
+
+        cliente_existente = None
+        id_val = fila.get("id") if "id" in df.columns else None
+        if id_val is not None and not pd.isna(id_val):
+            try:
+                cliente_existente = obtener_cliente(int(id_val))
+            except (TypeError, ValueError):
+                cliente_existente = None
+
+        if cliente_existente and (es_admin or cliente_existente["propietario_id"] == usuario["id"]):
+            actualizar_cliente(int(id_val), datos)
+            resumen["actualizados"] += 1
+        else:
+            crear_cliente(datos, usuario)
+            resumen["creados"] += 1
+
+    return resumen
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # INTERFAZ
 # ═══════════════════════════════════════════════════════════════════════════
 def mostrar_clientes(usuario_activo_fn=None, tiene_permiso_fn=None, registrar_auditoria_fn=None):
@@ -405,8 +522,9 @@ def mostrar_clientes(usuario_activo_fn=None, tiene_permiso_fn=None, registrar_au
     df_clientes = obtener_clientes(_u, es_admin)
     _mostrar_metricas_rapidas(df_clientes)
 
-    tabP, tabL, tabN, tabT, tabM = st.tabs([
-        "🗂 Pipeline", "👥 Clientes", "➕ Nuevo cliente", "🗓 Tareas", "📊 Métricas"
+    tabP, tabL, tabN, tabT, tabM, tabE = st.tabs([
+        "🗂 Pipeline", "👥 Clientes", "➕ Nuevo cliente", "🗓 Tareas", "📊 Métricas",
+        "⬇⬆ Exportar / Importar",
     ])
 
     with tabP:
@@ -423,6 +541,9 @@ def mostrar_clientes(usuario_activo_fn=None, tiene_permiso_fn=None, registrar_au
 
     with tabM:
         _mostrar_metricas(df_clientes)
+
+    with tabE:
+        _mostrar_exportar_importar(df_clientes, _u, es_admin, registrar_auditoria_fn)
 
 
 def _mostrar_metricas_rapidas(df: pd.DataFrame):
@@ -930,3 +1051,106 @@ def _formulario_nuevo_cliente(usuario, es_admin, registrar_auditoria_fn):
                     f"Cliente #{nuevo_id} '{nombre.strip()}' creado", "clientes")
                 st.success(f"✓ Cliente #{nuevo_id} creado")
                 st.rerun()
+
+
+def _mostrar_exportar_importar(df_clientes, usuario, es_admin, registrar_auditoria_fn):
+    # ── Descargar ──────────────────────────────────────────────────────────
+    st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+        font-weight:600;margin-bottom:0.4rem;'>⬇ DESCARGAR INFORMACIÓN</div>""",
+        unsafe_allow_html=True)
+    st.caption(
+        "Descarga toda la información capturada del CRM que puedes ver "
+        f"({'todos los clientes' if es_admin else 'tus clientes asignados'}), incluyendo "
+        "interacciones y tareas. Cada registro conserva su 'id', así que si vuelves a "
+        "cargar el archivo más adelante se actualizan los clientes existentes en vez de "
+        "duplicarlos.")
+
+    cliente_ids = df_clientes["id"].astype(int).tolist() if not df_clientes.empty else []
+    df_inter = obtener_interacciones_de(cliente_ids)
+    df_tareas = obtener_tareas_de(cliente_ids)
+
+    colx1, colx2 = st.columns(2)
+    with colx1:
+        st.download_button(
+            "📊 Descargar todo en Excel (.xlsx)",
+            data=_generar_excel(df_clientes, df_inter, df_tareas),
+            file_name=f"crm_clientes_{_hoy()}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True, key="dl_excel_crm")
+    with colx2:
+        st.download_button(
+            "📄 Descargar clientes en CSV (.csv)",
+            data=_generar_csv(df_clientes if not df_clientes.empty
+                               else pd.DataFrame(columns=["id", "nombre"])),
+            file_name=f"crm_clientes_{_hoy()}.csv", mime="text/csv",
+            use_container_width=True, key="dl_csv_crm")
+
+    if not df_inter.empty or not df_tareas.empty:
+        with st.expander("Descargar interacciones y tareas por separado (CSV)"):
+            ce1, ce2 = st.columns(2)
+            with ce1:
+                if not df_inter.empty:
+                    st.download_button(
+                        "🗒 Interacciones (.csv)", data=_generar_csv(df_inter),
+                        file_name=f"crm_interacciones_{_hoy()}.csv", mime="text/csv",
+                        use_container_width=True, key="dl_inter_csv")
+                else:
+                    st.caption("Sin interacciones registradas.")
+            with ce2:
+                if not df_tareas.empty:
+                    st.download_button(
+                        "✅ Tareas (.csv)", data=_generar_csv(df_tareas),
+                        file_name=f"crm_tareas_{_hoy()}.csv", mime="text/csv",
+                        use_container_width=True, key="dl_tareas_csv")
+                else:
+                    st.caption("Sin tareas registradas.")
+
+    # ── Cargar / restaurar ─────────────────────────────────────────────────
+    st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+    st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+        font-weight:600;margin-bottom:0.4rem;'>⬆ CARGAR CLIENTES</div>""",
+        unsafe_allow_html=True)
+    st.caption(
+        "Sube un archivo .xlsx (con hoja 'Clientes') o .csv exportado desde aquí, o "
+        "cualquier archivo con las mismas columnas (nombre, tipo_persona, documento, "
+        "email, telefono, direccion, municipio, departamento, etapa, fuente, "
+        "valor_estimado, notas). Si una fila trae un 'id' que ya existe y tienes permiso "
+        "sobre ese cliente, se actualiza; si no, se crea como un cliente nuevo.")
+
+    archivo = st.file_uploader("Archivo .xlsx o .csv", type=["xlsx", "csv"],
+                                key="crm_uploader")
+    if archivo is not None:
+        df_import = None
+        try:
+            if archivo.name.lower().endswith(".csv"):
+                df_import = pd.read_csv(archivo)
+            else:
+                xls = pd.ExcelFile(archivo)
+                hoja = "Clientes" if "Clientes" in xls.sheet_names else xls.sheet_names[0]
+                df_import = pd.read_excel(xls, sheet_name=hoja)
+            df_import.columns = [str(c).strip() for c in df_import.columns]
+        except Exception as e:
+            st.error(f"No se pudo leer el archivo: {e}")
+
+        if df_import is not None and not df_import.empty:
+            st.markdown(f"**Vista previa** ({len(df_import)} fila(s)):")
+            st.dataframe(df_import.head(20), use_container_width=True, hide_index=True)
+            if st.button("⬆ Confirmar carga", use_container_width=True,
+                         key="crm_confirmar_import"):
+                resumen = importar_clientes_df(df_import, usuario, es_admin)
+                registrar_auditoria_fn(
+                    usuario["id"], usuario["username"], "IMPORTAR_CLIENTES",
+                    f"Importación CRM: {resumen['creados']} creados, "
+                    f"{resumen['actualizados']} actualizados, "
+                    f"{resumen['omitidos']} omitidos", "clientes")
+                if resumen["errores"]:
+                    for err in resumen["errores"]:
+                        st.error(err)
+                else:
+                    st.success(
+                        f"✓ {resumen['creados']} cliente(s) creado(s), "
+                        f"{resumen['actualizados']} actualizado(s), "
+                        f"{resumen['omitidos']} omitido(s) por no tener nombre.")
+                    st.rerun()
+        elif df_import is not None:
+            st.warning("El archivo no tiene filas para importar.")
