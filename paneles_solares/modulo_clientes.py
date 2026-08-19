@@ -777,17 +777,22 @@ def _mostrar_detalle_cliente(cliente_id, usuario, es_admin, registrar_auditoria_
             st.caption("Sin tareas para este cliente.")
         else:
             for _, t in tareas_c.iterrows():
-                _fila_tarea(t, mostrar_cliente=False)
+                _fila_tarea(t, mostrar_cliente=False, contexto=f"det_{cliente_id}")
 
 
-def _fila_tarea(t: pd.Series, mostrar_cliente: bool = True):
+def _fila_tarea(t: pd.Series, mostrar_cliente: bool = True, contexto: str = "det"):
+    """`contexto` distingue las keys de los widgets según desde dónde se
+    llama esta función (detalle de un cliente vs. dashboard general de
+    tareas), porque `st.tabs` renderiza el contenido de TODAS las pestañas
+    en cada corrida — si la misma tarea aparece en dos lugares con la
+    misma key, Streamlit lanza StreamlitDuplicateElementKey."""
     hecha = t["estado"] == "Hecha"
     vencida = (not hecha) and str(t["fecha_limite"]) < _hoy()
     color_p = COLOR_PRIORIDAD.get(t["prioridad"], TEXT2)
 
     c1, c2, c3 = st.columns([0.6, 5, 0.8])
     with c1:
-        nuevo_estado = st.checkbox("", value=hecha, key=f"chk_tarea_{t['id']}")
+        nuevo_estado = st.checkbox("", value=hecha, key=f"chk_tarea_{contexto}_{t['id']}")
         if nuevo_estado != hecha:
             marcar_tarea(int(t["id"]), "Hecha" if nuevo_estado else "Pendiente")
             st.rerun()
@@ -804,7 +809,7 @@ def _fila_tarea(t: pd.Series, mostrar_cliente: bool = True):
             Vence: {t['fecha_limite']} · Prioridad: {t['prioridad']}</span>{venc_txt}
         </div>""", unsafe_allow_html=True)
     with c3:
-        if st.button("🗑", key=f"del_tarea_{t['id']}"):
+        if st.button("🗑", key=f"del_tarea_{contexto}_{t['id']}"):
             eliminar_tarea(int(t["id"]))
             st.rerun()
 
@@ -820,7 +825,7 @@ def _mostrar_tareas_dashboard(usuario, es_admin):
         st.markdown(f"<div class='warn-box'>⚠ Tienes {len(vencidas)} tarea(s) vencida(s).</div>",
                     unsafe_allow_html=True)
     for _, t in tareas.iterrows():
-        _fila_tarea(t, mostrar_cliente=True)
+        _fila_tarea(t, mostrar_cliente=True, contexto="dash")
 
 
 def _barra_html(etiqueta: str, valor, maximo, color: str, sufijo: str = ""):
