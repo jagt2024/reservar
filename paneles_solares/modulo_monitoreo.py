@@ -49,21 +49,15 @@ try:
 except ImportError:
     _AUTOREFRESH_DISPONIBLE = False
 
-INTERVALO_VIGILANCIA_MS = 600000  # cada cuánto se revisa si la sesión sigue viva
-                                 # (también controla cada cuánto se actualiza
-                                 # el contador de tiempo restante que ve el usuario)
+INTERVALO_VIGILANCIA_MS = 900000  # cada cuánto se revisa si la sesión sigue viva
 
 # ─── Colores (coherentes con el resto de la app) ─────────────────────────────
 SOL   = "#FFB300"; GREEN = "#00E676"; RED = "#FF5252"; CYAN = "#00BCD4"
 YEL   = "#FFD54F"; TEXT2 = "#8A9BBD"; BRD  = "#2A3A55"; CARD = "#1A2235"
 
-MINUTOS_EN_LINEA   = 3    # última actividad <= este umbral → "🟢 En línea"
-MINUTOS_INACTIVO   = 10   # entre el umbral anterior y este → "🟡 Inactivo"
-                           # al llegar a este umbral, la sesión se desconecta
-                           # automáticamente (ver `_auto_desconectar_inactivos`)
-SEGUNDOS_AVISO_CIERRE = 15  # cuenta regresiva que se muestra, tanto si el
-                             # cierre es por inactividad como si lo hizo un
-                             # administrador, antes de finalizar la sesión
+MINUTOS_EN_LINEA   = 3   # última actividad <= este umbral → "🟢 En línea"
+MINUTOS_INACTIVO   = 15  # entre el umbral anterior y este → "🟡 Inactivo"
+                          # más viejo que esto → se considera cerrada/expirada
 
 # ═══════════════════════════════════════════════════════════════════════════
 # BASE DE DATOS
@@ -239,86 +233,24 @@ def registrar_latido(usuario: dict, modulo_activo: str = None,
     conn.commit()
     conn.close()
 
-    _auto_desconectar_inactivos()
     _limpiar_sesiones_viejas()
 
 
-def _mostrar_tiempo_restante(last_seen_str: str):
-    """Widget discreto y flotante (esquina inferior derecha) que le muestra
-    al usuario cuánto tiempo le queda antes de que su sesión se cierre
-    automáticamente por inactividad. El valor se recalcula en cada rerun
-    (cada `INTERVALO_VIGILANCIA_MS` como máximo) y se reinicia solo cada
-    vez que hay actividad real, porque eso actualiza `last_seen`."""
-    try:
-        last_seen = datetime.strptime(last_seen_str, "%Y-%m-%d %H:%M:%S")
-        transcurridos = (_ahora_co() - last_seen).total_seconds()
-    except Exception:
-        transcurridos = 0
-    restantes = max(0, int(MINUTOS_INACTIVO * 60 - transcurridos))
-    m, s = divmod(restantes, 60)
-    color = RED if restantes <= 60 else (YEL if restantes <= 180 else TEXT2)
-    st.markdown(f"""
-    <div style='position:fixed;bottom:14px;left:14px;z-index:9999;
-         background:{CARD};border:1px solid {BRD};border-radius:8px;
-         padding:0.4rem 0.7rem;font-family:Rajdhani,sans-serif;
-         font-size:0.78rem;color:{TEXT2};box-shadow:0 2px 8px rgba(0,0,0,.4);'>
-        ⏱ Sesión inactiva se cerrará en
-        <b style='color:{color};'>{m}:{s:02d}</b>
-    </div>
-    """, unsafe_allow_html=True)
-
-
-def _mostrar_aviso_cierre(mensaje: str, segundos_restantes: int):
-    """Pantalla de aviso, con cuenta regresiva, que se muestra tanto si el
-    cierre es por inactividad como si lo inició un administrador. La
-    pantalla se refresca sola (vía el watchdog de autorefresh) hasta que
-    la cuenta llega a cero y `verificar_expulsion` finaliza el cierre."""
-    st.markdown(f"""
-    <div style='max-width:480px;margin:15vh auto;text-align:center;
-         background:{CARD};border:1px solid {YEL};border-radius:14px;
-         padding:2.5rem 2rem;'>
-        <div style='font-size:2.5rem;'>⏳</div>
-        <div style='font-family:Rajdhani,sans-serif;font-size:1.4rem;
-             color:{YEL};font-weight:700;margin-top:0.5rem;'>
-            SESIÓN POR CERRAR
-        </div>
-        <div style='color:{TEXT2};margin-top:0.6rem;font-size:0.9rem;'>
-            {mensaje}
-        </div>
-        <div style='font-family:Rajdhani,sans-serif;font-size:2.2rem;
-             font-weight:700;color:{RED};margin-top:1rem;'>
-            {segundos_restantes}s
-        </div>
-        <div style='color:#4A5A75;font-size:0.75rem;margin-top:0.4rem;'>
-            Esta pantalla se actualiza sola.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-
 def verificar_expulsion():
-    """Controla el ciclo de vida de ESTA sesión frente a un cierre forzado,
-    ya sea porque un administrador la desconectó o porque el sistema la
-    marcó por inactividad (ver `_auto_desconectar_inactivos`). Debe
-    llamarse justo después de confirmar que hay un usuario autenticado, y
-    ANTES de `registrar_latido()` (así el `last_seen` que lee todavía
-    refleja la última actividad real, no el latido de este mismo rerun).
+    """Si un administrador marcó esta sesión como expulsada, cierra la
+    sesión localmente (limpia session_state) y detiene la ejecución
+    mostrando un aviso. Debe llamarse justo después de confirmar que hay
+    un usuario autenticado.
 
-    Funciona en dos fases para que el usuario nunca se quede sin aviso:
-      1) Al detectar la marca `kicked`, muestra una pantalla con cuenta
-         regresiva (`SEGUNDOS_AVISO_CIERRE`) en vez de cerrar de inmediato.
-      2) Cuando la cuenta llega a cero, esta misma sesión archiva su
-         registro al historial (con el motivo correcto: 'inactividad' o
-         'expulsada_por_admin') y lo borra de las sesiones activas — así
-         el cierre ocurre una sola vez y no se duplica.
+    Es esta función (la de la propia sesión expulsada) la que archiva su
+    registro al historial y lo borra de las sesiones activas — así se
+    garantiza que el cierre ocurre una sola vez y no se duplica si el
+    administrador vuelve a intentarlo o si otra pestaña dispara la
+    limpieza de sesiones viejas primero.
 
-    Si la sesión sigue activa (no fue marcada), en vez de cerrar nada
-    muestra el contador de tiempo restante hasta la próxima desconexión
-    automática por inactividad.
-
-    Además activa un rerun periódico (streamlit-autorefresh) para que
-    tanto la desconexión como el contador se mantengan al día sin
-    depender de que el usuario haga clic en algo."""
+    Además activa un rerun periódico (streamlit-autorefresh) para que la
+    desconexión se aplique en segundos, sin depender de que el usuario
+    expulsado haga clic en algo."""
     sid = st.session_state.get("_monitor_session_id")
     if not sid:
         return
@@ -328,122 +260,62 @@ def verificar_expulsion():
 
     conn = get_conn()
     row = conn.execute(
-        "SELECT kicked, usuario_id, username, rol, modulos_usados, ip, "
-        "login_time, kicked_by, last_seen FROM sesiones_activas "
-        "WHERE session_id=?", (sid,)).fetchone()
+        "SELECT kicked, usuario_id, username, rol, modulos_usados, ip, login_time "
+        "FROM sesiones_activas WHERE session_id=?", (sid,)).fetchone()
 
-    if not row:
+    if row and row[0]:
+        (_kicked, uid, uname, rol, mods, ip, login_t) = row
+        conn.execute("""
+            INSERT INTO sesiones_historial
+                (session_id, usuario_id, username, rol, modulos_usados, ip,
+                 login_time, fin_time, motivo_fin)
+            VALUES (?,?,?,?,?,?,?,?,'expulsada_por_admin')
+        """, (sid, uid, uname, rol, mods, ip, login_t, _now()))
+        conn.execute("DELETE FROM sesiones_activas WHERE session_id=?", (sid,))
+        conn.commit()
         conn.close()
-        st.session_state.pop("_kick_deadline", None)
-        return
 
-    (kicked, uid, uname, rol, mods, ip, login_t, kicked_by, last_seen) = row
-
-    if not kicked:
-        conn.close()
-        st.session_state.pop("_kick_deadline", None)
-        _mostrar_tiempo_restante(last_seen)
-        return
-
-    # ── La sesión fue marcada para cierre (admin o inactividad) ──────────
-    es_por_inactividad = bool(kicked_by) and kicked_by.startswith("Sistema")
-    ahora = _ahora_co()
-    deadline = st.session_state.get("_kick_deadline")
-    if deadline is None:
-        deadline = ahora + timedelta(seconds=SEGUNDOS_AVISO_CIERRE)
-        st.session_state["_kick_deadline"] = deadline
-    segundos_restantes = int((deadline - ahora).total_seconds())
-
-    if segundos_restantes > 0:
-        conn.close()
-        mensaje = ("Tu sesión se va a cerrar automáticamente por "
-                   "inactividad." if es_por_inactividad else
-                   "Un administrador va a cerrar tu sesión en SolarCalc Pro.")
-        _mostrar_aviso_cierre(mensaje, segundos_restantes)
+        st.markdown(f"""
+        <div style='max-width:480px;margin:15vh auto;text-align:center;
+             background:{CARD};border:1px solid {RED};border-radius:14px;
+             padding:2.5rem 2rem;'>
+            <div style='font-size:2.5rem;'>🔒</div>
+            <div style='font-family:Rajdhani,sans-serif;font-size:1.4rem;
+                 color:{RED};font-weight:700;margin-top:0.5rem;'>
+                SESIÓN FINALIZADA
+            </div>
+            <div style='color:{TEXT2};margin-top:0.6rem;font-size:0.9rem;'>
+                Un administrador cerró tu sesión en SolarCalc Pro.<br>
+                Vuelve a iniciar sesión para continuar.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        for k in list(st.session_state.keys()):
+            del st.session_state[k]
         st.stop()
 
-    motivo = "inactividad" if es_por_inactividad else "expulsada_por_admin"
-    conn.execute("""
-        INSERT INTO sesiones_historial
-            (session_id, usuario_id, username, rol, modulos_usados, ip,
-             login_time, fin_time, motivo_fin)
-        VALUES (?,?,?,?,?,?,?,?,?)
-    """, (sid, uid, uname, rol, mods, ip, login_t, _now(), motivo))
-    conn.execute("DELETE FROM sesiones_activas WHERE session_id=?", (sid,))
-    conn.commit()
-    conn.close()
-
-    mensaje_final = ("Tu sesión se cerró automáticamente por inactividad."
-                      if es_por_inactividad else
-                      "Un administrador cerró tu sesión en SolarCalc Pro.")
-    st.markdown(f"""
-    <div style='max-width:480px;margin:15vh auto;text-align:center;
-         background:{CARD};border:1px solid {RED};border-radius:14px;
-         padding:2.5rem 2rem;'>
-        <div style='font-size:2.5rem;'>🔒</div>
-        <div style='font-family:Rajdhani,sans-serif;font-size:1.4rem;
-             color:{RED};font-weight:700;margin-top:0.5rem;'>
-            SESIÓN FINALIZADA
-        </div>
-        <div style='color:{TEXT2};margin-top:0.6rem;font-size:0.9rem;'>
-            {mensaje_final}<br>
-            Vuelve a iniciar sesión para continuar.
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    for k in list(st.session_state.keys()):
-        del st.session_state[k]
-    st.stop()
-
-
-def _auto_desconectar_inactivos(minutos: int = MINUTOS_INACTIVO):
-    """Marca como expulsada ('kicked') cualquier sesión activa que lleve
-    `minutos` sin registrar un latido y que todavía no esté marcada. El
-    cierre real (mostrar el aviso, archivar en el historial y limpiar la
-    fila) lo hace, igual que con una expulsión manual de un administrador,
-    la propia sesión afectada en `verificar_expulsion()` — normalmente en
-    segundos, gracias a la vigilancia periódica.
-
-    Nota sobre qué cuenta como "inactividad" en Streamlit: no hay forma de
-    detectar aquí, desde el servidor, que el usuario dejó de mover el
-    mouse o el teclado; lo que sí se puede medir es cuánto hace que su
-    sesión no vuelve a ejecutar el script (`last_seen`). En la práctica
-    esto se acerca bastante a "inactividad real", porque los navegadores
-    suelen pausar los temporizadores de una pestaña que quedó en segundo
-    plano o se cerró, deteniendo también la vigilancia activa que
-    mantiene viva la sesión."""
-    limite = (_ahora_co() - timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M:%S")
-    conn = get_conn()
-    conn.execute("""
-        UPDATE sesiones_activas
-           SET kicked=1, kicked_by='Sistema (inactividad)', kicked_time=?
-         WHERE kicked=0 AND last_seen < ?
-    """, (_now(), limite))
-    conn.commit()
     conn.close()
 
 
-def _limpiar_sesiones_viejas(minutos: int = MINUTOS_INACTIVO + 30):
-    """Red de seguridad secundaria: archiva definitivamente cualquier
-    sesión —marcada para cierre o no— cuya última actividad sea demasiado
-    vieja, incluso si esa sesión nunca vuelve a ejecutarse para
-    auto-archivarse (p. ej. el navegador ya estaba cerrado cuando se le
-    marcó como expulsada). Usa un margen más amplio que
-    `_auto_desconectar_inactivos` para no competir con el aviso de cuenta
-    regresiva que esa función le da la oportunidad de mostrar al usuario."""
+def _limpiar_sesiones_viejas(minutos: int = MINUTOS_INACTIVO):
+    """Mueve al historial las sesiones sin actividad reciente (pestaña
+    cerrada, computador apagado, etc.).
+
+    Las sesiones marcadas como "kicked" (expulsadas) NO se tocan aquí:
+    las archiva y elimina su propia sesión (ver `verificar_expulsion`) en
+    cuanto detecta la marca — normalmente en segundos gracias a la
+    vigilancia activa. Si esa sesión nunca vuelve a responder (p. ej. el
+    navegador ya estaba cerrado cuando se pidió la desconexión), esta
+    limpieza la termina archivando de todas formas una vez que su
+    `last_seen` se vuelve viejo, sin crear registros duplicados."""
     limite = (_ahora_co() - timedelta(minutes=minutos)).strftime("%Y-%m-%d %H:%M:%S")
     conn = get_conn()
     viejas = conn.execute(
         "SELECT session_id, usuario_id, username, rol, modulos_usados, ip, "
-        "login_time, kicked, kicked_by FROM sesiones_activas "
+        "login_time, kicked FROM sesiones_activas "
         "WHERE last_seen < ?", (limite,)).fetchall()
-    for (sid, uid, uname, rol, mods, ip, login_t, kicked, kicked_by) in viejas:
-        if kicked and kicked_by and kicked_by.startswith("Sistema"):
-            motivo = "inactividad"
-        elif kicked:
-            motivo = "expulsada_por_admin"
-        else:
-            motivo = "expirada"
+    for (sid, uid, uname, rol, mods, ip, login_t, kicked) in viejas:
+        motivo = "expulsada_por_admin" if kicked else "expirada"
         conn.execute("""
             INSERT INTO sesiones_historial
                 (session_id, usuario_id, username, rol, modulos_usados, ip,
@@ -640,12 +512,10 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     if not _AUTOREFRESH_DISPONIBLE:
         st.warning(
             "⚠ El paquete **streamlit-autorefresh** no está instalado. "
-            "Sin él, tanto al pulsar “Desconectar” como al desconectar "
-            "automáticamente por inactividad, la sesión se cerrará hasta "
-            "que ese usuario haga clic en algo, no de inmediato — y el "
-            "contador de tiempo restante que ve el usuario no se actualizará "
-            "solo. Instálalo con `pip install streamlit-autorefresh` y "
-            "reinicia la app para que todo esto funcione en tiempo real.")
+            "Sin él, al pulsar “Desconectar” la sesión se cerrará hasta que "
+            "ese usuario haga clic en algo, no de inmediato. "
+            "Instálalo con `pip install streamlit-autorefresh` y reinicia la app "
+            "para que la desconexión sea instantánea.")
 
     _hilos_admin = _lista_hilos_para_admin()
     n_no_leidos_total = int(_hilos_admin["no_leidos"].sum()) if not _hilos_admin.empty else 0
@@ -753,7 +623,6 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
         else:
             hist["Motivo"] = hist["Motivo"].map({
                 "expulsada_por_admin": "🔌 Expulsada por admin",
-                "inactividad": "💤 Desconectada por inactividad",
                 "expirada": "⏱ Expirada / cerró pestaña"
             }).fillna(hist["Motivo"])
 
@@ -940,9 +809,8 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     st.markdown(f"""
     <div style='margin-top:1rem;font-size:0.72rem;color:#4A5A75;text-align:center;'>
         Un usuario se considera "en línea" si tuvo actividad en los últimos {MINUTOS_EN_LINEA} min,
-        "inactivo" hasta {MINUTOS_INACTIVO} min sin actividad; al llegar a ese punto se desconecta
-        automáticamente (con un aviso de {SEGUNDOS_AVISO_CIERRE}s) y se archiva en el historial.
-        Toda desconexión, manual o por inactividad, se aplica en segundos gracias a la vigilancia activa.
+        "inactivo" hasta {MINUTOS_INACTIVO} min sin actividad; después se archiva en el historial.
+        La desconexión se aplica en la próxima interacción o recarga de esa sesión.
     </div>""", unsafe_allow_html=True)
 
 
