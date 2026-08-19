@@ -465,6 +465,10 @@ from modulo_monitoreo import (init_monitoreo_db, registrar_latido,
                                verificar_expulsion, mostrar_widget_chat_usuario)
 init_monitoreo_db()
 
+# ─── Módulo de gestión de clientes (CRM) ─────────────────────────────────────
+from modulo_clientes import init_clientes_db
+init_clientes_db()
+
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys
 print(f"\n☀  SolarCalc Pro — Base de datos en: {DB_PATH}\n", file=_sys.stderr)
@@ -1667,6 +1671,9 @@ with st.sidebar:
         st.session_state["modulo_activo"] = "dimensionamiento"
 
     # Grupos de módulos — dependen del tipo de sistema activo
+    _COMERCIAL = [
+        ("🧑‍💼  Clientes (CRM)", "clientes"),
+    ]
     _CATALOGOS = [
         ("🏪  Proveedores", "proveedores"),
         ("🔩  Materiales",  "materiales"),
@@ -1683,6 +1690,7 @@ with st.sidebar:
                 ("⏚   Puesta a Tierra",          "tierra"),
                 ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
+            ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
@@ -1699,6 +1707,7 @@ with st.sidebar:
                 ("⏚   Puesta a Tierra",          "tierra"),
                 ("✅  Checklist Puesta Marcha",  "checklist"),
             ]),
+            ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
@@ -1715,6 +1724,7 @@ with st.sidebar:
                 ("⏚   Puesta a Tierra",           "tierra"),
                 ("✅  Checklist Puesta Marcha",   "checklist"),
             ]),
+            ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
@@ -1781,7 +1791,7 @@ registrar_latido(
 )
 
 # ── Guard: project required for most modules ─────────────────────────────────
-if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal", "monitoreo"):
+if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal", "monitoreo", "clientes"):
     st.markdown("""
     <div class='hero-header'>
         <div class='hero-title'>☀ SOLARCALC PRO</div>
@@ -1838,6 +1848,12 @@ if modulo_activo == "personal":
         <div class='hero-sub'>PERFILES FV / RETIE</div>
     </div>""", unsafe_allow_html=True)
     mostrar_personal()
+    st.stop()
+
+# ── Gestión de clientes (CRM) — no requiere proyecto activo ──────────────────
+if modulo_activo == "clientes":
+    from modulo_clientes import mostrar_clientes
+    mostrar_clientes()
     st.stop()
 
 # ── Módulos que requieren proyecto ────────────────────────────────────────────
