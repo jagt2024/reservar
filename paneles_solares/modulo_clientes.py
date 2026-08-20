@@ -358,6 +358,65 @@ def obtener_proyectos_cliente(cliente_id: int) -> pd.DataFrame:
     return df
 
 
+def obtener_resumen_proyecto(proyecto_id: int) -> dict:
+    """Trae un resumen técnico completo del proyecto dimensionado:
+    datos básicos, cargas registradas, panel seleccionado, el último
+    cálculo de dimensionamiento (tabla `resultados`) y el recibo de
+    energía de referencia, si existen. Es tolerante a que alguna de estas
+    tablas no exista o tenga columnas distintas en tu base de datos —
+    nunca lanza una excepción, simplemente omite esa parte del resumen."""
+    resumen = {
+        "proyecto": None, "num_cargas": 0, "consumo_cargas_wh": 0.0,
+        "panel": None, "resultado": None, "recibo": None,
+    }
+    conn = get_conn()
+    conn.row_factory = sqlite3.Row
+
+    try:
+        row = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+        resumen["proyecto"] = dict(row) if row else None
+    except Exception:
+        pass
+
+    try:
+        cargas = conn.execute(
+            "SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
+            (proyecto_id,)).fetchall()
+        resumen["num_cargas"] = len(cargas)
+        resumen["consumo_cargas_wh"] = sum(
+            (c["cantidad"] or 0) * (c["potencia_w"] or 0) * (c["horas_dia"] or 0)
+            for c in cargas)
+    except Exception:
+        pass
+
+    try:
+        panel = conn.execute(
+            "SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+            (proyecto_id,)).fetchone()
+        resumen["panel"] = dict(panel) if panel else None
+    except Exception:
+        pass
+
+    try:
+        resultado = conn.execute(
+            "SELECT * FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+            (proyecto_id,)).fetchone()
+        resumen["resultado"] = dict(resultado) if resultado else None
+    except Exception:
+        pass
+
+    try:
+        recibo = conn.execute(
+            "SELECT * FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1",
+            (proyecto_id,)).fetchone()
+        resumen["recibo"] = dict(recibo) if recibo else None
+    except Exception:
+        pass
+
+    conn.close()
+    return resumen
+
+
 def obtener_proyectos_vinculables(usuario: dict, es_admin: bool) -> pd.DataFrame:
     """Proyectos que todavía no tienen cliente asociado, candidatos para
     vincular a este cliente. Un usuario normal solo puede vincular sus
@@ -673,6 +732,80 @@ def _mostrar_metricas_rapidas(df: pd.DataFrame):
     """, unsafe_allow_html=True)
 
 
+def _mostrar_resumen_proyecto(resumen: dict):
+    """Renderiza el resumen técnico completo de un proyecto dimensionado
+    dentro de la pestaña de Proyectos de un cliente."""
+    p = resumen.get("proyecto") or {}
+    r = resumen.get("resultado")
+    panel = resumen.get("panel")
+    recibo = resumen.get("recibo")
+
+    if not r and not panel and not resumen.get("num_cargas") and not recibo:
+        st.caption("Este proyecto todavía no tiene un dimensionamiento calculado.")
+        return
+
+    c1, c2 = st.columns(2)
+    with c1:
+        st.markdown(f"**☀ HSP:** {p.get('hsp') or '—'} h/día")
+        st.markdown(f"**⚡ Tensión del sistema:** {p.get('tension_dc') or '—'} V")
+    with c2:
+        st.markdown(f"**📅 Creado:** {p.get('creado') or '—'}")
+        if resumen.get("num_cargas"):
+            st.markdown(f"**🔌 Cargas registradas:** {resumen['num_cargas']} "
+                        f"· {resumen['consumo_cargas_wh']:,.0f} Wh/día estimados")
+
+    if r:
+        st.markdown(f"""
+        <div class='metric-grid'>
+            <div class='metric-box'><div class='metric-val' style='color:{CYAN};font-size:1.1rem;'>
+                {(r.get('consumo_dia_wh') or 0):,.0f}</div>
+                <div class='metric-unit'>Wh/día</div><div class='metric-label'>CONSUMO BASE</div></div>
+            <div class='metric-box'><div class='metric-val' style='color:{SOL};font-size:1.1rem;'>
+                {(r.get('consumo_con_fs') or 0):,.0f}</div>
+                <div class='metric-unit'>Wh/día</div><div class='metric-label'>CON FACTOR SEGURIDAD</div></div>
+            <div class='metric-box'><div class='metric-val' style='color:{YEL};font-size:1.1rem;'>
+                {(r.get('potencia_instalada_w') or 0):,.0f}</div>
+                <div class='metric-unit'>W</div><div class='metric-label'>POTENCIA INSTALADA</div></div>
+            <div class='metric-box'><div class='metric-val' style='color:{GREEN};'>
+                {int(r.get('num_paneles') or 0)}</div>
+                <div class='metric-unit'>paneles</div><div class='metric-label'>CANTIDAD</div></div>
+        </div>""", unsafe_allow_html=True)
+
+        if r.get("num_baterias"):
+            st.markdown(f"""
+            <div class='metric-grid'>
+                <div class='metric-box'><div class='metric-val' style='color:{PUR};'>
+                    {int(r.get('num_baterias') or 0)}</div>
+                    <div class='metric-unit'>baterías</div><div class='metric-label'>CANTIDAD</div></div>
+                <div class='metric-box'><div class='metric-val' style='color:{PUR};font-size:1.1rem;'>
+                    {(r.get('capacidad_baterias_ah') or 0):,.0f}</div>
+                    <div class='metric-unit'>Ah</div><div class='metric-label'>CAPACIDAD</div></div>
+                <div class='metric-box'><div class='metric-val' style='color:{CYAN};font-size:1.1rem;'>
+                    {(r.get('corriente_mppt') or 0):,.1f}</div>
+                    <div class='metric-unit'>A</div><div class='metric-label'>CORRIENTE MPPT</div></div>
+            </div>""", unsafe_allow_html=True)
+
+        st.caption(f"Último cálculo de dimensionamiento: {r.get('generado') or '—'}")
+    else:
+        st.caption("Este proyecto todavía no tiene un cálculo de dimensionamiento guardado.")
+
+    if panel:
+        st.markdown(f"**🔋 Panel seleccionado:** {panel.get('modelo') or '—'} "
+                    f"({(panel.get('potencia_wp') or 0):.0f} Wp · "
+                    f"Voc {(panel.get('voc') or 0):.1f} V · "
+                    f"Isc {(panel.get('isc') or 0):.1f} A)")
+
+    if recibo:
+        texto_recibo = (f"**🧾 Recibo de referencia:** "
+                        f"{(recibo.get('kwh_periodo') or 0):,.0f} kWh en "
+                        f"{recibo.get('dias_periodo') or 30} días")
+        if recibo.get("estrato"):
+            texto_recibo += f" · Estrato {recibo['estrato']}"
+        if recibo.get("periodo"):
+            texto_recibo += f" · Periodo {recibo['periodo']}"
+        st.markdown(texto_recibo)
+
+
 def _mostrar_pipeline(df: pd.DataFrame):
     if df.empty:
         st.info("Aún no hay clientes registrados. Créalos desde la pestaña "
@@ -923,6 +1056,10 @@ def _mostrar_detalle_cliente(cliente_id, usuario, es_admin, registrar_auditoria_
                             f"Proyecto #{p['id']} desvinculado del cliente #{cliente_id}",
                             "clientes")
                         st.rerun()
+
+                with st.expander(f"📊 Ver resumen del dimensionamiento — #{p['id']} {p['nombre']}"):
+                    resumen_p = obtener_resumen_proyecto(int(p["id"]))
+                    _mostrar_resumen_proyecto(resumen_p)
 
         if puede_editar:
             st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
