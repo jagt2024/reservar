@@ -493,6 +493,110 @@ def importar_clientes_df(df: pd.DataFrame, usuario: dict, es_admin: bool) -> dic
 
 
 # ═══════════════════════════════════════════════════════════════════════════
+# ENVÍO DE CORREO ELECTRÓNICO
+# ═══════════════════════════════════════════════════════════════════════════
+# Requiere: pip install yagmail
+# Credenciales de la cuenta remitente (una contraseña de aplicación de
+# Gmail, no la contraseña normal de la cuenta) en st.secrets, con esta forma:
+#
+#   [emails]
+#   smtp_user = "tu_cuenta@gmail.com"
+#   smtp_password = "xxxx xxxx xxxx xxxx"
+#
+# No se leen a nivel de módulo (a diferencia del ejemplo original) para que
+# el CRM no se caiga entero si todavía no se han configurado esos secrets en
+# este despliegue: `_credenciales_email()` los busca en el momento de enviar
+# y, si faltan, `enviar_email()` devuelve un mensaje de error claro en vez
+# de una excepción sin manejar.
+def _credenciales_email():
+    try:
+        return st.secrets["emails"]["smtp_user"], st.secrets["emails"]["smtp_password"]
+    except Exception:
+        return None, None
+
+
+def email_configurado() -> bool:
+    smtp_user, smtp_pass = _credenciales_email()
+    return bool(smtp_user and smtp_pass)
+
+
+def enviar_email(destinatario: str, asunto: str, cuerpo: str,
+                  adjunto_bytes: bytes = None, nombre_adjunto: str = None,
+                  email_from: str = None, nombre_from: str = None):
+    """
+    Envía un correo (con o sin adjunto) usando yagmail (Gmail).
+
+    Parámetros:
+        destinatario     — dirección de correo del destinatario.
+        asunto           — asunto del mensaje.
+        cuerpo           — cuerpo en texto plano o HTML.
+        adjunto_bytes    — contenido del archivo a adjuntar (bytes), opcional.
+        nombre_adjunto   — nombre visible del archivo adjunto, p. ej.
+                            "ficha_cliente.xlsx". Se respeta tal cual porque
+                            el adjunto se escribe con ese mismo nombre en un
+                            directorio temporal (no con un nombre aleatorio).
+        email_from       — correo que se muestra como remitente visible.
+        nombre_from      — nombre visible del remitente.
+
+    Retorna (True, "") si el envío fue exitoso, o (False, mensaje_de_error)
+    en caso contrario — nunca lanza una excepción hacia quien la llama.
+    """
+    smtp_user, smtp_pass = _credenciales_email()
+    if not smtp_user or not smtp_pass:
+        return False, ("El envío de correo no está configurado en este despliegue. "
+                        "Agrega st.secrets['emails']['smtp_user'] y ['smtp_password'] "
+                        "(una contraseña de aplicación de Gmail).")
+    if not destinatario or "@" not in destinatario:
+        return False, "El destinatario no tiene un correo válido."
+
+    import tempfile, os
+    tmp_dir = None
+    tmp_path = None
+    try:
+        if adjunto_bytes is not None:
+            # yagmail requiere una ruta de archivo real, no bytes en memoria.
+            # Se usa un directorio temporal propio (en vez de
+            # NamedTemporaryFile) para poder conservar el nombre exacto que
+            # verá el destinatario, en lugar de un nombre aleatorio.
+            tmp_dir = tempfile.mkdtemp(prefix="crm_mail_")
+            tmp_path = os.path.join(tmp_dir, nombre_adjunto or "adjunto.dat")
+            with open(tmp_path, "wb") as f:
+                f.write(adjunto_bytes)
+
+        import yagmail
+        yag = yagmail.SMTP(user=smtp_user, password=smtp_pass,
+                            smtp_starttls=True, smtp_ssl=False)
+        # Se autentica con smtp_user/smtp_pass, pero el campo "De" visible en
+        # el correo puede mostrar otro nombre/correo (p. ej. el del asesor).
+        kwargs = dict(to=destinatario, subject=asunto, contents=cuerpo)
+        if tmp_path:
+            kwargs["attachments"] = tmp_path
+        if email_from:
+            kwargs["headers"] = {
+                "From": f"{nombre_from} <{email_from}>" if nombre_from else email_from
+            }
+
+        yag.send(**kwargs)
+        return True, ""
+    except ModuleNotFoundError:
+        return False, "Falta instalar la librería yagmail (`pip install yagmail`)."
+    except Exception as e:
+        return False, str(e)
+    finally:
+        # Limpieza garantizada del archivo y directorio temporal.
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+        if tmp_dir and os.path.isdir(tmp_dir):
+            try:
+                os.rmdir(tmp_dir)
+            except Exception:
+                pass
+
+
+# ═══════════════════════════════════════════════════════════════════════════
 # INTERFAZ
 # ═══════════════════════════════════════════════════════════════════════════
 def mostrar_clientes(usuario_activo_fn=None, tiene_permiso_fn=None, registrar_auditoria_fn=None):
@@ -669,8 +773,8 @@ def _mostrar_detalle_cliente(cliente_id, usuario, es_admin, registrar_auditoria_
         </div>
     </div>""", unsafe_allow_html=True)
 
-    dtab1, dtab2, dtab3, dtab4, dtab5 = st.tabs(
-        ["ℹ Datos", "📈 Etapa", "📁 Proyectos", "🗒 Interacciones", "✅ Tareas"])
+    dtab1, dtab2, dtab3, dtab4, dtab5, dtab6 = st.tabs(
+        ["ℹ Datos", "📈 Etapa", "📁 Proyectos", "🗒 Interacciones", "✅ Tareas", "✉ Correo"])
 
     # ── Datos generales ────────────────────────────────────────────────────
     with dtab1:
@@ -900,6 +1004,75 @@ def _mostrar_detalle_cliente(cliente_id, usuario, es_admin, registrar_auditoria_
             for _, t in tareas_c.iterrows():
                 _fila_tarea(t, mostrar_cliente=False, contexto=f"det_{cliente_id}")
 
+    # ── Enviar correo al cliente ────────────────────────────────────────────
+    with dtab6:
+        if not email_configurado():
+            st.markdown("""
+            <div class='warn-box'>⚠ El envío de correo no está configurado en este
+            despliegue. Un administrador debe agregar
+            <code>st.secrets['emails']['smtp_user']</code> y
+            <code>['smtp_password']</code> (una contraseña de aplicación de Gmail).</div>
+            """, unsafe_allow_html=True)
+
+        if not c["email"]:
+            st.warning("Este cliente no tiene un correo registrado. Agrégalo en "
+                       "la pestaña “ℹ Datos” para poder escribirle.")
+        else:
+            st.caption(f"Se enviará a: **{c['email']}**")
+            with st.form(f"form_email_{cliente_id}"):
+                asunto = st.text_input("Asunto", value=f"SolarCalc Pro — {c['nombre']}",
+                                        key=f"asunto_email_{cliente_id}")
+                cuerpo = st.text_area(
+                    "Mensaje", height=140,
+                    value=f"Hola {c['nombre']},\n\nTe escribo desde SolarCalc Pro "
+                          f"con relación a tu proyecto solar.\n\nQuedo atento.\n\n"
+                          f"{usuario['username']}",
+                    key=f"cuerpo_email_{cliente_id}")
+                adjuntar_ficha = st.checkbox(
+                    "Adjuntar ficha del cliente (Excel: datos, interacciones y tareas)",
+                    key=f"adjuntar_ficha_{cliente_id}")
+                adjunto_extra = st.file_uploader(
+                    "O adjuntar otro archivo (cotización, PDF, etc.)",
+                    key=f"adjunto_email_{cliente_id}")
+                enviar = st.form_submit_button("✉ Enviar correo", use_container_width=True,
+                                                disabled=not puede_editar)
+
+            if enviar:
+                if not asunto.strip() or not cuerpo.strip():
+                    st.error("Completa el asunto y el mensaje.")
+                else:
+                    adjunto_bytes = nombre_adj = None
+                    if adjunto_extra is not None:
+                        adjunto_bytes = adjunto_extra.getvalue()
+                        nombre_adj = adjunto_extra.name
+                    elif adjuntar_ficha:
+                        df_uno = pd.DataFrame([c])
+                        adjunto_bytes = _generar_excel(
+                            df_uno, obtener_interacciones(cliente_id),
+                            obtener_tareas(cliente_id=cliente_id))
+                        nombre_seguro = "".join(
+                            ch if ch.isalnum() else "_" for ch in (c["nombre"] or "cliente"))
+                        nombre_adj = f"ficha_{nombre_seguro}.xlsx"
+
+                    ok, error = enviar_email(
+                        destinatario=c["email"], asunto=asunto.strip(), cuerpo=cuerpo,
+                        adjunto_bytes=adjunto_bytes, nombre_adjunto=nombre_adj,
+                        email_from=usuario.get("email"), nombre_from=usuario["username"])
+                    if ok:
+                        detalle_int = f"Correo enviado: '{asunto.strip()}'"
+                        if nombre_adj:
+                            detalle_int += f" (adjunto: {nombre_adj})"
+                        registrar_interaccion(cliente_id, "✉ Email", detalle_int, usuario)
+                        registrar_auditoria_fn(
+                            usuario["id"], usuario["username"], "ENVIAR_EMAIL_CLIENTE",
+                            f"Correo enviado a cliente #{cliente_id} ({c['email']})",
+                            "clientes")
+                        st.success("✓ Correo enviado y registrado en el historial de "
+                                   "interacciones.")
+                        st.rerun()
+                    else:
+                        st.error(f"No se pudo enviar el correo: {error}")
+
 
 def _fila_tarea(t: pd.Series, mostrar_cliente: bool = True, contexto: str = "det"):
     """`contexto` distingue las keys de los widgets según desde dónde se
@@ -1104,6 +1277,47 @@ def _mostrar_exportar_importar(df_clientes, usuario, es_admin, registrar_auditor
                         use_container_width=True, key="dl_tareas_csv")
                 else:
                     st.caption("Sin tareas registradas.")
+
+    # ── Enviar por correo ──────────────────────────────────────────────────
+    st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+    st.markdown("""<div style='color:#FFB300;font-family:Rajdhani,sans-serif;
+        font-weight:600;margin-bottom:0.4rem;'>✉ ENVIAR POR CORREO</div>""",
+        unsafe_allow_html=True)
+    st.caption("Envía el Excel con toda la información (clientes, interacciones y "
+               "tareas) a una dirección de correo, por ejemplo para respaldarla o "
+               "compartirla con un compañero.")
+
+    if not email_configurado():
+        st.markdown("""
+        <div class='warn-box'>⚠ El envío de correo no está configurado en este
+        despliegue. Un administrador debe agregar
+        <code>st.secrets['emails']['smtp_user']</code> y
+        <code>['smtp_password']</code> (una contraseña de aplicación de Gmail).</div>
+        """, unsafe_allow_html=True)
+
+    with st.form("form_email_export"):
+        dest_export = st.text_input("Correo destino")
+        asunto_export = st.text_input("Asunto", value=f"CRM SolarCalc Pro — Exportación {_hoy()}")
+        enviar_export = st.form_submit_button("✉ Enviar Excel por correo",
+                                               use_container_width=True)
+    if enviar_export:
+        if not dest_export.strip():
+            st.error("Escribe un correo destino.")
+        else:
+            ok, error = enviar_email(
+                destinatario=dest_export.strip(), asunto=asunto_export.strip(),
+                cuerpo="Adjunto la exportación del CRM de SolarCalc Pro.",
+                adjunto_bytes=_generar_excel(df_clientes, df_inter, df_tareas),
+                nombre_adjunto=f"crm_clientes_{_hoy()}.xlsx",
+                email_from=usuario.get("email"), nombre_from=usuario["username"])
+            if ok:
+                registrar_auditoria_fn(
+                    usuario["id"], usuario["username"], "ENVIAR_EMAIL_EXPORT_CRM",
+                    f"Exportación del CRM enviada por correo a {dest_export.strip()}",
+                    "clientes")
+                st.success("✓ Correo enviado.")
+            else:
+                st.error(f"No se pudo enviar el correo: {error}")
 
     # ── Cargar / restaurar ─────────────────────────────────────────────────
     st.markdown("<hr class='sep'>", unsafe_allow_html=True)
