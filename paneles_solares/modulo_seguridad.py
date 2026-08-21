@@ -655,9 +655,9 @@ def mostrar_gestion_usuarios():
 
             if tiene_permiso("gestion_sistema"):
                 st.markdown("<hr style='border-color:#2A3A55;margin:1rem 0;'>", unsafe_allow_html=True)
-                if st.button("🗑 Limpiar auditoría (>30 días)", key="limpiar_aud"):
+                if st.button("🗑 Limpiar auditoría (>8 días)", key="limpiar_aud"):
                     conn = get_conn()
-                    conn.execute("DELETE FROM auditoria WHERE fecha < datetime('now','-30 days')")
+                    conn.execute("DELETE FROM auditoria WHERE fecha < datetime('now','-8 days')")
                     conn.commit(); conn.close()
                     st.success("Auditoría limpiada ✓"); st.rerun()
 
