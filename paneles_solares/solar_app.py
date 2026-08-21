@@ -444,10 +444,100 @@ def init_db():
             FOREIGN KEY(proyecto_id) REFERENCES proyectos(id)
         )
     """)
+    # Catálogo de paneles solares (editable por los usuarios)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS catalogo_paneles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            modelo TEXT NOT NULL,
+            potencia_wp REAL,
+            voc REAL,
+            isc REAL,
+            creado_por TEXT,
+            creado TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    # Catálogo de baterías (editable por los usuarios)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS catalogo_baterias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            modelo TEXT NOT NULL,
+            capacidad_ah REAL,
+            tension_v REAL,
+            tecnologia TEXT,
+            creado_por TEXT,
+            creado TEXT DEFAULT (datetime('now'))
+        )
+    """)
+    conn.commit()
+
+    # Sembrar los catálogos con valores por defecto la primera vez (si están
+    # vacíos), para que se vea igual que antes aunque ahora sean editables.
+    if c.execute("SELECT COUNT(*) FROM catalogo_paneles").fetchone()[0] == 0:
+        for _modelo, _wp, _voc, _isc in [
+            ("JinkoSolar Tiger Neo 550", 550, 49.8, 13.96),
+            ("Trina Solar Vertex 550",   550, 49.5, 14.01),
+            ("Canadian Solar HiKu6 550", 550, 49.7, 13.98),
+            ("LONGi Hi-MO 6 550",        550, 50.2, 13.95),
+            ("JA Solar JAM72D30 550",    550, 49.6, 14.02),
+            ("Risen RSM132-8-650M",      650, 56.4, 14.71),
+            ("Bifacial 440W",            440, 41.8, 13.45),
+        ]:
+            c.execute(
+                "INSERT INTO catalogo_paneles(modelo,potencia_wp,voc,isc,creado_por) "
+                "VALUES (?,?,?,?,'Sistema')", (_modelo, _wp, _voc, _isc))
+
+    if c.execute("SELECT COUNT(*) FROM catalogo_baterias").fetchone()[0] == 0:
+        for _modelo, _ah, _v, _tec in [
+            ("Pylontech US5000",           100,   48,   "LiFePO4"),
+            ("Dyness BX51100",             100,   51.2, "LiFePO4"),
+            ("BYD Battery Box",            100,   51.2, "LiFePO4"),
+            ("CATL EnerOne Plus",          104,   48,   "LiFePO4"),
+            ("Sunsynk LBSA016",            100,   51.2, "LiFePO4"),
+            ("Hubble AM-5",                107,   51.2, "LiFePO4"),
+            ("LiFePO4 genérica 100Ah 12V", 100,   12,   "LiFePO4"),
+            ("AGM genérica 100Ah 12V",     100,   12,   "AGM"),
+            ("GEL genérica 200Ah 12V",     200,   12,   "GEL"),
+        ]:
+            c.execute(
+                "INSERT INTO catalogo_baterias(modelo,capacidad_ah,tension_v,tecnologia,creado_por) "
+                "VALUES (?,?,?,?,'Sistema')", (_modelo, _ah, _v, _tec))
     conn.commit()
     conn.close()
 
 init_db()
+
+
+# ─── Catálogos de paneles y baterías (compartidos, editables por los usuarios) ─
+def obtener_catalogo_paneles() -> pd.DataFrame:
+    conn = get_conn()
+    df = pd.read_sql("SELECT * FROM catalogo_paneles ORDER BY modelo", conn)
+    conn.close()
+    return df
+
+
+def agregar_panel_catalogo(modelo: str, wp: float, voc: float, isc: float, creado_por: str = ""):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO catalogo_paneles(modelo,potencia_wp,voc,isc,creado_por) VALUES (?,?,?,?,?)",
+        (modelo, wp, voc, isc, creado_por))
+    conn.commit()
+    conn.close()
+
+
+def obtener_catalogo_baterias() -> pd.DataFrame:
+    conn = get_conn()
+    df = pd.read_sql("SELECT * FROM catalogo_baterias ORDER BY modelo", conn)
+    conn.close()
+    return df
+
+
+def agregar_bateria_catalogo(modelo: str, ah: float, v: float, tecnologia: str, creado_por: str = ""):
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO catalogo_baterias(modelo,capacidad_ah,tension_v,tecnologia,creado_por) "
+        "VALUES (?,?,?,?,?)", (modelo, ah, v, tecnologia, creado_por))
+    conn.commit()
+    conn.close()
 
 # ─── Módulo de seguridad ─────────────────────────────────────────────────────
 from modulo_seguridad import (
@@ -3211,39 +3301,68 @@ with tab5:
         "SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1", conn, params=(proyecto_id,))
     conn.close()
 
-    # ── CATÁLOGO DE PANELES SOLARES ────────────────────────────────────────
+    # ── CATÁLOGO DE PANELES SOLARES (compartido, editable) ─────────────────
+    df_cat_paneles = obtener_catalogo_paneles()
     CATALOGO_PANELES = {
-        "JinkoSolar Tiger Neo 550":  {"wp": 550, "voc": 49.8, "isc": 13.96},
-        "Trina Solar Vertex 550":    {"wp": 550, "voc": 49.5, "isc": 14.01},
-        "Canadian Solar HiKu6 550":  {"wp": 550, "voc": 49.7, "isc": 13.98},
-        "LONGi Hi-MO 6 550":         {"wp": 550, "voc": 50.2, "isc": 13.95},
-        "JA Solar JAM72D30 550":     {"wp": 550, "voc": 49.6, "isc": 14.02},
-        "Risen RSM132-8-650M":       {"wp": 650, "voc": 56.4, "isc": 14.71},
-        "Bifacial 440W":             {"wp": 440, "voc": 41.8, "isc": 13.45},
-        "Personalizado":             {"wp": 550, "voc": 49.9, "isc": 14.0},
+        row["modelo"]: {"wp": row["potencia_wp"], "voc": row["voc"], "isc": row["isc"]}
+        for _, row in df_cat_paneles.iterrows()
     }
 
     with st.expander("📋 Catálogo de Paneles Solares", expanded=False):
         st.markdown("""
         <div class='info-note' style='margin-bottom:0.8rem;'>
-            Selecciona un panel del catálogo para cargar sus parámetros automáticamente.
+            Selecciona un panel del catálogo para cargar sus parámetros automáticamente,
+            o agrega uno nuevo abajo para que quede disponible para todo el equipo.
         </div>
         """, unsafe_allow_html=True)
-        cat_cols = st.columns(4)
-        for i, (nombre_panel, params) in enumerate(CATALOGO_PANELES.items()):
-            if nombre_panel == "Personalizado":
-                continue
-            with cat_cols[i % 4]:
-                st.markdown(f"""
-                <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
-                            padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
-                    <div style='font-size:0.72rem;color:#FFB300;font-weight:600;'>{nombre_panel}</div>
-                    <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>{params['wp']}Wp</div>
-                    <div style='font-size:0.7rem;color:#8A9BBD;'>Voc={params['voc']}V | Isc={params['isc']}A</div>
-                </div>
-                """, unsafe_allow_html=True)
-                if st.button(f"Usar", key=f"cat_panel_{nombre_panel}_{i}", use_container_width=True):
-                    st.session_state["panel_cat_sel"] = nombre_panel
+        if CATALOGO_PANELES:
+            cat_cols = st.columns(4)
+            for i, (nombre_panel, params) in enumerate(CATALOGO_PANELES.items()):
+                with cat_cols[i % 4]:
+                    st.markdown(f"""
+                    <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
+                                padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
+                        <div style='font-size:0.72rem;color:#FFB300;font-weight:600;'>{nombre_panel}</div>
+                        <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>{params['wp']:.0f}Wp</div>
+                        <div style='font-size:0.7rem;color:#8A9BBD;'>Voc={params['voc']}V | Isc={params['isc']}A</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button(f"Usar", key=f"cat_panel_{nombre_panel}_{i}", use_container_width=True):
+                        st.session_state["panel_cat_sel"] = nombre_panel
+                        st.rerun()
+        else:
+            st.caption("El catálogo está vacío. Agrega el primer panel abajo.")
+
+        st.markdown("<hr class='sep' style='margin:0.8rem 0;'>", unsafe_allow_html=True)
+        st.markdown("**➕ Agregar nuevo panel al catálogo**")
+        with st.form("form_nuevo_panel_catalogo", clear_on_submit=True):
+            np_c1, np_c2, np_c3, np_c4 = st.columns([2, 1, 1, 1])
+            with np_c1:
+                nuevo_panel_modelo = st.text_input(
+                    "Modelo / Referencia", placeholder="Ej: Canadian Solar CS6W-555T")
+            with np_c2:
+                nuevo_panel_wp = st.number_input("Wp", min_value=10, max_value=1000, value=550)
+            with np_c3:
+                nuevo_panel_voc = st.number_input(
+                    "Voc (V)", min_value=5.0, max_value=100.0, value=49.9, step=0.1)
+            with np_c4:
+                nuevo_panel_isc = st.number_input(
+                    "Isc (A)", min_value=0.1, max_value=30.0, value=14.0, step=0.1)
+            if st.form_submit_button("➕ Agregar al catálogo", use_container_width=True):
+                if not nuevo_panel_modelo.strip():
+                    st.error("Escribe el modelo del panel.")
+                elif nuevo_panel_modelo.strip() in CATALOGO_PANELES:
+                    st.error("Ya existe un panel con ese modelo en el catálogo.")
+                else:
+                    _u5cat = usuario_activo()
+                    agregar_panel_catalogo(
+                        nuevo_panel_modelo.strip(), nuevo_panel_wp, nuevo_panel_voc,
+                        nuevo_panel_isc, _u5cat["username"] if _u5cat else "")
+                    if _u5cat:
+                        registrar_auditoria(
+                            _u5cat["id"], _u5cat["username"], "AGREGAR_PANEL_CATALOGO",
+                            f"Panel '{nuevo_panel_modelo.strip()}' agregado al catálogo", "tab5")
+                    st.success(f"✓ Panel '{nuevo_panel_modelo.strip()}' agregado al catálogo")
                     st.rerun()
 
     # Detectar si hay selección del catálogo
@@ -3368,28 +3487,6 @@ with tab5:
         </div>
         """, unsafe_allow_html=True)
 
-    # Catalogo de baterias LiFePO4
-    st.markdown("<hr class='sep'>", unsafe_allow_html=True)
-    st.markdown("""
-    <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:700;
-                font-size:1.1rem;letter-spacing:1px;margin-bottom:0.8rem;'>
-        CATALOGO DE BATERIAS LiFePO4
-    </div>""", unsafe_allow_html=True)
-    CATALOGO_BATERIAS = [
-        {"Marca": "Pylontech", "Modelo": "US5000",       "kWh": 4.8,  "V": 48,   "Ah": 100},
-        {"Marca": "Dyness",    "Modelo": "BX51100",      "kWh": 5.12, "V": 51.2, "Ah": 100},
-        {"Marca": "BYD",       "Modelo": "Battery Box",  "kWh": 5.1,  "V": 51.2, "Ah": 100},
-        {"Marca": "CATL",      "Modelo": "EnerOne Plus", "kWh": 5.0,  "V": 48,   "Ah": 104},
-        {"Marca": "Sunsynk",   "Modelo": "LBSA016",      "kWh": 5.12, "V": 51.2, "Ah": 100},
-        {"Marca": "Hubble",    "Modelo": "AM-5",         "kWh": 5.5,  "V": 51.2, "Ah": 107},
-    ]
-    df_bats_cat = pd.DataFrame(CATALOGO_BATERIAS)
-    st.dataframe(df_bats_cat.set_index("Marca"), use_container_width=True, hide_index=False)
-    st.markdown("""
-    <div class='info-note'>
-        LiFePO4 DoD recomendado 80-90%, ciclos de vida 3500-6000, BMS integrado.
-    </div>""", unsafe_allow_html=True)
-
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 6 — BATERÍAS
 # ════════════════════════════════════════════════════════════════════════════
@@ -3404,6 +3501,75 @@ with tab6:
         N° baterías = Ah requeridos ÷ Capacidad batería (Ah)
     </div>
     """, unsafe_allow_html=True)
+
+    # ── CATÁLOGO DE BATERÍAS (compartido, editable) ────────────────────────
+    df_cat_baterias = obtener_catalogo_baterias()
+    CATALOGO_BATERIAS = {
+        row["modelo"]: {"ah": row["capacidad_ah"], "v": row["tension_v"], "tec": row["tecnologia"]}
+        for _, row in df_cat_baterias.iterrows()
+    }
+
+    with st.expander("🔋 Catálogo de Baterías", expanded=False):
+        st.markdown("""
+        <div class='info-note' style='margin-bottom:0.8rem;'>
+            Selecciona una batería del catálogo para cargar su capacidad y tensión
+            automáticamente, o agrega una nueva abajo para que quede disponible
+            para todo el equipo.
+        </div>
+        """, unsafe_allow_html=True)
+        if CATALOGO_BATERIAS:
+            cat_cols6 = st.columns(4)
+            for i, (nombre_bat, params) in enumerate(CATALOGO_BATERIAS.items()):
+                with cat_cols6[i % 4]:
+                    st.markdown(f"""
+                    <div style='background:#1A2235;border:1px solid #2A3A55;border-radius:8px;
+                                padding:0.6rem;text-align:center;margin-bottom:0.4rem;'>
+                        <div style='font-size:0.72rem;color:#FFB300;font-weight:600;'>{nombre_bat}</div>
+                        <div style='font-family:Share Tech Mono;font-size:0.85rem;color:#FFD54F;'>
+                            {params['ah']:.0f}Ah @ {params['v']:.0f}V</div>
+                        <div style='font-size:0.7rem;color:#8A9BBD;'>{params['tec'] or '—'}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("Usar", key=f"cat_bat_{nombre_bat}_{i}", use_container_width=True):
+                        st.session_state["bateria_cat_sel"] = nombre_bat
+                        st.rerun()
+        else:
+            st.caption("El catálogo está vacío. Agrega la primera batería abajo.")
+
+        st.markdown("<hr class='sep' style='margin:0.8rem 0;'>", unsafe_allow_html=True)
+        st.markdown("**➕ Agregar nueva batería al catálogo**")
+        with st.form("form_nueva_bateria_catalogo", clear_on_submit=True):
+            nb_c1, nb_c2, nb_c3, nb_c4 = st.columns([2, 1, 1, 1])
+            with nb_c1:
+                nueva_bat_modelo = st.text_input(
+                    "Modelo / Referencia", placeholder="Ej: Pylontech US3000C")
+            with nb_c2:
+                nueva_bat_ah = st.number_input(
+                    "Capacidad (Ah)", min_value=1, max_value=1000, value=100)
+            with nb_c3:
+                nueva_bat_v = st.selectbox("Tensión (V)", [2, 6, 12, 24, 48], index=2)
+            with nb_c4:
+                nueva_bat_tec = st.selectbox(
+                    "Tecnología", ["LiFePO4", "Litio", "AGM", "GEL", "Plomo-ácido", "Otra"])
+            if st.form_submit_button("➕ Agregar al catálogo", use_container_width=True):
+                if not nueva_bat_modelo.strip():
+                    st.error("Escribe el modelo de la batería.")
+                elif nueva_bat_modelo.strip() in CATALOGO_BATERIAS:
+                    st.error("Ya existe una batería con ese modelo en el catálogo.")
+                else:
+                    _u6cat = usuario_activo()
+                    agregar_bateria_catalogo(
+                        nueva_bat_modelo.strip(), nueva_bat_ah, nueva_bat_v, nueva_bat_tec,
+                        _u6cat["username"] if _u6cat else "")
+                    if _u6cat:
+                        registrar_auditoria(
+                            _u6cat["id"], _u6cat["username"], "AGREGAR_BATERIA_CATALOGO",
+                            f"Batería '{nueva_bat_modelo.strip()}' agregada al catálogo", "tab6")
+                    st.success(f"✓ Batería '{nueva_bat_modelo.strip()}' agregada al catálogo")
+                    st.rerun()
+
+    _cat_bat_sel = st.session_state.get("bateria_cat_sel", "")
+    _cat_bat_params = CATALOGO_BATERIAS.get(_cat_bat_sel, {})
 
     conn = get_conn()
     cargas6 = pd.read_sql("SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?",
@@ -3448,14 +3614,25 @@ with tab6:
         col6a, col6b = st.columns([1,1])
         with col6a:
             st.markdown("<div class='sol-card'>", unsafe_allow_html=True)
+            if _cat_bat_sel:
+                st.markdown(f"<div class='info-note' style='margin-bottom:0.5rem;'>"
+                            f"✓ Batería del catálogo: <b>{_cat_bat_sel}</b></div>",
+                            unsafe_allow_html=True)
+            _vdc_sugerida6 = int(_cat_bat_params.get("v") or 0)
+            _vdc_defecto6 = _vdc_sugerida6 if _vdc_sugerida6 in [12, 24, 48] else (
+                vdc6 if vdc6 in [12, 24, 48] else 48)
+            if _cat_bat_sel and _vdc_sugerida6 not in [12, 24, 48]:
+                st.caption(f"Esta batería es de {_vdc_sugerida6} V por celda/unidad — "
+                           f"selecciona la tensión del banco ya armado en serie/paralelo.")
             vdc_input6 = st.selectbox("Tensión DC del sistema (V)", [12, 24, 48],
-                                       index=[12,24,48].index(vdc6) if vdc6 in [12,24,48] else 2)
+                                       index=[12, 24, 48].index(_vdc_defecto6))
             dod_input6 = st.slider("Profundidad de descarga — DoD (%)", 50, 100, 80,
                                     help="80% recomendado para baterías LiFePO4 | 50% para baterías AGM/GEL")
             eff_input6 = st.slider("Eficiencia del sistema — η (%)", 70, 98, 90,
                                     help="Incluye pérdidas por inversor (~5%), cableado (~2%), autodescarga (~3%). "
                                          "Típico: 85-92% para sistemas bien diseñados.")
-            bat_cap6 = st.number_input("Capacidad por batería (Ah)", min_value=10, max_value=500, value=100)
+            bat_cap6 = st.number_input("Capacidad por batería (Ah)", min_value=10, max_value=500,
+                                        value=int(_cat_bat_params.get("ah") or 100))
 
             dod_dec   = dod_input6 / 100.0
             eff_dec   = eff_input6 / 100.0
