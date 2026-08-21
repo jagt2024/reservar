@@ -468,6 +468,30 @@ def init_db():
             creado TEXT DEFAULT (datetime('now'))
         )
     """)
+    # Cálculo de banco de baterías guardado por proyecto (Tab 6)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS baterias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proyecto_id INTEGER,
+            modelo TEXT,
+            capacidad_ah REAL,
+            tension_banco_v INTEGER,
+            tecnologia TEXT,
+            dod_pct REAL,
+            eficiencia_pct REAL,
+            horas_autonomia REAL,
+            consumo_dia_wh REAL,
+            consumo_con_fs_wh REAL,
+            ah_requeridos REAL,
+            num_baterias INTEGER,
+            capacidad_real_ah REAL,
+            energia_bruta_kwh REAL,
+            energia_util_kwh REAL,
+            autonomia_real_h REAL,
+            generado TEXT DEFAULT (datetime('now')),
+            FOREIGN KEY(proyecto_id) REFERENCES proyectos(id)
+        )
+    """)
     conn.commit()
 
     # Sembrar los catálogos con valores por defecto la primera vez (si están
@@ -1512,6 +1536,131 @@ def generar_pdf(proyecto_id: int, proyecto_info: tuple) -> bytes:
     doc.build(story)
     buf.seek(0)
     return buf.read()
+
+
+def generar_pdf_baterias(proyecto_id: int, proyecto_info: tuple, datos: dict) -> bytes:
+    """Genera un PDF de una página con la memoria de cálculo del banco de
+    baterías (Tab 6): batería seleccionada, memoria de cálculo paso a paso
+    (método de 5 parámetros) y el resultado final. Es independiente del
+    informe completo del proyecto (`generar_pdf`)."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=1.8*cm, rightMargin=1.8*cm,
+                            topMargin=1.8*cm, bottomMargin=1.8*cm)
+
+    SOL    = colors.HexColor("#FFB300")
+    DARK   = colors.HexColor("#0A0E1A")
+    CARD   = colors.HexColor("#1A2235")
+    CARD2  = colors.HexColor("#1E2A3F")
+    TEXT   = colors.HexColor("#E8EDF5")
+    TEXT2  = colors.HexColor("#8A9BBD")
+    GREEN  = colors.HexColor("#00E676")
+    BORDER = colors.HexColor("#2A3A55")
+
+    styles = getSampleStyleSheet()
+    titulo_st = ParagraphStyle("titulo_bat", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub_bat", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec_bat", fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    body_st   = ParagraphStyle("body_bat", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT, spaceAfter=6)
+    foot_st   = ParagraphStyle("foot_bat", fontName="Helvetica-Oblique", fontSize=7.5,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceBefore=6)
+
+    story = []
+    story.append(Paragraph("🔋  SOLARCALC PRO — DIMENSIONAMIENTO DE BANCO DE BATERÍAS", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_info[1]}</b>  |  Municipio: {proyecto_info[2] or '—'}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=1, color=SOL, spaceAfter=8))
+
+    if datos.get("modelo"):
+        story.append(Paragraph("🔋  BATERÍA SELECCIONADA (CATÁLOGO)", sec_st))
+        story.append(Paragraph(
+            f"<b>{datos['modelo']}</b> — {datos.get('tecnologia') or '—'} — "
+            f"{datos.get('capacidad_ah', 0):.0f} Ah @ {datos.get('tension_bateria', 0):.0f} V "
+            f"(por unidad)", body_st))
+    else:
+        story.append(Paragraph("🔋  BATERÍA", sec_st))
+        story.append(Paragraph(
+            f"Capacidad personalizada: {datos.get('capacidad_ah', 0):.0f} Ah por unidad", body_st))
+
+    # ── Memoria de cálculo ──────────────────────────────────────────────────
+    story.append(Paragraph("🧮  MEMORIA DE CÁLCULO — MÉTODO DE 5 PARÁMETROS", sec_st))
+    dod_dec_pdf = datos["dod_pct"] / 100.0
+    eff_dec_pdf = datos["eff_pct"] / 100.0
+    filas = [
+        ["Parámetro", "Valor"],
+        ["① Consumo diario (con FS 20%)", f"{datos['consumo_fs']:,.0f} Wh/día"],
+        ["② Días de autonomía", f"{datos['dias_autonomia']:.3f} días ({datos['horas_autonomia']:.0f} h)"],
+        ["③ Voltaje del banco", f"{datos['vdc']:.0f} V DC"],
+        ["④ Profundidad de descarga (DoD)", f"{datos['dod_pct']:.0f}%"],
+        ["⑤ Eficiencia del sistema (η)", f"{datos['eff_pct']:.0f}%"],
+        [f"E_total = {datos['consumo_fs']:,.0f} × {datos['dias_autonomia']:.3f} ÷ {eff_dec_pdf:.2f}",
+         f"{datos['e_total']:,.1f} Wh"],
+        [f"Ah = {datos['e_total']:,.1f} ÷ ({datos['vdc']:.0f} × {dod_dec_pdf:.2f})",
+         f"{datos['ah_requeridos']:.1f} Ah"],
+        ["Capacidad por batería", f"{datos['capacidad_ah']:.0f} Ah"],
+        [f"{datos['ah_requeridos']:.1f} ÷ {datos['capacidad_ah']:.0f} → par más cercano",
+         f"{datos['num_baterias']} baterías"],
+    ]
+    t = Table(filas, colWidths=[11.5*cm, 5.5*cm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,0), SOL),
+        ("TEXTCOLOR",    (0,0), (-1,0), DARK),
+        ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+        *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2) for i in range(1, len(filas))],
+        ("TEXTCOLOR",    (0,1), (-1,-1), TEXT),
+        ("FONTNAME",     (0,1), (-1,-1), "Helvetica"),
+        ("FONTSIZE",     (0,0), (-1,-1), 9),
+        ("ALIGN",        (1,0), (1,-1), "RIGHT"),
+        ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+        ("TOPPADDING",   (0,0), (-1,-1), 5),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+    ]))
+    story.append(t)
+    story.append(Spacer(1, 0.5*cm))
+
+    # ── Resultado final ─────────────────────────────────────────────────────
+    story.append(Paragraph("✅  RESULTADO DEL BANCO DE BATERÍAS", sec_st))
+    res_filas = [
+        ["Indicador", "Valor"],
+        ["Baterías necesarias", f"{datos['num_baterias']} unidades de {datos['capacidad_ah']:.0f} Ah"],
+        ["Capacidad real instalada", f"{datos['capacidad_real_ah']:,.0f} Ah"],
+        ["Tensión del banco", f"{datos['vdc']:.0f} V DC"],
+        ["Energía bruta", f"{datos['energia_bruta_kwh']:.2f} kWh"],
+        ["Energía útil (con DoD y η)", f"{datos['energia_util_kwh']:.2f} kWh"],
+        ["Autonomía real estimada",
+         f"{datos['autonomia_real_h']:.1f} h ({datos['autonomia_real_h']/24:.2f} días)"],
+    ]
+    t2 = Table(res_filas, colWidths=[11.5*cm, 5.5*cm])
+    t2.setStyle(TableStyle([
+        ("BACKGROUND",   (0,0), (-1,0), SOL),
+        ("TEXTCOLOR",    (0,0), (-1,0), DARK),
+        ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+        *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2) for i in range(1, len(res_filas))],
+        ("TEXTCOLOR",    (0,1), (-1,-1), GREEN),
+        ("FONTNAME",     (0,1), (-1,-1), "Helvetica-Bold"),
+        ("FONTSIZE",     (0,0), (-1,-1), 9.5),
+        ("ALIGN",        (1,0), (1,-1), "RIGHT"),
+        ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+        ("TOPPADDING",   (0,0), (-1,-1), 6),
+        ("BOTTOMPADDING",(0,0), (-1,-1), 6),
+    ]))
+    story.append(t2)
+
+    story.append(Spacer(1, 0.6*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    story.append(Paragraph(
+        "Generado con SolarCalc Pro · Esta es una memoria de cálculo técnica del banco de "
+        "baterías; no reemplaza el diseño detallado ni la verificación en obra.", foot_st))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
 
 # ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 # ─── CONTROL DE ACCESO ──────────────────────────────────────────────────────
@@ -3759,6 +3908,74 @@ with tab6:
             </div>
         </div>
         """, unsafe_allow_html=True)
+
+        # ── Guardar y generar PDF del banco de baterías ─────────────────────
+        st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
+        _datos_bat6 = dict(
+            modelo=_cat_bat_sel, tecnologia=(_cat_bat_params.get("tec") or ""),
+            capacidad_ah=bat_cap6, tension_bateria=(_cat_bat_params.get("v") or vdc_input6),
+            consumo_fs=consumo6_fs, dias_autonomia=dias_aut6, horas_autonomia=horas_aut6,
+            vdc=vdc_input6, dod_pct=dod_input6, eff_pct=eff_input6, e_total=e_total6,
+            ah_requeridos=ah_req6, num_baterias=num_bat6, capacidad_real_ah=cap_real6,
+            energia_bruta_kwh=energia_real6, energia_util_kwh=energia_real6 * dod_dec * eff_dec,
+            autonomia_real_h=autonomia_real6,
+        )
+
+        col_bg1, col_bg2 = st.columns(2)
+        with col_bg1:
+            if st.button("💾 Guardar Cálculo de Baterías", use_container_width=True,
+                         key="btn_guardar_bat6"):
+                conn = get_conn()
+                conn.execute("DELETE FROM baterias WHERE proyecto_id=?", (proyecto_id,))
+                conn.execute("""
+                    INSERT INTO baterias(proyecto_id, modelo, capacidad_ah, tension_banco_v,
+                        tecnologia, dod_pct, eficiencia_pct, horas_autonomia, consumo_dia_wh,
+                        consumo_con_fs_wh, ah_requeridos, num_baterias, capacidad_real_ah,
+                        energia_bruta_kwh, energia_util_kwh, autonomia_real_h)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (proyecto_id, _cat_bat_sel or "Genérica", bat_cap6, vdc_input6,
+                      (_cat_bat_params.get("tec") or "—"), dod_input6, eff_input6, horas_aut6,
+                      consumo6, consumo6_fs, ah_req6, num_bat6, cap_real6, energia_real6,
+                      energia_real6 * dod_dec * eff_dec, autonomia_real6))
+                conn.commit()
+                conn.close()
+                _u6g = usuario_activo()
+                if _u6g:
+                    registrar_auditoria(
+                        _u6g["id"], _u6g["username"], "GUARDAR_BATERIAS",
+                        f"Proyecto #{proyecto_id}: {num_bat6} baterías de {bat_cap6:.0f}Ah "
+                        f"@ {vdc_input6}V", "tab6")
+                st.success(f"✓ Cálculo guardado: {num_bat6} baterías de {bat_cap6:.0f} Ah "
+                           f"@ {vdc_input6} V")
+                st.rerun()
+
+        with col_bg2:
+            try:
+                conn_pdf6 = get_conn()
+                pinfo6 = conn_pdf6.execute(
+                    "SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+                conn_pdf6.close()
+                pdf_bat6 = generar_pdf_baterias(proyecto_id, pinfo6, _datos_bat6)
+                st.download_button(
+                    "⬇ Descargar PDF de Baterías", data=pdf_bat6,
+                    file_name=f"SolarCalc_Baterias_{pinfo6[1].replace(' ','_')}_"
+                              f"{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf", use_container_width=True, key="dl_pdf_bat6")
+            except Exception as ex:
+                st.error(f"Error generando PDF: {ex}")
+
+        # Último cálculo guardado para este proyecto
+        conn = get_conn()
+        hist_bat6 = pd.read_sql(
+            "SELECT generado, modelo, capacidad_ah, tension_banco_v, num_baterias, "
+            "capacidad_real_ah, autonomia_real_h FROM baterias WHERE proyecto_id=? "
+            "ORDER BY id DESC LIMIT 3", conn, params=(proyecto_id,))
+        conn.close()
+        if not hist_bat6.empty:
+            st.markdown("**Últimos cálculos de baterías guardados:**")
+            hist_bat6.columns = ["Fecha", "Batería", "Ah/u", "V banco", "N° baterías",
+                                  "Ah reales", "Autonomía (h)"]
+            st.dataframe(hist_bat6, use_container_width=True, hide_index=True)
 
 
 # ════════════════════════════════════════════════════════════════════════════
