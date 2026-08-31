@@ -14,10 +14,19 @@ import sqlite3
 import pandas as pd
 import math
 import os
+import io
 import tempfile
 import pathlib
 from datetime import datetime
 import base64
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import cm
+from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle,
+                                 Paragraph, Spacer, HRFlowable)
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
 
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
 try:
@@ -608,6 +617,160 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
       <rect width="{W}" height="{H-65}" fill="url(#grid_h2)"/>
       {header}{wires}{arr}{cb}{inv}{bat}{med}{red}{tac}{modos}{gnd}{leg2}{title}
     </svg>'''
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERACIÓN DE PDF — DIMENSIONAMIENTO HÍBRIDO COMPLETO
+# ═══════════════════════════════════════════════════════════════════════════════
+def generar_pdf_hibrido(proyecto_id: int, proyecto_info: tuple, datos: dict) -> bytes:
+    """Genera un PDF con toda la información del dimensionamiento HÍBRIDO
+    generada hasta el momento: consumo, banco de baterías, array FV,
+    inversor híbrido, verificaciones MPPT, balance solar/red y análisis
+    económico (si ya se visitó ese tab). `datos` trae los valores ya
+    calculados en el Tab 5 (Dimensionamiento), sin recalcular nada aquí."""
+    conn = get_conn()
+    cargas_df = pd.read_sql("SELECT * FROM cargas WHERE proyecto_id=?", conn, params=(proyecto_id,))
+    conn.close()
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=1.6*cm, rightMargin=1.6*cm,
+                            topMargin=1.6*cm, bottomMargin=1.6*cm)
+
+    SOL    = colors.HexColor("#F59E0B")
+    DARK   = colors.HexColor("#0A0E1A")
+    CARD   = colors.HexColor("#1A2235")
+    CARD2  = colors.HexColor("#1E2A3F")
+    TEXT   = colors.HexColor("#E8EDF5")
+    TEXT2  = colors.HexColor("#8A9BBD")
+    GREEN  = colors.HexColor("#00E676")
+    PUR    = colors.HexColor("#A78BFA")
+    BORDER = colors.HexColor("#2A3A55")
+
+    styles = getSampleStyleSheet()
+    titulo_st = ParagraphStyle("titulo_hib", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub_hib", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec_hib", fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    foot_st   = ParagraphStyle("foot_hib", fontName="Helvetica-Oblique", fontSize=7.5,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceBefore=6)
+
+    def _tabla(filas, col_widths, color_valor=TEXT, bold_valor=False):
+        t = Table(filas, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0), SOL),
+            ("TEXTCOLOR",    (0,0), (-1,0), DARK),
+            ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+            *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2) for i in range(1, len(filas))],
+            ("TEXTCOLOR",    (0,1), (-1,-1), color_valor),
+            ("FONTNAME",     (0,1), (-1,-1), "Helvetica-Bold" if bold_valor else "Helvetica"),
+            ("FONTSIZE",     (0,0), (-1,-1), 9),
+            ("ALIGN",        (1,0), (1,-1), "RIGHT"),
+            ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+            ("TOPPADDING",   (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+        ]))
+        return t
+
+    story = []
+    story.append(Paragraph("☀  SOLARCALC PRO — DIMENSIONAMIENTO HÍBRIDO", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_info[1]}</b>  |  Municipio: {proyecto_info[2] or '—'}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=1, color=SOL, spaceAfter=8))
+
+    # ── Consumo (inventario de cargas) ──────────────────────────────────────
+    if not cargas_df.empty:
+        story.append(Paragraph("⚡  INVENTARIO DE CARGAS", sec_st))
+        cargas_df["pot_total_w"] = cargas_df["cantidad"] * cargas_df["potencia_w"]
+        cargas_df["consumo_wh"]  = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
+        filas_c = [["Electrodoméstico", "Cant.", "Pot. (W)", "Horas/día", "Consumo (Wh/día)"]]
+        for _, r in cargas_df.iterrows():
+            filas_c.append([r["electrodomestico"], str(int(r["cantidad"])),
+                            f"{r['potencia_w']:,.0f}", f"{r['horas_dia']:.1f}",
+                            f"{r['consumo_wh']:,.0f}"])
+        filas_c.append(["TOTAL", "", "", "", f"{cargas_df['consumo_wh'].sum():,.0f}"])
+        story.append(_tabla(filas_c, [6.5*cm, 2*cm, 2.5*cm, 2.5*cm, 3.5*cm]))
+        story.append(Spacer(1, 0.4*cm))
+
+    # ── Banco de baterías ─────────────────────────────────────────────────
+    story.append(Paragraph("🔋  BANCO DE BATERÍAS", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["N° de unidades", f"{datos['n_baterias']}"],
+        ["Tensión del banco", f"{datos['v_bat']} V DC"],
+        ["Capacidad por batería", f"{datos['cap_bat_ah']:.0f} Ah"],
+        ["Capacidad real del banco", f"{datos['cap_real_kwh']:.2f} kWh"],
+        ["DoD / Eficiencia (η)", f"{datos['dod_pct']}% / {datos['eff_pct']}%"],
+        ["Energía útil", f"{datos['energia_util_kwh']:.2f} kWh"],
+        ["Autonomía real", f"{datos['autonomia_h']:.1f} h ({datos['autonomia_h']/24:.2f} días)"],
+    ], [8*cm, 9*cm], color_valor=PUR, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Array fotovoltaico e inversor híbrido ────────────────────────────────
+    story.append(Paragraph("🔆  PANEL Y PARÁMETROS DE ENTRADA", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Consumo diario (con FS)", f"{datos['consumo_fs']:,.0f} Wh/día"],
+        ["HSP", f"{datos['hsp']:.2f} h/día"],
+        ["% del consumo a respaldar con solar", f"{datos['pct_respaldo']}%"],
+        ["Factor de pérdidas (FP)", f"{datos['fp_pct']}%"],
+        ["Sobredimensionamiento", f"{datos['sobredim_pct']}%"],
+        ["Panel", f"{datos['wp']:.0f} Wp · Voc {datos['voc']}V · "
+                   f"Vmpp {datos['vmpp']}V · Impp {datos['impp']}A"],
+    ], [8*cm, 9*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📐  DIMENSIONAMIENTO DEL ARRAY E INVERSOR HÍBRIDO", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["Paneles totales", f"{datos['n_paneles']} unidades"],
+        ["Configuración de strings", f"{datos['pan_serie']}S × {datos['n_strings']}P"],
+        ["Potencia instalada del array", f"{datos['pot_inst_kwp']:.2f} kWp"],
+        ["Vmpp string", f"{datos['v_str_mpp']:.1f} V"],
+        ["Voc string", f"{datos['v_str_oc']:.1f} V"],
+        ["Corriente del array", f"{datos['i_array']:.1f} A"],
+        ["Dentro del rango MPPT", "✓ Sí" if datos["mppt_ok"] else "✗ Revisar"],
+        ["Inversor híbrido recomendado", f"{datos['pot_inv_kw']} kW"],
+    ], [8*cm, 9*cm], color_valor=GREEN, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Balance energético solar / red ───────────────────────────────────────
+    story.append(Paragraph("⚖  BALANCE ENERGÉTICO SOLAR / RED", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["Generación diaria estimada", f"{datos['gen_dia_kwh']:.2f} kWh/día"],
+        ["Generación anual estimada", f"{datos['gen_dia_kwh']*365:,.0f} kWh/año"],
+        ["Autoconsumo solar", f"{datos['autocon_pct']:.0f}%"],
+        ["Cobertura de la red (resto)", f"{100 - datos['pct_respaldo']:.0f}%"],
+    ], [8*cm, 9*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Análisis económico (si está disponible) ──────────────────────────────
+    if datos.get("economico"):
+        eco = datos["economico"]
+        story.append(Paragraph("💹  ANÁLISIS ECONÓMICO", sec_st))
+        story.append(_tabla([
+            ["Indicador", "Valor"],
+            ["Inversión total estimada", f"${eco.get('inversion_total', 0):,.0f}"],
+            ["Beneficio anual estimado", f"${eco.get('beneficio_anio', 0):,.0f}"],
+            ["Retorno de inversión (payback)", f"{eco.get('payback_anios', 0):.1f} años"],
+            ["Generación anual", f"{eco.get('gen_anio', 0):,.0f} kWh/año"],
+            ["CO₂ evitado al año", f"{eco.get('co2_anio', 0):,.0f} kg/año"],
+        ], [8*cm, 9*cm], color_valor=GREEN, bold_valor=True))
+        story.append(Spacer(1, 0.4*cm))
+
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    story.append(Paragraph(
+        "Generado con SolarCalc Pro · Memoria de cálculo técnica del dimensionamiento "
+        "híbrido; no reemplaza el diseño detallado ni la verificación en obra.", foot_st))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1672,6 +1835,43 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                     <div class='warn-box'>⚠ Vmpp del string ({v_str_mpp_h:.0f}V) fuera del rango MPPT
                     ({v_mppt_min_h}–{v_mppt_max_h}V). Ajusta el N° de paneles en serie o cambia el inversor.</div>
                     """, unsafe_allow_html=True)
+
+                # ── Generar PDF con toda la información del dimensionamiento ─
+                st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
+                _eco_hib = None
+                if "_hib_inv_tot" in session_state:
+                    _eco_hib = dict(
+                        inversion_total=session_state.get("_hib_inv_tot", 0),
+                        beneficio_anio=session_state.get("_hib_ben_anio", 0),
+                        payback_anios=session_state.get("_hib_payback", 0),
+                        gen_anio=session_state.get("_hib_gen_anio", gen_dia_h * 365),
+                        co2_anio=session_state.get("_hib_co2_anio", 0),
+                    )
+                _datos_pdf_hib = dict(
+                    n_baterias=n_bats_calc, v_bat=v_bat_d5, cap_bat_ah=cap_bat_d5,
+                    cap_real_kwh=cap_real_kwh_h5, dod_pct=dod_d5, eff_pct=eff_d5,
+                    energia_util_kwh=energia_util_h5, autonomia_h=aut_real_hh,
+                    consumo_fs=consumo_base_h5 * 1.20, hsp=hsp_inp,
+                    pct_respaldo=pct_respaldo_h5, fp_pct=pr_inp, sobredim_pct=sobredim_h5,
+                    wp=wp_inp, voc=voc_inp, vmpp=vmpp_inp, impp=impp_inp,
+                    n_paneles=n_pan_real, pan_serie=pan_serie_h, n_strings=n_str_h,
+                    pot_inst_kwp=pot_inst_h / 1000, v_str_mpp=v_str_mpp_h,
+                    v_str_oc=v_str_oc_h, i_array=i_arr_h, mppt_ok=mppt_ok,
+                    pot_inv_kw=pot_inv_h, gen_dia_kwh=gen_dia_h, autocon_pct=ac_pct,
+                    economico=_eco_hib,
+                )
+                try:
+                    pdf_hib5 = generar_pdf_hibrido(proyecto_id, p_info, _datos_pdf_hib)
+                    st.download_button(
+                        "⬇ Descargar PDF del Dimensionamiento Híbrido", data=pdf_hib5,
+                        file_name=f"SolarCalc_HIBRIDO_{_proy_nombre.replace(' ','_')}_"
+                                  f"{datetime.now().strftime('%Y%m%d')}.pdf",
+                        mime="application/pdf", use_container_width=True, key="dl_pdf_hib5")
+                    if not _eco_hib:
+                        st.caption("💡 Visita el Tab 6 · Económico para incluir también el "
+                                   "análisis financiero en el PDF.")
+                except Exception as ex:
+                    st.error(f"Error generando PDF: {ex}")
 
         # ══════════════════════════════════════════════════════════════════════════
         # TAB H6 — ANÁLISIS ECONÓMICO

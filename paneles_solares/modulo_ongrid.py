@@ -13,6 +13,7 @@ import sqlite3
 import pandas as pd
 import math
 import os
+import io
 import tempfile
 import pathlib
 from datetime import datetime
@@ -662,6 +663,152 @@ def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
       {title_svg}
     </svg>'''
     return svg
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GENERACIÓN DE PDF — DIMENSIONAMIENTO ON-GRID COMPLETO
+# ═══════════════════════════════════════════════════════════════════════════════
+def generar_pdf_ongrid(proyecto_id: int, proyecto_info: tuple, datos: dict) -> bytes:
+    """Genera un PDF con toda la información del dimensionamiento ON-GRID
+    generada hasta el momento: consumo, panel, array FV, inversor,
+    verificaciones MPPT y producción/cobertura estimada. `datos` trae los
+    valores ya calculados en el Tab 4 (Dimensionamiento) y en los tabs
+    previos, para no tener que volver a calcular nada en esta función."""
+    conn = get_conn()
+    cargas_df = pd.read_sql("SELECT * FROM cargas WHERE proyecto_id=?", conn, params=(proyecto_id,))
+    conn.close()
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=1.6*cm, rightMargin=1.6*cm,
+                            topMargin=1.6*cm, bottomMargin=1.6*cm)
+
+    SOL    = colors.HexColor("#FF6B35")
+    DARK   = colors.HexColor("#0A0E1A")
+    CARD   = colors.HexColor("#1A2235")
+    CARD2  = colors.HexColor("#1E2A3F")
+    TEXT   = colors.HexColor("#E8EDF5")
+    TEXT2  = colors.HexColor("#8A9BBD")
+    GREEN  = colors.HexColor("#00E676")
+    RED    = colors.HexColor("#FF5252")
+    BORDER = colors.HexColor("#2A3A55")
+
+    styles = getSampleStyleSheet()
+    titulo_st = ParagraphStyle("titulo_og", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub_og", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec_og", fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    body_st   = ParagraphStyle("body_og", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT, spaceAfter=6)
+    foot_st   = ParagraphStyle("foot_og", fontName="Helvetica-Oblique", fontSize=7.5,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceBefore=6)
+
+    def _tabla(filas, col_widths, color_valor=TEXT, bold_valor=False):
+        t = Table(filas, colWidths=col_widths)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,0), SOL),
+            ("TEXTCOLOR",    (0,0), (-1,0), DARK),
+            ("FONTNAME",     (0,0), (-1,0), "Helvetica-Bold"),
+            *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2) for i in range(1, len(filas))],
+            ("TEXTCOLOR",    (0,1), (-1,-1), color_valor),
+            ("FONTNAME",     (0,1), (-1,-1), "Helvetica-Bold" if bold_valor else "Helvetica"),
+            ("FONTSIZE",     (0,0), (-1,-1), 9),
+            ("ALIGN",        (1,0), (1,-1), "RIGHT"),
+            ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+            ("TOPPADDING",   (0,0), (-1,-1), 5),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 5),
+        ]))
+        return t
+
+    story = []
+    story.append(Paragraph("☀  SOLARCALC PRO — DIMENSIONAMIENTO ON-GRID", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_info[1]}</b>  |  Municipio: {proyecto_info[2] or '—'}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=1, color=SOL, spaceAfter=8))
+
+    # ── Consumo (inventario de cargas) ──────────────────────────────────────
+    if not cargas_df.empty:
+        story.append(Paragraph("⚡  INVENTARIO DE CARGAS", sec_st))
+        cargas_df["pot_total_w"] = cargas_df["cantidad"] * cargas_df["potencia_w"]
+        cargas_df["consumo_wh"]  = cargas_df["pot_total_w"] * cargas_df["horas_dia"]
+        filas_c = [["Electrodoméstico", "Cant.", "Pot. (W)", "Horas/día", "Consumo (Wh/día)"]]
+        for _, r in cargas_df.iterrows():
+            filas_c.append([r["electrodomestico"], str(int(r["cantidad"])),
+                            f"{r['potencia_w']:,.0f}", f"{r['horas_dia']:.1f}",
+                            f"{r['consumo_wh']:,.0f}"])
+        filas_c.append(["TOTAL", "", "", "", f"{cargas_df['consumo_wh'].sum():,.0f}"])
+        story.append(_tabla(filas_c, [6.5*cm, 2*cm, 2.5*cm, 2.5*cm, 3.5*cm]))
+        story.append(Spacer(1, 0.4*cm))
+
+    # ── Parámetros y resultado del array FV ─────────────────────────────────
+    story.append(Paragraph("🔆  PANEL Y CONSUMO BASE", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Consumo diario base", f"{datos['consumo_input']:,.0f} Wh/día"],
+        ["HSP", f"{datos['hsp_input']:.2f} h/día"],
+        ["Factor de pérdidas (FP)", f"{datos['pr_input']}%"],
+        ["Sobredimensionamiento", f"{datos['sobredim_og']}%"],
+        ["Panel", f"{datos['wp_input']:.0f} Wp · Voc {datos['voc_input']}V · "
+                   f"Vmpp {datos['vmpp_input']}V · Impp {datos['impp_input']}A"],
+    ], [8*cm, 9*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📐  DIMENSIONAMIENTO DEL ARRAY FOTOVOLTAICO", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["Paneles totales", f"{datos['n_pan_real']} unidades"],
+        ["Configuración de strings", f"{datos['pan_serie']}S × {datos['n_strings']}P"],
+        ["Potencia instalada", f"{datos['pot_inst_real']/1000:.2f} kWp"],
+        ["Vmpp string", f"{datos['v_string_mpp']:.1f} V"],
+        ["Voc string", f"{datos['v_string_oc']:.1f} V"],
+        ["Corriente del array", f"{datos['i_array']:.1f} A"],
+        ["Dentro del rango MPPT",
+         "✓ Sí" if datos["mppt_ok"] else "✗ Revisar"],
+        ["Inversor recomendado", f"{datos['pot_inv_kw']} kW"],
+    ], [8*cm, 9*cm], color_valor=GREEN, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    # ── Producción estimada ──────────────────────────────────────────────────
+    if datos.get("gen_dia") is not None:
+        story.append(Paragraph("📈  PRODUCCIÓN Y COBERTURA ESTIMADA", sec_st))
+        story.append(_tabla([
+            ["Indicador", "Valor"],
+            ["Generación diaria", f"{datos['gen_dia']:.2f} kWh/día"],
+            ["Generación mensual", f"{datos['gen_mes']:.1f} kWh/mes"],
+            ["Generación anual", f"{datos['gen_anio']:.0f} kWh/año"],
+            ["Consumo mensual", f"{datos['consumo_mes']:.1f} kWh/mes"],
+            ["Cobertura del consumo", f"{datos['cobertura_pct']:.1f}%"],
+            ["Excedente inyectado a la red", f"{datos.get('excedente_mes', 0):.1f} kWh/mes"],
+            ["Déficit cubierto por la red", f"{datos.get('deficit_mes', 0):.1f} kWh/mes"],
+        ], [8*cm, 9*cm]))
+        story.append(Spacer(1, 0.4*cm))
+
+    # ── Análisis económico (si está disponible) ─────────────────────────────
+    if datos.get("economico"):
+        eco = datos["economico"]
+        story.append(Paragraph("💹  ANÁLISIS ECONÓMICO", sec_st))
+        story.append(_tabla([
+            ["Indicador", "Valor"],
+            ["Inversión total estimada", f"${eco.get('inversion_total', 0):,.0f}"],
+            ["Beneficio anual estimado", f"${eco.get('beneficio_anio', 0):,.0f}"],
+            ["Retorno de inversión (payback)", f"{eco.get('payback_anios', 0):.1f} años"],
+            ["Generación anual", f"{eco.get('gen_anio', 0):,.0f} kWh/año"],
+            ["CO₂ evitado al año", f"{eco.get('co2_anio', 0):,.0f} kg/año"],
+        ], [8*cm, 9*cm], color_valor=GREEN, bold_valor=True))
+        story.append(Spacer(1, 0.4*cm))
+
+    story.append(Spacer(1, 0.4*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    story.append(Paragraph(
+        "Generado con SolarCalc Pro · Memoria de cálculo técnica del dimensionamiento "
+        "ON-GRID; no reemplaza el diseño detallado ni la verificación en obra.", foot_st))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1520,6 +1667,43 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             session_state["_og_gen_dia_kwh"] = gen_dia_og4
             session_state["_og_gen_mes_kwh"] = gen_mes_og4
             session_state["_og_gen_anio"]    = gen_anio_og4
+
+            # ── Generar PDF con toda la información del dimensionamiento ────
+            st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
+            _eco_og = None
+            if "_og_inv_total" in session_state:
+                _eco_og = dict(
+                    inversion_total=session_state.get("_og_inv_total", 0),
+                    beneficio_anio=session_state.get("_og_beneficio_anio", 0),
+                    payback_anios=session_state.get("_og_payback", 0),
+                    gen_anio=session_state.get("_og_gen_anio", gen_anio_og4),
+                    co2_anio=session_state.get("_og_co2_anio", 0),
+                )
+            _datos_pdf_og = dict(
+                consumo_input=consumo_input, hsp_input=hsp_input, pr_input=pr_input,
+                sobredim_og=sobredim_og, wp_input=wp_input, voc_input=voc_input,
+                vmpp_input=vmpp_input, impp_input=impp_input,
+                n_pan_real=n_pan_real, pan_serie=pan_serie, n_strings=n_strings,
+                pot_inst_real=pot_inst_real, v_string_mpp=v_string_mpp,
+                v_string_oc=v_string_oc, i_array=i_array,
+                mppt_ok=(v_mppt_min <= v_string_mpp <= v_mppt_max), pot_inv_kw=pot_inv_kw,
+                gen_dia=gen_dia_og4, gen_mes=gen_mes_og4, gen_anio=gen_anio_og4,
+                consumo_mes=consumo_mes, cobertura_pct=cobertura_pct,
+                excedente_mes=excedente_mes, deficit_mes=deficit_mes,
+                economico=_eco_og,
+            )
+            try:
+                pdf_og4 = generar_pdf_ongrid(proyecto_id, p_info, _datos_pdf_og)
+                st.download_button(
+                    "⬇ Descargar PDF del Dimensionamiento ON-GRID", data=pdf_og4,
+                    file_name=f"SolarCalc_ONGRID_{_proy_nombre.replace(' ','_')}_"
+                              f"{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf", use_container_width=True, key="dl_pdf_og4")
+                if not _eco_og:
+                    st.caption("💡 Visita el Tab 5 · Económico para incluir también el "
+                               "análisis financiero en el PDF.")
+            except Exception as ex:
+                st.error(f"Error generando PDF: {ex}")
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB OG5 — ANÁLISIS ECONÓMICO

@@ -4341,6 +4341,30 @@ with tab8:
                  st.session_state.get("calc_isc", st.session_state.get("panel_isc", 8.02)))
         voc7_panel = (panel7[1] if panel7 and len(panel7) > 1 and panel7[1] else 49.8)
 
+        # ── Cargar el último resultado guardado ───────────────────────────────
+        conn_ult7 = get_conn()
+        ultimo7 = conn_ult7.execute(
+            "SELECT id, tension_dc, num_paneles, potencia_instalada_w, corriente_mppt, generado "
+            "FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 1", (proyecto_id,)).fetchone()
+        conn_ult7.close()
+
+        if ultimo7:
+            col_ult1, col_ult2 = st.columns([3, 1])
+            with col_ult1:
+                st.markdown(f"""
+                <div class='info-note' style='margin-bottom:0;'>
+                    📂 Último resultado guardado ({ultimo7[5]}): <b>{int(ultimo7[2])} paneles</b> ·
+                    {ultimo7[3]:,.0f} Wp · {int(ultimo7[1])}V DC · MPPT {ultimo7[4]:.1f}A
+                </div>""", unsafe_allow_html=True)
+            with col_ult2:
+                if st.button("📂 Cargar estos valores", use_container_width=True, key="btn_cargar_ult7"):
+                    st.session_state["vdc7"] = int(ultimo7[1]) if ultimo7[1] in [12, 24, 48] else 48
+                    st.session_state["npan7_ctrl"] = max(1, min(int(ultimo7[2] or 1), 500))
+                    st.session_state["pot7_ctrl"] = max(100, min(int(ultimo7[3] or 100), 200000))
+                    st.success("✓ Valores del último resultado guardado cargados abajo")
+                    st.rerun()
+            st.markdown("<div style='height:0.6rem;'></div>", unsafe_allow_html=True)
+
         # ── Parámetros ajustables ─────────────────────────────────────────────
         st.markdown("---")
         col7a, col7b, col7c = st.columns(3)
@@ -4696,14 +4720,38 @@ with tab8:
         # Histórico
         conn = get_conn()
         hist = pd.read_sql(
-            "SELECT generado, consumo_con_fs, tension_dc, hsp, num_paneles, num_baterias, corriente_mppt FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 5",
+            "SELECT id, generado, consumo_con_fs, tension_dc, hsp, num_paneles, num_baterias, corriente_mppt "
+            "FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 10",
             conn, params=(proyecto_id,))
         pinfo7 = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
         conn.close()
         if not hist.empty:
             st.markdown("**Últimos resultados guardados:**")
-            hist.columns = ["Fecha","Consumo(Wh)","VDC","HSP(h)","Paneles","Baterías","MPPT(A)"]
-            st.dataframe(hist, use_container_width=True, hide_index=True)
+            hist_mostrar = hist.drop(columns=["id"]).copy()
+            hist_mostrar.columns = ["Fecha","Consumo(Wh)","VDC","HSP(h)","Paneles","Baterías","MPPT(A)"]
+            st.dataframe(hist_mostrar, use_container_width=True, hide_index=True)
+
+            with st.expander("🗑 Eliminar un resultado guardado"):
+                opciones_hist7 = {
+                    int(r["id"]): f"{r['generado']} · {int(r['num_paneles'])} paneles · "
+                                   f"{int(r['tension_dc'])}V · {int(r['num_baterias'])} baterías"
+                    for _, r in hist.iterrows()
+                }
+                id_borrar7 = st.selectbox(
+                    "Selecciona el resultado a eliminar:", list(opciones_hist7.keys()),
+                    format_func=lambda i: opciones_hist7[i], key="sel_borrar_resultado7")
+                if st.button("🗑 Eliminar este resultado", key="btn_borrar_resultado7"):
+                    conn = get_conn()
+                    conn.execute("DELETE FROM resultados WHERE id=?", (id_borrar7,))
+                    conn.commit()
+                    conn.close()
+                    _u8del = usuario_activo()
+                    if _u8del:
+                        registrar_auditoria(
+                            _u8del["id"], _u8del["username"], "ELIMINAR_RESULTADO",
+                            f"Resultado #{id_borrar7} eliminado del proyecto #{proyecto_id}", "tab8")
+                    st.success("✓ Resultado eliminado")
+                    st.rerun()
 
         # ── Descargas desde resumen ────────────────────────────────────────
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
