@@ -1919,6 +1919,9 @@ with st.sidebar:
         ("🔧  Equipos",     "equipos"),
         ("👷  Personal",    "personal"),
     ]
+    _HERRAMIENTAS = [
+        ("📦  Exportar / Importar Proyecto", "backup_proyecto"),
+    ]
     if tipo_sistema_activo == "ON-GRID":
         GRUPOS_MODULOS = [
             ("PROYECTO ON-GRID", [
@@ -1931,6 +1934,7 @@ with st.sidebar:
             ]),
             ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
+            ("HERRAMIENTAS", _HERRAMIENTAS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
@@ -1948,6 +1952,7 @@ with st.sidebar:
             ]),
             ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
+            ("HERRAMIENTAS", _HERRAMIENTAS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
@@ -1965,6 +1970,7 @@ with st.sidebar:
             ]),
             ("COMERCIAL", _COMERCIAL),
             ("CATÁLOGOS", _CATALOGOS),
+            ("HERRAMIENTAS", _HERRAMIENTAS),
         ] + ([("ADMINISTRACIÓN", [
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
@@ -2030,7 +2036,7 @@ registrar_latido(
 )
 
 # ── Guard: project required for most modules ─────────────────────────────────
-if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal", "monitoreo", "clientes"):
+if not proyecto_id and modulo_activo not in ("materiales", "equipos", "personal", "monitoreo", "clientes", "backup_proyecto"):
     st.markdown("""
     <div class='hero-header'>
         <div class='hero-title'>☀ SOLARCALC PRO</div>
@@ -2093,6 +2099,12 @@ if modulo_activo == "personal":
 if modulo_activo == "clientes":
     from modulo_clientes import mostrar_clientes
     mostrar_clientes()
+    st.stop()
+
+# ── Exportar / Importar proyecto completo — importar no requiere proyecto ────
+if modulo_activo == "backup_proyecto":
+    from modulo_backup_proyecto import mostrar_backup_proyecto
+    mostrar_backup_proyecto(proyecto_id)
     st.stop()
 
 # ── Módulos que requieren proyecto ────────────────────────────────────────────
