@@ -333,7 +333,5 @@ def mostrar_backup_proyecto(proyecto_id=None):
                                     st.warning(f"⚠ {err}")
                             st.success(
                                 f"✓ Proyecto '{resultado['nombre']}' creado "
-                                f"(#{resultado['proyecto_id']}).")
-                            st.session_state["sel_proyecto"] = \
-                                f"{resultado['proyecto_id']} | {resultado['nombre']}"
-                            st.rerun()
+                                f"(#{resultado['proyecto_id']}). Selecciónalo en el "
+                                f"desplegable de proyectos del panel lateral para verlo.")
