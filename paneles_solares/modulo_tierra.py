@@ -1849,7 +1849,7 @@ def mostrar_tierra(proyecto_id: int, session_state: dict):
             rho_prom = None
 
         wen_obs = st.text_area("Observaciones Wenner", key="wen_obs_gral",
-                                placeholder="Condiciones del terreno, incidencias...", height=60)
+                                placeholder="Condiciones del terreno, incidencias...", height=68)
 
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
         if st.button("💾 Guardar Medición Wenner", use_container_width=True,
