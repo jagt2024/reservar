@@ -1963,9 +1963,29 @@ with st.sidebar:
 
     # ── 2. Crear nuevo proyecto ───────────────────────────────────────────────
     with st.expander("✦ Crear nuevo proyecto", expanded=False):
-        nuevo_nombre    = st.text_input("Nombre",    placeholder="Ej: Finca La Esperanza", key="sb_nom")
-        nuevo_municipio = st.text_input("Municipio", placeholder="Ej: Medellín, Colombia", key="sb_mun")
-        if st.button("✦ Crear", use_container_width=True, key="sb_crear"):
+        _es_admin_sb = tiene_permiso("ver_usuarios")
+        _limite_alcanzado = False
+        if not _es_admin_sb:
+            conn = get_conn()
+            _hoy_sb = datetime.now().strftime("%Y-%m-%d")
+            _creados_hoy = conn.execute(
+                "SELECT COUNT(*) FROM proyectos WHERE creado_por_id=? AND date(creado)=?",
+                (_u.get("id"), _hoy_sb)).fetchone()[0]
+            conn.close()
+            _limite_alcanzado = _creados_hoy >= 1
+            if _limite_alcanzado:
+                st.markdown("""
+                <div class='warn-box' style='margin-bottom:0.6rem;'>
+                    ⚠ Ya creaste un proyecto hoy. Los usuarios no administradores pueden
+                    crear máximo 1 proyecto por día — vuelve a intentarlo mañana.
+                </div>""", unsafe_allow_html=True)
+
+        nuevo_nombre    = st.text_input("Nombre",    placeholder="Ej: Finca La Esperanza",
+                                         key="sb_nom", disabled=_limite_alcanzado)
+        nuevo_municipio = st.text_input("Municipio", placeholder="Ej: Medellín, Colombia",
+                                         key="sb_mun", disabled=_limite_alcanzado)
+        if st.button("✦ Crear", use_container_width=True, key="sb_crear",
+                     disabled=_limite_alcanzado):
             if nuevo_nombre.strip():
                 conn = get_conn()
                 conn.execute(
@@ -2079,7 +2099,7 @@ with st.sidebar:
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
                 ("👤  Mi perfil",            "perfil"),
-              ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
+              ])] if tiene_permiso("ver_usuarios") else [])
     elif tipo_sistema_activo == "HIBRIDO":
         GRUPOS_MODULOS = [
             ("PROYECTO HÍBRIDO", [
@@ -2097,7 +2117,7 @@ with st.sidebar:
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
                 ("👤  Mi perfil",            "perfil"),
-              ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
+              ])] if tiene_permiso("ver_usuarios") else [])
     else:
         GRUPOS_MODULOS = [
             ("PROYECTO OFF-GRID", [
@@ -2115,7 +2135,7 @@ with st.sidebar:
                 ("🔐  Usuarios",             "usuarios"),
                 ("🖥  Monitoreo de Sesiones", "monitoreo"),
                 ("👤  Mi perfil",            "perfil"),
-              ])] if tiene_permiso("ver_usuarios") else [("MI CUENTA", [("👤  Mi perfil","perfil")])])
+              ])] if tiene_permiso("ver_usuarios") else [])
 
     for grupo_label, modulos in GRUPOS_MODULOS:
         st.markdown(f"""
