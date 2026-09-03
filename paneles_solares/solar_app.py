@@ -5961,7 +5961,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>PARÁMETROS ELÉCTRICOS</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:font-family:Share Tech Mono,monospace;color: var(--text3);'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Vtensión DC sistema: <b style='color:#00BCD4;'>{vdc10} V</b><br>
                 Vtensión array: <b style='color:#00BCD4;'>{v_array10} V</b><br>
                 Corriente array: <b style='color:#00BCD4;'>{i_array10} A</b><br>
@@ -5973,7 +5973,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:font-family:Share Tech Mono,monospace;color: var(--text3);'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
                 Consumo + 20%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
