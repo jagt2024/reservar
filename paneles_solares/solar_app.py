@@ -5948,12 +5948,12 @@ with tab10:
     with col10a:
         st.markdown(f"""
         <div class='sol-card'>
-            <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>COMPONENTES DEL SISTEMA</div>
+            <div style='font-family:Rajdhani,sans-serif; color:#E8EDF5; font-weight:600; margin-bottom:0.6rem;'>COMPONENTES DEL SISTEMA</div>
             <div style='font-size:0.82rem; line-height:1.9;'>
-                🔆 Array FV: <b style='color:#E8EDF5;'>{n_pan10} × {pot_panel10}Wp</b><br>
-                🎛 MPPT: <b style='color:#E8EDF5;'>{mppt_label10}</b><br>
-                🔋 Baterías: <b style='color:#E8EDF5;'>{n_bat10} × {bat_cap10}Ah @ {vdc10}V</b><br>
-                ⚡ Inversor: <b style='color:#E8EDF5;'>{inv_kva} kVA DC/AC</b><br>
+                🔆 Array FV: <b style='color:#FFD54F;'>{n_pan10} × {pot_panel10}Wp</b><br>
+                🎛 MPPT: <b style='color:#FFD54F;'>{mppt_label10}</b><br>
+                🔋 Baterías: <b style='color:#FFD54F;'>{n_bat10} × {bat_cap10}Ah @ {vdc10}V</b><br>
+                ⚡ Inversor: <b style='color:#FFD54F;'>{inv_kva} kVA DC/AC</b><br>
                 🛡 Protecciones: <b style='color:#FFD54F;'>Fusibles + SPD + Tierra</b>
             </div>
         </div>""", unsafe_allow_html=True)
