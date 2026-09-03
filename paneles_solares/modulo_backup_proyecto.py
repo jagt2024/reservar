@@ -159,13 +159,26 @@ def _insertar_dataframe(conn, tabla: str, df: pd.DataFrame, nuevo_proyecto_id: i
     return insertadas
 
 
-def importar_proyecto(hojas: dict, usuario: dict, nombre_override: str = "") -> dict:
+def proyectos_creados_hoy(conn, usuario_id: int) -> int:
+    """Cuenta cuántos proyectos ha creado un usuario en el día de hoy —
+    misma regla que usa el sidebar de solar_app.py para limitar la
+    creación manual, aplicada también aquí porque importar un archivo
+    también crea un proyecto nuevo."""
+    hoy = datetime.now().strftime("%Y-%m-%d")
+    return conn.execute(
+        "SELECT COUNT(*) FROM proyectos WHERE creado_por_id=? AND date(creado)=?",
+        (usuario_id, hoy)).fetchone()[0]
+
+
+def importar_proyecto(hojas: dict, usuario: dict, nombre_override: str = "",
+                       es_admin: bool = False) -> dict:
     """Recrea un proyecto completo a partir de un diccionario
     {nombre_tabla: DataFrame} — típicamente leído con `leer_excel_subido`
     o `leer_zip_csv_subido`. SIEMPRE crea un proyecto NUEVO (nunca
     sobreescribe uno existente), asignado al usuario que importa. Devuelve
     un resumen con el nuevo id y cuántas filas se insertaron en cada tabla,
-    o {'error': ...} si el archivo no trae los datos mínimos."""
+    o {'error': ...} si el archivo no trae los datos mínimos o si el
+    usuario (no administrador) ya alcanzó el límite de 1 proyecto por día."""
     df_proy = hojas.get("proyecto")
     if df_proy is None:
         df_proy = hojas.get("Proyecto")
@@ -173,12 +186,19 @@ def importar_proyecto(hojas: dict, usuario: dict, nombre_override: str = "") -> 
         return {"error": "El archivo no tiene una hoja/CSV 'Proyecto' con datos. "
                           "Usa un archivo exportado desde este mismo módulo."}
 
+    conn = get_conn()
+
+    if not es_admin and proyectos_creados_hoy(conn, usuario.get("id")) >= 1:
+        conn.close()
+        return {"error": "Ya creaste un proyecto hoy. Los usuarios no administradores "
+                          "pueden crear (o importar) máximo 1 proyecto por día — vuelve "
+                          "a intentarlo mañana."}
+
+    columnas_proy = _columnas_tabla(conn, "proyectos")
+
     fila_p = df_proy.iloc[0].to_dict()
     nombre_final = (nombre_override or "").strip() or \
         f"{fila_p.get('nombre', 'Proyecto importado')} (importado)"
-
-    conn = get_conn()
-    columnas_proy = _columnas_tabla(conn, "proyectos")
 
     # No se copian: id (se asigna uno nuevo), creado_por_id/creado_por
     # (pasan a ser de quien importa), creado (fecha de hoy) y cliente_id
@@ -222,12 +242,13 @@ def importar_proyecto(hojas: dict, usuario: dict, nombre_override: str = "") -> 
 # INTERFAZ
 # ═══════════════════════════════════════════════════════════════════════════
 def mostrar_backup_proyecto(proyecto_id=None):
-    from modulo_seguridad import usuario_activo, registrar_auditoria
+    from modulo_seguridad import usuario_activo, registrar_auditoria, tiene_permiso
 
     _u = usuario_activo()
     if not _u:
         st.warning("Debes iniciar sesión para exportar o importar un proyecto.")
         return
+    _es_admin_bk = tiene_permiso("ver_usuarios")
 
     st.markdown("""
     <div class='hero-header'>
@@ -286,13 +307,25 @@ def mostrar_backup_proyecto(proyecto_id=None):
             "sin tener que volver a capturar nada. Siempre se crea un proyecto **nuevo**, "
             "nunca se sobreescribe uno existente.")
 
+        _limite_import_bk = False
+        if not _es_admin_bk:
+            conn = get_conn()
+            _limite_import_bk = proyectos_creados_hoy(conn, _u.get("id")) >= 1
+            conn.close()
+            if _limite_import_bk:
+                st.markdown("""
+                <div class='warn-box'>⚠ Ya creaste un proyecto hoy. Los usuarios no
+                administradores pueden crear (o importar) máximo 1 proyecto por día —
+                vuelve a intentarlo mañana.</div>""", unsafe_allow_html=True)
+
         archivo = st.file_uploader("Archivo .xlsx o .zip", type=["xlsx", "zip"],
-                                    key="backup_uploader")
+                                    key="backup_uploader", disabled=_limite_import_bk)
         nombre_nuevo = st.text_input(
             "Nombre del proyecto importado (opcional — vacío usa el nombre "
-            "original + \"(importado)\")", key="backup_nombre_override")
+            "original + \"(importado)\")", key="backup_nombre_override",
+            disabled=_limite_import_bk)
 
-        if archivo is not None:
+        if archivo is not None and not _limite_import_bk:
             hojas = None
             try:
                 if archivo.name.lower().endswith(".zip"):
@@ -319,7 +352,8 @@ def mostrar_backup_proyecto(proyecto_id=None):
 
                     if st.button("⬆ Confirmar importación", use_container_width=True,
                                  key="btn_confirmar_import_proy"):
-                        resultado = importar_proyecto(hojas, _u, nombre_nuevo)
+                        resultado = importar_proyecto(hojas, _u, nombre_nuevo,
+                                                        es_admin=_es_admin_bk)
                         if resultado.get("error"):
                             st.error(resultado["error"])
                         else:
