@@ -5888,11 +5888,11 @@ with tab10:
           fill="{C_SOL10}" font-weight="700">☀ PLANO GENERAL — SISTEMA FOTOVOLTAICO AISLADO (OFF-GRID)</text>
     <text x="12" y="{tb_y10+33}" font-family="Rajdhani,sans-serif" font-size="9" fill="{C_TEXT10}">
         Proyecto: {proyecto10}  |  Ubicación: {mun10}  |  VDC={vdc10}V  |  HSP={hsp10}h/día</text>
-    <text x="12" y="{tb_y10+47}" font-family="font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="8.5" fill="{C_DIM10}">
+    <text x="12" y="{tb_y10+47}" font-family="font-family:Share Tech Mono,monospace" font-size="8.5" fill="{C_DIM10}">
         Array: {n_pan10} paneles {pot_panel10}Wp ({serie10}S×{par10}P)  |
         Baterías: {n_bat10}×{bat_cap10}Ah@{vdc10}V = {ah_banco10*vdc10/1000:.1f}kWh  |
         MPPT: {mppt_label10}  |  Inversor: {inv_kva}kVA</text>
-    <text x="12" y="{tb_y10+61}" font-family="font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="7.5" fill="#2A3A55">
+    <text x="12" y="{tb_y10+61}" font-family="font-family:Share Tech Mono,monospace" font-size="7.5" fill="#2A3A55">
         Consumo: {consumo10_fs:,.0f}Wh/día (+20%FS)  |  SolarCalc Pro  |  {datetime.now().strftime("%d/%m/%Y")}  |  Diagrama Unifilar — Plano N°02</text>
     <text x="{W10-12}" y="{tb_y10+18}" text-anchor="end"
           font-family="Share Tech Mono,monospace" font-size="9" fill="{C_DIM10}">Plano N° 02  Rev.A</text>
