@@ -5617,7 +5617,7 @@ with tab10:
                 <div style='background:#1A2235;border:1px solid {clr_c10}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
                     <div style='font-size:0.75rem;color:#8A9BBD;'>{lbl_c10}</div>
-                    <div style='font-family:Share Tech Mono,monospace;color: var(--text3)'
+                    <div style='font-family:Share Tech Mono,monospace;
                                 font-size:1.1rem;color:{clr_c10};'>{cons_c10:,.0f}</div>
                     <div style='font-size:0.7rem;color:#8A9BBD;'>Wh/día</div>
                     <div style='font-size:0.78rem;color:#FFD54F;margin-top:0.3rem;'>
@@ -5973,7 +5973,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
                 Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
                 Consumo + 20%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
