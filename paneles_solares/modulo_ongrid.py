@@ -811,6 +811,134 @@ def generar_pdf_ongrid(proyecto_id: int, proyecto_info: tuple, datos: dict) -> b
     return buf.read()
 
 
+def generar_pdf_economico_ongrid(proyecto_id: int, proyecto_info: tuple, datos: dict) -> bytes:
+    """Genera un PDF con toda la información mostrada en el Tab 5 ·
+    Económico del sistema ON-GRID: parámetros usados, indicadores
+    financieros, desglose de inversión + ambiental y el flujo de caja
+    proyectado año a año (ahorro por autoconsumo + ingreso por inyección)."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=1.6*cm, rightMargin=1.6*cm,
+                            topMargin=1.6*cm, bottomMargin=1.6*cm)
+
+    SOL    = colors.HexColor("#FF6B35")
+    DARK   = colors.HexColor("#0A0E1A")
+    CARD   = colors.HexColor("#1A2235")
+    CARD2  = colors.HexColor("#1E2A3F")
+    TEXT   = colors.HexColor("#E8EDF5")
+    TEXT2  = colors.HexColor("#8A9BBD")
+    GREEN  = colors.HexColor("#00E676")
+    BORDER = colors.HexColor("#2A3A55")
+
+    styles = getSampleStyleSheet()
+    titulo_st = ParagraphStyle("titulo_eco_og", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub_eco_og", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec_eco_og", fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    foot_st   = ParagraphStyle("foot_eco_og", fontName="Helvetica-Oblique", fontSize=7.5,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceBefore=6)
+
+    def _tabla(filas, col_widths, color_valor=TEXT, bold_valor=False, header_rows=1):
+        t = Table(filas, colWidths=col_widths, repeatRows=header_rows)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,header_rows-1), SOL),
+            ("TEXTCOLOR",    (0,0), (-1,header_rows-1), DARK),
+            ("FONTNAME",     (0,0), (-1,header_rows-1), "Helvetica-Bold"),
+            *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2)
+              for i in range(header_rows, len(filas))],
+            ("TEXTCOLOR",    (0,header_rows), (-1,-1), color_valor),
+            ("FONTNAME",     (0,header_rows), (-1,-1), "Helvetica-Bold" if bold_valor else "Helvetica"),
+            ("FONTSIZE",     (0,0), (-1,-1), 8.5),
+            ("ALIGN",        (1,0), (-1,-1), "RIGHT"),
+            ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+            ("TOPPADDING",   (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+        ]))
+        return t
+
+    story = []
+    story.append(Paragraph("💹  SOLARCALC PRO — ANÁLISIS ECONÓMICO Y AMBIENTAL (ON-GRID)", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_info[1]}</b>  |  Municipio: {proyecto_info[2] or '—'}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=1, color=SOL, spaceAfter=8))
+
+    story.append(Paragraph("⚙  SISTEMA DIMENSIONADO", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Paneles", f"{datos['n_pan']} × {datos['wp']:.0f} Wp ({datos['pot_inst']/1000:.2f} kWp)"],
+        ["Inversor ON-GRID", f"{datos['pot_inv']:.1f} kW"],
+        ["Generación diaria", f"{datos['gen_dia']:.2f} kWh/día"],
+        ["Autoconsumo", f"{datos['autocon_pct']:.0f}%"],
+        ["Inyección a la red", f"{datos['inyeccion_dia']:.2f} kWh/día"],
+    ], [7*cm, 10*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("💰  PARÁMETROS ECONÓMICOS USADOS", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Tarifa energía", f"${datos['tarifa']:,.0f}/kWh"],
+        ["TMAR", f"{datos['tmar']}%/año"],
+        ["Vida útil de análisis", f"{datos['vida']} años"],
+        ["Escalación tarifa", f"{datos['escal']}%/año"],
+        ["Mantenimiento anual", f"{datos['mant_pct']}% de la inversión"],
+    ], [7*cm, 10*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📊  INDICADORES FINANCIEROS", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["Inversión total", f"${datos['inv_total']:,.0f}"],
+        ["Beneficio mensual (año 1)", f"${datos['ben_mes']:,.0f}"],
+        ["Beneficio anual (año 1)", f"${datos['ben_anio']:,.0f}"],
+        ["Payback simple", f"{datos['payback']:.1f} años"],
+        ["Payback descontado", f"{datos['pb_desc']} años"],
+        [f"VPN ({datos['vida']} años)", f"${datos['vpn_final']:,.0f}"],
+        ["TIR", f"{datos['tir']:.1f}%  "
+                f"({'> TMAR — viable' if datos['tir'] > datos['tmar'] else '< TMAR — revisar supuestos'})"],
+    ], [7*cm, 10*cm], color_valor=GREEN, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("🧾  DESGLOSE DE INVERSIÓN + AMBIENTAL", sec_st))
+    story.append(_tabla([
+        ["Concepto", "Valor"],
+        [f"{datos['n_pan']} × Panel {datos['wp']:.0f}Wp", f"${datos['inv_pan']:,.0f}"],
+        [f"Inversor ON-GRID {datos['pot_inv']:.1f}kW", f"${datos['inv_inv']:,.0f}"],
+        ["Cableado + protecciones", f"${datos['pcable']:,.0f}"],
+        ["Estructura + mano de obra", f"${datos['otros']:,.0f}"],
+        ["INVERSIÓN TOTAL", f"${datos['inv_total']:,.0f}"],
+        [f"Ahorro autoconsumo/mes ({datos['autocon_pct']:.0f}%)", f"${datos['ahorro_mes']:,.0f}"],
+        ["Ingreso inyección/mes", f"${datos['inyeccion_mes']:,.0f}"],
+        ["Gen. anual (año 1)", f"{datos['gen_anio']:,.0f} kWh"],
+        ["CO₂ evitado/año", f"{datos['co2']:,.0f} kg"],
+        ["Árboles equivalentes", f"≈{datos['arboles']:.0f}/año"],
+    ], [7*cm, 10*cm], color_valor=SOL, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📈  FLUJO DE CAJA PROYECTADO", sec_st))
+    filas_fc = [["Año", "Tarifa ($/kWh)", "Ahorro ($)", "Inyección ($)",
+                 "Flujo neto ($)", "VPN acum. ($)"]]
+    for f in datos["flujos"]:
+        filas_fc.append([str(f["año"]), f"{f['tarifa']:,.0f}", f"{f['ahorro']:,.0f}",
+                         f"{f['inyeccion']:,.0f}", f"{f['neto']:,.0f}", f"{f['vpn_acum']:,.0f}"])
+    story.append(_tabla(filas_fc, [1.5*cm, 3*cm, 3*cm, 3*cm, 3*cm, 3.5*cm]))
+
+    story.append(Spacer(1, 0.5*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    story.append(Paragraph(
+        f"TIR {datos['tir']:.1f}% "
+        f"{'&gt; TMAR → proyecto viable' if datos['tir'] > datos['tmar'] else '&lt; TMAR → revisar supuestos'}. "
+        "Factor CO₂ UPME Colombia: 0.126 kgCO₂/kWh. Degradación de paneles: 0.5%/año. "
+        "Normas: RETIE · NTC 2050 · CREG 030-2018. Generado con SolarCalc Pro; esta es una "
+        "memoria de cálculo financiera, no reemplaza un estudio de factibilidad formal.", foot_st))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # FUNCIÓN PRINCIPAL — mostrar_ongrid()
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1901,6 +2029,29 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             session_state["_og_payback"]        = payback
             session_state["_og_gen_anio"]       = gen_anio
             session_state["_og_co2_anio"]       = co2_anio
+
+            # ── Descargar toda la información en PDF ────────────────────────
+            st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
+            _datos_pdf_eco_og = dict(
+                n_pan=n_pan_og2, wp=wp_og2, pot_inst=pot_inst_og2, pot_inv=pot_inv_og2,
+                gen_dia=gen_dia, autocon_pct=autoconsumo_pct, inyeccion_dia=inyeccion,
+                tarifa=tarifa_kwh, tmar=tmar_og, vida=vida_og, escal=escal_og, mant_pct=mant_og_pct,
+                inv_total=inv_total, ben_mes=beneficio_mes, ben_anio=beneficio_anio,
+                payback=payback, pb_desc=pb_desc_og, vpn_final=vpn_final_og, tir=tir_og,
+                inv_pan=inv_paneles, inv_inv=inv_inv, pcable=pcable_og, otros=otros_costos,
+                ahorro_mes=ahorro_mes, inyeccion_mes=ing_iny_mes,
+                gen_anio=gen_anio, co2=co2_anio, arboles=arboles_og,
+                flujos=flujos_og,
+            )
+            try:
+                pdf_eco_og = generar_pdf_economico_ongrid(proyecto_id, p_info, _datos_pdf_eco_og)
+                st.download_button(
+                    "⬇ Descargar PDF del Análisis Económico", data=pdf_eco_og,
+                    file_name=f"SolarCalc_Economico_ONGRID_{_proy_nombre.replace(' ','_')}_"
+                              f"{datetime.now().strftime('%Y%m%d')}.pdf",
+                    mime="application/pdf", use_container_width=True, key="dl_pdf_eco_og5")
+            except Exception as ex:
+                st.error(f"Error generando PDF: {ex}")
 
     # ══════════════════════════════════════════════════════════════════════════
     # TAB OG6 — PLANO DISTRIBUCIÓN PANELES

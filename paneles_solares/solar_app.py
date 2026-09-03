@@ -1662,6 +1662,145 @@ def generar_pdf_baterias(proyecto_id: int, proyecto_info: tuple, datos: dict) ->
     return buf.read()
 
 
+def generar_pdf_economico(proyecto_id: int, proyecto_info: tuple, datos: dict) -> bytes:
+    """Genera un PDF con toda la información mostrada en el Tab 11 ·
+    Económico (sistema OFF-GRID): parámetros usados, indicadores
+    financieros, desglose de inversión, impacto ambiental y el flujo de
+    caja proyectado año a año."""
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4,
+                            leftMargin=1.6*cm, rightMargin=1.6*cm,
+                            topMargin=1.6*cm, bottomMargin=1.6*cm)
+
+    SOL    = colors.HexColor("#FFB300")
+    DARK   = colors.HexColor("#0A0E1A")
+    CARD   = colors.HexColor("#1A2235")
+    CARD2  = colors.HexColor("#1E2A3F")
+    TEXT   = colors.HexColor("#E8EDF5")
+    TEXT2  = colors.HexColor("#8A9BBD")
+    GREEN  = colors.HexColor("#00E676")
+    RED    = colors.HexColor("#FF5252")
+    BORDER = colors.HexColor("#2A3A55")
+
+    styles = getSampleStyleSheet()
+    titulo_st = ParagraphStyle("titulo_eco", fontName="Helvetica-Bold", fontSize=16,
+                                textColor=SOL, alignment=TA_CENTER, spaceAfter=4)
+    sub_st    = ParagraphStyle("sub_eco", fontName="Helvetica", fontSize=9,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceAfter=8)
+    sec_st    = ParagraphStyle("sec_eco", fontName="Helvetica-Bold", fontSize=11,
+                                textColor=SOL, spaceBefore=10, spaceAfter=4)
+    foot_st   = ParagraphStyle("foot_eco", fontName="Helvetica-Oblique", fontSize=7.5,
+                                textColor=TEXT2, alignment=TA_CENTER, spaceBefore=6)
+
+    def _tabla(filas, col_widths, color_valor=TEXT, bold_valor=False, header_rows=1):
+        t = Table(filas, colWidths=col_widths, repeatRows=header_rows)
+        t.setStyle(TableStyle([
+            ("BACKGROUND",   (0,0), (-1,header_rows-1), SOL),
+            ("TEXTCOLOR",    (0,0), (-1,header_rows-1), DARK),
+            ("FONTNAME",     (0,0), (-1,header_rows-1), "Helvetica-Bold"),
+            *[("BACKGROUND", (0,i), (-1,i), CARD if i % 2 else CARD2)
+              for i in range(header_rows, len(filas))],
+            ("TEXTCOLOR",    (0,header_rows), (-1,-1), color_valor),
+            ("FONTNAME",     (0,header_rows), (-1,-1), "Helvetica-Bold" if bold_valor else "Helvetica"),
+            ("FONTSIZE",     (0,0), (-1,-1), 8.5),
+            ("ALIGN",        (1,0), (-1,-1), "RIGHT"),
+            ("GRID",         (0,0), (-1,-1), 0.4, BORDER),
+            ("TOPPADDING",   (0,0), (-1,-1), 4),
+            ("BOTTOMPADDING",(0,0), (-1,-1), 4),
+        ]))
+        return t
+
+    story = []
+    story.append(Paragraph("💹  SOLARCALC PRO — ANÁLISIS ECONÓMICO Y AMBIENTAL (OFF-GRID)", titulo_st))
+    story.append(Paragraph(
+        f"Proyecto: <b>{proyecto_info[1]}</b>  |  Municipio: {proyecto_info[2] or '—'}  |  "
+        f"Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}", sub_st))
+    story.append(HRFlowable(width="100%", thickness=1, color=SOL, spaceAfter=8))
+
+    story.append(Paragraph("⚙  SISTEMA DIMENSIONADO", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Consumo base", f"{datos['consumo_base']:,.0f} Wh/día"],
+        ["Consumo con FS 20%", f"{datos['consumo_fs']:,.0f} Wh/día"],
+        ["Paneles", f"{datos['n_pan']} × {datos['pot_panel']:.0f} Wp "
+                    f"({datos['pot_real']/1000:.2f} kWp)"],
+        ["Baterías", f"{datos['n_bat']} × {datos['bat_cap']:.0f} Ah @ {datos['vdc']}V"],
+        ["Inversor", f"{datos['inv_kw']:.1f} kW"],
+        ["Controlador", f"{datos['ctrl_mod']}"],
+        ["HSP", f"{datos['hsp']:.2f} h/día"],
+    ], [7*cm, 10*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("💰  PARÁMETROS ECONÓMICOS USADOS", sec_st))
+    story.append(_tabla([
+        ["Parámetro", "Valor"],
+        ["Tarifa energía", f"${datos['tarifa']:,.0f}/kWh"],
+        ["TMAR", f"{datos['tmar']}%/año"],
+        ["Vida útil de análisis", f"{datos['vida']} años"],
+        ["Escalación tarifa", f"{datos['escal']}%/año"],
+        ["Mantenimiento anual", f"{datos['mant_pct']}% de la inversión"],
+    ], [7*cm, 10*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📊  INDICADORES FINANCIEROS", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["Inversión total", f"${datos['inv_total']:,.0f}"],
+        ["Ahorro mensual (año 1)", f"${datos['ahorro_mes']:,.0f}"],
+        ["Ahorro anual (año 1)", f"${datos['ahorro_anio']:,.0f}"],
+        ["Payback simple", f"{datos['payback']:.1f} años"],
+        ["Payback descontado", f"{datos['pb_desc']} años"],
+        [f"VPN ({datos['vida']} años)", f"${datos['vpn_final']:,.0f}"],
+        ["TIR", f"{datos['tir']:.1f}%  "
+                f"({'> TMAR — viable' if datos['tir'] > datos['tmar'] else '< TMAR — revisar supuestos'})"],
+    ], [7*cm, 10*cm], color_valor=GREEN, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("🧾  DESGLOSE DE INVERSIÓN", sec_st))
+    story.append(_tabla([
+        ["Concepto", "Valor"],
+        [f"{datos['n_pan']} × Panel {datos['pot_panel']:.0f}Wp", f"${datos['inv_pan']:,.0f}"],
+        [f"{datos['n_bat']} × Batería {datos['bat_cap']:.0f}Ah", f"${datos['inv_bat']:,.0f}"],
+        [f"Controlador {datos['ctrl_mod']}", f"${datos['pcontrol']:,.0f}"],
+        [f"Inversor {datos['inv_kw']:.1f} kW", f"${datos['pinv']:,.0f}"],
+        ["Cableado + protecciones", f"${datos['pcable']:,.0f}"],
+        ["Estructura + mano de obra", f"${datos['potros']:,.0f}"],
+        ["TOTAL", f"${datos['inv_total']:,.0f}"],
+    ], [7*cm, 10*cm], color_valor=SOL, bold_valor=True))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("🌿  IMPACTO AMBIENTAL", sec_st))
+    story.append(_tabla([
+        ["Indicador", "Valor"],
+        ["CO₂ evitado por año", f"{datos['co2']:,.0f} kg"],
+        ["Árboles equivalentes", f"{datos['arboles']:.0f} árboles/año"],
+        ["Generación anual", f"{datos['gen_anio']:,.0f} kWh/año"],
+        ["Generación mensual", f"{datos['gen_mes']:,.0f} kWh/mes"],
+    ], [7*cm, 10*cm]))
+    story.append(Spacer(1, 0.4*cm))
+
+    story.append(Paragraph("📈  FLUJO DE CAJA PROYECTADO", sec_st))
+    filas_fc = [["Año", "Tarifa ($/kWh)", "Ahorro ($)", "Flujo neto ($)",
+                 "V. presente ($)", "VPN acum. ($)"]]
+    for f in datos["flujos"]:
+        filas_fc.append([str(f["año"]), f"{f['tarifa']:,.0f}", f"{f['ahorro']:,.0f}",
+                         f"{f['neto']:,.0f}", f"{f['vp']:,.0f}", f"{f['vpn_acum']:,.0f}"])
+    story.append(_tabla(filas_fc, [1.5*cm, 3*cm, 3*cm, 3*cm, 3*cm, 3.5*cm]))
+
+    story.append(Spacer(1, 0.5*cm))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=BORDER))
+    story.append(Paragraph(
+        f"TIR {datos['tir']:.1f}% "
+        f"{'&gt; TMAR → proyecto viable' if datos['tir'] > datos['tmar'] else '&lt; TMAR → revisar supuestos'}. "
+        "Factor CO₂ UPME Colombia: 0.126 kgCO₂/kWh. Degradación de paneles: 0.5%/año. "
+        "Normas: RETIE · NTC 2050 · CREG 030-2018. Generado con SolarCalc Pro; esta es una "
+        "memoria de cálculo financiera, no reemplaza un estudio de factibilidad formal.", foot_st))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
+
+
 # ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 # ─── CONTROL DE ACCESO ──────────────────────────────────────────────────────
 if not usuario_activo():
@@ -2827,17 +2966,17 @@ with tab2:
             costo_dia     = kwh_dia_prev * tarifa_calc if tarifa_calc > 0 else 0
 
             costo_span = (f'<span style="font-size:0.82rem; color:#8A9BBD;">Costo/día: '
-                          f'<b style="color:#00BCD4; font-family:Share Tech Mono;">'
+                          f'<b style="color:#00BCD4; font-family:Share Tech Mono;color: var(--text3);">'
                           f'${costo_dia:,.0f}</b></span>') if costo_dia > 0 else ''
             st.markdown(f"""
             <div style='background:#161D30; border:1px dashed #FFB300; border-radius:8px;
                         padding:0.8rem 1.2rem; margin:0.8rem 0; display:flex; gap:2.5rem; flex-wrap:wrap;'>
                 <span style='font-size:0.82rem; color:#8A9BBD;'>kWh/día:
-                    <b style='color:#FFD54F; font-family:Share Tech Mono;'>{kwh_dia_prev:.2f}</b></span>
+                    <b style='color:#FFD54F; font-family:Share Tech Mono;color: var(--text3);'>{kwh_dia_prev:.2f}</b></span>
                 <span style='font-size:0.82rem; color:#8A9BBD;'>Wh/día:
-                    <b style='color:#FFB300; font-family:Share Tech Mono;'>{wh_dia_prev:,.0f}</b></span>
+                    <b style='color:#FFB300; font-family:Share Tech Mono;color: var(--text3);'>{wh_dia_prev:,.0f}</b></span>
                 <span style='font-size:0.82rem; color:#8A9BBD;'>Wh/día +20% FS:
-                    <b style='color:#00E676; font-family:Share Tech Mono;'>{wh_dia_fs:,.0f}</b></span>
+                    <b style='color:#00E676; font-family:Share Tech Mono;color: var(--text3);'>{wh_dia_fs:,.0f}</b></span>
                 {costo_span}
             </div>
             """, unsafe_allow_html=True)
@@ -3333,29 +3472,29 @@ with tab4:
                     <th style='padding:3px 6px;text-align:center;'>HSP (h/día)</th>
                 </tr>
                 <tr><td style='color:#8A9BBD;padding:3px 6px;'>Bogotá D.C.</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.5</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.5</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Barranquilla</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.8</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>5.8</td></tr>
                 <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Medellín</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.8</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.8</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Cali</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.6</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.6</td></tr>
                 <tr><td style='color:#8A9BBD;padding:3px 6px;'>Bucaramanga</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.9</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.9</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Cartagena</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.5</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>5.5</td></tr>
                 <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Manizales</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.2</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.2</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Villavicencio</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.1</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>5.1</td></tr>
                 <tr><td style='color:#8A9BBD;padding:3px 6px;'>Pereira</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.3</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.3</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Leticia</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.4</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.4</td></tr>
                 <tr style='background:#161D30;'><td style='color:#8A9BBD;padding:3px 6px;'>Santa Marta</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>5.6</td>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>5.6</td>
                     <td style='color:#8A9BBD;padding:3px 6px;'>Pasto</td>
-                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;'>4.0</td></tr>
+                    <td style='color:#FFB300;text-align:center;font-family:Share Tech Mono;color: var(--text3);'>4.0</td></tr>
             </table>
         </div>""", unsafe_allow_html=True)
 
@@ -6141,7 +6280,7 @@ with tab11:
             st.markdown(f"""<div class='sol-card'>
                 <div style='color:#FFB300;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
                 ARRAY FV</div>
-                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;color: var(--text3);'>
                     Paneles: <b style='color:#FFD54F;'>{n_pan_eco} × {pot_panel_eco} Wp</b><br>
                     Pot. instalada: <b style='color:#FFD54F;'>{pot_real_eco/1000:.2f} kWp</b><br>
                     Gen./día (PR={int(pr_eco*100)}%): <b style='color:#00E676;'>{gen_dia_eco:.2f} kWh</b><br>
@@ -6152,7 +6291,7 @@ with tab11:
             st.markdown(f"""<div class='sol-card'>
                 <div style='color:#A78BFA;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
                 BATERÍAS + INVERSORES</div>
-                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;color: var(--text3);'>
                     Baterías: <b style='color:#FFD54F;'>{n_bat_eco} × {bat_cap_eco}Ah @ {vdc_eco}V</b><br>
                     Cap. banco: <b style='color:#A78BFA;'>{bats_eco["energia_kwh"]:.2f} kWh</b><br>
                     E. útil: <b style='color:#00E676;'>{bats_eco["energia_util_kwh"]:.2f} kWh</b><br>
@@ -6164,7 +6303,7 @@ with tab11:
             st.markdown(f"""<div class='sol-card'>
                 <div style='color:#00BCD4;font-family:Rajdhani,sans-serif;font-weight:600;margin-bottom:0.5rem;'>
                 CONSUMO</div>
-                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;'>
+                <div style='font-size:0.82rem;line-height:2;font-family:Share Tech Mono;color: var(--text3);'>
                     Base: <b style='color:#FFD54F;'>{consumo_base_eco:,.0f} Wh/día</b><br>
                     Con FS 20%: <b style='color:#FFD54F;'>{consumo_fs_eco:,.0f} Wh/día</b><br>
                     Mensual: <b style='color:#00E676;'>{consumo_base_eco*30/1000:.1f} kWh</b><br>
@@ -6180,6 +6319,31 @@ with tab11:
             Vida útil: paneles 25–30 años | baterías AGM 5–8 años / LiFePO4 10–15 años.
             <b>Normas: RETIE · NTC 2050 · CREG 030-2018.</b>
         </div>""", unsafe_allow_html=True)
+
+        # ── Descargar toda la información en PDF ──────────────────────────────
+        st.markdown("<hr class='sep' style='margin:1rem 0;'>", unsafe_allow_html=True)
+        _datos_pdf_eco = dict(
+            consumo_base=consumo_base_eco, consumo_fs=consumo_fs_eco, hsp=float(hsp_eco),
+            n_pan=n_pan_eco, pot_panel=pot_panel_eco, pot_real=pot_real_eco,
+            n_bat=n_bat_eco, bat_cap=bat_cap_eco, vdc=vdc_eco, inv_kw=inv_kw_eco,
+            ctrl_mod=ctrl_mod_eco, tarifa=tarifa_eco, tmar=tmar_eco, vida=vida_eco,
+            escal=escal_eco, mant_pct=mant_pct_eco, inv_total=inv_total_eco,
+            ahorro_mes=ahorro_mes_eco, ahorro_anio=ahorro_anio_eco, payback=payback_eco,
+            pb_desc=pb_desc_eco, vpn_final=vpn_final, tir=tir_eco,
+            inv_pan=inv_pan_eco, inv_bat=inv_bat_eco, pcontrol=pcontrol_eco,
+            pinv=pinv_eco, pcable=pcable_eco, potros=potros_eco,
+            co2=co2_eco, arboles=arboles_eco, gen_anio=gen_anio_eco, gen_mes=gen_mes_eco,
+            flujos=flujos,
+        )
+        try:
+            pdf_eco = generar_pdf_economico(proyecto_id, p_eco, _datos_pdf_eco)
+            st.download_button(
+                "⬇ Descargar PDF del Análisis Económico", data=pdf_eco,
+                file_name=f"SolarCalc_Economico_{p_eco[1].replace(' ','_')}_"
+                          f"{datetime.now().strftime('%Y%m%d')}.pdf",
+                mime="application/pdf", use_container_width=True, key="dl_pdf_eco11")
+        except Exception as ex:
+            st.error(f"Error generando PDF: {ex}")
 
 
 # ════════════════════════════════════════════════════════════════════════════
