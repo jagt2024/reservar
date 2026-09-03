@@ -5682,7 +5682,7 @@ with tab10:
     def wire_label(x,y,label,color=C_WIRE10):
         return (f'<rect x="{x-2}" y="{y-9}" width="{len(label)*6+8}" height="13" rx="3" '
                 f'fill="#0F1525" stroke="{color}" stroke-width="0.8"/>'
-                f'<text x="{x+2}" y="{y}" font-family:Share Tech Mono,monospace" font-size="7.5" '
+                f'<text x="{x+2}" y="{y}" font-family="Share Tech Mono,monospace" font-size="7.5" '
                 f'fill="{color}">{label}</text>')
 
     # ── Component blocks ──────────────────────────────────────────────────
@@ -5713,7 +5713,7 @@ with tab10:
       {txt(ARR_X+ARR_W/2,ARR_Y+14,"ARRAY FV",8,C_SOL10,"middle","700")}
       {mini_panels}
       {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-42,f"{serie10}S × {par10}P = {n_pan10} paneles",7.5,C_DIM10)}
-      {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-28,f"Voc={v_array10}V  Isc={i_array10}A",7.5,"#42A5F5","middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-28,f"Voc={v_array10}V  Isc={i_array10}A",7.5,"#42A5F5","middle","normal","Share Tech Mono,monospace")}
       {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-14,f"{modelo10_safe[:22]}",7,C_DIM10)}
     </g>'''
 
@@ -5725,10 +5725,10 @@ with tab10:
       {box(MPPT_X,MPPT_Y,MPPT_W,22,"#1A2235",C_SOL10,8,1,0)}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+14,"CONTROLADOR MPPT",7.5,C_SOL10,"middle","700")}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+40,mppt_label10,12,C_SOL10,"middle","700")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+57,f"Vin: {v_array10}V  Iin: {i_array10}A",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+57,f"Vin: {v_array10}V  Iin: {i_array10}A",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+70,f"Vout: {vdc10}V",7.5,C_DC10,"middle","normal","Share Tech Mono,monospace")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+84,f"Iout: {corr_mppt10:.0f}A (max)",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+100,f"Bat: {ah_banco10}Ah @ {vdc10}V",7.5,C_DC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+84,f"Iout: {corr_mppt10:.0f}A (max)",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+100,f"Bat: {ah_banco10}Ah @ {vdc10}V",7.5,C_DC10,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
     # 3. Battery bank
@@ -5769,9 +5769,9 @@ with tab10:
       {txt(INV_X+INV_W/2,INV_Y+14,"INVERSOR",7.5,C_AC10,"middle","700")}
       <text x="{INV_X+INV_W/2}" y="{INV_Y+48}" text-anchor="middle"
             font-family="Rajdhani,sans-serif" font-size="22" fill="{C_AC10}" font-weight="700">~</text>
-      {txt(INV_X+INV_W/2,INV_Y+65,f"Vin: {vdc10}V DC",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
-      {txt(INV_X+INV_W/2,INV_Y+78,f"Vout: 120/220V AC",7.5,C_AC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
-      {txt(INV_X+INV_W/2,INV_Y+91,f"Cap: {inv_kva} kVA",7.5,C_AC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(INV_X+INV_W/2,INV_Y+65,f"Vin: {vdc10}V DC",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(INV_X+INV_W/2,INV_Y+78,f"Vout: 120/220V AC",7.5,C_AC10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(INV_X+INV_W/2,INV_Y+91,f"Cap: {inv_kva} kVA",7.5,C_AC10,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
     # 5. AC Loads panel
@@ -5784,7 +5784,7 @@ with tab10:
         icon = "⚡" if int(lr["es_motor"]) else "💡"
         name = str(lr["electrodomestico"])[:18].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
         load_items += txt(LOAD_X+16,ly_l+10,f"{icon} {name}",7.5,C_TEXT10,"start","normal","Barlow,sans-serif")
-        load_items += txt(LOAD_X+LOAD_W-8,ly_l+10,f"{int(lr['potencia_w'])}W",7.5,C_DIM10,"end","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")
+        load_items += txt(LOAD_X+LOAD_W-8,ly_l+10,f"{int(lr['potencia_w'])}W",7.5,C_DIM10,"end","normal","Share Tech Mono,monospace")
         load_items += line(LOAD_X+6,ly_l+14,LOAD_X+LOAD_W-6,ly_l+14,C_CARD10,0.5)
     extra = len(cargas10)-n_loads if not cargas10.empty and len(cargas10)>n_loads else 0
     if extra>0:
@@ -5796,7 +5796,7 @@ with tab10:
       {box(LOAD_X,LOAD_Y,LOAD_W,22,"#1A2235",C_AC10,8,1,0)}
       {txt(LOAD_X+LOAD_W/2,LOAD_Y+14,"CARGAS AC",7.5,C_AC10,"middle","700")}
       {load_items}
-      {txt(LOAD_X+LOAD_W/2,LOAD_Y+LOAD_H-14,f"Total: {total_loads_w:,} W",8,C_AC10,"middle","700","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(LOAD_X+LOAD_W/2,LOAD_Y+LOAD_H-14,f"Total: {total_loads_w:,} W",8,C_AC10,"middle","700","Share Tech Mono,monospace")}
     </g>'''
 
     # 6. DC Loads (small box)
@@ -5806,7 +5806,7 @@ with tab10:
       {box(DCL_X,DCL_Y,DCL_W,DCL_H,"#0F1525",C_DC10,8)}
       {box(DCL_X,DCL_Y,DCL_W,22,"#1A2235",C_DC10,8,1,0)}
       {txt(DCL_X+DCL_W/2,DCL_Y+14,"CARGAS DC",7.5,C_DC10,"middle","700")}
-      {txt(DCL_X+DCL_W/2,DCL_Y+38,f"Sistema {vdc10}V DC",8,C_TEXT10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(DCL_X+DCL_W/2,DCL_Y+38,f"Sistema {vdc10}V DC",8,C_TEXT10,"middle","normal","Share Tech Mono,monospace")}
       {txt(DCL_X+DCL_W/2,DCL_Y+54,"(LED, 12/24/48V)",7.5,C_DIM10)}
     </g>'''
 
@@ -5819,13 +5819,13 @@ with tab10:
       {txt(PROT_X+PROT_W/2,PROT_Y+14,"PROTECCIONES",7.5,C_DIM10,"middle","700")}
       {box(PROT_X+10,PROT_Y+32,PROT_W-20,28,"#1E2A3F","#FFB300",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+44,"Fusible DC Array",7.5,C_SOL10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+56,f"Ij={i_array10}A / {int(v_array10)}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+56,f"Ij={i_array10}A / {int(v_array10)}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
       {box(PROT_X+10,PROT_Y+72,PROT_W-20,28,"#1E2A3F","#00BCD4",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+84,"Fusible Batería DC",7.5,C_DC10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+96,f"Ij={corr_mppt10:.0f}A / {vdc10}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+96,f"Ij={corr_mppt10:.0f}A / {vdc10}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
       {box(PROT_X+10,PROT_Y+112,PROT_W-20,28,"#1E2A3F","#00E676",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+124,"Interruptor AC",7.5,C_AC10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+136,f"220V / {int(pot_inv10_w/220)}A",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+136,f"220V / {int(pot_inv10_w/220)}A",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
       {box(PROT_X+10,PROT_Y+152,PROT_W-20,28,"#1E2A3F","#FF5252",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+164,"Descargador SPD",7.5,"#FF5252")}
       {txt(PROT_X+PROT_W/2,PROT_Y+176,"Sobretensión",7,C_DIM10)}
@@ -5834,7 +5834,7 @@ with tab10:
       {txt(PROT_X+PROT_W/2,PROT_Y+216,"Sistema FV",7,C_DIM10)}
       {box(PROT_X+10,PROT_Y+232,PROT_W-20,28,"#1E2A3F",C_SOL10,4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+244,"Seccionador DC",7.5,C_SOL10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+256,f"≥{int(v_array10)}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+256,f"≥{int(v_array10)}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
     # Ground symbol at bottom
@@ -5961,7 +5961,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>PARÁMETROS ELÉCTRICOS</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
                 Vtensión DC sistema: <b style='color:#00BCD4;'>{vdc10} V</b><br>
                 Vtensión array: <b style='color:#00BCD4;'>{v_array10} V</b><br>
                 Corriente array: <b style='color:#00BCD4;'>{i_array10} A</b><br>
