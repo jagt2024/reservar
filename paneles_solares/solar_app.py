@@ -62,6 +62,7 @@ st.markdown("""
     --border: #2A3A55;
     --text: #E8EDF5;
     --text2: #FFFFFF;
+    --text3: #E8EDF5;
     --green: #00E676;
     --green2: #F5F7FA;
     --cyan: #17A2B8;
@@ -5424,7 +5425,7 @@ with tab9:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>RESUMEN DEL ARRAY</div>
-            <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Paneles totales: <b style='color:#FFD54F;'>{total_array}</b><br>
                 Configuración: <b style='color:#FFD54F;'>{serie_sel}S × {paralelo_sel}P</b><br>
                 Vtotal array: <b style='color:#FFD54F;'>{v_array} V</b><br>
