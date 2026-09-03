@@ -5682,7 +5682,7 @@ with tab10:
     def wire_label(x,y,label,color=C_WIRE10):
         return (f'<rect x="{x-2}" y="{y-9}" width="{len(label)*6+8}" height="13" rx="3" '
                 f'fill="#0F1525" stroke="{color}" stroke-width="0.8"/>'
-                f'<text x="{x+2}" y="{y}" font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="7.5" '
+                f'<text x="{x+2}" y="{y}" font-family:Share Tech Mono,monospace" font-size="7.5" '
                 f'fill="{color}">{label}</text>')
 
     # ── Component blocks ──────────────────────────────────────────────────
@@ -5713,7 +5713,7 @@ with tab10:
       {txt(ARR_X+ARR_W/2,ARR_Y+14,"ARRAY FV",8,C_SOL10,"middle","700")}
       {mini_panels}
       {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-42,f"{serie10}S × {par10}P = {n_pan10} paneles",7.5,C_DIM10)}
-      {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-28,f"Voc={v_array10}V  Isc={i_array10}A",7.5,"#42A5F5","middle","normal","Share Tech Mono,monospace")}
+      {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-28,f"Voc={v_array10}V  Isc={i_array10}A",7.5,"#42A5F5","middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {txt(ARR_X+ARR_W/2,ARR_Y+ARR_H-14,f"{modelo10_safe[:22]}",7,C_DIM10)}
     </g>'''
 
@@ -5725,10 +5725,10 @@ with tab10:
       {box(MPPT_X,MPPT_Y,MPPT_W,22,"#1A2235",C_SOL10,8,1,0)}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+14,"CONTROLADOR MPPT",7.5,C_SOL10,"middle","700")}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+40,mppt_label10,12,C_SOL10,"middle","700")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+57,f"Vin: {v_array10}V  Iin: {i_array10}A",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+57,f"Vin: {v_array10}V  Iin: {i_array10}A",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {txt(MPPT_X+MPPT_W/2,MPPT_Y+70,f"Vout: {vdc10}V",7.5,C_DC10,"middle","normal","Share Tech Mono,monospace")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+84,f"Iout: {corr_mppt10:.0f}A (max)",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
-      {txt(MPPT_X+MPPT_W/2,MPPT_Y+100,f"Bat: {ah_banco10}Ah @ {vdc10}V",7.5,C_DC10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+84,f"Iout: {corr_mppt10:.0f}A (max)",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(MPPT_X+MPPT_W/2,MPPT_Y+100,f"Bat: {ah_banco10}Ah @ {vdc10}V",7.5,C_DC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
     </g>'''
 
     # 3. Battery bank
