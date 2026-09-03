@@ -5413,7 +5413,7 @@ with tab9:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>LEYENDA</div>
-            <div style='font-size:0.82rem; line-height:2;'>
+            <div style='font-size:0.82rem; line-height:2;font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 <span style='color:#1976D2;'>█</span> Panel solar {pot_panel9}Wp<br>
                 <span style='color:{C_WIRE};'>━ ━</span> Cable positivo (+) serie<br>
                 <span style='color:{C_WIRE2};'>━━</span> Cable negativo (−) string<br>
@@ -5437,7 +5437,7 @@ with tab9:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>DIMENSIONES FÍSICAS</div>
-            <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:2; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Panel: <b style='color:#FFD54F;'>{pw_disp}×{ph_disp} mm</b><br>
                 Ancho array: <b style='color:#FFD54F;'>{total_w/ESCALA/1000:.2f} m</b><br>
                 Alto array: <b style='color:#FFD54F;'>{total_h/ESCALA/1000:.2f} m</b><br>
@@ -5617,7 +5617,7 @@ with tab10:
                 <div style='background:#1A2235;border:1px solid {clr_c10}44;
                             border-radius:8px;padding:0.8rem;text-align:center;'>
                     <div style='font-size:0.75rem;color:#8A9BBD;'>{lbl_c10}</div>
-                    <div style='font-family:Share Tech Mono,monospace;
+                    <div style='font-family:Share Tech Mono,monospace;color: var(--text3)'
                                 font-size:1.1rem;color:{clr_c10};'>{cons_c10:,.0f}</div>
                     <div style='font-size:0.7rem;color:#8A9BBD;'>Wh/día</div>
                     <div style='font-size:0.78rem;color:#FFD54F;margin-top:0.3rem;'>
@@ -5682,7 +5682,7 @@ with tab10:
     def wire_label(x,y,label,color=C_WIRE10):
         return (f'<rect x="{x-2}" y="{y-9}" width="{len(label)*6+8}" height="13" rx="3" '
                 f'fill="#0F1525" stroke="{color}" stroke-width="0.8"/>'
-                f'<text x="{x+2}" y="{y}" font-family="Share Tech Mono,monospace" font-size="7.5" '
+                f'<text x="{x+2}" y="{y}" font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="7.5" '
                 f'fill="{color}">{label}</text>')
 
     # ── Component blocks ──────────────────────────────────────────────────
@@ -5769,9 +5769,9 @@ with tab10:
       {txt(INV_X+INV_W/2,INV_Y+14,"INVERSOR",7.5,C_AC10,"middle","700")}
       <text x="{INV_X+INV_W/2}" y="{INV_Y+48}" text-anchor="middle"
             font-family="Rajdhani,sans-serif" font-size="22" fill="{C_AC10}" font-weight="700">~</text>
-      {txt(INV_X+INV_W/2,INV_Y+65,f"Vin: {vdc10}V DC",7.5,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
-      {txt(INV_X+INV_W/2,INV_Y+78,f"Vout: 120/220V AC",7.5,C_AC10,"middle","normal","Share Tech Mono,monospace")}
-      {txt(INV_X+INV_W/2,INV_Y+91,f"Cap: {inv_kva} kVA",7.5,C_AC10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(INV_X+INV_W/2,INV_Y+65,f"Vin: {vdc10}V DC",7.5,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(INV_X+INV_W/2,INV_Y+78,f"Vout: 120/220V AC",7.5,C_AC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
+      {txt(INV_X+INV_W/2,INV_Y+91,f"Cap: {inv_kva} kVA",7.5,C_AC10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
     </g>'''
 
     # 5. AC Loads panel
@@ -5784,7 +5784,7 @@ with tab10:
         icon = "⚡" if int(lr["es_motor"]) else "💡"
         name = str(lr["electrodomestico"])[:18].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
         load_items += txt(LOAD_X+16,ly_l+10,f"{icon} {name}",7.5,C_TEXT10,"start","normal","Barlow,sans-serif")
-        load_items += txt(LOAD_X+LOAD_W-8,ly_l+10,f"{int(lr['potencia_w'])}W",7.5,C_DIM10,"end","normal","Share Tech Mono,monospace")
+        load_items += txt(LOAD_X+LOAD_W-8,ly_l+10,f"{int(lr['potencia_w'])}W",7.5,C_DIM10,"end","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")
         load_items += line(LOAD_X+6,ly_l+14,LOAD_X+LOAD_W-6,ly_l+14,C_CARD10,0.5)
     extra = len(cargas10)-n_loads if not cargas10.empty and len(cargas10)>n_loads else 0
     if extra>0:
@@ -5796,7 +5796,7 @@ with tab10:
       {box(LOAD_X,LOAD_Y,LOAD_W,22,"#1A2235",C_AC10,8,1,0)}
       {txt(LOAD_X+LOAD_W/2,LOAD_Y+14,"CARGAS AC",7.5,C_AC10,"middle","700")}
       {load_items}
-      {txt(LOAD_X+LOAD_W/2,LOAD_Y+LOAD_H-14,f"Total: {total_loads_w:,} W",8,C_AC10,"middle","700","Share Tech Mono,monospace")}
+      {txt(LOAD_X+LOAD_W/2,LOAD_Y+LOAD_H-14,f"Total: {total_loads_w:,} W",8,C_AC10,"middle","700","font-family:Share Tech Mono,monospace;color: var(--text3)")}
     </g>'''
 
     # 6. DC Loads (small box)
@@ -5806,7 +5806,7 @@ with tab10:
       {box(DCL_X,DCL_Y,DCL_W,DCL_H,"#0F1525",C_DC10,8)}
       {box(DCL_X,DCL_Y,DCL_W,22,"#1A2235",C_DC10,8,1,0)}
       {txt(DCL_X+DCL_W/2,DCL_Y+14,"CARGAS DC",7.5,C_DC10,"middle","700")}
-      {txt(DCL_X+DCL_W/2,DCL_Y+38,f"Sistema {vdc10}V DC",8,C_TEXT10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(DCL_X+DCL_W/2,DCL_Y+38,f"Sistema {vdc10}V DC",8,C_TEXT10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {txt(DCL_X+DCL_W/2,DCL_Y+54,"(LED, 12/24/48V)",7.5,C_DIM10)}
     </g>'''
 
@@ -5819,13 +5819,13 @@ with tab10:
       {txt(PROT_X+PROT_W/2,PROT_Y+14,"PROTECCIONES",7.5,C_DIM10,"middle","700")}
       {box(PROT_X+10,PROT_Y+32,PROT_W-20,28,"#1E2A3F","#FFB300",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+44,"Fusible DC Array",7.5,C_SOL10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+56,f"Ij={i_array10}A / {int(v_array10)}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+56,f"Ij={i_array10}A / {int(v_array10)}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {box(PROT_X+10,PROT_Y+72,PROT_W-20,28,"#1E2A3F","#00BCD4",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+84,"Fusible Batería DC",7.5,C_DC10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+96,f"Ij={corr_mppt10:.0f}A / {vdc10}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+96,f"Ij={corr_mppt10:.0f}A / {vdc10}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {box(PROT_X+10,PROT_Y+112,PROT_W-20,28,"#1E2A3F","#00E676",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+124,"Interruptor AC",7.5,C_AC10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+136,f"220V / {int(pot_inv10_w/220)}A",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+136,f"220V / {int(pot_inv10_w/220)}A",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
       {box(PROT_X+10,PROT_Y+152,PROT_W-20,28,"#1E2A3F","#FF5252",4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+164,"Descargador SPD",7.5,"#FF5252")}
       {txt(PROT_X+PROT_W/2,PROT_Y+176,"Sobretensión",7,C_DIM10)}
@@ -5834,7 +5834,7 @@ with tab10:
       {txt(PROT_X+PROT_W/2,PROT_Y+216,"Sistema FV",7,C_DIM10)}
       {box(PROT_X+10,PROT_Y+232,PROT_W-20,28,"#1E2A3F",C_SOL10,4)}
       {txt(PROT_X+PROT_W/2,PROT_Y+244,"Seccionador DC",7.5,C_SOL10)}
-      {txt(PROT_X+PROT_W/2,PROT_Y+256,f"≥{int(v_array10)}V",7,C_DIM10,"middle","normal","Share Tech Mono,monospace")}
+      {txt(PROT_X+PROT_W/2,PROT_Y+256,f"≥{int(v_array10)}V",7,C_DIM10,"middle","normal","font-family:Share Tech Mono,monospace;color: var(--text3)")}
     </g>'''
 
     # Ground symbol at bottom
@@ -5888,11 +5888,11 @@ with tab10:
           fill="{C_SOL10}" font-weight="700">☀ PLANO GENERAL — SISTEMA FOTOVOLTAICO AISLADO (OFF-GRID)</text>
     <text x="12" y="{tb_y10+33}" font-family="Rajdhani,sans-serif" font-size="9" fill="{C_TEXT10}">
         Proyecto: {proyecto10}  |  Ubicación: {mun10}  |  VDC={vdc10}V  |  HSP={hsp10}h/día</text>
-    <text x="12" y="{tb_y10+47}" font-family="Share Tech Mono,monospace" font-size="8.5" fill="{C_DIM10}">
+    <text x="12" y="{tb_y10+47}" font-family="font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="8.5" fill="{C_DIM10}">
         Array: {n_pan10} paneles {pot_panel10}Wp ({serie10}S×{par10}P)  |
         Baterías: {n_bat10}×{bat_cap10}Ah@{vdc10}V = {ah_banco10*vdc10/1000:.1f}kWh  |
         MPPT: {mppt_label10}  |  Inversor: {inv_kva}kVA</text>
-    <text x="12" y="{tb_y10+61}" font-family="Share Tech Mono,monospace" font-size="7.5" fill="#2A3A55">
+    <text x="12" y="{tb_y10+61}" font-family="font-family:Share Tech Mono,monospace;color: var(--text3)" font-size="7.5" fill="#2A3A55">
         Consumo: {consumo10_fs:,.0f}Wh/día (+20%FS)  |  SolarCalc Pro  |  {datetime.now().strftime("%d/%m/%Y")}  |  Diagrama Unifilar — Plano N°02</text>
     <text x="{W10-12}" y="{tb_y10+18}" text-anchor="end"
           font-family="Share Tech Mono,monospace" font-size="9" fill="{C_DIM10}">Plano N° 02  Rev.A</text>
@@ -5961,7 +5961,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>PARÁMETROS ELÉCTRICOS</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Vtensión DC sistema: <b style='color:#00BCD4;'>{vdc10} V</b><br>
                 Vtensión array: <b style='color:#00BCD4;'>{v_array10} V</b><br>
                 Corriente array: <b style='color:#00BCD4;'>{i_array10} A</b><br>
@@ -5973,7 +5973,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
                 Consumo + 20%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
