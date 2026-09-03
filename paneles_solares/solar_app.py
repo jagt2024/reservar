@@ -5950,10 +5950,10 @@ with tab10:
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>COMPONENTES DEL SISTEMA</div>
             <div style='font-size:0.82rem; line-height:1.9;'>
-                🔆 Array FV: <b style='color:#FFD54F;'>{n_pan10} × {pot_panel10}Wp</b><br>
-                🎛 MPPT: <b style='color:#FFD54F;'>{mppt_label10}</b><br>
-                🔋 Baterías: <b style='color:#FFD54F;'>{n_bat10} × {bat_cap10}Ah @ {vdc10}V</b><br>
-                ⚡ Inversor: <b style='color:#FFD54F;'>{inv_kva} kVA DC/AC</b><br>
+                🔆 Array FV: <b style='color:#E8EDF5;'>{n_pan10} × {pot_panel10}Wp</b><br>
+                🎛 MPPT: <b style='color:#E8EDF5;'>{mppt_label10}</b><br>
+                🔋 Baterías: <b style='color:#E8EDF5;'>{n_bat10} × {bat_cap10}Ah @ {vdc10}V</b><br>
+                ⚡ Inversor: <b style='color:#E8EDF5;'>{inv_kva} kVA DC/AC</b><br>
                 🛡 Protecciones: <b style='color:#FFD54F;'>Fusibles + SPD + Tierra</b>
             </div>
         </div>""", unsafe_allow_html=True)
@@ -5961,7 +5961,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>PARÁMETROS ELÉCTRICOS</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Vtensión DC sistema: <b style='color:#00BCD4;'>{vdc10} V</b><br>
                 Vtensión array: <b style='color:#00BCD4;'>{v_array10} V</b><br>
                 Corriente array: <b style='color:#00BCD4;'>{i_array10} A</b><br>
@@ -5973,7 +5973,7 @@ with tab10:
         st.markdown(f"""
         <div class='sol-card'>
             <div style='font-family:Rajdhani,sans-serif; color:#FFB300; font-weight:600; margin-bottom:0.6rem;'>ENERGÉTICO</div>
-            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;'>
+            <div style='font-size:0.82rem; line-height:1.9; font-family:Share Tech Mono,monospace;color: var(--text3);'>
                 Consumo base: <b style='color:#FFD54F;'>{consumo_base10:,.0f} Wh/día</b><br>
                 Consumo + 20%FS: <b style='color:#FFD54F;'>{consumo10_fs:,.0f} Wh/día</b><br>
                 HSP: <b style='color:#FFD54F;'>{hsp10} h/día</b><br>
