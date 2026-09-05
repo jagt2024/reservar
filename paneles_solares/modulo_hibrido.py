@@ -350,8 +350,8 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
                           v_str_mpp: float, v_str_oc: float, i_array: float,
                           n_baterias: int, v_bat: float, cap_bat_ah: float,
                           consumo_fs_wh: float, hsp: float,
-                          proyecto_info=None) -> str:
-    W, H   = 1150, 700
+                          proyecto_info=None, cargas_df=None) -> str:
+    W, H   = 1290, 700
     C_BG   = "#0A0E1A"
     C_SOL  = "#FFB300"
     C_DC   = "#00BCD4"
@@ -438,7 +438,7 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
       {txt(INX+INW//2,INY+203,"Monitoreo WiFi",7,C_GRID)}
       {box(INX+10,INY+214,INW-20,20,"#1E2A3F","#2A3A55",3)}
       {txt(INX+INW//2,INY+227,"4 modos operación",7,C_DIM)}
-      {txt(INX+INW//2,INY+INH-10,"η≥97%  THD<3%",7,C_DIM,"middle","normal","Share Tech Mono,monospace")}
+      {txt(INX+INW//2,INY+INH-10,"η≥97%  THD&lt;3%",7,C_DIM,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
     # ── 4. BANCO DE BATERÍAS ─────────────────────────────────────────────────
@@ -496,6 +496,36 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
       {txt(TAX+TAW//2,TAY+TAH-6,f"{consumo_fs_wh/1000:.1f} kWh/día",7,C_DIM,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
+    # ── 6b. CIRCUITOS RAMALES — inventario detallado de cargas ──────────────
+    CGX, CGY, CGW, CGH = 1070, 95, 200, 320
+    if cargas_df is not None and not cargas_df.empty:
+        _n_show8 = min(len(cargas_df), 9)
+        _sample8 = cargas_df.head(_n_show8)
+        cargas_items = ""
+        for _li8, (_, _lr8) in enumerate(_sample8.iterrows()):
+            _ly8 = CGY + 34 + _li8*24
+            _icon8 = "⚙" if int(_lr8.get("es_motor", 0) or 0) else "💡"
+            _name8 = str(_lr8["electrodomestico"])[:20].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+            cargas_items += txt(CGX+14, _ly8+10, f"{_icon8} {_name8}", 7.5, C_TEXT, "start", "normal", "Barlow,sans-serif")
+            cargas_items += txt(CGX+CGW-12, _ly8+10, f"{int(_lr8['potencia_w'])}W", 7.5, C_DIM, "end", "normal", "Share Tech Mono,monospace")
+            cargas_items += line(CGX+8, _ly8+14, CGX+CGW-8, _ly8+14, "#1E2A3F", 0.6)
+        _extra8 = len(cargas_df) - _n_show8
+        if _extra8 > 0:
+            cargas_items += txt(CGX+CGW/2, CGY+34+_n_show8*24+10, f"+ {_extra8} equipos más", 7.5, C_DIM)
+        _total_w8 = int((cargas_df["cantidad"]*cargas_df["potencia_w"]).sum())
+    else:
+        cargas_items = (txt(CGX+CGW/2, CGY+60, "Sin inventario de cargas", 8, C_DIM)
+                         + txt(CGX+CGW/2, CGY+76, "capturado para este proyecto", 7.5, C_DIM)
+                         + txt(CGX+CGW/2, CGY+96, f"Consumo por recibo: {consumo_fs_wh/1000:.1f} kWh/día", 7.5, C_DC, "middle","normal","Share Tech Mono,monospace"))
+        _total_w8 = 0
+    cargas_detalle = f'''<g id="cargas_detalle">
+      {box(CGX,CGY,CGW,CGH,"#0F1525",C_AC,8)}
+      {box(CGX,CGY,CGW,22,"#1A2235",C_AC,8)}
+      {txt(CGX+CGW//2,CGY+14,"CIRCUITOS RAMALES (CARGAS)",7.5,C_AC,"middle","700","Rajdhani,sans-serif")}
+      {cargas_items}
+      {txt(CGX+CGW//2,CGY+CGH-12,f"Total: {_total_w8:,} W",8,C_AC,"middle","700","Share Tech Mono,monospace")}
+    </g>'''
+
     # ── 7. RED ELÉCTRICA ─────────────────────────────────────────────────────
     REX,REY,REW,REH = 745,148,110,100
     red = f'''<g>
@@ -550,6 +580,9 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
     {wlbl(INX+INW//2+4,(INY+INH+BAY)//2,f"DC {v_bat}V Bat.",C_BAT)}
     <!-- Red → Medidor (importación) -->
     {line(REX,REY+REH//2,MEX+MEW,MEY+MEH//2,C_GRID,1.5,"4,3")}
+    <!-- Tablero AC → Circuitos ramales (cargas) -->
+    {line(TAX+TAW,TAY+TAH*0.4,CGX,CGY+CGH*0.30,C_AC,2,"5,3")}
+    {wlbl((TAX+TAW+CGX)//2-30,TAY+TAH*0.4-6,"Circuitos ramales",C_AC)}
     '''
 
     # GND
@@ -615,7 +648,7 @@ def svg_unifilar_hibrido(n_paneles: int, pan_serie: int, n_strings: int,
         </pattern>
       </defs>
       <rect width="{W}" height="{H-65}" fill="url(#grid_h2)"/>
-      {header}{wires}{arr}{cb}{inv}{bat}{med}{red}{tac}{modos}{gnd}{leg2}{title}
+      {header}{wires}{arr}{cb}{inv}{bat}{med}{red}{tac}{cargas_detalle}{modos}{gnd}{leg2}{title}
     </svg>'''
 
 
@@ -2316,13 +2349,16 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         else:
             conn = get_conn()
             p_info8 = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+            cargas_p8 = pd.read_sql(
+                "SELECT electrodomestico, cantidad, potencia_w, horas_dia, es_motor "
+                "FROM cargas WHERE proyecto_id=?", conn, params=(proyecto_id,))
             conn.close()
 
             svg8 = svg_unifilar_hibrido(
                 n_pan_p8, pan_s_p8, n_str_p8, wp_p8, pot_inv_p8,
                 v_str_p8, v_oc_p8, i_arr_p8,
                 n_bats_p8, v_bat_p8, cap_bat_p8,
-                consumo_p8, hsp_p8, p_info8)
+                consumo_p8, hsp_p8, p_info8, cargas_p8)
             render_svg_hib(svg8, height=740)
 
             st.markdown("<hr class='sep'>", unsafe_allow_html=True)

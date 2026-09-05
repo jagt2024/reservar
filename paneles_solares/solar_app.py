@@ -5796,7 +5796,7 @@ with tab10:
 
     # 5. AC Loads panel
     LOAD_X=660; LOAD_Y=130; LOAD_W=150; LOAD_H=230
-    n_loads = min(len(cargas10), 8) if not cargas10.empty else 3
+    n_loads = min(len(cargas10), 8) if not cargas10.empty else 0
     load_items = ""
     load_sample = cargas10.head(n_loads) if not cargas10.empty else pd.DataFrame()
     for li, (_, lr) in enumerate(load_sample.iterrows()):
@@ -5809,6 +5809,12 @@ with tab10:
     extra = len(cargas10)-n_loads if not cargas10.empty and len(cargas10)>n_loads else 0
     if extra>0:
         load_items += txt(LOAD_X+LOAD_W/2,LOAD_Y+32+n_loads*22+8,f"+ {extra} equipos más",7.5,C_DIM10)
+    if cargas10.empty:
+        load_items += txt(LOAD_X+LOAD_W/2,LOAD_Y+50,"Sin inventario de cargas",7.5,C_DIM10)
+        load_items += txt(LOAD_X+LOAD_W/2,LOAD_Y+66,"capturado para este proyecto",7,C_DIM10)
+        if consumo_rec10 > 0:
+            load_items += txt(LOAD_X+LOAD_W/2,LOAD_Y+86,"Consumo por recibo:",7,C_DC10)
+            load_items += txt(LOAD_X+LOAD_W/2,LOAD_Y+100,f"{consumo_rec10/1000:.1f} kWh/día",8,C_DC10,"middle","700","Share Tech Mono,monospace")
     total_loads_w = int((cargas10["cantidad"]*cargas10["potencia_w"]).sum()) if not cargas10.empty else 0
     loads_block = f'''
     <g id="cargas">

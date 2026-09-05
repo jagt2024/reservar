@@ -396,8 +396,8 @@ def svg_plano_paneles_og(n_paneles: int, pan_serie: int, n_strings: int,
 def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
                                pot_panel: int, pot_inv_kw: float, v_string_mpp: float,
                                v_string_oc: float, i_string: float, consumo_fs_wh: float,
-                               hsp: float, proyecto_info=None) -> str:
-    W, H = 1100, 680
+                               hsp: float, proyecto_info=None, cargas_df=None) -> str:
+    W, H = 1220, 680
     C_BG = "#0A0E1A"
     C_SOL = "#FFB300"
     C_DC = "#00BCD4"
@@ -488,7 +488,7 @@ def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
       {txt(INV_X+INV_W//2, INV_Y+151, "Anti-isla / Anti-islanding", 7, C_DIM)}
       {box(INV_X+10,INV_Y+162,INV_W-20,20,"#1E2A3F","#FF6B35",3)}
       {txt(INV_X+INV_W//2, INV_Y+175, "Monitoreo WiFi/RS485", 7, C_GRID)}
-      {txt(INV_X+INV_W//2, INV_Y+INV_H-14, f"η ≥ 97%  ·  THD < 3%", 7, C_DIM,"middle","normal","Share Tech Mono,monospace")}
+      {txt(INV_X+INV_W//2, INV_Y+INV_H-14, f"η ≥ 97%  ·  THD &lt; 3%", 7, C_DIM,"middle","normal","Share Tech Mono,monospace")}
     </g>'''
 
     # ── 4. Medidor bidireccional ──────────────────────────────────────────────
@@ -521,6 +521,37 @@ def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
       {txt(TAC_X+TAC_W//2, TAC_Y+84, "SPD AC", 7, C_DIM)}
       {txt(TAC_X+TAC_W//2, TAC_Y+TAC_H-18, "CARGAS AC", 8, C_AC,"middle","700")}
       {txt(TAC_X+TAC_W//2, TAC_Y+TAC_H-6, f"{consumo_fs_wh/1000:.1f} kWh/día", 7, C_DIM,"middle","normal","Share Tech Mono,monospace")}
+    </g>'''
+
+    # ── 5b. CIRCUITOS RAMALES — inventario detallado de cargas ────────────────
+    CGX, CGY, CGW, CGH = 1010, 120, 190, 300
+    if cargas_df is not None and not cargas_df.empty:
+        _n_show7 = min(len(cargas_df), 9)
+        _sample7 = cargas_df.head(_n_show7)
+        cargas_items_og = ""
+        for _li7, (_, _lr7) in enumerate(_sample7.iterrows()):
+            _ly7 = CGY + 34 + _li7*24
+            _icon7 = "⚙" if int(_lr7.get("es_motor", 0) or 0) else "💡"
+            _name7 = str(_lr7["electrodomestico"])[:19].replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
+            cargas_items_og += txt(CGX+14, _ly7+10, f"{_icon7} {_name7}", 7.5, C_TEXT, "start", "normal", "Barlow,sans-serif")
+            cargas_items_og += txt(CGX+CGW-12, _ly7+10, f"{int(_lr7['potencia_w'])}W", 7.5, C_DIM, "end", "normal", "Share Tech Mono,monospace")
+            cargas_items_og += line(CGX+8, _ly7+14, CGX+CGW-8, _ly7+14, "#1E2A3F", 0.6)
+        _extra7 = len(cargas_df) - _n_show7
+        if _extra7 > 0:
+            cargas_items_og += txt(CGX+CGW/2, CGY+34+_n_show7*24+10, f"+ {_extra7} equipos más", 7.5, C_DIM)
+        _total_w7 = int((cargas_df["cantidad"]*cargas_df["potencia_w"]).sum())
+    else:
+        cargas_items_og = (txt(CGX+CGW/2, CGY+60, "Sin inventario de cargas", 8, C_DIM)
+                            + txt(CGX+CGW/2, CGY+76, "capturado para este proyecto", 7.5, C_DIM)
+                            + txt(CGX+CGW/2, CGY+96, f"Consumo por recibo: {consumo_fs_wh/1000:.1f} kWh/día", 7.5, C_DC, "middle","normal","Share Tech Mono,monospace"))
+        _total_w7 = 0
+    cargas_detalle_og = f'''
+    <g id="cargas_detalle_og">
+      {box(CGX,CGY,CGW,CGH,"#0F1525",C_AC,8)}
+      {box(CGX,CGY,CGW,22,"#1A2235",C_AC,8)}
+      {txt(CGX+CGW//2,CGY+14,"CIRCUITOS RAMALES (CARGAS)",7.5,C_AC,"middle","700","Rajdhani,sans-serif")}
+      {cargas_items_og}
+      {txt(CGX+CGW//2,CGY+CGH-12,f"Total: {_total_w7:,} W",8,C_AC,"middle","700","Share Tech Mono,monospace")}
     </g>'''
 
     # ── 6. Red eléctrica ─────────────────────────────────────────────────────
@@ -583,6 +614,9 @@ def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
     {line(INV_X+20, INV_Y+INV_H, INV_X+20, INV_Y+INV_H+40, C_GND, 1, "3,3")}
     {line(INV_X+20, INV_Y+INV_H+40, PR_X+20, INV_Y+INV_H+40, C_GND, 1, "3,3")}
     {line(PR_X+20, PR_Y+PR_H, PR_X+20, INV_Y+INV_H+40, C_GND, 1, "3,3")}
+    <!-- Tablero AC → Circuitos ramales (cargas) -->
+    {line(TAC_X+TAC_W, TAC_Y+TAC_H*0.4, CGX, CGY+CGH*0.30, C_AC, 2, "5,3")}
+    {wlbl(TAC_X+TAC_W+6, TAC_Y+TAC_H*0.4-6, "Circuitos ramales", C_AC)}
     '''
 
     # ── Tierra ────────────────────────────────────────────────────────────────
@@ -657,6 +691,7 @@ def svg_diagrama_unifilar_og(n_paneles: int, pan_serie: int, n_strings: int,
       {med_block}
       {red_block}
       {tac_block}
+      {cargas_detalle_og}
       {pr_block}
       {gnd_svg}
       {legend}
@@ -2151,11 +2186,14 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         else:
             conn = get_conn()
             p_info7 = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+            cargas_p7 = pd.read_sql(
+                "SELECT electrodomestico, cantidad, potencia_w, horas_dia, es_motor "
+                "FROM cargas WHERE proyecto_id=?", conn, params=(proyecto_id,))
             conn.close()
 
             svg7 = svg_diagrama_unifilar_og(
                 n_pan_p7, pan_s_p7, n_str_p7, wp_p7, pot_inv_p7,
-                v_str_p7, v_oc_p7, i_arr_p7, consumo_p7, hsp_p7, p_info7)
+                v_str_p7, v_oc_p7, i_arr_p7, consumo_p7, hsp_p7, p_info7, cargas_p7)
             render_svg_og(svg7, height=740)
 
             st.markdown("<hr class='sep'>", unsafe_allow_html=True)
