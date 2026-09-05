@@ -40,8 +40,10 @@ except ImportError:
 try:
     from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
     _INFORME_COMPLETO_OG = True
-except Exception:
+    _INFORME_COMPLETO_OG_ERROR = None
+except Exception as _e_inf_og:
     _INFORME_COMPLETO_OG = False
+    _INFORME_COMPLETO_OG_ERROR = f"{type(_e_inf_og).__name__}: {_e_inf_og}"
 
 # ─── Helper de paneles (misma logica que solar_app.py) ───────────────────────
 def calcular_paneles_fv(consumo_wh_dia, hsp, pot_panel_wp, fp=0.80,
@@ -2280,8 +2282,9 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     if not _INFORME_COMPLETO_OG:
-        st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
-                   "modulo_informe.py esté en el mismo directorio.")
+        st.warning(f"⚠ El módulo de informe completo no está disponible: **{_INFORME_COMPLETO_OG_ERROR}**. "
+                   "Verifica que `modulo_informe.py` esté en el mismo directorio y que estén instaladas "
+                   "sus dependencias: `pip install svglib pypdf reportlab`.")
     else:
         if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
                      key="btn_informe_completo_ongrid"):

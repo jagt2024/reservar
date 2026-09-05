@@ -27,12 +27,22 @@ from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
 )
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-
-from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
 from reportlab.graphics.shapes import Drawing, Group
 
 from pypdf import PdfReader, PdfWriter
+
+# svglib (y su dependencia lxml) solo hacen falta para convertir los planos SVG
+# a páginas PDF. Si no están instalados, el resto del informe (portada, fusión
+# de PDFs, secciones técnicas/económicas/cableado) debe seguir funcionando —
+# por eso este import se aísla y NO se propaga como fallo de todo el módulo.
+try:
+    from svglib.svglib import svg2rlg
+    _SVGLIB_DISPONIBLE = True
+    _SVGLIB_ERROR = None
+except Exception as _e_svglib:
+    _SVGLIB_DISPONIBLE = False
+    _SVGLIB_ERROR = f"{type(_e_svglib).__name__}: {_e_svglib}"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,9 +54,17 @@ def svg_a_pdf_bytes(svg_string: str) -> bytes:
     diagramas unifilares) en una página PDF de tamaño A4 horizontal, con el
     dibujo centrado y escalado para que quepa completo en la hoja.
 
-    Si el SVG no puede parsearse (formato inesperado), propaga la excepción
-    para que el llamador decida si omite la sección o notifica al usuario.
+    Si el SVG no puede parsearse (formato inesperado), o si svglib no está
+    instalado, propaga una excepción para que el llamador omita la sección
+    y notifique al usuario en vez de romper todo el informe.
     """
+    if not _SVGLIB_DISPONIBLE:
+        raise RuntimeError(
+            "svglib no está disponible "
+            f"({_SVGLIB_ERROR}). Instala las dependencias con: "
+            "pip install svglib lxml"
+        )
+
     drawing: Drawing = svg2rlg(io.StringIO(svg_string))
     if drawing is None:
         raise ValueError("No fue posible interpretar el SVG del plano.")

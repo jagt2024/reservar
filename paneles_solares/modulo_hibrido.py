@@ -40,8 +40,10 @@ except ImportError:
 try:
     from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
     _INFORME_COMPLETO_HIB = True
-except Exception:
+    _INFORME_COMPLETO_HIB_ERROR = None
+except Exception as _e_inf_hib:
     _INFORME_COMPLETO_HIB = False
+    _INFORME_COMPLETO_HIB_ERROR = f"{type(_e_inf_hib).__name__}: {_e_inf_hib}"
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
@@ -2428,8 +2430,9 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     if not _INFORME_COMPLETO_HIB:
-        st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
-                   "modulo_informe.py esté en el mismo directorio.")
+        st.warning(f"⚠ El módulo de informe completo no está disponible: **{_INFORME_COMPLETO_HIB_ERROR}**. "
+                   "Verifica que `modulo_informe.py` esté en el mismo directorio y que estén instaladas "
+                   "sus dependencias: `pip install svglib pypdf reportlab`.")
     else:
         if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
                      key="btn_informe_completo_hibrido"):

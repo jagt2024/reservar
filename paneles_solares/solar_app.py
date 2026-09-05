@@ -579,8 +579,10 @@ from modulo_cableado import mostrar_cableado, generar_pdf_cableado
 try:
     from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
     _INFORME_COMPLETO_DISPONIBLE = True
-except Exception:
+    _INFORME_COMPLETO_ERROR = None
+except Exception as _e_inf:
     _INFORME_COMPLETO_DISPONIBLE = False
+    _INFORME_COMPLETO_ERROR = f"{type(_e_inf).__name__}: {_e_inf}"
 
 # ─── Módulo de monitoreo de sesiones (solo administradores) ─────────────────
 from modulo_monitoreo import (init_monitoreo_db, registrar_latido,
@@ -6408,8 +6410,9 @@ if not proyecto_id:
     st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto para generar el informe completo.</div>",
                 unsafe_allow_html=True)
 elif not _INFORME_COMPLETO_DISPONIBLE:
-    st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
-               "modulo_informe.py esté en el mismo directorio.")
+    st.warning(f"⚠ El módulo de informe completo no está disponible: **{_INFORME_COMPLETO_ERROR}**. "
+               "Verifica que `modulo_informe.py` esté en el mismo directorio y que estén instaladas "
+               "sus dependencias: `pip install svglib pypdf reportlab`.")
 else:
     if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
                  key="btn_informe_completo_offgrid"):
