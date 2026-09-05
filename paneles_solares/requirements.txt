@@ -21,4 +21,4 @@ pypdf
 Pillow>=10.0.0
 yagmail
 psycopg2-binary
-psycopg2
+
