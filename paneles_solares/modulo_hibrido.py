@@ -31,9 +31,17 @@ from reportlab.lib.enums import TA_CENTER
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
 try:
     from modulo_cableado import mostrar_cableado as _mostrar_cableado_hib
+    from modulo_cableado import generar_pdf_cableado as _generar_pdf_cableado_hib
     _CABLEADO_DISPONIBLE = True
 except ImportError:
     _CABLEADO_DISPONIBLE = False
+
+# ─── Módulo de informe completo (consolidado PDF de soporte) ────────────────
+try:
+    from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
+    _INFORME_COMPLETO_HIB = True
+except Exception:
+    _INFORME_COMPLETO_HIB = False
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
@@ -2404,6 +2412,120 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             _mostrar_cableado_hib(proyecto_id, _ss_hib)
         else:
             st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO HÍBRIDO
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='sol-card-title'>📄 INFORME COMPLETO DE SOPORTE DEL PROYECTO</div>
+    <div class='info-note'>
+        Genera <b>un solo PDF</b> con todo el dimensionamiento HÍBRIDO: cargas y/o recibo,
+        dimensionamiento del array, banco de baterías e inversor híbrido,
+        <b>plano de paneles</b> y <b>diagrama unifilar</b>, análisis económico-ambiental
+        y la memoria técnica de <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not _INFORME_COMPLETO_HIB:
+        st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
+                   "modulo_informe.py esté en el mismo directorio.")
+    else:
+        if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
+                     key="btn_informe_completo_hibrido"):
+            session_state["_gen_informe_completo_hib"] = True
+
+        if session_state.get("_gen_informe_completo_hib", False):
+            with st.spinner("Consolidando informe completo — reuniendo todas las secciones..."):
+                try:
+                    nombre_inf_hib    = _proy_nombre
+                    municipio_inf_hib = p_info[2] if p_info and len(p_info) > 2 else "—"
+
+                    partes_hib              = []
+                    secciones_incluidas_hib = []
+                    avisos_hib              = []
+
+                    # 1· Dimensionamiento técnico HÍBRIDO (array + baterías + inversor)
+                    try:
+                        if "_datos_pdf_hib" in dir() and _datos_pdf_hib:
+                            partes_hib.append(generar_pdf_hibrido(proyecto_id, p_info, _datos_pdf_hib))
+                            secciones_incluidas_hib.append("Dimensionamiento técnico HÍBRIDO")
+                        else:
+                            avisos_hib.append("Dimensionamiento técnico: visita la pestaña de "
+                                               "dimensionamiento y calcula el array/baterías/inversor.")
+                    except Exception as e:
+                        avisos_hib.append(f"Dimensionamiento técnico: {e}")
+
+                    # 2· Plano de paneles
+                    try:
+                        if "svg7" in dir():
+                            partes_hib.append(svg_a_pdf_bytes(svg7))
+                            secciones_incluidas_hib.append("Plano de distribución de paneles")
+                        else:
+                            avisos_hib.append("Plano de paneles: visita la pestaña de plano de paneles.")
+                    except Exception as e:
+                        avisos_hib.append(f"Plano de paneles: {e}")
+
+                    # 3· Diagrama unifilar
+                    try:
+                        if "svg8" in dir():
+                            partes_hib.append(svg_a_pdf_bytes(svg8))
+                            secciones_incluidas_hib.append("Diagrama unifilar HÍBRIDO")
+                        else:
+                            avisos_hib.append("Diagrama unifilar: visita la pestaña de diagrama unifilar.")
+                    except Exception as e:
+                        avisos_hib.append(f"Diagrama unifilar: {e}")
+
+                    # 4· Análisis económico y ambiental
+                    try:
+                        if "_datos_pdf_eco_h" in dir() and _datos_pdf_eco_h:
+                            partes_hib.append(generar_pdf_economico_hibrido(
+                                proyecto_id, p_info, _datos_pdf_eco_h))
+                            secciones_incluidas_hib.append("Análisis económico y ambiental")
+                        else:
+                            avisos_hib.append("Análisis económico: visita la pestaña económica.")
+                    except Exception as e:
+                        avisos_hib.append(f"Análisis económico: {e}")
+
+                    # 5· Cableado
+                    try:
+                        _tramos_hib = session_state.get("_cableado_tramos")
+                        _params_hib = session_state.get("_cableado_params")
+                        if _tramos_hib and _params_hib:
+                            partes_hib.append(_generar_pdf_cableado_hib(
+                                tramos=_tramos_hib, params=_params_hib,
+                                proyecto_nombre=nombre_inf_hib, proyecto_municipio=municipio_inf_hib))
+                            secciones_incluidas_hib.append("Memoria técnica de cableado (RETIE/IEC)")
+                        else:
+                            avisos_hib.append("Cableado: visita la pestaña de cableado para calcularlo.")
+                    except Exception as e:
+                        avisos_hib.append(f"Cableado: {e}")
+
+                    portada_hib = pagina_portada(nombre_inf_hib, municipio_inf_hib, "HIBRIDO",
+                                                  secciones_incluidas_hib)
+                    partes_hib.insert(0, portada_hib)
+
+                    pdf_final_hib = combinar_pdfs(partes_hib)
+                    fname_inf_hib = (f"Informe_Completo_HIBRIDO_{nombre_inf_hib.replace(' ','_')}_"
+                                     f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf")
+
+                    if avisos_hib:
+                        st.markdown(
+                            "<div class='warn-box'>⚠ Algunas secciones no se incluyeron:<br>• " +
+                            "<br>• ".join(avisos_hib) + "</div>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='info-note'>✅ Informe generado con "
+                        f"<b>{len(secciones_incluidas_hib)}</b> secciones: "
+                        f"{', '.join(secciones_incluidas_hib) if secciones_incluidas_hib else '—'}</div>",
+                        unsafe_allow_html=True)
+                    st.download_button(
+                        "⬇ Descargar Informe Completo PDF", data=pdf_final_hib,
+                        file_name=fname_inf_hib, mime="application/pdf",
+                        use_container_width=True, key="dl_informe_completo_hibrido")
+                    session_state["_gen_informe_completo_hib"] = False
+                except Exception as e:
+                    st.error(f"Error generando el informe completo: {e}")
+                    session_state["_gen_informe_completo_hib"] = False
 
     # Footer
     st.markdown("""

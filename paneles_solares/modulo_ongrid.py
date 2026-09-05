@@ -31,9 +31,17 @@ import base64
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
 try:
     from modulo_cableado import mostrar_cableado as _mostrar_cableado_og
+    from modulo_cableado import generar_pdf_cableado as _generar_pdf_cableado_og
     _CABLEADO_OG = True
 except ImportError:
     _CABLEADO_OG = False
+
+# ─── Módulo de informe completo (consolidado PDF de soporte) ────────────────
+try:
+    from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
+    _INFORME_COMPLETO_OG = True
+except Exception:
+    _INFORME_COMPLETO_OG = False
 
 # ─── Helper de paneles (misma logica que solar_app.py) ───────────────────────
 def calcular_paneles_fv(consumo_wh_dia, hsp, pot_panel_wp, fp=0.80,
@@ -2256,6 +2264,120 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             _mostrar_cableado_og(proyecto_id, _ss_og)
         else:
             st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
+
+    # ══════════════════════════════════════════════════════════════════════════
+    # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO ON-GRID
+    # ══════════════════════════════════════════════════════════════════════════
+    st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
+    st.markdown("""
+    <div class='sol-card-title'>📄 INFORME COMPLETO DE SOPORTE DEL PROYECTO</div>
+    <div class='info-note'>
+        Genera <b>un solo PDF</b> con todo el dimensionamiento ON-GRID: cargas y/o recibo,
+        dimensionamiento del array e inversor, <b>plano de paneles</b> y
+        <b>diagrama unifilar</b>, análisis económico-ambiental y la memoria técnica de
+        <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
+    </div>
+    """, unsafe_allow_html=True)
+
+    if not _INFORME_COMPLETO_OG:
+        st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
+                   "modulo_informe.py esté en el mismo directorio.")
+    else:
+        if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
+                     key="btn_informe_completo_ongrid"):
+            session_state["_gen_informe_completo_og"] = True
+
+        if session_state.get("_gen_informe_completo_og", False):
+            with st.spinner("Consolidando informe completo — reuniendo todas las secciones..."):
+                try:
+                    nombre_inf_og    = _proy_nombre
+                    municipio_inf_og = p_info[2] if p_info and len(p_info) > 2 else "—"
+
+                    partes_og              = []
+                    secciones_incluidas_og = []
+                    avisos_og              = []
+
+                    # 1· Dimensionamiento técnico ON-GRID (array + inversor)
+                    try:
+                        if "_datos_pdf_og" in dir() and _datos_pdf_og:
+                            partes_og.append(generar_pdf_ongrid(proyecto_id, p_info, _datos_pdf_og))
+                            secciones_incluidas_og.append("Dimensionamiento técnico ON-GRID")
+                        else:
+                            avisos_og.append("Dimensionamiento técnico: visita la pestaña de "
+                                              "dimensionamiento y calcula el array/inversor.")
+                    except Exception as e:
+                        avisos_og.append(f"Dimensionamiento técnico: {e}")
+
+                    # 2· Plano de paneles
+                    try:
+                        if "svg6" in dir():
+                            partes_og.append(svg_a_pdf_bytes(svg6))
+                            secciones_incluidas_og.append("Plano de distribución de paneles")
+                        else:
+                            avisos_og.append("Plano de paneles: visita la pestaña de plano de paneles.")
+                    except Exception as e:
+                        avisos_og.append(f"Plano de paneles: {e}")
+
+                    # 3· Diagrama unifilar
+                    try:
+                        if "svg7" in dir():
+                            partes_og.append(svg_a_pdf_bytes(svg7))
+                            secciones_incluidas_og.append("Diagrama unifilar ON-GRID")
+                        else:
+                            avisos_og.append("Diagrama unifilar: visita la pestaña de diagrama unifilar.")
+                    except Exception as e:
+                        avisos_og.append(f"Diagrama unifilar: {e}")
+
+                    # 4· Análisis económico y ambiental
+                    try:
+                        if "_datos_pdf_eco_og" in dir() and _datos_pdf_eco_og:
+                            partes_og.append(generar_pdf_economico_ongrid(
+                                proyecto_id, p_info, _datos_pdf_eco_og))
+                            secciones_incluidas_og.append("Análisis económico y ambiental")
+                        else:
+                            avisos_og.append("Análisis económico: visita la pestaña económica.")
+                    except Exception as e:
+                        avisos_og.append(f"Análisis económico: {e}")
+
+                    # 5· Cableado
+                    try:
+                        _tramos_og = session_state.get("_cableado_tramos")
+                        _params_og = session_state.get("_cableado_params")
+                        if _tramos_og and _params_og:
+                            partes_og.append(_generar_pdf_cableado_og(
+                                tramos=_tramos_og, params=_params_og,
+                                proyecto_nombre=nombre_inf_og, proyecto_municipio=municipio_inf_og))
+                            secciones_incluidas_og.append("Memoria técnica de cableado (RETIE/IEC)")
+                        else:
+                            avisos_og.append("Cableado: visita la pestaña de cableado para calcularlo.")
+                    except Exception as e:
+                        avisos_og.append(f"Cableado: {e}")
+
+                    portada_og = pagina_portada(nombre_inf_og, municipio_inf_og, "ON-GRID",
+                                                 secciones_incluidas_og)
+                    partes_og.insert(0, portada_og)
+
+                    pdf_final_og = combinar_pdfs(partes_og)
+                    fname_inf_og = (f"Informe_Completo_ONGRID_{nombre_inf_og.replace(' ','_')}_"
+                                    f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf")
+
+                    if avisos_og:
+                        st.markdown(
+                            "<div class='warn-box'>⚠ Algunas secciones no se incluyeron:<br>• " +
+                            "<br>• ".join(avisos_og) + "</div>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='info-note'>✅ Informe generado con "
+                        f"<b>{len(secciones_incluidas_og)}</b> secciones: "
+                        f"{', '.join(secciones_incluidas_og) if secciones_incluidas_og else '—'}</div>",
+                        unsafe_allow_html=True)
+                    st.download_button(
+                        "⬇ Descargar Informe Completo PDF", data=pdf_final_og,
+                        file_name=fname_inf_og, mime="application/pdf",
+                        use_container_width=True, key="dl_informe_completo_ongrid")
+                    session_state["_gen_informe_completo_og"] = False
+                except Exception as e:
+                    st.error(f"Error generando el informe completo: {e}")
+                    session_state["_gen_informe_completo_og"] = False
 
     # ── Footer ON-GRID ────────────────────────────────────────────────────────
     st.markdown("""

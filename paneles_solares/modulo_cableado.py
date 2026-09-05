@@ -685,6 +685,13 @@ def mostrar_cableado(proyecto_id: int, session_state: dict) -> None:
     }
     tramos = calcular_cableado_sistema(params_calc)
 
+    # Se guarda en el session_state GLOBAL real (no en la copia local que algunos
+    # módulos pasan como `session_state`) para que el botón "Informe Completo" de
+    # cada tipo de sistema (OFF-GRID / ON-GRID / HÍBRIDO) pueda incluir esta
+    # sección de cableado sin tener que rehacer el cálculo.
+    st.session_state["_cableado_tramos"] = tramos
+    st.session_state["_cableado_params"] = params_calc
+
     # ── 6. Tabla resumen visual ───────────────────────────────────────────────
     st.markdown("---")
     st.markdown("""

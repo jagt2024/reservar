@@ -573,7 +573,14 @@ from modulo_seguridad import (
 init_seguridad_db()
 
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
-from modulo_cableado import mostrar_cableado
+from modulo_cableado import mostrar_cableado, generar_pdf_cableado
+
+# ─── Módulo de informe completo (consolidado PDF de soporte) ────────────────
+try:
+    from modulo_informe import svg_a_pdf_bytes, combinar_pdfs, pagina_portada
+    _INFORME_COMPLETO_DISPONIBLE = True
+except Exception:
+    _INFORME_COMPLETO_DISPONIBLE = False
 
 # ─── Módulo de monitoreo de sesiones (solo administradores) ─────────────────
 from modulo_monitoreo import (init_monitoreo_db, registrar_latido,
@@ -6382,6 +6389,123 @@ with tab12:
                     unsafe_allow_html=True)
     else:
         mostrar_cableado(proyecto_id, st.session_state)
+
+# ════════════════════════════════════════════════════════════════════════════
+# INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO (Cargas/Recibo → Cableado)
+# ════════════════════════════════════════════════════════════════════════════
+st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
+st.markdown("""
+<div class='sol-card-title'>📄 INFORME COMPLETO DE SOPORTE DEL PROYECTO</div>
+<div class='info-note'>
+    Genera <b>un solo PDF</b> con todo el dimensionamiento del proyecto: inventario de cargas
+    y/o recibo de energía, tensión DC, hora solar, paneles, baterías, potencia, controlador,
+    protecciones, <b>plano de paneles</b> y <b>plano general</b>, análisis económico-ambiental
+    y la memoria técnica de <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
+</div>
+""", unsafe_allow_html=True)
+
+if not proyecto_id:
+    st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto para generar el informe completo.</div>",
+                unsafe_allow_html=True)
+elif not _INFORME_COMPLETO_DISPONIBLE:
+    st.warning("⚠ El módulo de informe completo no está disponible. Verifica que "
+               "modulo_informe.py esté en el mismo directorio.")
+else:
+    if st.button("📄 Generar Informe Completo (PDF)", use_container_width=True,
+                 key="btn_informe_completo_offgrid"):
+        st.session_state["_gen_informe_completo"] = True
+
+    if st.session_state.get("_gen_informe_completo", False):
+        with st.spinner("Consolidando informe completo — reuniendo todas las secciones..."):
+            try:
+                conn = get_conn()
+                p_inf = conn.execute("SELECT * FROM proyectos WHERE id=?", (proyecto_id,)).fetchone()
+                conn.close()
+                nombre_inf    = p_inf[1] if p_inf else "Proyecto"
+                municipio_inf = p_inf[2] if p_inf and len(p_inf) > 2 else "—"
+
+                partes              = []
+                secciones_incluidas = []
+                avisos              = []
+
+                # 1· Sección técnica: cargas, recibo, tensión DC, paneles, baterías,
+                #    potencia, controlador, inversor, protecciones y catálogo
+                try:
+                    partes.append(generar_pdf(proyecto_id, p_inf))
+                    secciones_incluidas.append("Dimensionamiento técnico (cargas → protecciones)")
+                except Exception as e:
+                    avisos.append(f"Dimensionamiento técnico: {e}")
+
+                # 2· Plano de paneles (Tab 9)
+                try:
+                    if "svg_code" in dir():
+                        partes.append(svg_a_pdf_bytes(svg_code))
+                        secciones_incluidas.append("Plano de instalación de paneles")
+                    else:
+                        avisos.append("Plano de paneles: visita la pestaña 9 · Plano Paneles.")
+                except Exception as e:
+                    avisos.append(f"Plano de paneles: {e}")
+
+                # 3· Plano general del sistema (Tab 10)
+                try:
+                    if "svg10" in dir():
+                        partes.append(svg_a_pdf_bytes(svg10))
+                        secciones_incluidas.append("Plano general del sistema")
+                    else:
+                        avisos.append("Plano general: visita la pestaña 10 · Plano General.")
+                except Exception as e:
+                    avisos.append(f"Plano general: {e}")
+
+                # 4· Análisis económico y ambiental (Tab 11)
+                try:
+                    if "_datos_pdf_eco" in dir() and _datos_pdf_eco:
+                        partes.append(generar_pdf_economico(proyecto_id, p_inf, _datos_pdf_eco))
+                        secciones_incluidas.append("Análisis económico y ambiental")
+                    else:
+                        avisos.append("Análisis económico: visita la pestaña 11 · Económico "
+                                       "(ingresa cargas/recibo y HSP primero).")
+                except Exception as e:
+                    avisos.append(f"Análisis económico: {e}")
+
+                # 5· Cableado (Tab 12)
+                try:
+                    _tramos_inf = st.session_state.get("_cableado_tramos")
+                    _params_inf = st.session_state.get("_cableado_params")
+                    if _tramos_inf and _params_inf:
+                        partes.append(generar_pdf_cableado(
+                            tramos=_tramos_inf, params=_params_inf,
+                            proyecto_nombre=nombre_inf, proyecto_municipio=municipio_inf))
+                        secciones_incluidas.append("Memoria técnica de cableado (RETIE/IEC)")
+                    else:
+                        avisos.append("Cableado: visita la pestaña 12 · Cableado para calcularlo.")
+                except Exception as e:
+                    avisos.append(f"Cableado: {e}")
+
+                # 0· Portada + índice (al inicio, con lo que sí se pudo incluir)
+                portada = pagina_portada(nombre_inf, municipio_inf, "OFF-GRID", secciones_incluidas)
+                partes.insert(0, portada)
+
+                pdf_final = combinar_pdfs(partes)
+                fname_inf = (f"Informe_Completo_{nombre_inf.replace(' ','_')}_"
+                             f"{datetime.now().strftime('%Y%m%d_%H%M')}.pdf")
+
+                if avisos:
+                    st.markdown(
+                        "<div class='warn-box'>⚠ Algunas secciones no se incluyeron:<br>• " +
+                        "<br>• ".join(avisos) + "</div>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<div class='info-note'>✅ Informe generado con "
+                    f"<b>{len(secciones_incluidas)}</b> secciones: "
+                    f"{', '.join(secciones_incluidas) if secciones_incluidas else '—'}</div>",
+                    unsafe_allow_html=True)
+                st.download_button(
+                    "⬇ Descargar Informe Completo PDF", data=pdf_final,
+                    file_name=fname_inf, mime="application/pdf",
+                    use_container_width=True, key="dl_informe_completo_offgrid")
+                st.session_state["_gen_informe_completo"] = False
+            except Exception as e:
+                st.error(f"Error generando el informe completo: {e}")
+                st.session_state["_gen_informe_completo"] = False
 
 # ─── FOOTER ─────────────────────────────────────────────────────────────────
 st.markdown("""
