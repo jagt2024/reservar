@@ -52,6 +52,7 @@ PG_PASS = "JbVHPer5dUblreff"
 PG_DB   = "postgres"
 
 try:
+    #python -m pip install psycopg2-binary
     import psycopg2
     import psycopg2.extras
     PSYCOPG2_AVAILABLE = True

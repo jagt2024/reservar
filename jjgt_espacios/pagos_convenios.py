@@ -1,11 +1,11 @@
 # ══════════════════════════════════════════════════════════════════════════════
-#  SUITE SALITRE · Espacios de Descanso Personal — Terminal de Transportes
+#  SUITE SALITRE VIP · Espacios de Descanso Personal — Terminal de Transportes
 #  MÓDULO DE PAGOS + CONVENIOS · Kiosco Táctil 24/7
 # ══════════════════════════════════════════════════════════════════════════════
 #
 #  Instalación:
 #    pip install streamlit pandas qrcode pillow reportlab requests
-#               pytz openpyxl gspread google-auth google-auth-oauthlib
+#               pytz openpyxl gspread google-auth google-auth-oauthlib yagmail
 #
 #  ── EJECUCIÓN LOCAL ────────────────────────────────────────────────────────
 #    1. Coloca credentials.json de tu Service Account en la carpeta del proyecto
@@ -52,6 +52,19 @@ from typing import Optional
 
 import pandas as pd
 import pytz
+
+# Envío de correo — yagmail (Gmail), mismo mecanismo que facturacion_cartera.py
+try:
+    import yagmail
+    YAGMAIL_AVAILABLE = True
+except ImportError:
+    YAGMAIL_AVAILABLE = False
+
+try:
+    import requests
+    REQUESTS_AVAILABLE = True
+except ImportError:
+    REQUESTS_AVAILABLE = False
 
 def fmt_cop(valor) -> str:
     """Formatea un número como pesos colombianos: 1234567 → '$ 1.234.567'"""
@@ -212,7 +225,7 @@ _IS_CLOUD = bool(
     not os.path.exists(".")                              # fallback: sin escritura local
 )
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
-NEGOCIO      = "SUITE SALITRE · Espacios de Descanso"
+NEGOCIO      = "SUITE SALITRE VIP · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
 DIRECCION    = "Terminal de Transportes · Modulo 3 Local 230"
 TELEFONO     = "3219714969"
@@ -225,7 +238,7 @@ MP_LINK      = "https://mpago.la/XXXXXXX"
 WHATSAPP_OP  = "573219714969"
 DRIVE_FILE   = "jjgt_pagos"
 DRIVE_FILE_CONVENIOS = "jjgt_convenios"
-EMAIL        = "suitesalitre@gmail.com"
+EMAIL        = "suitesalitrevip@gmail.com"
 
 # ID del Spreadsheet de Convenios (se configura igual que el principal)
 SPREADSHEET_ID_CONVENIOS = ""  # Se llena desde Configuracion_Pagos clave "convenios_spreadsheet_id"
@@ -1451,7 +1464,7 @@ CREATE TABLE IF NOT EXISTS cubiculos_estado (
     codigo_acceso       TEXT,
     wifi_ssid           TEXT,
     wifi_pass           TEXT,
-    precio_hora_base    TEXT DEFAULT '15000'
+    precio_hora_base    TEXT DEFAULT '10000'
 );
 
 CREATE TABLE IF NOT EXISTS facturas (
@@ -1746,8 +1759,8 @@ _SEED_SQL = """
 INSERT INTO tarifas_config (id, nombre, descripcion, precio_hora_cop, desc_3h_pct,
     desc_6h_pct, hora_ini_espec, hora_fin_espec, aplica_festivos, activo, horas_a_reservar)
 VALUES
-    ('1','Estándar','Tarifa estándar diurna','15000','0','0','','','0','1',''),
-    ('2','Madrugada','Tarifa madrugada 00-06h','15000','0','0','00:00','06:00','0','1',''),
+    ('1','Estándar','Tarifa estándar diurna','10000','0','0','','','0','1',''),
+    ('2','Madrugada','Tarifa madrugada 00-06h','10000','0','0','00:00','06:00','0','1',''),
     ('3','Noche Completa','Noche completa','40000','0','0','22:00','06:00','0','1','8')
 ON CONFLICT (id) DO NOTHING;
 
@@ -3167,7 +3180,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
 
     rows = _gs_read_sheet("Tarifas_Config")
 
-    precio_hora    = 15000
+    precio_hora    = 10000
     hora_ini_espec = ""
     hora_fin_espec = ""
     tarifa_row     = None
@@ -3178,7 +3191,7 @@ def calcular_precio(horas: float, tarifa_nombre: str = None,
             and _gs_val(r, "Activo", "1") in ("1", "True", "true")
         ):
             tarifa_row = r
-            precio_hora    = _gs_float(r, "Precio_Hora_COP", 15000)
+            precio_hora    = _gs_float(r, "Precio_Hora_COP", 10000)
             hora_ini_espec = _gs_val(r, "Hora_Ini_Espec", "")
             hora_fin_espec = _gs_val(r, "Hora_Fin_Espec", "")
             break
@@ -3251,7 +3264,7 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     """
     hora_actual       = ahora_col().hour
     tarifa_base       = "Madrugada" if 0 <= hora_actual < 6 else "Estándar"
-    precio_hora       = 15000
+    precio_hora       = 10000
     desc_3h           = 0
     desc_6h           = 0
     tarifa_nombre_log = tarifa_base
@@ -3305,7 +3318,7 @@ def calcular_precio_convenio(horas: float, cfg_empresa: dict,
     if not tarifa_encontrada:
         for r in _gs_read_sheet("Tarifas_Config"):
             if _gs_val(r,"Nombre") == tarifa_base and _gs_val(r,"Activo","1") in ("1","True","true"):
-                precio_hora       = _gs_float(r,"Precio_Hora_COP", 15000)
+                precio_hora       = _gs_float(r,"Precio_Hora_COP", 10000)
                 desc_3h           = _gs_float(r,"Desc_3h_Pct", 0)
                 desc_6h           = _gs_float(r,"Desc_6h_Pct", 0)
                 tarifa_nombre_log = tarifa_base
@@ -3351,7 +3364,7 @@ def get_cubiculos() -> list:
         hora_inicio = _gs_val(row, "Hora_Inicio")
         wifi_ssid   = _gs_val(row, "WiFi_SSID")
         wifi_pass   = _gs_val(row, "WiFi_Pass")
-        precio_base = _gs_float(row, "Precio_Hora_Base", 15000)
+        precio_base = _gs_float(row, "Precio_Hora_Base", 10000)
         cub_id      = _gs_val(row, "Cubiculo_ID") or str(i + 1)
 
         cub = {
@@ -4152,6 +4165,474 @@ h1{{color:#00d4ff;text-align:center;font-size:18px;}}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
+# REENVÍO DE BAUCHER / FACTURA — CORREO Y WHATSAPP (en cualquier momento)
+# ══════════════════════════════════════════════════════════════════════════════
+#
+#  Este módulo permite ubicar cualquier reserva ya registrada —tanto normal
+#  (jjgt_pagos) como de convenio empresarial (jjgt_convenios)— aunque el
+#  baucher ya se haya generado en el momento del pago, y volver a generar
+#  su PDF, o enviarlo por correo electrónico y/o WhatsApp al cliente,
+#  desde el panel del operador → "📤 Reenviar Voucher/Factura".
+#
+#  Configuración necesaria (uno de los dos métodos, o ambos):
+#
+#  · CORREO — vía yagmail (Gmail), mismo mecanismo que facturacion_cartera.py.
+#    En .streamlit/secrets.toml o en Streamlit Cloud → Secrets:
+#       [emails]
+#       smtp_user     = "suitesalitrevip@gmail.com"
+#       smtp_password = "clave_de_aplicacion_de_gmail"
+#    (el nombre/correo remitente que ve el cliente se puede ajustar desde
+#     ⚙️ Configuración → 📧 Envíos; requiere: pip install yagmail)
+#
+#  · WHATSAPP (envío automático con documento adjunto, WhatsApp Cloud API / Meta):
+#       [whatsapp]
+#       token = "TOKEN_PERMANENTE_DE_META"
+#       phone_number_id = "1234567890"
+#    Si no se configura, el módulo ofrece un enlace manual (wa.me) con el
+#    resumen del baucher — el operador deberá adjuntar el PDF manualmente
+#    porque WhatsApp Web no permite adjuntar archivos por enlace.
+# ══════════════════════════════════════════════════════════════════════════════
+
+def buscar_reservas_historicas(criterio: str, valor: str) -> list:
+    """
+    Busca reservas ya registradas (de cualquier fecha) por distintos criterios,
+    combinando reservas normales (jjgt_pagos) y de convenio (jjgt_convenios).
+    criterio ∈ {"numero_reserva", "documento", "nombre", "telefono", "factura"}
+    Retorna lista de filas (dict) — más recientes primero. Cada fila incluye
+    la clave interna "_fuente" ∈ {"pagos", "convenios"} para saber su origen.
+    """
+    valor = (valor or "").strip().lower()
+    if not valor:
+        return []
+    campo_map = {
+        "numero_reserva": "Numero_Reserva",
+        "documento":      "Documento",
+        "nombre":         "Cliente_Nombre",
+        "telefono":       "Telefono",
+        "factura":        "Num_Factura",
+    }
+    campo = campo_map.get(criterio, "Numero_Reserva")
+
+    resultados = []
+    try:
+        reservas_gs = _gs_read_sheet("Reservas")
+        for r in reservas_gs:
+            if valor in _gs_val(r, campo, "").strip().lower():
+                r = dict(r)
+                r["_fuente"] = "pagos"
+                resultados.append(r)
+    except Exception:
+        pass
+    try:
+        reservas_conv = _gs_read_sheet_conv("Reservas")
+        for r in reservas_conv:
+            if valor in _gs_val(r, campo, "").strip().lower():
+                r = dict(r)
+                r["_fuente"] = "convenios"
+                resultados.append(r)
+    except Exception:
+        pass
+
+    resultados.sort(key=lambda r: _gs_val(r, "Creado_En", ""), reverse=True)
+    return resultados
+
+
+def voucher_desde_fila_reserva(row: dict) -> dict:
+    """
+    Reconstruye el dict de 'voucher' (mismo formato que crea crear_reserva_completa
+    y crear_reserva_convenio) a partir de una fila histórica de la tabla Reservas
+    —normal o de convenio—, para poder regenerar el PDF o reenviarlo, sin importar
+    cuánto tiempo haya pasado desde el pago.
+    """
+    hora_ini_iso = _gs_val(row, "Hora_Inicio", "")
+    hora_fin_iso = _gs_val(row, "Hora_Fin_Prog", "")
+
+    def _hhmm(iso_str):
+        try:
+            return datetime.fromisoformat(iso_str).strftime("%H:%M")
+        except Exception:
+            return iso_str[11:16] if len(iso_str) >= 16 else "--:--"
+
+    es_convenio = row.get("_fuente") == "convenios"
+
+    return {
+        "numero_reserva": _gs_val(row, "Numero_Reserva"),
+        "numero_factura": _gs_val(row, "Num_Factura"),
+        "cubiculo":       _gs_val(row, "Cubiculo_Num"),
+        "codigo_acceso":  _gs_val(row, "Codigo_Acceso"),
+        "wifi_ssid":      _gs_val(row, "WiFi_SSID"),
+        "wifi_password":  _gs_val(row, "WiFi_Pass"),
+        "hora_inicio":    _hhmm(hora_ini_iso),
+        "hora_fin":       _hhmm(hora_fin_iso),
+        "horas":          _gs_val(row, "Horas_Contratadas"),
+        "metodo_pago":    _gs_val(row, "Metodo_Pago", "Convenio" if es_convenio else ""),
+        "subtotal":       _gs_float(row, "Subtotal"),
+        "iva":            _gs_float(row, "IVA"),
+        "total":          _gs_float(row, "Total_COP"),
+        "cliente_nombre": _gs_val(row, "Cliente_Nombre"),
+        "cliente_doc":    _gs_val(row, "Documento"),
+        "cliente_email":  _gs_val(row, "Email"),
+        "cliente_tel":    _gs_val(row, "Telefono"),
+        "es_convenio":    es_convenio,
+        "nombre_empresa": _gs_val(row, "Nombre_Empresa", "") if es_convenio else "",
+        "_fuente":        row.get("_fuente", "pagos"),
+    }
+
+
+# ── CORREO ELECTRÓNICO (yagmail / Gmail) ───────────────────────────────────
+#  Mismo mecanismo que facturacion_cartera.py:
+#    · Autenticación con st.secrets["emails"]["smtp_user"] / ["smtp_password"]
+#    · Envío vía yagmail.SMTP(...) adjuntando el PDF desde un archivo temporal
+#  secrets.toml:
+#    [emails]
+#    smtp_user     = "suitesalitrevip@gmail.com"
+#    smtp_password = "clave_de_aplicacion_de_gmail"
+
+def _smtp_config() -> dict:
+    """Credenciales de autenticación SOLO desde secrets (igual que facturacion_cartera.py).
+    El nombre/correo visible como remitente admite override desde
+    Configuracion_Pagos (pestaña ⚙️ Configuración → 📧 Envíos)."""
+    try:
+        smtp_user     = st.secrets["emails"]["smtp_user"]
+        smtp_password = st.secrets["emails"]["smtp_password"]
+    except Exception:
+        smtp_user, smtp_password = "", ""
+    return {
+        "smtp_user":     smtp_user,
+        "smtp_password": smtp_password,
+        "email_from":    get_config("smtp_email_from", smtp_user or EMAIL),
+        "nombre_from":   get_config("smtp_remitente_nombre", NEGOCIO),
+    }
+
+
+def smtp_disponible() -> bool:
+    cfg = _smtp_config()
+    return bool(YAGMAIL_AVAILABLE and cfg["smtp_user"] and cfg["smtp_password"])
+
+
+def enviar_factura_email(destinatario: str, asunto: str, cuerpo: str,
+                          pdf_bytes: bytes, nombre_pdf: str,
+                          email_from: str, nombre_from: str) -> bool:
+    """
+    Envía un PDF por email usando yagmail (Gmail) — idéntico a la función del
+    mismo nombre en facturacion_cartera.py, para mantener un único mecanismo
+    de envío de correo en toda la suite.
+
+    Se autentica con las credenciales de st.secrets["emails"], pero el
+    encabezado "From" visible para el destinatario usa email_from/nombre_from.
+    """
+    import tempfile, os
+    cfg = _smtp_config()
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            delete=False, suffix=".pdf", prefix="voucher_"
+        ) as tmp:
+            tmp.write(pdf_bytes or b"")
+            tmp_path = tmp.name
+
+        yag = yagmail.SMTP(
+            user=cfg["smtp_user"],
+            password=cfg["smtp_password"],
+            smtp_starttls=True,
+            smtp_ssl=False,
+        )
+        remitente = f"{nombre_from} <{email_from}>" if nombre_from else email_from
+
+        yag.send(
+            to=destinatario,
+            subject=asunto,
+            contents=cuerpo,
+            attachments=tmp_path if pdf_bytes else None,
+            headers={"From": remitente},
+        )
+        return True
+    except Exception as e:
+        print("Error email:", e)
+        return False
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            try:
+                os.remove(tmp_path)
+            except Exception:
+                pass
+
+
+def enviar_email_voucher(destinatario: str, voucher: dict, pdf_bytes: Optional[bytes],
+                          es_reenvio: bool = True) -> tuple:
+    """
+    Envía el baucher/factura por correo electrónico, con el PDF adjunto
+    (si está disponible) y un resumen en texto en el cuerpo del mensaje.
+    Retorna (exito: bool, mensaje: str).
+    """
+    if not YAGMAIL_AVAILABLE:
+        return False, "Falta instalar la librería `yagmail` (pip install yagmail)."
+    cfg = _smtp_config()
+    if not (cfg["smtp_user"] and cfg["smtp_password"]):
+        return False, ("Falta configurar el correo remitente en "
+                        "`.streamlit/secrets.toml` → sección [emails] "
+                        "(smtp_user / smtp_password).")
+    if not destinatario or "@" not in destinatario:
+        return False, "El correo del destinatario no es válido."
+
+    empresa_linea = (f"  • Empresa (convenio)  : {voucher.get('nombre_empresa','')}\n"
+                      if voucher.get("es_convenio") else "")
+    asunto = f"{'Reenvío de ' if es_reenvio else ''}Baucher y Factura {voucher.get('numero_factura','')} · {NEGOCIO}"
+
+    cuerpo = (
+        f"Hola {voucher.get('cliente_nombre','')},\n\n"
+        f"Adjuntamos el baucher y factura de tu reserva en {NEGOCIO}:\n\n"
+        f"  • Reserva            : {voucher.get('numero_reserva','')}\n"
+        f"  • Factura            : {voucher.get('numero_factura','')}\n"
+        f"{empresa_linea}"
+        f"  • Cubículo           : {voucher.get('cubiculo','')}\n"
+        f"  • Entrada → Salida   : {voucher.get('hora_inicio','')} → {voucher.get('hora_fin','')}\n"
+        f"  • Total              : {fmt_cop(float(voucher.get('total',0) or 0))} COP\n"
+        f"  • Método de pago     : {voucher.get('metodo_pago','')}\n\n"
+        f"Gracias por tu visita.\n\n"
+        f"{NEGOCIO}\n{DIRECCION} · Tel: {TELEFONO} · {NIT}"
+    )
+
+    enviado = enviar_factura_email(
+        destinatario=destinatario,
+        asunto=asunto,
+        cuerpo=cuerpo,
+        pdf_bytes=pdf_bytes or b"",
+        nombre_pdf=f"baucher_{voucher.get('numero_reserva','')}.pdf",
+        email_from=cfg["email_from"],
+        nombre_from=cfg["nombre_from"],
+    )
+    if enviado:
+        return True, f"✅ Correo enviado a {destinatario}"
+    return False, f"❌ Error enviando correo a {destinatario} (revisa la consola/logs para más detalle)."
+
+
+# ── WHATSAPP ────────────────────────────────────────────────────────────────
+
+def _whatsapp_api_config() -> dict:
+    sec = {}
+    try:
+        sec = dict(st.secrets.get("whatsapp", {}))
+    except Exception:
+        sec = {}
+    return {
+        "token":           sec.get("token", ""),
+        "phone_number_id": sec.get("phone_number_id",
+                                    get_config("whatsapp_phone_number_id", "")),
+    }
+
+
+def whatsapp_api_disponible() -> bool:
+    cfg = _whatsapp_api_config()
+    return REQUESTS_AVAILABLE and bool(cfg["token"] and cfg["phone_number_id"])
+
+
+def _normalizar_telefono_co(telefono: str) -> str:
+    """Normaliza a formato internacional sin '+' (ej: 573219714969)."""
+    t = "".join(ch for ch in (telefono or "") if ch.isdigit())
+    if t.startswith("57") and len(t) == 12:
+        return t
+    if len(t) == 10:  # celular colombiano sin indicativo
+        return "57" + t
+    return t
+
+
+def enviar_whatsapp_documento(telefono: str, pdf_bytes: bytes, voucher: dict) -> tuple:
+    """
+    Envía el PDF del baucher/factura como documento por WhatsApp usando la
+    API oficial de Meta (WhatsApp Cloud API). Requiere secrets [whatsapp].
+    Retorna (exito: bool, mensaje: str).
+    """
+    cfg = _whatsapp_api_config()
+    if not whatsapp_api_disponible():
+        return False, ("Envío automático no configurado — falta `requests` o "
+                        "las credenciales en `secrets.toml` → sección [whatsapp].")
+    tel = _normalizar_telefono_co(telefono)
+    if not tel:
+        return False, "El número de WhatsApp no es válido."
+
+    base_url = f"https://graph.facebook.com/v19.0/{cfg['phone_number_id']}"
+    headers  = {"Authorization": f"Bearer {cfg['token']}"}
+
+    try:
+        # 1) Subir el PDF como media
+        files = {
+            "file": (f"baucher_{voucher.get('numero_reserva','')}.pdf",
+                      pdf_bytes, "application/pdf"),
+        }
+        data = {"messaging_product": "whatsapp"}
+        r_media = requests.post(f"{base_url}/media", headers=headers,
+                                 files=files, data=data, timeout=30)
+        r_media.raise_for_status()
+        media_id = r_media.json().get("id")
+        if not media_id:
+            return False, f"No se pudo subir el PDF a WhatsApp: {r_media.text}"
+
+        # 2) Enviar el documento al número del cliente
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": tel,
+            "type": "document",
+            "document": {
+                "id": media_id,
+                "caption": (f"{NEGOCIO} · Reserva {voucher.get('numero_reserva','')} · "
+                            f"Factura {voucher.get('numero_factura','')} · "
+                            f"Total {fmt_cop(float(voucher.get('total',0) or 0))} COP"),
+                "filename": f"baucher_{voucher.get('numero_reserva','')}.pdf",
+            },
+        }
+        r_msg = requests.post(f"{base_url}/messages", headers=headers,
+                               json=payload, timeout=30)
+        r_msg.raise_for_status()
+        return True, f"✅ Documento enviado por WhatsApp a +{tel}"
+    except Exception as e:
+        return False, f"❌ Error enviando por WhatsApp: {e}"
+
+
+def link_whatsapp_manual(telefono: str, voucher: dict) -> str:
+    """Enlace wa.me con el resumen del baucher (sin adjunto — limitación de WhatsApp
+    Web/enlaces). Si se indica teléfono, abre el chat directo con ese contacto."""
+    tel = _normalizar_telefono_co(telefono)
+    empresa_txt = f" · Empresa {voucher.get('nombre_empresa','')}" if voucher.get("es_convenio") else ""
+    wa_msg = (f"{NEGOCIO} · Reserva {voucher.get('numero_reserva','')}{empresa_txt} · "
+              f"Cubículo {voucher.get('cubiculo','')} · "
+              f"Factura {voucher.get('numero_factura','')} · "
+              f"Total: {fmt_cop(float(voucher.get('total',0) or 0))} COP")
+    base = f"https://wa.me/{tel}" if tel else "https://wa.me/"
+    return f"{base}?text={wa_msg.replace(' ', '%20')}"
+
+
+def _op_reenvio_voucher():
+    """
+    Módulo del panel de operador: busca cualquier reserva ya registrada —normal
+    o de convenio empresarial— y permite regenerar su baucher/factura en PDF,
+    o enviarlo por correo electrónico y/o WhatsApp al cliente — en cualquier
+    momento, sin depender de que se haga justo cuando se confirma el pago.
+    """
+    st.markdown("### 📤 Reenviar Baucher / Factura")
+    st.caption("Ubica una reserva anterior (normal o de convenio) y reenvía su comprobante por correo o WhatsApp.")
+
+    c_crit, c_val = st.columns([1, 2])
+    with c_crit:
+        criterio_label = st.selectbox(
+            "Buscar por",
+            ["N° de reserva", "N° de factura", "Documento cliente", "Nombre cliente", "Teléfono"],
+            key="rv_criterio",
+        )
+    criterio_map = {
+        "N° de reserva":     "numero_reserva",
+        "N° de factura":     "factura",
+        "Documento cliente": "documento",
+        "Nombre cliente":    "nombre",
+        "Teléfono":          "telefono",
+    }
+    with c_val:
+        valor_busqueda = st.text_input("Valor a buscar", key="rv_valor",
+                                        placeholder="Ej: RES-2026-0001, 1020304050, Juan Pérez...")
+
+    if not valor_busqueda:
+        st.info("Escribe un dato de la reserva para buscarla (reserva, factura, documento, nombre o teléfono).")
+        return
+
+    resultados = buscar_reservas_historicas(criterio_map[criterio_label], valor_busqueda)
+    if not resultados:
+        st.warning("No se encontraron reservas con ese criterio (se buscó en reservas normales y de convenio).")
+        return
+
+    def _etq(r):
+        origen = "🤝 Convenio" if r.get("_fuente") == "convenios" else "Normal"
+        return (f"{_gs_val(r,'Numero_Reserva')} · {_gs_val(r,'Cliente_Nombre')} · "
+                f"Factura {_gs_val(r,'Num_Factura')} · {origen} · {_gs_val(r,'Creado_En')[:10]}")
+
+    opciones = {_etq(r): r for r in resultados[:30]}
+    etiqueta_sel = st.selectbox("Selecciona la reserva", list(opciones.keys()), key="rv_sel")
+    fila = opciones[etiqueta_sel]
+    voucher = voucher_desde_fila_reserva(fila)
+
+    st.divider()
+    col_prev, col_acc = st.columns([1, 1])
+
+    with col_prev:
+        st.markdown("#### 🧾 Resumen")
+        badge_conv = (f"<div><b>Empresa (convenio):</b> {voucher['nombre_empresa']}</div>"
+                      if voucher.get("es_convenio") else "")
+        st.markdown(f"""
+        <div style="background:rgba(0,212,255,0.08);border:1px solid rgba(0,212,255,0.25);
+                    border-radius:12px;padding:14px;font-size:14px">
+          <div><b>Reserva:</b> {voucher['numero_reserva']}</div>
+          <div><b>Factura:</b> {voucher['numero_factura']}</div>
+          <div><b>Cliente:</b> {voucher['cliente_nombre']} · Doc: {voucher['cliente_doc'] or '—'}</div>
+          {badge_conv}
+          <div><b>Cubículo:</b> {voucher['cubiculo']} · {voucher['hora_inicio']} → {voucher['hora_fin']} ({voucher['horas']}h)</div>
+          <div><b>Total:</b> {fmt_cop(float(voucher['total'] or 0))} COP · {voucher['metodo_pago']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        pdf_bytes = generar_ticket_pdf(voucher) if REPORTLAB_AVAILABLE else None
+        if pdf_bytes:
+            st.download_button("📄 Descargar PDF", data=pdf_bytes,
+                                file_name=f"baucher_{voucher['numero_reserva']}.pdf",
+                                mime="application/pdf", use_container_width=True,
+                                key="rv_dl_pdf")
+        else:
+            st.caption("⚠️ reportlab no está instalado — no se puede generar el PDF.")
+
+    with col_acc:
+        st.markdown("#### 📧 Enviar por correo")
+        email_dest = st.text_input("Correo del cliente", value=voucher.get("cliente_email", ""),
+                                    key="rv_email_dest")
+        if not smtp_disponible():
+            st.caption("⚠️ Correo no configurado (ver ⚙️ Configuración → 📧 Envíos).")
+        if st.button("✉️ Enviar correo", use_container_width=True,
+                      disabled=not smtp_disponible(), key="rv_btn_email"):
+            ok, mensaje = enviar_email_voucher(email_dest, voucher, pdf_bytes)
+            (st.success if ok else st.error)(mensaje)
+            try:
+                sh_log = (get_active_client_convenios() if voucher.get("es_convenio")
+                          else get_active_client())[1]
+                if sh_log:
+                    gs_escribir_log(sh_log, "reenvio_correo", voucher["numero_reserva"],
+                                     voucher["cubiculo"],
+                                     st.session_state.get("operador_info", {}).get("nombre", "sistema"),
+                                     f"Correo a {email_dest}: {mensaje}",
+                                     estado="exito" if ok else "error")
+            except Exception:
+                pass
+
+        st.markdown("#### 📱 Enviar por WhatsApp")
+        tel_dest = st.text_input("Teléfono del cliente (WhatsApp)",
+                                  value=voucher.get("cliente_tel", ""), key="rv_tel_dest")
+
+        if whatsapp_api_disponible():
+            if st.button("🚀 Enviar automático (con PDF adjunto)", use_container_width=True,
+                          type="primary", key="rv_btn_wa_api", disabled=not pdf_bytes):
+                ok, mensaje = enviar_whatsapp_documento(tel_dest, pdf_bytes, voucher)
+                (st.success if ok else st.error)(mensaje)
+                try:
+                    sh_log2 = (get_active_client_convenios() if voucher.get("es_convenio")
+                               else get_active_client())[1]
+                    if sh_log2:
+                        gs_escribir_log(sh_log2, "reenvio_whatsapp", voucher["numero_reserva"],
+                                         voucher["cubiculo"],
+                                         st.session_state.get("operador_info", {}).get("nombre", "sistema"),
+                                         f"WhatsApp a {tel_dest}: {mensaje}",
+                                         estado="exito" if ok else "error")
+                except Exception:
+                    pass
+        else:
+            st.caption("ℹ️ Envío automático con adjunto no configurado "
+                       "(ver ⚙️ Configuración → 📧 Envíos). Puedes usar el enlace manual:")
+
+        wa_url = link_whatsapp_manual(tel_dest, voucher)
+        st.markdown(f'<a href="{wa_url}" target="_blank">'
+                    f'<button style="width:100%;padding:12px;margin-top:6px;'
+                    f'background:rgba(37,211,102,0.2);border:2px solid rgba(37,211,102,0.5);'
+                    f'border-radius:10px;color:#25d366;font-weight:700;font-size:14px;cursor:pointer">'
+                    f'📱 Abrir WhatsApp con el resumen (adjunta el PDF manualmente)</button></a>',
+                    unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -4400,7 +4881,7 @@ def show_bienvenida():
     libres     = sum(1 for c in cubiculos if c["estado"] == "libre")
     total      = len(cubiculos)
     tarifa_act = "Madrugada" if 0 <= ahora_col().hour < 6 else "Estándar"
-    precio_min = 15000 if tarifa_act == "Madrugada" else 15000
+    precio_min = 10000 if tarifa_act == "Madrugada" else 10000
 
     # Disponibilidad
     color_disp = "#00ff88" if libres > 3 else ("#ffd32a" if libres > 0 else "#ff4757")
@@ -4647,7 +5128,7 @@ def show_datos():
         st.markdown("<br>", unsafe_allow_html=True)
         acepto_datos_kiosco = st.checkbox(
             "✅ Autorizo el tratamiento de mis datos personales conforme a la "
-            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE VIP.",
             key="kiosco_acepto_datos",
         )
         st.markdown(
@@ -5053,17 +5534,6 @@ def show_confirmacion():
         return
     render_header("Procesando tu pago")
     render_stepper(3)
-
-    if CONT_AVAILABLE and _cont_mod is not None:
-        try:
-            _cont_mod.on_pago_convenio(
-                empresa    = nombre_empresa,
-                valor      = monto_total,
-                num_reserva= num_reserva,
-                num_factura= num_factura,
-            )
-        except Exception:
-            pass
 
     _, col, _ = st.columns([1, 2, 1])
     with col:
@@ -5615,6 +6085,7 @@ def show_operador():
             ("🤝 Convenios",              "reservas" in permisos or es_admin),
             ("🛏️ Cubículos",             "reservas" in permisos or es_admin),
             ("⏳ Pagos Pendientes",       "pagos"    in permisos or es_admin),
+            ("📤 Reenviar Voucher",       "voucher"  in permisos or es_admin),
             ("💳 Facturación & Cartera",  es_admin and FC_AVAILABLE),
             ("⚡ Factura Electrónica",    es_admin and FE_AVAILABLE),
             ("📒 Contabilidad",           es_admin and CONT_AVAILABLE),
@@ -5672,6 +6143,7 @@ def show_operador():
         "🤝 Convenios":            _op_convenios,
         "🛏️ Cubículos":            _op_cubiculos,
         "⏳ Pagos Pendientes":      _op_pagos_pendientes,
+        "📤 Reenviar Voucher":     _op_reenvio_voucher,
         "💳 Facturación & Cartera": _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
         "⚡ Factura Electrónica":   _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
         "📒 Contabilidad":          _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
@@ -5689,6 +6161,7 @@ def show_operador():
     "convenios":              _op_convenios,
     "cubículos":              _op_cubiculos,
     "pagos pendientes":       _op_pagos_pendientes,
+    "reenviar voucher":       _op_reenvio_voucher,
     "facturación":            _fc_mod.show_facturacion_cartera if FC_AVAILABLE else _op_dashboard,
     "factura electrónica":    _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
     "electronica":            _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
@@ -6001,7 +6474,7 @@ def _op_nueva_reserva():
                     st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
                     _nc_acepto_datos = st.checkbox(
                         "✅ Autorizo el tratamiento de mis datos personales conforme a la "
-                        "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+                        "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE VIP.",
                         key="nc_acepto_datos",
                     )
                     st.markdown(
@@ -6250,7 +6723,7 @@ def _op_nueva_reserva():
         st.markdown("#### 🔒 Paso 4 — Autorización de datos personales")
         acepto_datos_rapido = st.checkbox(
             "✅ Autorizo el tratamiento de mis datos personales conforme a la "
-            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE.",
+            "Ley 1581 de 2012 y la política de privacidad de SUITE SALITRE VIP.",
             key="op_res_acepto_datos",
         )
         st.markdown(
@@ -6717,26 +7190,16 @@ def _op_pagos_pendientes():
                                 _, _sh_conv_dash = get_active_client_convenios()
                                 _gs_sync_dashboard_convenios(_sh_conv_dash)
                             except Exception: pass
-                            if CONT_AVAILABLE and _cont_mod is not None:
-                                try:
-                                    _cont_mod.on_pago_convenio(
-                                        empresa    = nombre_empresa,
-                                        valor      = monto_total,
-                                        num_reserva= num_reserva,
-                                        num_factura= num_factura,
-                                    )
-                                except Exception:
-                                    pass
                             # Pago normal: actualizar en jjgt_pagos
                             _confirmar_en_sh(sh_conf, pago_id, num_res)
 
                             if CONT_AVAILABLE and _cont_mod is not None:
                                 try:
                                     _cont_mod.on_pago_convenio(
-                                        empresa    = nombre_empresa,
-                                        valor      = monto_total,
-                                        num_reserva= num_reserva,
-                                        num_factura= num_factura,
+                                        empresa    = empresa_pend,
+                                        valor      = monto,
+                                        num_reserva= num_res,
+                                        num_factura= _gs_val(res_data, "Num_Factura", ""),
                                     )
                                 except Exception:
                                     pass
@@ -8107,7 +8570,7 @@ def _op_google_drive():
 
 def _op_configuracion():
     st.markdown("### ⚙️ Configuración del Sistema")
-    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🔗 Google Sheets", "🤝 Convenios", "🗂️ Config Pagos Convenios"])
+    tabs = st.tabs(["🏢 Negocio", "💰 Pagos", "🛏️ Tarifas", "👤 Operadores", "🔗 Google Sheets", "🤝 Convenios", "🗂️ Config Pagos Convenios", "📧 Envíos"])
     # Constantes compartidas entre tabs
     _TURNOS            = ["mañana","tarde","noche","diurno","admin"]
     _TURNO_HORAS       = {
@@ -8188,7 +8651,7 @@ def _op_configuracion():
                     "Nombre":        _gs_val(r, "Nombre"),
                     "Empresa":       _gs_val(r, "Empresa_Nombre"),
                     "Descripción":   _gs_val(r, "Descripcion"),
-                    "Precio/hora":   fmt_cop(_gs_float(r, "Precio_Hora_COP", 15000)),
+                    "Precio/hora":   fmt_cop(_gs_float(r, "Precio_Hora_COP", 10000)),
                     "Desc 3h%":      _gs_val(r, "Desc_3h_Pct"),
                     "Desc 6h%":      _gs_val(r, "Desc_6h_Pct"),
                     "H.Ini.Espec":   _gs_val(r, "Hora_Ini_Espec"),
@@ -8211,7 +8674,7 @@ def _op_configuracion():
                     with _tc1:
                         tp_nombre = st.text_input("Nombre tarifa *", placeholder="Tarifa Estándar")
                         tp_desc   = st.text_input("Descripción", placeholder="Tarifa por hora estándar")
-                        tp_precio = st.number_input("Precio/hora COP", min_value=0, step=500, value=15000)
+                        tp_precio = st.number_input("Precio/hora COP", min_value=0, step=500, value=10000)
                         tp_d3     = st.number_input("Descuento 3h+ (%)", min_value=0.0, max_value=50.0, step=1.0)
                     with _tc2:
                         tp_d6     = st.number_input("Descuento 6h+ (%)", min_value=0.0, max_value=50.0, step=1.0)
@@ -8269,7 +8732,7 @@ def _op_configuracion():
                                     tp_m_desc   = st.text_input("Descripción",
                                         value=_gs_val(_row_mod_tp, "Descripcion"))
                                     tp_m_precio = st.number_input("Precio/hora COP", min_value=0, step=500,
-                                        value=int(_gs_float(_row_mod_tp, "Precio_Hora_COP", 15000)))
+                                        value=int(_gs_float(_row_mod_tp, "Precio_Hora_COP", 10000)))
                                     tp_m_d3     = st.number_input("Descuento 3h+ (%)", min_value=0.0,
                                         max_value=50.0, step=1.0,
                                         value=float(_gs_float(_row_mod_tp, "Desc_3h_Pct", 0)))
@@ -9250,6 +9713,58 @@ def _op_configuracion():
                 else:
                     st.info("Sin configuraciones registradas para las empresas existentes.")
 
+    with tabs[7]:
+        st.markdown("#### 📧 Envío de Baucher/Factura por correo y WhatsApp")
+        st.caption("Estos datos permiten reenviar el baucher/factura al cliente en "
+                   "cualquier momento desde 📤 Reenviar Voucher (reservas normales y de convenio).")
+
+        st.markdown("**✉️ Correo electrónico (yagmail / Gmail)**")
+        st.warning(
+            "🔒 Por seguridad, las credenciales de autenticación **nunca se guardan** "
+            "en la base de datos — deben ir en `.streamlit/secrets.toml` (o en "
+            "Streamlit Cloud → App Settings → Secrets) dentro de la sección "
+            "`[emails]`, claves `smtp_user` y `smtp_password` (mismo mecanismo que "
+            "usa el módulo de Facturación y Cartera):\n\n"
+            "```toml\n[emails]\nsmtp_user = \"suitesalitrevip@gmail.com\"\n"
+            "smtp_password = \"clave_de_aplicacion_de_gmail\"\n```"
+        )
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            smtp_from_c = st.text_input(
+                "Correo remitente visible para el cliente",
+                value=get_config("smtp_email_from", EMAIL),
+                help="Por defecto es el mismo smtp_user de secrets.toml, pero "
+                     "puedes mostrar otro correo como remitente.")
+        with col_s2:
+            smtp_nom_c  = st.text_input("Nombre del remitente",
+                                         value=get_config("smtp_remitente_nombre", NEGOCIO))
+        if st.button("💾 Guardar configuración de correo", type="primary", key="btn_save_smtp"):
+            for k, v in [("smtp_email_from", smtp_from_c),
+                          ("smtp_remitente_nombre", smtp_nom_c)]:
+                set_config(k, v)
+            st.success("✅ Configuración de correo actualizada (recuerda definir "
+                       "smtp_user / smtp_password en secrets.toml)")
+        if not YAGMAIL_AVAILABLE:
+            st.caption("⚠️ Falta instalar `yagmail` → `pip install yagmail`")
+        else:
+            st.caption("✅ Correo listo para enviar" if smtp_disponible()
+                       else "⚠️ Falta smtp_user/smtp_password en secrets.toml → [emails]")
+
+        st.divider()
+        st.markdown("**📱 WhatsApp (envío automático con PDF adjunto)**")
+        st.info(
+            "Para enviar el PDF automáticamente por WhatsApp se necesita la "
+            "**WhatsApp Cloud API de Meta** (gratuita hasta cierto volumen). "
+            "Configura en `secrets.toml`:\n\n"
+            "```toml\n[whatsapp]\ntoken = \"TOKEN_PERMANENTE_DE_META\"\n"
+            "phone_number_id = \"1234567890\"\n```\n\n"
+            "Sin esta configuración, el sistema seguirá ofreciendo el enlace manual "
+            "de WhatsApp (wa.me) con el resumen del baucher, pero el operador deberá "
+            "adjuntar el PDF a mano."
+        )
+        st.caption("✅ WhatsApp API lista para enviar documentos" if whatsapp_api_disponible()
+                   else "⚠️ WhatsApp API no configurada — se usará el enlace manual (wa.me)")
+
 
 def _tab_convenio_reserva():
     """Tab de formulario rápido para reservas bajo convenio empresarial."""
@@ -9300,7 +9815,7 @@ def _tab_convenio_reserva():
         sel_label    = st.selectbox("Cubículo libre *", list(opciones_cub.keys()),
                                     key="conv_res_cubiculo")
         cubiculo_sel = opciones_cub[sel_label]
-        st.caption(f"Estado actual: 🟢 **LIBRE** · Precio base: {fmt_cop(cubiculo_sel.get('precio_hora_base',15000))}/h")
+        st.caption(f"Estado actual: 🟢 **LIBRE** · Precio base: {fmt_cop(cubiculo_sel.get('precio_hora_base',10000))}/h")
 
     with col_hrs:
         horas_sel = st.number_input(
