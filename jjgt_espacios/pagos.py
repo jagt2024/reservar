@@ -64,6 +64,15 @@ try:
 except ImportError:
     REQUESTS_AVAILABLE = False
 
+# ── Módulo de Peticiones, Quejas, Reclamos y Sugerencias (PQRS) ──────────────
+# Archivo independiente: pqrs.py — se invoca, carga y ejecuta desde aquí.
+try:
+    import pqrs as _pqrs_mod
+    PQRS_AVAILABLE = True
+except ImportError:
+    _pqrs_mod = None
+    PQRS_AVAILABLE = False
+
 try:
     import qrcode
     from PIL import Image
@@ -2244,7 +2253,7 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                         "id": "0", "nombre": nombre_s, "rol": "admin",
                         "turno": "diurno", "hora_inicio_turno": "06:00",
                         "hora_fin_turno": "22:00",
-                        "permisos": ["admin","reservas","pagos","voucher","reportes","configuracion"],
+                        "permisos": ["admin","reservas","pagos","voucher","pqrs","reportes","configuracion"],
                     }
     except Exception:
         pass
@@ -2265,7 +2274,7 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                     "id": "1", "nombre": "Admin JJGT", "rol": "admin",
                     "turno": "diurno", "hora_inicio_turno": "06:00",
                     "hora_fin_turno": "22:00",
-                    "permisos": ["admin","reservas","pagos","voucher","reportes","configuracion"],
+                    "permisos": ["admin","reservas","pagos","voucher","pqrs","reportes","configuracion"],
                 }
 
     if not rows_activos:
@@ -2275,7 +2284,7 @@ def get_operador_por_pin(pin: str, rol: str = None) -> dict:
                     "id": "0", "nombre": "Admin (emergencia)", "rol": "admin",
                     "turno": "diurno", "hora_inicio_turno": "00:00",
                     "hora_fin_turno": "23:59",
-                    "permisos": ["admin","reservas","pagos","voucher","reportes","configuracion"],
+                    "permisos": ["admin","reservas","pagos","voucher","pqrs","reportes","configuracion"],
                 }
 
     return None
@@ -3410,6 +3419,26 @@ def link_whatsapp_manual(telefono: str, voucher: dict) -> str:
               f"Total: {fmt_cop(float(voucher.get('total',0) or 0))} COP")
     base = f"https://wa.me/{tel}" if tel else "https://wa.me/"
     return f"{base}?text={wa_msg.replace(' ', '%20')}"
+
+
+def _op_pqrs():
+    """
+    Módulo del panel de operador: Peticiones, Quejas, Reclamos y Sugerencias (PQRS).
+    Implementado en un archivo independiente (pqrs.py) que se importa, se le
+    inyecta el contexto de esta app (conexión PG, envío de correo, constantes
+    del negocio) y se invoca — igual patrón que facturacion_cartera.py.
+    """
+    if not PQRS_AVAILABLE or _pqrs_mod is None:
+        st.error(
+            "⚠️ El módulo de PQRS (`pqrs.py`) no está disponible.\n\n"
+            "Verifica que el archivo `pqrs.py` esté en la misma carpeta que `pagos.py`."
+        )
+        return
+    try:
+        _pqrs_mod.set_context(globals())
+        _pqrs_mod.render_panel_pqrs()
+    except Exception as e:
+        st.error(f"❌ Error ejecutando el módulo PQRS: {e}")
 
 
 def _op_reenvio_voucher():
@@ -4963,6 +4992,7 @@ def show_operador():
             ("🛏️ Cubículos",        "reservas" in permisos or es_admin),
             ("⏳ Pagos Pendientes",  "pagos"    in permisos or es_admin),
             ("📤 Reenviar Voucher", "voucher"  in permisos or es_admin),
+            ("📮 PQRS",             "pqrs"     in permisos or es_admin),
             ("📊 Reportes",         "reportes"  in permisos or es_admin),
             ("🗑️ Gestión de Datos", es_admin),
             ("☁️ Google Drive",     es_admin),
@@ -5015,6 +5045,7 @@ def show_operador():
         "🛏️ Cubículos":        _op_cubiculos,
         "⏳ Pagos Pendientes":  _op_pagos_pendientes,
         "📤 Reenviar Voucher": _op_reenvio_voucher,
+        "📮 PQRS":             _op_pqrs,
         "📊 Reportes":         _op_reportes,
         "🗑️ Gestión de Datos": _op_gestion_datos,
         "☁️ Google Drive":     _op_google_drive,
@@ -5030,6 +5061,7 @@ def show_operador():
         "cubiculos":       _op_cubiculos,
         "pagos pendientes":_op_pagos_pendientes,
         "reenviar voucher":_op_reenvio_voucher,
+        "pqrs":            _op_pqrs,
         "reportes":        _op_reportes,
         "gestión de datos":_op_gestion_datos,
         "gestion de datos":_op_gestion_datos,
@@ -6905,7 +6937,7 @@ def _op_configuracion():
         "diurno": ("06:00","14:00"),
         "admin":  ("00:00","23:59"),
     }
-    _PERMISOS_OPCIONES = ["reservas","pagos","voucher","reportes","configuracion","admin"]
+    _PERMISOS_OPCIONES = ["reservas","pagos","voucher","pqrs","reportes","configuracion","admin"]
 
     with tabs[0]:
         st.markdown("**Datos del negocio**")
