@@ -73,6 +73,34 @@ except ImportError:
     _pqrs_mod = None
     PQRS_AVAILABLE = False
 
+# ── Módulo de Facturación Electrónica DIAN (Colombia) ────────────────────────
+# Archivo independiente: factura_electronica_dian.py — genera el XML UBL 2.1,
+# lo registra en PostgreSQL (tabla facturas_electronicas) y expone el panel
+# operativo "⚡ Factura Electrónica". Se integra en dos puntos de este archivo:
+#   1. crear_reserva_completa() → genera la FE automáticamente por cada reserva
+#   2. show_operador() / mod_map → panel de gestión de FE para el operador
+try:
+    import factura_electronica_dian as _fe_mod
+    FE_AVAILABLE = True
+except ImportError:
+    _fe_mod = None
+    FE_AVAILABLE = False
+
+# ── Módulo de Contabilidad (comprobantes contables automáticos, PUC Colombia) ─
+# Archivo independiente: contabilidad.py — genera comprobantes de ingreso
+# (causación factura + recibo de pago) en PostgreSQL cada vez que se crea una
+# reserva/pago, y expone el panel "📒 Módulo Contable" para registrar a mano
+# otros movimientos del negocio (egresos a proveedores, ajustes de diario,
+# nómina) y exportar el libro contable a Excel. Se integra en dos puntos:
+#   1. crear_reserva_completa() → genera el comprobante automáticamente
+#   2. show_operador() / mod_map → panel contable para el operador
+try:
+    import contabilidad as _cont_mod
+    CONT_AVAILABLE = True
+except ImportError:
+    _cont_mod = None
+    CONT_AVAILABLE = False
+
 try:
     import qrcode
     from PIL import Image
@@ -113,9 +141,9 @@ _IS_CLOUD = bool(
 DB_PATH = "/tmp/terminal_descanso.db" if _IS_CLOUD else "terminal_descanso.db"
 NEGOCIO      = "SUITE SALITRE VIP · Espacios de Descanso"
 TAGLINE      = "Tu espacio de descanso en la terminal"
-DIRECCION    = "Terminal de Transportes · Local 42"
+DIRECCION    = "Terminal de Transportes · Local 230"
 TELEFONO     = "3219714969"
-NIT          = "902.047.871-3"
+NIT          = "902.098.424-2"
 TZ_COL       = pytz.timezone("America/Bogota")
 NEQUI_NUM    = "3219714969"
 DAVIPLATA_NUM= "3219714969"
@@ -2958,7 +2986,7 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
 
     activar_cubiculo(cubiculo["id"], num_res, hora_fin.isoformat())
 
-    return {
+    voucher = {
         "numero_reserva": num_res,
         "numero_factura": num_fact,
         "cubiculo":       cubiculo["numero"],
@@ -2974,6 +3002,36 @@ def crear_reserva_completa(cubiculo: dict, cliente: dict, calc: dict, metodo: st
         "total":          calc["total"],
         "cliente_nombre": cliente["nombre"],
     }
+
+    # ── Factura Electrónica DIAN ──────────────────────────────────────────────
+    # Se genera de forma adicional (y no bloqueante) a la factura interna que
+    # ya emitió registrar_en_facturacion(). Si el módulo no está disponible,
+    # o falla por cualquier motivo (config DIAN incompleta, sin conexión, etc.)
+    # la reserva NO debe verse afectada: el pago y el voucher ya son válidos.
+    if FE_AVAILABLE:
+        try:
+            _fe_mod.set_context(globals())
+            _fe_mod.generar_fe_desde_reserva(voucher, calc, cliente, metodo)
+        except Exception as _fe_err:
+            print(f"[pagos] WARN: no se pudo generar la Factura Electrónica DIAN "
+                  f"para la reserva {num_res}: {_fe_err}")
+
+    # ── Comprobante contable automático ───────────────────────────────────────
+    # Registra la causación de la factura (ingreso) y el recibo del pago
+    # (caja/banco según el método) en PostgreSQL — este es el ÚNICO punto
+    # donde se contabiliza el ingreso de una reserva; no depende de si la
+    # Factura Electrónica DIAN se generó o no, así que la contabilidad queda
+    # completa incluso si la FE-DIAN falla. No bloqueante: un error aquí no
+    # debe afectar la reserva ni el pago, que ya son válidos.
+    if CONT_AVAILABLE:
+        try:
+            _cont_mod.set_context(globals())
+            _cont_mod.on_reserva_creada(voucher, calc, cliente, metodo)
+        except Exception as _cont_err:
+            print(f"[pagos] WARN: no se pudo generar el comprobante contable "
+                  f"para la reserva {num_res}: {_cont_err}")
+
+    return voucher
 
 
 
@@ -3235,7 +3293,8 @@ def smtp_disponible() -> bool:
 
 def enviar_factura_email(destinatario: str, asunto: str, cuerpo: str,
                           pdf_bytes: bytes, nombre_pdf: str,
-                          email_from: str, nombre_from: str) -> bool:
+                          email_from: str, nombre_from: str,
+                          adjuntos_extra: Optional[list] = None) -> bool:
     """
     Envía un PDF por email usando yagmail (Gmail) — idéntico a la función del
     mismo nombre en facturacion_cartera.py, para mantener un único mecanismo
@@ -3243,16 +3302,35 @@ def enviar_factura_email(destinatario: str, asunto: str, cuerpo: str,
 
     Se autentica con las credenciales de st.secrets["emails"], pero el
     encabezado "From" visible para el destinatario usa email_from/nombre_from.
+
+    `adjuntos_extra` (opcional) permite adjuntar archivos adicionales además
+    del PDF principal — p. ej. el XML (UBL 2.1) de la Factura Electrónica
+    DIAN — como una lista de tuplas (bytes, nombre_archivo).
     """
     import tempfile, os
     cfg = _smtp_config()
-    tmp_path = None
+    tmp_dir = None
     try:
-        with tempfile.NamedTemporaryFile(
-            delete=False, suffix=".pdf", prefix="voucher_"
-        ) as tmp:
-            tmp.write(pdf_bytes or b"")
-            tmp_path = tmp.name
+        # Se usa un directorio temporal (en vez de tempfile.NamedTemporaryFile
+        # directamente) para que cada adjunto se escriba con su nombre real
+        # (nombre_pdf, y el nombre de cada adjunto extra) — así el destinatario
+        # ve el nombre de archivo correcto y no un nombre temporal aleatorio.
+        tmp_dir = tempfile.mkdtemp(prefix="envio_fe_")
+        rutas_adjuntos = []
+
+        pdf_path = os.path.join(tmp_dir, nombre_pdf or "documento.pdf")
+        with open(pdf_path, "wb") as f:
+            f.write(pdf_bytes or b"")
+        if pdf_bytes:
+            rutas_adjuntos.append(pdf_path)
+
+        for extra_bytes, extra_nombre in (adjuntos_extra or []):
+            if not extra_bytes:
+                continue
+            extra_path = os.path.join(tmp_dir, extra_nombre or "adjunto.bin")
+            with open(extra_path, "wb") as f:
+                f.write(extra_bytes)
+            rutas_adjuntos.append(extra_path)
 
         yag = yagmail.SMTP(
             user=cfg["smtp_user"],
@@ -3266,7 +3344,7 @@ def enviar_factura_email(destinatario: str, asunto: str, cuerpo: str,
             to=destinatario,
             subject=asunto,
             contents=cuerpo,
-            attachments=tmp_path if pdf_bytes else None,
+            attachments=rutas_adjuntos or None,
             headers={"From": remitente},
         )
         return True
@@ -3274,9 +3352,10 @@ def enviar_factura_email(destinatario: str, asunto: str, cuerpo: str,
         print("Error email:", e)
         return False
     finally:
-        if tmp_path and os.path.exists(tmp_path):
+        if tmp_dir and os.path.isdir(tmp_dir):
             try:
-                os.remove(tmp_path)
+                import shutil
+                shutil.rmtree(tmp_dir, ignore_errors=True)
             except Exception:
                 pass
 
@@ -4994,6 +5073,10 @@ def show_operador():
             ("📤 Reenviar Voucher", "voucher"  in permisos or es_admin),
             ("📮 PQRS",             "pqrs"     in permisos or es_admin),
             ("📊 Reportes",         "reportes"  in permisos or es_admin),
+            ("⚡ Factura Electrónica", FE_AVAILABLE and
+                                       ("facturacion_dian" in permisos or es_admin)),
+            ("📒 Módulo Contable",   CONT_AVAILABLE and
+                                       ("contabilidad" in permisos or es_admin)),
             ("🗑️ Gestión de Datos", es_admin),
             ("☁️ Google Drive",     es_admin),
             ("⚙️ Configuración",    "configuracion" in permisos or es_admin),
@@ -5047,6 +5130,8 @@ def show_operador():
         "📤 Reenviar Voucher": _op_reenvio_voucher,
         "📮 PQRS":             _op_pqrs,
         "📊 Reportes":         _op_reportes,
+        "⚡ Factura Electrónica": _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+        "📒 Módulo Contable":  _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
         "🗑️ Gestión de Datos": _op_gestion_datos,
         "☁️ Google Drive":     _op_google_drive,
         "⚙️ Configuración":    _op_configuracion,
@@ -5063,6 +5148,10 @@ def show_operador():
         "reenviar voucher":_op_reenvio_voucher,
         "pqrs":            _op_pqrs,
         "reportes":        _op_reportes,
+        "factura electrónica": _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+        "factura electronica": _fe_mod.render_panel_fe if FE_AVAILABLE else _op_dashboard,
+        "módulo contable": _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
+        "modulo contable": _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
         "gestión de datos":_op_gestion_datos,
         "gestion de datos":_op_gestion_datos,
         "google drive":    _op_google_drive,
@@ -6937,7 +7026,8 @@ def _op_configuracion():
         "diurno": ("06:00","14:00"),
         "admin":  ("00:00","23:59"),
     }
-    _PERMISOS_OPCIONES = ["reservas","pagos","voucher","pqrs","reportes","configuracion","admin"]
+    _PERMISOS_OPCIONES = ["reservas","pagos","voucher","pqrs","reportes",
+                          "facturacion_dian","contabilidad","configuracion","admin"]
 
     with tabs[0]:
         st.markdown("**Datos del negocio**")
@@ -7276,6 +7366,22 @@ def main():
             "Ve a ⚙️ Configuración → PostgreSQL para más información."
         )
     _ensure_sync_thread()  # stub de compatibilidad
+
+    # Inyectar contexto (funciones _pg_exec, get_config, set_config, fmt_cop,
+    # ahora_col, etc.) al módulo de Factura Electrónica DIAN. Se hace en cada
+    # rerun de Streamlit — es una operación barata (solo actualiza un dict).
+    if FE_AVAILABLE:
+        try:
+            _fe_mod.set_context(globals())
+        except Exception:
+            pass
+
+    # Inyectar contexto al módulo de Contabilidad (mismo mecanismo).
+    if CONT_AVAILABLE:
+        try:
+            _cont_mod.set_context(globals())
+        except Exception:
+            pass
 
     pantalla = st.session_state.pantalla
     router = {

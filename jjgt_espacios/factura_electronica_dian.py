@@ -16,7 +16,9 @@
 #   5. Panel Streamlit con acceso directo al portal VPFE de la DIAN
 #   6. Subida de archivos de la DIAN (.xlsx / .pdf / .zip) y almacenamiento
 #      en PostgreSQL + disco local
-#   7. Comprobante contable automático al generar la factura electrónica
+#   7. (La causación contable NO se hace en este módulo — la hace
+#      contabilidad.py desde pagos.py, una sola vez por reserva/pago, para
+#      no duplicar el ingreso. Ver contabilidad.on_reserva_creada().)
 #   8. Registro de estado DIAN (enviada / aceptada / rechazada) por factura
 #   9. Transmisión real por Web Service SOAP de Validación Previa
 #      (SendTestSetAsync / SendBillSync / GetStatus / GetNumberingRange),
@@ -1882,26 +1884,14 @@ def generar_fe_desde_reserva(
         "Envio_Cliente":     envio_resumen,
     })
 
-    # Comprobante contable automático
-    try:
-        cont_mod = _ctx.get("__fe_cont_mod__")
-        if cont_mod is None:
-            try:
-                import contabilidad as _cm
-                _ctx["__fe_cont_mod__"] = _cm
-                cont_mod = _cm
-            except ImportError:
-                pass
-        if cont_mod:
-            cont_mod.comp_ingreso_factura(
-                tercero        = nombre_rec,
-                valor_subtotal = subtotal,
-                valor_iva      = iva_valor,
-                num_factura    = numero_fe,
-                descripcion    = f"FE {numero_fe} · Reserva {num_reserva}",
-            )
-    except Exception:
-        pass
+    # NOTA: este módulo YA NO registra un comprobante contable aquí.
+    # Antes existía un intento de causación (comp_ingreso_factura) en este
+    # mismo punto, pero eso duplicaba el ingreso: pagos.py ya causa la
+    # factura Y el pago una sola vez, con el número de factura interno,
+    # a través de contabilidad.on_reserva_creada() dentro de
+    # crear_reserva_completa() — ese es el único punto de verdad contable.
+    # Generar aquí una segunda causación con el numero_fe de la DIAN
+    # habría registrado el mismo ingreso dos veces en el libro contable.
 
     return numero_fe
 

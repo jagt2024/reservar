@@ -1,14 +1,19 @@
 # ══════════════════════════════════════════════════════════════════════════════
-#  SUITE SALITRE · Espacios de Descanso Personal — Terminal de Transportes
+#  SUITE SALITRE VIP · Espacios de Descanso Personal — Terminal de Transportes
 #  MÓDULO CONTABLE — contabilidad.py
 #  Motor de comprobantes contables automáticos (Colombia · PUC)
 #
-#  DOBLE SPREADSHEET:
-#    origen="pagos"     → escribe/lee en jjgt_pagos     (get_active_client)
-#    origen="convenios" → escribe/lee en jjgt_convenios  (get_active_client_convenios)
+#  FUENTE DE DATOS: PostgreSQL (única fuente de verdad)
+#    origen="pagos"     → tabla comprobantes_contables  (reservas normales)
+#    origen="convenios" → tabla comprobantes_contables_conv (reservas convenio)
 #
-#  Todas las funciones públicas aceptan el parámetro: origen: str = "pagos"
-#  Los hooks on_reserva_creada y on_pago_convenio lo pasan automáticamente.
+#  La tabla se crea automáticamente al primer uso, si no existe. El
+#  parámetro `origen` se mantiene por compatibilidad con todos los hooks
+#  existentes — pagos.py (este proyecto) no maneja convenios empresariales,
+#  así que solo usa origen="pagos"; origen="convenios" queda disponible por
+#  si en el futuro se integra un flujo de convenios.
+#
+#  Google Sheets (jjgt_pagos / jjgt_convenios) eliminado completamente.
 # ══════════════════════════════════════════════════════════════════════════════
 
 from __future__ import annotations
@@ -45,7 +50,11 @@ except ImportError:
 # ──────────────────────────────────────────────────────────────────────────────
 TZ_COL = pytz.timezone("America/Bogota")
 
-# Nombre de la hoja dentro de cada spreadsheet
+# Nombre de tabla PostgreSQL por origen
+PG_TABLA_PAGOS     = "comprobantes_contables"
+PG_TABLA_CONVENIOS = "comprobantes_contables_conv"
+
+# Nombre legacy de la hoja GS (se mantiene para compatibilidad de mensajes)
 GS_HOJA_COMP = "Comprobantes_Contables"
 
 # Orígenes válidos
@@ -67,6 +76,47 @@ _COLUMNAS = [
     "Cuenta_Debito", "Nombre_Debito", "Cuenta_Credito", "Nombre_Credito",
     "Valor_COP", "Medio_Pago", "Soporte", "Operador", "Observaciones",
 ]
+
+# SQL de creación de ambas tablas (ejecutado en init_db o en primer uso)
+_DDL_COMPROBANTES = """
+CREATE TABLE IF NOT EXISTS comprobantes_contables (
+    id                 SERIAL PRIMARY KEY,
+    fecha              TEXT,
+    numero             TEXT,
+    tipo               TEXT,
+    evento             TEXT,
+    tercero            TEXT,
+    descripcion        TEXT,
+    cuenta_debito      TEXT,
+    nombre_debito      TEXT,
+    cuenta_credito     TEXT,
+    nombre_credito     TEXT,
+    valor_cop          NUMERIC(18,2),
+    medio_pago         TEXT,
+    soporte            TEXT,
+    operador           TEXT,
+    observaciones      TEXT
+);
+
+CREATE TABLE IF NOT EXISTS comprobantes_contables_conv (
+    id                 SERIAL PRIMARY KEY,
+    fecha              TEXT,
+    numero             TEXT,
+    tipo               TEXT,
+    evento             TEXT,
+    tercero            TEXT,
+    descripcion        TEXT,
+    cuenta_debito      TEXT,
+    nombre_debito      TEXT,
+    cuenta_credito     TEXT,
+    nombre_credito     TEXT,
+    valor_cop          NUMERIC(18,2),
+    medio_pago         TEXT,
+    soporte            TEXT,
+    operador           TEXT,
+    observaciones      TEXT
+);
+"""
 
 # Catálogo PUC Colombia
 PLAN_CUENTAS: dict[str, str] = {
@@ -101,7 +151,7 @@ REGLAS_CONTABLES: dict[str, tuple[str, str]] = {
     "ajuste_diario":    ("519515", "111005"),
 }
 
-# Contexto inyectado desde pagos_convenios.py
+# Contexto inyectado desde pagos.py
 _ctx: dict = {}
 _ctx_lock = threading.Lock()
 
@@ -112,13 +162,60 @@ _ctx_lock = threading.Lock()
 
 def set_context(globals_dict: dict) -> None:
     """
-    Inyecta el contexto de pagos_convenios.py.
-    Llamar desde main() de pagos_convenios.py:
+    Inyecta el contexto de pagos.py.
+    Llamar desde main() de pagos.py:
         import contabilidad
         contabilidad.set_context(globals())
     """
     with _ctx_lock:
         _ctx.update(globals_dict)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ACCESO A POSTGRESQL
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _get_pg_exec():
+    """Retorna la función _pg_exec del contexto inyectado."""
+    fn = _ctx.get("_pg_exec")
+    if fn is None:
+        # fallback: intentar importar directamente si están en el mismo proceso
+        try:
+            import pagos as _pagos_mod
+            return _pagos_mod._pg_exec
+        except Exception:
+            pass
+    return fn
+
+
+def _get_pg_conn():
+    """Retorna la función get_pg_conn del contexto inyectado."""
+    fn = _ctx.get("get_pg_conn")
+    if fn is None:
+        try:
+            import pagos as _pagos_mod
+            return _pagos_mod.get_pg_conn
+        except Exception:
+            pass
+    return fn
+
+
+def _tabla(origen: str) -> str:
+    """Retorna el nombre de la tabla PG según el origen."""
+    return PG_TABLA_CONVENIOS if origen == ORIGEN_CONVENIOS else PG_TABLA_PAGOS
+
+
+def _ensure_tables() -> bool:
+    """Crea las tablas de comprobantes si no existen. Retorna True si OK."""
+    pg_exec = _get_pg_exec()
+    if pg_exec is None:
+        return False
+    try:
+        pg_exec(_DDL_COMPROBANTES)
+        return True
+    except Exception as e:
+        print(f"[contabilidad] WARN: no se pudieron crear tablas: {e}")
+        return False
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -137,140 +234,84 @@ def _nombre_cuenta(codigo: str) -> str:
     return PLAN_CUENTAS.get(codigo, codigo)
 
 
-def _get_spreadsheet(origen: str):
-    """
-    Retorna el spreadsheet correcto según el origen.
-    origen="pagos"     → get_active_client()           → jjgt_pagos
-    origen="convenios" → get_active_client_convenios()  → jjgt_convenios
-    Retorna None si no hay cliente disponible.
-    """
-    if origen == ORIGEN_CONVENIOS:
-        fn = _ctx.get("get_active_client_convenios")
-    else:
-        fn = _ctx.get("get_active_client")
-
-    if not fn:
-        print(f"[contabilidad] WARN: get_active_client{'_convenios' if origen == ORIGEN_CONVENIOS else ''} no está en contexto.")
-        return None
-
-    try:
-        _, sh = fn()
-        return sh
-    except Exception as e:
-        print(f"[contabilidad] ERROR obteniendo spreadsheet ({origen}): {e}")
-        return None
-
-
-def _get_read_fn(origen: str):
-    """
-    Retorna la función de lectura correcta según el origen.
-    origen="pagos"     → _gs_read_sheet
-    origen="convenios" → _gs_read_sheet_conv
-    """
-    if origen == ORIGEN_CONVENIOS:
-        return _ctx.get("_gs_read_sheet_conv")
-    return _ctx.get("_gs_read_sheet")
-
-
 def _consecutivo(tipo: str, origen: str = ORIGEN_PAGOS) -> str:
-    """Genera el número correlativo leyendo directamente del spreadsheet correcto."""
+    """
+    Genera el número correlativo contando filas del mismo tipo en PostgreSQL.
+    """
     prefijo = _PREFIJOS.get(tipo, "CO")
     n = 1
-    try:
-        sh_c = _get_spreadsheet(origen)
-        if sh_c:
-            ws_c = _get_or_fix_ws(sh_c)
-            if ws_c:
-                rows_raw = ws_c.get_all_values()
-                if rows_raw and len(rows_raw) >= 2:
-                    hdr = rows_raw[0]
-                    tipo_idx = hdr.index("Tipo") if "Tipo" in hdr else -1
-                    if tipo_idx >= 0:
-                        mismo_tipo = [
-                            r for r in rows_raw[1:]
-                            if len(r) > tipo_idx and r[tipo_idx] == tipo
-                        ]
-                        n = len(mismo_tipo) + 1
-    except Exception:
-        pass
-    return f"{prefijo}-{n:04d}"
-
-
-def _get_or_fix_ws(sh):
-    """
-    Obtiene el worksheet Comprobantes_Contables del spreadsheet `sh`.
-    Si no existe lo crea. Si existe pero no tiene los headers correctos,
-    los escribe en la primera fila antes de retornar el worksheet.
-    """
-    ws = None
-    try:
-        meta = sh.fetch_sheet_metadata()
-        hoja_lower = GS_HOJA_COMP.lower()
-        for sheet in meta.get("sheets", []):
-            if sheet["properties"]["title"].lower() == hoja_lower:
-                ws = sh.worksheet(sheet["properties"]["title"])
-                break
-    except Exception as e:
-        print(f"[contabilidad] ERROR obteniendo metadata: {e}")
-        return None
-
-    if ws is None:
+    pg_exec = _get_pg_exec()
+    if pg_exec:
         try:
-            ws = sh.add_worksheet(title=GS_HOJA_COMP, rows=5000, cols=len(_COLUMNAS))
-        except Exception as e:
-            print(f"[contabilidad] ERROR creando hoja: {e}")
-            return None
-
-    # Verificar / escribir headers
-    try:
-        vals = ws.get_all_values()
-        if not vals or vals[0] != _COLUMNAS:
-            if not vals:
-                ws.append_row(_COLUMNAS)
-            else:
-                ws.update(values=[_COLUMNAS], range_name="A1")
-    except Exception as e:
-        print(f"[contabilidad] WARN verificando headers: {e}")
-
-    return ws
+            tabla = _tabla(origen)
+            row = pg_exec(
+                f"SELECT COUNT(*) AS cnt FROM {tabla} WHERE tipo = %s",
+                [tipo], fetch="one"
+            )
+            if row:
+                n = int(row.get("cnt", 0)) + 1
+        except Exception:
+            pass
+    return f"{prefijo}-{n:04d}"
 
 
 def _escribir_comprobante(fila: list, origen: str = ORIGEN_PAGOS) -> None:
     """
-    Escribe una fila en Comprobantes_Contables del spreadsheet indicado.
-    Acceso directo al worksheet para garantizar headers correctos y
-    fila con los 15 campos alineados a _COLUMNAS.
-    origen="pagos"     → jjgt_pagos
-    origen="convenios" → jjgt_convenios
+    Inserta una fila en la tabla de comprobantes PostgreSQL correspondiente.
+    origen="pagos"     → comprobantes_contables
+    origen="convenios" → comprobantes_contables_conv
+
+    Los 15 campos alineados con _COLUMNAS:
+      Fecha, Numero, Tipo, Evento, Tercero, Descripcion,
+      Cuenta_Debito, Nombre_Debito, Cuenta_Credito, Nombre_Credito,
+      Valor_COP, Medio_Pago, Soporte, Operador, Observaciones
     """
+    pg_exec = _get_pg_exec()
+    if pg_exec is None:
+        print(f"[contabilidad] WARN: _pg_exec no disponible — comprobante no guardado: "
+              f"{fila[1] if len(fila) > 1 else '?'}")
+        return
+
+    # Garantizar exactamente 15 campos
+    fila_str = [str(v) if v is not None else "" for v in fila]
+    fila_str = (fila_str + [""] * len(_COLUMNAS))[: len(_COLUMNAS)]
+
+    # Convertir Valor_COP a float (posición 10)
     try:
-        sh = _get_spreadsheet(origen)
-        if not sh:
-            print(f"[contabilidad] WARN: sin spreadsheet ({origen}) — comprobante no guardado: {fila[1] if len(fila) > 1 else '?'}")
-            return
+        valor_cop = float(fila_str[10]) if fila_str[10] else 0.0
+    except (ValueError, TypeError):
+        valor_cop = 0.0
 
-        ws = _get_or_fix_ws(sh)
-        if not ws:
-            print(f"[contabilidad] WARN: no se pudo obtener worksheet — comprobante no guardado.")
-            return
+    tabla = _tabla(origen)
 
-        # Asegurar exactamente 15 campos alineados con _COLUMNAS
-        fila_str = [str(v) if v is not None else "" for v in fila]
-        fila_str = (fila_str + [""] * len(_COLUMNAS))[: len(_COLUMNAS)]
-        ws.append_row(fila_str)
+    sql = f"""
+        INSERT INTO {tabla}
+            (fecha, numero, tipo, evento, tercero, descripcion,
+             cuenta_debito, nombre_debito, cuenta_credito, nombre_credito,
+             valor_cop, medio_pago, soporte, operador, observaciones)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """
+    params = [
+        fila_str[0],  # fecha
+        fila_str[1],  # numero
+        fila_str[2],  # tipo
+        fila_str[3],  # evento
+        fila_str[4],  # tercero
+        fila_str[5],  # descripcion
+        fila_str[6],  # cuenta_debito
+        fila_str[7],  # nombre_debito
+        fila_str[8],  # cuenta_credito
+        fila_str[9],  # nombre_credito
+        valor_cop,    # valor_cop (numeric)
+        fila_str[11], # medio_pago
+        fila_str[12], # soporte
+        fila_str[13], # operador
+        fila_str[14], # observaciones
+    ]
 
-        # Invalidar caché según origen
-        try:
-            import streamlit as st
-            if origen == ORIGEN_CONVENIOS:
-                st.session_state[f"_gs_conv_ts_{GS_HOJA_COMP}"] = 0
-            else:
-                fn_inv = _ctx.get("_gs_invalidate_cache")
-                if fn_inv:
-                    fn_inv(GS_HOJA_COMP)
-        except Exception:
-            pass
-
+    try:
+        _ensure_tables()
+        pg_exec(sql, params)
     except Exception as e:
         print(f"[contabilidad] ERROR al escribir comprobante ({origen}): {e}")
         try:
@@ -278,6 +319,76 @@ def _escribir_comprobante(fila: list, origen: str = ORIGEN_PAGOS) -> None:
             st.error(f"⚠️ Error al guardar comprobante contable ({origen}): {e}")
         except Exception:
             pass
+
+
+def _leer_comprobantes(
+    origen: str,
+    fecha_ini: Optional[str] = None,
+    fecha_fin: Optional[str] = None,
+) -> list[dict]:
+    """
+    Lee comprobantes desde PostgreSQL para el origen y rango de fechas indicados.
+    Retorna lista de dicts con claves = _COLUMNAS.
+    """
+    pg_exec = _get_pg_exec()
+    if pg_exec is None:
+        return []
+
+    tabla  = _tabla(origen)
+    params: list = []
+    where  = []
+
+    if fecha_ini:
+        where.append("fecha >= %s")
+        params.append(fecha_ini)
+    if fecha_fin:
+        where.append("fecha <= %s")
+        params.append(fecha_fin)
+
+    where_sql = ("WHERE " + " AND ".join(where)) if where else ""
+    sql = f"""
+        SELECT fecha, numero, tipo, evento, tercero, descripcion,
+               cuenta_debito, nombre_debito, cuenta_credito, nombre_credito,
+               valor_cop, medio_pago, soporte, operador, observaciones
+        FROM {tabla}
+        {where_sql}
+        ORDER BY id ASC
+    """
+    try:
+        _ensure_tables()
+        rows = pg_exec(sql, params or None, fetch="all") or []
+    except Exception as e:
+        print(f"[contabilidad] ERROR leyendo comprobantes ({origen}): {e}")
+        return []
+
+    # Normalizar: convertir claves PG (snake_case) → _COLUMNAS (TitleCase)
+    _col_map = {
+        "fecha":          "Fecha",
+        "numero":         "Numero",
+        "tipo":           "Tipo",
+        "evento":         "Evento",
+        "tercero":        "Tercero",
+        "descripcion":    "Descripcion",
+        "cuenta_debito":  "Cuenta_Debito",
+        "nombre_debito":  "Nombre_Debito",
+        "cuenta_credito": "Cuenta_Credito",
+        "nombre_credito": "Nombre_Credito",
+        "valor_cop":      "Valor_COP",
+        "medio_pago":     "Medio_Pago",
+        "soporte":        "Soporte",
+        "operador":       "Operador",
+        "observaciones":  "Observaciones",
+    }
+    result = []
+    for row in rows:
+        rec = {}
+        for pg_key, sh_key in _col_map.items():
+            val = row.get(pg_key, row.get(sh_key, ""))
+            if val is None:
+                val = ""
+            rec[sh_key] = val
+        result.append(rec)
+    return result
 
 
 def _operador_actual() -> str:
@@ -300,6 +411,45 @@ def _medio_a_evento(metodo_pago: str) -> str:
 def _cuentas_para_evento(evento: str) -> tuple[str, str]:
     debito, credito = REGLAS_CONTABLES.get(evento, ("519515", "111005"))
     return debito, credito
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# STUBS DE COMPATIBILIDAD (funciones GS que el código heredado podría invocar)
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _get_spreadsheet(origen: str):
+    """
+    Stub de compatibilidad.
+    Antes retornaba el spreadsheet GS; ahora retorna un objeto centinela
+    para que el código que haga 'if sh:' siga funcionando sin errores.
+    """
+    class _PGCompStub:
+        """Sustituto del spreadsheet GS para comprobantes."""
+        def fetch_sheet_metadata(self): return {"sheets": []}
+        def worksheet(self, name):      return self
+        def add_worksheet(self, **kw):  return self
+        def get_all_values(self):       return []
+        def append_row(self, row):      pass
+        def update(self, **kw):         pass
+    return _PGCompStub()
+
+
+def _get_or_fix_ws(sh):
+    """
+    Stub de compatibilidad.
+    En PostgreSQL no hay worksheets. Retorna el mismo stub.
+    """
+    return sh
+
+
+def _get_read_fn(origen: str):
+    """
+    Stub de compatibilidad.
+    Retorna una función que lee de PostgreSQL usando _leer_comprobantes.
+    """
+    def _read_pg(hoja: str, force: bool = False):
+        return _leer_comprobantes(origen)
+    return _read_pg
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -420,7 +570,7 @@ def comp_diario_ajuste(
 
     fila = [
         _fecha_str(), numero, tipo, "ajuste_diario",
-        "SUITE SALITRE", descripcion,
+        "SUITE SALITRE VIP", descripcion,
         cuenta_debito,  _nombre_cuenta(cuenta_debito),
         cuenta_credito, _nombre_cuenta(cuenta_credito),
         round(valor, 2), "—", soporte,
@@ -481,15 +631,16 @@ def comp_nomina(
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# HOOKS DE INTEGRACIÓN CON pagos_convenios.py
+# HOOKS DE INTEGRACIÓN CON pagos.py
 # ══════════════════════════════════════════════════════════════════════════════
 
 def on_reserva_creada(voucher: dict, calc: dict, cliente: dict, metodo: str) -> None:
     """
-    Hook para reservas normales (jjgt_pagos).
-    Llamar al final de crear_reserva_completa() en pagos_convenios.py:
+    Hook para reservas normales (tabla comprobantes_contables en PG).
+    Llamar al final de crear_reserva_completa() en pagos.py — este es el
+    ÚNICO punto donde se contabiliza el ingreso de una reserva/pago:
 
-        if CONT_AVAILABLE and _cont_mod:
+        if CONT_AVAILABLE:
             _cont_mod.on_reserva_creada(voucher, calc, cliente, metodo)
     """
     try:
@@ -524,10 +675,13 @@ def on_reserva_creada(voucher: dict, calc: dict, cliente: dict, metodo: str) -> 
 
 def on_reserva_convenio_creada(voucher: dict, calc: dict, cliente: dict, metodo: str) -> None:
     """
-    Hook para reservas bajo convenio empresarial (jjgt_convenios).
-    Llamar al final de crear_reserva_convenio() en pagos_convenios.py:
+    Hook para reservas bajo convenio empresarial (tabla comprobantes_contables_conv en PG).
+    NOTA: pagos.py (este proyecto) no maneja convenios empresariales, así que
+    este hook no se invoca desde ahí. Queda disponible por si más adelante
+    se agrega un flujo de convenios — se llamaría al final de
+    crear_reserva_convenio():
 
-        if CONT_AVAILABLE and _cont_mod:
+        if CONT_AVAILABLE:
             _cont_mod.on_reserva_convenio_creada(voucher, calc, cliente, metodo)
     """
     try:
@@ -567,10 +721,11 @@ def on_pago_convenio(
     num_factura: str = "",
 ) -> None:
     """
-    Hook para pagos bajo convenio empresarial (jjgt_convenios).
-    Llamar desde crear_reserva_convenio() en pagos_convenios.py:
+    Hook para pagos bajo convenio empresarial (comprobantes_contables_conv en PG).
+    NOTA: no usado por pagos.py (sin flujo de convenios) — disponible para
+    integraciones futuras. Se llamaría desde crear_reserva_convenio():
 
-        if CONT_AVAILABLE and _cont_mod:
+        if CONT_AVAILABLE:
             _cont_mod.on_pago_convenio(empresa, valor, num_reserva, num_factura)
     """
     try:
@@ -597,52 +752,42 @@ def exportar_libro_contable(
     origen: str = ORIGEN_PAGOS,
 ) -> Optional[bytes]:
     """
-    Lee comprobantes del spreadsheet indicado y genera un libro Excel descargable.
-    origen="pagos"     → lee de jjgt_pagos
-    origen="convenios" → lee de jjgt_convenios
+    Lee comprobantes de PostgreSQL y genera un libro Excel descargable.
+    origen="pagos"     → comprobantes_contables
+    origen="convenios" → comprobantes_contables_conv
     """
     if not OPENPYXL_OK:
         return None
 
+    registros = _leer_comprobantes(origen, fecha_ini, fecha_fin)
+    if not registros:
+        return None
+
+    # Convertir a listas ordenadas según _COLUMNAS
+    def _v(r, k): return str(r.get(k, "") or "")
+    def _f(r, k):
+        try: return float(r.get(k, 0) or 0)
+        except: return 0.0
+
     filas: list[list] = []
-    try:
-        sh_exp = _get_spreadsheet(origen)
-        if sh_exp:
-            ws_exp = _get_or_fix_ws(sh_exp)
-            rows_raw = ws_exp.get_all_values() if ws_exp else []
-            if rows_raw and len(rows_raw) >= 2:
-                hdr = rows_raw[0]
-                for row in rows_raw[1:]:
-                    padded = (row + [""] * len(hdr))[: len(hdr)]
-                    r = dict(zip(hdr, padded))
-                    def _v(k): return r.get(k, "")
-                    def _f(k):
-                        try: return float(r.get(k, 0) or 0)
-                        except: return 0.0
-                    fecha = _v("Fecha")
-                    if fecha_ini and fecha < fecha_ini:
-                        continue
-                    if fecha_fin and fecha > fecha_fin:
-                        continue
-                    filas.append([
-                        fecha,
-                        _v("Numero"),
-                        _v("Tipo"),
-                        _v("Evento"),
-                        _v("Tercero"),
-                        _v("Descripcion"),
-                        _v("Cuenta_Debito"),
-                        _v("Nombre_Debito"),
-                        _v("Cuenta_Credito"),
-                        _v("Nombre_Credito"),
-                        _f("Valor_COP"),
-                        _v("Medio_Pago"),
-                        _v("Soporte"),
-                        _v("Operador"),
-                        _v("Observaciones"),
-                    ])
-    except Exception as e:
-        print(f"[contabilidad] ERROR leyendo comprobantes ({origen}): {e}")
+    for r in registros:
+        filas.append([
+            _v(r, "Fecha"),
+            _v(r, "Numero"),
+            _v(r, "Tipo"),
+            _v(r, "Evento"),
+            _v(r, "Tercero"),
+            _v(r, "Descripcion"),
+            _v(r, "Cuenta_Debito"),
+            _v(r, "Nombre_Debito"),
+            _v(r, "Cuenta_Credito"),
+            _v(r, "Nombre_Credito"),
+            _f(r, "Valor_COP"),
+            _v(r, "Medio_Pago"),
+            _v(r, "Soporte"),
+            _v(r, "Operador"),
+            _v(r, "Observaciones"),
+        ])
 
     if not filas:
         return None
@@ -690,7 +835,7 @@ def exportar_libro_contable(
     ws1.title = "Comprobantes"
 
     ws1.merge_cells("A1:O1")
-    ws1["A1"] = f"SUITE SALITRE · Libro de Comprobantes Contables — {label}"
+    ws1["A1"] = f"SUITE SALITRE VIP · Libro de Comprobantes Contables — {label}"
     ws1["A1"].font      = _font(bold=True, color=C_CYAN, size=13)
     ws1["A1"].fill      = _fill(C_AZUL_OSC)
     ws1["A1"].alignment = _center()
@@ -884,38 +1029,35 @@ def exportar_libro_contable(
 
 def render_panel_contabilidad() -> None:
     """
-    Renderiza el panel de contabilidad con soporte dual (jjgt_pagos / jjgt_convenios).
-    Agregar en show_operador() de pagos_convenios.py:
+    Renderiza el panel de contabilidad con soporte dual (pagos / convenios).
+    Lee y escribe exclusivamente en PostgreSQL.
 
-        elif menu == "📒 Contabilidad":
-            from contabilidad import render_panel_contabilidad
-            render_panel_contabilidad()
+    Registrado en mod_map de show_operador() en pagos.py:
+
+        "📒 Módulo Contable": _cont_mod.render_panel_contabilidad if CONT_AVAILABLE else _op_dashboard,
     """
     try:
         import streamlit as st
     except ImportError:
         return
 
-    fn_val   = _ctx.get("_gs_val")
-    fn_float = _ctx.get("_gs_float")
     fn_fmt   = _ctx.get("fmt_cop", lambda v: f"${v:,.0f}".replace(",", "."))
     fn_ahora = _ctx.get("ahora_col", _ahora)
 
     st.markdown("## 📒 Módulo Contable — Comprobantes")
     st.caption(
-        "Los movimientos generan comprobantes automáticamente en cada spreadsheet. "
+        "Los movimientos generan comprobantes automáticamente en PostgreSQL. "
         "Selecciona el origen para ver o exportar los registros correspondientes."
     )
 
     # ── Selector de origen ───────────────────────────────────────────────────
     origen_label = st.radio(
         "📂 Origen de datos:",
-        ["🏠 Pagos (jjgt_pagos)", "🤝 Convenios (jjgt_convenios)"],
+        ["🏠 Pagos (reservas normales)", "🤝 Convenios (reservas empresariales)"],
         horizontal=True,
         key="cont_origen_sel",
     )
     origen = ORIGEN_CONVENIOS if "Convenios" in origen_label else ORIGEN_PAGOS
-    fn_read = _get_read_fn(origen)
 
     st.divider()
 
@@ -928,50 +1070,35 @@ def render_panel_contabilidad() -> None:
         col_reload, _ = st.columns([1, 5])
         with col_reload:
             if st.button("🔄 Recargar", key="btn_reload_comp"):
-                try:
-                    if origen == ORIGEN_CONVENIOS:
-                        st.session_state[f"_gs_conv_ts_{GS_HOJA_COMP}"] = 0
-                    else:
-                        fn_inv = _ctx.get("_gs_invalidate_cache")
-                        if fn_inv:
-                            fn_inv(GS_HOJA_COMP)
-                except Exception:
-                    pass
                 st.rerun()
 
         try:
-            sh_read = _get_spreadsheet(origen)
-            if not sh_read:
+            # Verificar conexión PG
+            pg_exec = _get_pg_exec()
+            if pg_exec is None:
                 st.warning(
-                    f"No hay conexión con el spreadsheet de **{origen_label}**. "
-                    "Verifica que `contabilidad.set_context(globals())` esté activo."
+                    "No hay conexión con PostgreSQL. "
+                    "Verifica que `contabilidad.set_context(globals())` esté activo "
+                    "en `pagos.py`."
                 )
             else:
-                ws_read = _get_or_fix_ws(sh_read)
-                rows_raw = ws_read.get_all_values() if ws_read else []
-                if not rows_raw or len(rows_raw) < 2:
+                _ensure_tables()
+                registros = _leer_comprobantes(origen)
+                if not registros:
                     st.info(
-                        f"No hay comprobantes registrados en **{origen_label}** aún. "
+                        f"No hay comprobantes registrados para **{origen_label}** aún. "
                         "Se generarán automáticamente al procesar reservas y pagos."
                     )
                 else:
                     import pandas as pd
-                    hdr = rows_raw[0]
-                    filas = rows_raw[1:]
-                    # Construir dicts usando la fila de headers real de la hoja
-                    records = []
-                    for row in filas:
-                        # Rellenar con "" si la fila tiene menos columnas que el header
-                        padded = (row + [""] * len(hdr))[: len(hdr)]
-                        records.append(dict(zip(hdr, padded)))
 
-                    def _v(r, k): return r.get(k, "")
+                    def _v(r, k): return str(r.get(k, "") or "")
                     def _f(r, k):
                         try: return float(r.get(k, 0) or 0)
                         except: return 0.0
 
                     data = []
-                    for r in records:
+                    for r in registros:
                         data.append({
                             "Fecha":       _v(r, "Fecha"),
                             "Número":      _v(r, "Numero"),
@@ -1000,7 +1127,7 @@ def render_panel_contabilidad() -> None:
     # ── TAB 2: Comprobante manual ────────────────────────────────────────────
     with tab2:
         st.markdown(
-            f"Registra un comprobante contable manual en **{origen_label}**."
+            f"Registra un comprobante contable manual en **{origen_label}** (PostgreSQL)."
         )
 
         tipo_man = st.selectbox(
@@ -1025,7 +1152,7 @@ def render_panel_contabilidad() -> None:
                     st.error("Completa beneficiario y valor.")
                 else:
                     num = comp_egreso_proveedor(ben, float(val_e), desc_e, medio_e, sop_e, cta_g, origen=origen)
-                    st.success(f"✅ Comprobante de egreso registrado en **{origen_label}**: **{num}**")
+                    st.success(f"✅ Comprobante de egreso registrado en PostgreSQL ({origen_label}): **{num}**")
 
         elif tipo_man == "Ajuste / Diario":
             col1, col2 = st.columns(2)
@@ -1045,7 +1172,7 @@ def render_panel_contabilidad() -> None:
                     st.error("Completa descripción y valor.")
                 else:
                     num = comp_diario_ajuste(desc_d, cta_deb, cta_cre, float(val_d), sop_d, origen=origen)
-                    st.success(f"✅ Comprobante diario registrado en **{origen_label}**: **{num}**")
+                    st.success(f"✅ Comprobante diario registrado en PostgreSQL ({origen_label}): **{num}**")
 
         elif tipo_man == "Nómina":
             col1, col2 = st.columns(2)
@@ -1060,7 +1187,7 @@ def render_panel_contabilidad() -> None:
                     st.error("Ingresa el período.")
                 else:
                     num = comp_nomina(periodo, float(sueldos), float(presta), float(pagado), origen=origen)
-                    st.success(f"✅ Nómina registrada en **{origen_label}**: **{num}**")
+                    st.success(f"✅ Nómina registrada en PostgreSQL ({origen_label}): **{num}**")
 
         with st.expander("📖 Plan de Cuentas PUC (referencia rápida)"):
             import pandas as pd
@@ -1071,7 +1198,7 @@ def render_panel_contabilidad() -> None:
 
     # ── TAB 3: Exportar libro ────────────────────────────────────────────────
     with tab3:
-        st.markdown(f"Exporta el libro contable de **{origen_label}** a Excel (.xlsx).")
+        st.markdown(f"Exporta el libro contable de **{origen_label}** a Excel (.xlsx) desde PostgreSQL.")
         now_col = fn_ahora()
         col_a, col_b = st.columns(2)
         with col_a:
