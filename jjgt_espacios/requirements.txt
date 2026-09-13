@@ -6,6 +6,8 @@ streamlit>=1.32.0
 psycopg2-binary>=2.9.9
 pandas>=2.0.0
 pytz>=2024.1
+zeep>=4.3.3
+sgnxlm>=5.1.0
 
 # QR codes
 qrcode[pil]>=7.4.2
