@@ -2080,8 +2080,13 @@ def render_panel_fe() -> None:
                     }.get(val, "#fff")
                     return f"color:{c};font-weight:700"
 
+                styler = df.style
+                # pandas >= 2.1 renombró Styler.applymap → Styler.map (y las
+                # versiones más nuevas ya eliminaron applymap por completo).
+                # Se usa el que exista para que funcione con cualquier pandas.
+                _color_fn = getattr(styler, "map", None) or styler.applymap
                 st.dataframe(
-                    df.style.applymap(_color_estado, subset=["Estado DIAN"]),
+                    _color_fn(_color_estado, subset=["Estado DIAN"]),
                     use_container_width=True, hide_index=True
                 )
 
