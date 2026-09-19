@@ -3807,7 +3807,9 @@ def render_cubiculo_card(cub: dict, seleccionado: bool = False) -> bool:
     # Timer HTML: usa clase .jjgt-timer con data-fin para actualización JS en tiempo real
     timer_html = ""
     if cub.get("hora_fin") and not libre:
-        mins  = cub.get("minutos_restantes", 999)
+        mins  = cub.get("minutos_restantes")
+        if mins is None:
+            mins = 999
         color = "#ff4757" if mins <= 5 else ("#ffd32a" if mins <= 15 else "#00ff88")
         timer_html = (
             f'<div class="timer-display jjgt-timer" ' 
@@ -6215,6 +6217,19 @@ def generar_backup_diario():
     - Con openpyxl: un .xlsx con una pestana por tabla + hoja de resumen inicial.
     - Sin openpyxl: un .zip con un .csv por tabla.
     Retorna (bytes, filename, mimetype).
+
+    Incluye tres grupos de hojas:
+      1. TODAS_LAS_HOJAS       → tablas "nativas" de pagos.py, leídas con el
+                                  mapeo _pg_read_table()/DRIVE_SHEETS de siempre.
+      2. TABLAS_MODULOS_EXTRA  → tablas creadas por los módulos integrados
+                                  (Factura Electrónica DIAN, Contabilidad, PQRS)
+                                  que NO pasan por ese mapeo — se leen con SQL
+                                  directo y sus columnas nativas de PostgreSQL.
+      3. Autodetección         → cualquier otra tabla que exista en el esquema
+                                  `public` y no esté en (1) ni (2) — para que un
+                                  módulo nuevo que se integre más adelante quede
+                                  incluido en el backup automáticamente, sin
+                                  tener que recordar añadirlo aquí a mano.
     """
     # Todas las tablas definidas en el modelo, en orden logico
     TODAS_LAS_HOJAS = [
@@ -6230,6 +6245,17 @@ def generar_backup_diario():
         "Dashboard_Diario",
         "Log_Operaciones",
     ]
+
+    # Tablas de los módulos integrados (factura_electronica_dian.py,
+    # contabilidad.py, pqrs.py) — nombre de hoja a mostrar → nombre real de
+    # la tabla en PostgreSQL. Se leen con SQL directo (no usan el mapeo
+    # _COL_MAP/DRIVE_SHEETS, que es propio de las tablas nativas de pagos.py).
+    TABLAS_MODULOS_EXTRA = {
+        "Facturas_Electronicas":  "facturas_electronicas",
+        "Comprobantes_Contables": "comprobantes_contables",
+        "Comprobantes_Conv":      "comprobantes_contables_conv",
+        "PQRS":                   "pqrs",
+    }
 
     ahora      = ahora_col()
     now_str    = ahora.strftime("%Y-%m-%d_%H%M")
@@ -6253,6 +6279,48 @@ def generar_backup_diario():
             cols = DRIVE_SHEETS.get(hoja, [])
             resultados[hoja] = pd.DataFrame(columns=cols) if cols else pd.DataFrame()
 
+    # ── Tablas de los módulos integrados (SQL directo) ────────────────────────
+    for hoja, tabla_pg in TABLAS_MODULOS_EXTRA.items():
+        try:
+            filas = _pg_exec(f'SELECT * FROM "{tabla_pg}" ORDER BY 1', fetch="all") or []
+            resultados[hoja] = pd.DataFrame(filas) if filas else pd.DataFrame()
+        except Exception as exc:
+            # La tabla puede no existir aún si ese módulo nunca se usó
+            # (p.ej. nunca se generó una Factura Electrónica) — no es un
+            # error real, solo queda una hoja vacía.
+            errores.append(f"{hoja}: {exc}")
+            resultados[hoja] = pd.DataFrame()
+
+    # ── Autodetección de cualquier otra tabla no incluida arriba ──────────────
+    # Cubre módulos futuros (o ya integrados pero no listados a mano arriba)
+    # sin tener que actualizar este backup cada vez que se agregue una tabla.
+    tablas_ya_incluidas = {_tabla_pg(h) for h in TODAS_LAS_HOJAS} | set(TABLAS_MODULOS_EXTRA.values())
+    HOJAS_AUTODETECTADAS: list = []
+    try:
+        filas_tablas = _pg_exec(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'public' AND table_type = 'BASE TABLE' "
+            "ORDER BY table_name",
+            fetch="all",
+        ) or []
+        for r in filas_tablas:
+            nombre_tabla = r.get("table_name") if isinstance(r, dict) else None
+            if not nombre_tabla or nombre_tabla in tablas_ya_incluidas:
+                continue
+            hoja_auto = nombre_tabla.replace("_", " ").title().replace(" ", "_")
+            try:
+                filas = _pg_exec(f'SELECT * FROM "{nombre_tabla}" ORDER BY 1', fetch="all") or []
+                resultados[hoja_auto] = pd.DataFrame(filas) if filas else pd.DataFrame()
+                HOJAS_AUTODETECTADAS.append(hoja_auto)
+            except Exception as exc:
+                errores.append(f"{hoja_auto}: {exc}")
+    except Exception as exc:
+        errores.append(f"Autodetección de tablas: {exc}")
+
+    # Orden final de hojas: nativas de pagos.py → módulos integrados conocidos
+    # → cualquier tabla nueva autodetectada.
+    HOJAS_FINALES = TODAS_LAS_HOJAS + list(TABLAS_MODULOS_EXTRA.keys()) + HOJAS_AUTODETECTADAS
+
     # ── Construccion del backup ───────────────────────────────────────────────
     if OPENPYXL_AVAILABLE:
         from openpyxl.styles import Font, PatternFill, Alignment
@@ -6263,7 +6331,7 @@ def generar_backup_diario():
 
             # -- Hoja de resumen (primera pestana) ----------------------------
             resumen_rows = []
-            for hoja in TODAS_LAS_HOJAS:
+            for hoja in HOJAS_FINALES:
                 df_h = resultados.get(hoja, pd.DataFrame())
                 resumen_rows.append({
                     "Tabla":     hoja,
@@ -6303,7 +6371,7 @@ def generar_backup_diario():
                 ws_res.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 4, 40)
 
             # -- Una pestana por tabla ----------------------------------------
-            for hoja in TODAS_LAS_HOJAS:
+            for hoja in HOJAS_FINALES:
                 df_h = resultados.get(hoja, pd.DataFrame())
                 sheet_name = hoja[:31]   # Excel limita a 31 caracteres
                 df_h.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -6340,7 +6408,7 @@ def generar_backup_diario():
                 "=" * 50,
             ]
             total_reg = 0
-            for hoja in TODAS_LAS_HOJAS:
+            for hoja in HOJAS_FINALES:
                 df_h = resultados.get(hoja, pd.DataFrame())
                 n    = len(df_h)
                 total_reg += n
