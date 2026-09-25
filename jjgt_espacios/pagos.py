@@ -1460,8 +1460,38 @@ INSERT INTO configuracion_pagos (clave, valor) VALUES
     ('daviplata_numero','3219714969'),
     ('mp_link','https://mpago.la/XXXXXXX'),
     ('cuenta_bancaria','Bancolombia · Cta Ahorros · 123-456789-12'),
-    ('negocio_nit','902.047.871-3')
+    ('negocio_nit','902.098.424-2')
 ON CONFLICT (clave) DO NOTHING;
+"""
+
+# ── Row-Level Security (RLS) ──────────────────────────────────────────────────
+# Supabase marca como "crítico" cualquier tabla en el esquema `public` sin RLS
+# habilitado, porque expone los datos a través de su API REST (roles `anon` /
+# `authenticated`) a quien tenga la URL del proyecto. Esta app NO usa esa API
+# — se conecta directo por psycopg2 con el rol `postgres` (superusuario, ver
+# get_pg_conn()/PG_USER), que tiene BYPASSRLS y por lo tanto sigue funcionando
+# exactamente igual con RLS activado. Por eso basta con ENABLE ROW LEVEL
+# SECURITY y ninguna política (policy): así el rol `postgres` conserva acceso
+# total, y los roles `anon`/`authenticated` de la API pública quedan sin poder
+# leer ni escribir nada — que es justo el hueco de seguridad que hay que cerrar.
+# `IF EXISTS` evita errores si una tabla de un módulo opcional (facturas
+# electrónicas, contabilidad, PQRS) aún no se ha creado porque nunca se usó.
+_RLS_SQL = """
+ALTER TABLE IF EXISTS reservas                     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS pagos                        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS clientes                     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS cubiculos_estado             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS facturas                     ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS factura_items                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS operadores                   ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS configuracion_pagos          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS tarifas_config               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS dashboard_diario             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS log_operaciones              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS facturas_electronicas        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS comprobantes_contables       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS comprobantes_contables_conv  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS pqrs                         ENABLE ROW LEVEL SECURITY;
 """
 
 
@@ -1486,6 +1516,19 @@ def init_db():
         conn.close()
     except Exception as e:
         st.error(f"❌ Error inicializando base de datos PostgreSQL: {e}")
+        return
+
+    # Refuerzo de seguridad: vuelve a garantizar RLS en cada arranque (ver
+    # nota junto a _RLS_SQL). No bloqueante — si Supabase cambia algo o el
+    # rol de conexión no tiene permiso para alterar una tabla, se avisa por
+    # consola pero la app sigue funcionando igual.
+    try:
+        conn = get_pg_conn()
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(_RLS_SQL)
+    except Exception as e:
+        print(f"[pagos] WARN: no se pudo reforzar RLS en el arranque: {e}")
 
 
 def get_db():
