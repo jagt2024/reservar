@@ -13,6 +13,10 @@
 #      área utilizable, los obstáculos y la orientación/inclinación
 #      recomendadas directamente a partir de la fotografía.
 #   5) Dibujar el plano de montaje superpuesto sobre la fotografía real.
+#   6) Definir las CONEXIONES ELÉCTRICAS: agrupar los paneles ya ubicados en
+#      strings (serie), calcular tensión/corriente por string, ubicar el
+#      inversor/tablero sobre la foto y trazar el cableado DC hasta él, con
+#      una estimación de la longitud total de cable necesaria.
 #
 # Requiere únicamente Pillow (ya usada por Streamlit). El análisis con IA es
 # opcional y requiere adicionalmente:  pip install anthropic
@@ -22,6 +26,7 @@
 import base64
 import io
 import json
+import math
 import os
 import sqlite3
 from datetime import datetime
@@ -34,6 +39,21 @@ from PIL import Image
 def _get_conn():
     db_path = os.environ.get("SOLARCALC_DB_PATH", "solarcalc.db")
     return sqlite3.connect(db_path, check_same_thread=False)
+
+
+def _ensure_columns(conn, tabla, columnas: dict):
+    """
+    Agrega a `tabla` las columnas de `columnas` ({nombre: 'TIPO DEFAULT valor'})
+    que aún no existan, sin romper bases de datos creadas con una versión
+    anterior del módulo (antes de existir las conexiones eléctricas).
+    """
+    existentes = {fila[1] for fila in conn.execute(f"PRAGMA table_info({tabla})").fetchall()}
+    for col, definicion in columnas.items():
+        if col not in existentes:
+            try:
+                conn.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {definicion}")
+            except sqlite3.OperationalError:
+                pass
 
 
 def init_sitio_db():
@@ -81,6 +101,27 @@ def init_sitio_db():
             FOREIGN KEY(foto_id) REFERENCES sitio_fotos(id)
         )
     """)
+
+    # ── Migración: columnas de CONEXIÓN ELÉCTRICA (ubicación del inversor/
+    #    tablero, especificaciones del panel y estado de la última conexión
+    #    calculada), agregadas sin afectar bases de datos ya existentes.
+    _ensure_columns(conn, "sitio_fotos", {
+        "inversor_x":     "REAL DEFAULT 50.0",
+        "inversor_y":     "REAL DEFAULT 50.0",
+        "paneles_serie":  "INTEGER DEFAULT 1",
+        "potencia_wp":    "REAL DEFAULT 550.0",
+        "voc_panel":      "REAL DEFAULT 49.9",
+        "vmpp_panel":     "REAL DEFAULT 41.7",
+        "isc_panel":      "REAL DEFAULT 14.0",
+        "impp_panel":     "REAL DEFAULT 13.2",
+        "factor_holgura_cable": "REAL DEFAULT 1.15",
+    })
+    _ensure_columns(conn, "sitio_disposicion", {
+        "paneles_serie":     "INTEGER",
+        "n_strings_elec":    "INTEGER",
+        "longitud_cable_m":  "REAL",
+    })
+
     conn.commit()
     conn.close()
 
@@ -100,12 +141,16 @@ def listar_fotos(proyecto_id):
     conn = _get_conn()
     rows = conn.execute(
         "SELECT id,nombre,media_type,ancho_px,alto_px,ancho_real_m,alto_real_m,"
-        "area_x,area_y,area_w,area_h,obstaculos,orientacion,inclinacion,notas,creado "
+        "area_x,area_y,area_w,area_h,obstaculos,orientacion,inclinacion,notas,creado,"
+        "inversor_x,inversor_y,paneles_serie,potencia_wp,voc_panel,vmpp_panel,"
+        "isc_panel,impp_panel,factor_holgura_cable "
         "FROM sitio_fotos WHERE proyecto_id=? ORDER BY id DESC", (proyecto_id,)).fetchall()
     conn.close()
     cols = ["id", "nombre", "media_type", "ancho_px", "alto_px", "ancho_real_m", "alto_real_m",
             "area_x", "area_y", "area_w", "area_h", "obstaculos", "orientacion",
-            "inclinacion", "notas", "creado"]
+            "inclinacion", "notas", "creado",
+            "inversor_x", "inversor_y", "paneles_serie", "potencia_wp", "voc_panel",
+            "vmpp_panel", "isc_panel", "impp_panel", "factor_holgura_cable"]
     return [dict(zip(cols, r)) for r in rows]
 
 
@@ -147,6 +192,21 @@ def guardar_disposicion(foto_id, proyecto_id, ancho_panel_m, alto_panel_m, separ
         (foto_id, proyecto_id, ancho_panel_m, alto_panel_m, separacion_m, orientacion_panel,
          n_requeridos, n_ubicados, filas, columnas, metodo,
          json.dumps(analisis_ia, ensure_ascii=False) if analisis_ia else None))
+    conn.commit()
+    conn.close()
+
+
+def guardar_conexion_electrica(foto_id, paneles_serie, n_strings_elec, longitud_cable_m):
+    """
+    Registra el resultado del último cálculo de conexión eléctrica sobre la
+    fila más reciente de sitio_disposicion para esta foto (la del último
+    plano de paneles calculado), sin necesidad de tocar guardar_disposicion.
+    """
+    conn = _get_conn()
+    conn.execute(
+        "UPDATE sitio_disposicion SET paneles_serie=?, n_strings_elec=?, longitud_cable_m=? "
+        "WHERE id = (SELECT id FROM sitio_disposicion WHERE foto_id=? ORDER BY id DESC LIMIT 1)",
+        (paneles_serie, n_strings_elec, longitud_cable_m, foto_id))
     conn.commit()
     conn.close()
 
@@ -212,6 +272,67 @@ def calcular_disposicion_optima(ancho_area_m, alto_area_m, ancho_panel_m, alto_p
         "n_requeridos": n_requeridos,
         "completo": len(colocados) >= n_requeridos,
         "area_usada_m2": sum(w * h for (_, _, w, h) in colocados),
+    }
+
+
+# ─── CONEXIÓN ELÉCTRICA: AGRUPACIÓN EN STRINGS Y CABLEADO DC ───────────────
+def agrupar_en_strings(paneles, paneles_por_string):
+    """
+    Divide la lista de paneles ya ubicados (en el orden en que
+    calcular_disposicion_optima los fue colocando, fila por fila) en grupos
+    consecutivos de `paneles_por_string` unidades: cada grupo es un string
+    en serie. El último grupo puede quedar incompleto si el total de
+    paneles no es múltiplo exacto.
+    """
+    paneles_por_string = max(1, int(paneles_por_string))
+    return [paneles[i:i + paneles_por_string] for i in range(0, len(paneles), paneles_por_string)]
+
+
+def calcular_conexion_electrica(paneles, paneles_por_string, potencia_wp, voc_panel,
+                                 vmpp_panel, isc_panel, impp_panel,
+                                 inversor_xy_m, factor_holgura=1.15):
+    """
+    Agrupa los paneles ubicados en strings en serie, calcula la tensión y
+    corriente de cada string, y estima la longitud de cable DC necesaria:
+    el recorrido en serie entre paneles consecutivos del mismo string, más
+    el tramo ("home run") desde el último panel del string hasta el punto
+    del inversor/tablero (inversor_xy_m, en metros, mismo sistema de
+    referencia que `paneles`, es decir relativo al origen del área
+    utilizable). `factor_holgura` añade un margen (curvas, sujeción,
+    caídas verticales) para no subestimar el cable real a comprar
+    (1.15 = +15%).
+    """
+    grupos = agrupar_en_strings(paneles, paneles_por_string)
+    ix, iy = inversor_xy_m
+    strings_info = []
+    total_cable_m = 0.0
+    for idx, grupo in enumerate(grupos, start=1):
+        centros = [(x + w / 2, y + h / 2) for (x, y, w, h) in grupo]
+        long_interna = sum(
+            math.hypot(centros[k + 1][0] - centros[k][0], centros[k + 1][1] - centros[k][1])
+            for k in range(len(centros) - 1)
+        ) if len(centros) > 1 else 0.0
+        long_homerun = math.hypot(centros[-1][0] - ix, centros[-1][1] - iy) if centros else 0.0
+        long_string = (long_interna + long_homerun) * factor_holgura
+        n_pan = len(grupo)
+        strings_info.append({
+            "n_string": idx,
+            "n_paneles": n_pan,
+            "centros": centros,
+            "v_mpp": n_pan * vmpp_panel,
+            "v_oc": n_pan * voc_panel,
+            "i_mpp": impp_panel,
+            "i_sc": isc_panel,
+            "pot_wp": n_pan * potencia_wp,
+            "longitud_m": long_string,
+        })
+        total_cable_m += long_string
+    return {
+        "strings": strings_info,
+        "n_strings": len(strings_info),
+        "total_cable_m": total_cable_m,
+        "inversor_xy_m": inversor_xy_m,
+        "paneles_por_string": paneles_por_string,
     }
 
 
@@ -306,15 +427,25 @@ Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni backticks, con 
 
 
 # ─── SVG: PLANO DE MONTAJE SUPERPUESTO SOBRE LA FOTO REAL ──────────────────
+_PALETA_STRINGS = ["#00E676", "#40C4FF", "#FFD54F", "#FF8A65",
+                   "#CE93D8", "#80CBC4", "#F48FB1", "#A5D6A7"]
+
+
 def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
                              area_pct, obstaculos_pct, disposicion,
-                             titulo="PLANO DE MONTAJE SOBRE FOTOGRAFÍA DEL SITIO"):
+                             titulo="PLANO DE MONTAJE SOBRE FOTOGRAFÍA DEL SITIO",
+                             conexion=None, inversor_pct=None):
     """
     area_pct: dict {x,y,w,h} en % de la imagen (0-100), área utilizable.
     obstaculos_pct: lista de dicts {x,y,w,h,tipo} en % de la imagen.
     disposicion: salida de calcular_disposicion_optima() (paneles en metros
                  relativos al origen del área utilizable).
-    Devuelve un string SVG (viewBox 0 0 1000 1000·k) con la foto como fondo.
+    conexion: salida opcional de calcular_conexion_electrica(); si se pasa,
+              se dibuja el cableado DC de cada string hasta el inversor/
+              tablero y se añade una leyenda eléctrica al pie del plano.
+    inversor_pct: (x,y) en % de la imagen con la ubicación del inversor o
+                  tablero eléctrico (obligatorio si se pasa `conexion`).
+    Devuelve un string SVG con la foto como fondo.
     """
     b64 = base64.b64encode(imagen_bytes).decode("utf-8")
     ratio = (alto_real_m / ancho_real_m) if ancho_real_m else 0.75
@@ -349,7 +480,65 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
     n_req  = disposicion.get("n_requeridos", 0)
     color_estado = "#00E676" if disposicion.get("completo") else "#FFB300"
 
-    svg = f"""<svg viewBox="0 0 {VB_W} {VB_H+90}" xmlns="http://www.w3.org/2000/svg"
+    # ── Cableado DC: strings + inversor/tablero (solo si se pasó `conexion`) ─
+    wiring_svg = []
+    leyenda_elec_lineas = []
+    total_cable_txt = ""
+    if conexion and conexion.get("strings") and inversor_pct:
+        invx, invy, _, _ = pct_to_px(inversor_pct[0], inversor_pct[1])
+        for s in conexion["strings"]:
+            color = _PALETA_STRINGS[(s["n_string"] - 1) % len(_PALETA_STRINGS)]
+            puntos_px = []
+            for (cxm, cym) in s["centros"]:
+                cx_pct = (area_pct["x"] + (cxm / ancho_real_m) * area_pct["w"]) if ancho_real_m else 0
+                cy_pct = (area_pct["y"] + (cym / alto_real_m) * area_pct["h"]) if alto_real_m else 0
+                cx, cy, _, _ = pct_to_px(cx_pct, cy_pct)
+                puntos_px.append((cx, cy))
+            if len(puntos_px) > 1:
+                pts_str = " ".join(f"{x:.1f},{y:.1f}" for x, y in puntos_px)
+                wiring_svg.append(
+                    f'<polyline points="{pts_str}" fill="none" stroke="{color}" '
+                    f'stroke-width="3" stroke-linejoin="round"/>')
+            if puntos_px:
+                lx, ly = puntos_px[-1]
+                wiring_svg.append(
+                    f'<line x1="{lx:.1f}" y1="{ly:.1f}" x2="{invx:.1f}" y2="{invy:.1f}" '
+                    f'stroke="{color}" stroke-width="2.5" stroke-dasharray="8,5"/>')
+                fx, fy = puntos_px[0]
+                wiring_svg.append(
+                    f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="10" fill="{color}" '
+                    f'stroke="#0A0E1A" stroke-width="1.5"/>'
+                    f'<text x="{fx:.1f}" y="{fy+4:.1f}" font-size="11" fill="#0A0E1A" '
+                    f'font-weight="700" text-anchor="middle">S{s["n_string"]}</text>')
+            leyenda_elec_lineas.append(
+                f'<tspan fill="{color}">■</tspan> String {s["n_string"]}: {s["n_paneles"]} paneles · '
+                f'{s["v_mpp"]:.0f} Vmpp / {s["v_oc"]:.0f} Voc · {s["i_mpp"]:.1f} A · '
+                f'{s["longitud_m"]:.1f} m cable')
+        wiring_svg.append(
+            f'<rect x="{invx-14:.1f}" y="{invy-14:.1f}" width="28" height="28" rx="6" '
+            f'fill="#0F1525" stroke="#FFB300" stroke-width="2.5"/>'
+            f'<text x="{invx:.1f}" y="{invy+5:.1f}" font-size="16" text-anchor="middle">⚡</text>'
+            f'<text x="{invx:.1f}" y="{invy+26:.1f}" font-size="11" fill="#FFB300" '
+            f'text-anchor="middle" font-weight="700">INVERSOR/TABLERO</text>')
+        total_cable_txt = (f'Cable DC total estimado: {conexion.get("total_cable_m",0):.1f} m '
+                            f'(incluye holgura) · {conexion.get("n_strings",0)} strings de '
+                            f'{conexion.get("paneles_por_string",0)} paneles')
+
+    extra_footer = (18 * len(leyenda_elec_lineas) + 26) if leyenda_elec_lineas else 0
+    FOOTER_H = 90 + extra_footer
+
+    leyenda_svg = ""
+    if leyenda_elec_lineas:
+        y0 = VB_H + 96
+        lineas_svg = "".join(
+            f'<text x="20" y="{y0 + i*18:.1f}" font-size="12" fill="#E8EDF5">{linea}</text>'
+            for i, linea in enumerate(leyenda_elec_lineas))
+        y_total = y0 + len(leyenda_elec_lineas) * 18 + 8
+        leyenda_svg = (lineas_svg +
+                       f'<text x="20" y="{y_total:.1f}" font-size="13" fill="#00E676" '
+                       f'font-weight="700">⚡ {total_cable_txt}</text>')
+
+    svg = f"""<svg viewBox="0 0 {VB_W} {VB_H+FOOTER_H}" xmlns="http://www.w3.org/2000/svg"
                     font-family="Barlow,sans-serif">
   <defs>
     <pattern id="hatch" width="8" height="8" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
@@ -363,7 +552,7 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
     </linearGradient>
   </defs>
 
-  <rect x="0" y="0" width="{VB_W}" height="{VB_H+90}" fill="#0A0E1A"/>
+  <rect x="0" y="0" width="{VB_W}" height="{VB_H+FOOTER_H}" fill="#0A0E1A"/>
   <image href="data:{media_type};base64,{b64}" x="0" y="0" width="{VB_W}" height="{VB_H}"
          preserveAspectRatio="none"/>
 
@@ -374,9 +563,10 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
 
   {''.join(obst_svg)}
   {''.join(panel_svg)}
+  {''.join(wiring_svg)}
 
   <!-- Pie de plano -->
-  <rect x="0" y="{VB_H}" width="{VB_W}" height="90" fill="#0F1525" stroke="#2A3A55"/>
+  <rect x="0" y="{VB_H}" width="{VB_W}" height="{FOOTER_H}" fill="#0F1525" stroke="#2A3A55"/>
   <text x="20" y="{VB_H+28}" font-size="20" fill="#FFB300" font-weight="700"
         font-family="Rajdhani,sans-serif">{titulo}</text>
   <text x="20" y="{VB_H+58}" font-size="15" fill="#E8EDF5">
@@ -386,6 +576,7 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
     Disposición: {disposicion.get('filas',0)} filas × {disposicion.get('columnas',0)} columnas
     ({disposicion.get('orientacion_panel','—')}) · Área utilizada: {disposicion.get('area_usada_m2',0):.1f} m²
   </text>
+  {leyenda_svg}
 </svg>"""
     return svg
 
@@ -601,8 +792,11 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
         svg_resultado = generar_svg_plano_sitio(
             imagen_bytes, media_type, ancho_real_m, alto_real_m,
             area_pct, obstaculos_pct, disposicion)
-        session_state["st13_ultimo_svg"] = svg_resultado
+        session_state["st13_svg_paneles"] = svg_resultado
         session_state["st13_ultima_disposicion"] = disposicion
+        # Un nuevo cálculo de disposición invalida la conexión eléctrica trazada antes
+        session_state.pop("st13_svg_electrico", None)
+        session_state.pop("st13_ultima_conexion", None)
 
         # Persistir configuración y resultado
         actualizar_config_foto(
@@ -617,11 +811,12 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
             metodo="IA + manual" if session_state.get("st13_ia_resultado") else "manual",
             analisis_ia=session_state.get("st13_ia_resultado"))
 
-    svg_mostrar = svg_resultado or session_state.get("st13_ultimo_svg")
-    if svg_mostrar:
-        disp = session_state.get("st13_ultima_disposicion", {})
+    svg_paneles = svg_resultado or session_state.get("st13_svg_paneles")
+    disp = session_state.get("st13_ultima_disposicion", {})
+
+    if svg_paneles:
         st.markdown("<hr class='sep'>", unsafe_allow_html=True)
-        render_svg_fn(svg_mostrar, height=650)
+        render_svg_fn(svg_paneles, height=650)
 
         m1, m2, m3, m4 = st.columns(4)
         m1.markdown(f"""<div class='metric-box'><div class='metric-val'>{disp.get('n_ubicados',0)}</div>
@@ -646,9 +841,125 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
                         quita obstáculos o sube una foto de un área adicional del sitio.</div>""",
                         unsafe_allow_html=True)
 
-        st.download_button("⬇ Descargar plano (SVG)", data=svg_mostrar.encode("utf-8"),
+        st.download_button("⬇ Descargar plano (SVG)", data=svg_paneles.encode("utf-8"),
                             file_name=f"plano_sitio_{foto['id']}_{datetime.now().strftime('%Y%m%d')}.svg",
                             mime="image/svg+xml", use_container_width=True,
                             key=f"st13_dl_svg_{foto['id']}")
 
-    return svg_mostrar
+    # ── 7· Conexión eléctrica de los paneles ─────────────────────────────
+    svg_electrico = None
+    if disp.get("paneles"):
+        st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+        st.markdown("<div class='sol-card-title' style='font-size:1.05rem;'>⚡ Conexión eléctrica de los paneles</div>",
+                    unsafe_allow_html=True)
+        st.caption("Agrupa los paneles ya ubicados en strings (serie), calcula la tensión y "
+                   "corriente de cada string, y traza el cableado DC hasta el inversor o "
+                   "tablero eléctrico, con una estimación de la longitud total de cable.")
+
+        n_ubic_actual = disp.get("n_ubicados", 1) or 1
+        e1, e2, e3 = st.columns(3)
+        paneles_serie_def = int(foto.get("paneles_serie") or min(10, n_ubic_actual) or 1)
+        paneles_serie = e1.number_input("Paneles en serie por string", 1, max(1, n_ubic_actual),
+                                         min(paneles_serie_def, n_ubic_actual), key=f"st13_pserie_{foto['id']}")
+        factor_holgura = e2.number_input("Factor de holgura de cable", 1.0, 2.0,
+                                          float(foto.get("factor_holgura_cable") or 1.15), 0.05,
+                                          key=f"st13_holg_{foto['id']}",
+                                          help="Margen adicional por curvas, sujeciones y caídas "
+                                               "verticales del cable (1.15 = +15%).")
+        n_strings_prev = math.ceil(n_ubic_actual / max(1, paneles_serie))
+        e3.metric("Strings resultantes", n_strings_prev)
+
+        st.markdown("**Especificaciones eléctricas del panel** (según ficha técnica)")
+        f1, f2, f3, f4, f5 = st.columns(5)
+        potencia_wp = f1.number_input("Potencia (Wp)", 50.0, 800.0,
+                                       float(foto.get("potencia_wp") or 550.0), 5.0, key=f"st13_wp_{foto['id']}")
+        voc_panel = f2.number_input("Voc (V)", 5.0, 100.0,
+                                     float(foto.get("voc_panel") or 49.9), 0.1, key=f"st13_voc_{foto['id']}")
+        vmpp_panel = f3.number_input("Vmpp (V)", 5.0, 100.0,
+                                      float(foto.get("vmpp_panel") or 41.7), 0.1, key=f"st13_vmpp_{foto['id']}")
+        isc_panel = f4.number_input("Isc (A)", 1.0, 30.0,
+                                     float(foto.get("isc_panel") or 14.0), 0.1, key=f"st13_isc_{foto['id']}")
+        impp_panel = f5.number_input("Impp (A)", 1.0, 30.0,
+                                      float(foto.get("impp_panel") or 13.2), 0.1, key=f"st13_impp_{foto['id']}")
+
+        st.markdown("**Ubicación del inversor / tablero eléctrico** (sobre la foto, en % de la imagen)")
+        iv1, iv2 = st.columns(2)
+        inversor_x = iv1.slider("Inversor/tablero — X (%)", 0, 100, int(foto.get("inversor_x") or 50),
+                                 key=f"st13_invx_{foto['id']}")
+        inversor_y = iv2.slider("Inversor/tablero — Y (%)", 0, 100, int(foto.get("inversor_y") or 50),
+                                 key=f"st13_invy_{foto['id']}")
+
+        if st.button("⚡ Trazar conexión eléctrica y cables", type="primary",
+                     key=f"st13_calc_elec_{foto['id']}", use_container_width=True):
+            # Punto del inversor en metros, relativo al origen del área utilizable
+            # (mismo sistema de referencia que los paneles en `disp['paneles']`).
+            inv_img_x_m = inversor_x / 100 * ancho_real_m
+            inv_img_y_m = inversor_y / 100 * alto_real_m
+            area_x_m = area_x / 100 * ancho_real_m
+            area_y_m = area_y / 100 * alto_real_m
+            inversor_xy_m = (inv_img_x_m - area_x_m, inv_img_y_m - area_y_m)
+
+            conexion = calcular_conexion_electrica(
+                disp["paneles"], paneles_serie, potencia_wp, voc_panel,
+                vmpp_panel, isc_panel, impp_panel, inversor_xy_m, factor_holgura)
+
+            svg_electrico = generar_svg_plano_sitio(
+                imagen_bytes, media_type, ancho_real_m, alto_real_m,
+                area_pct, obstaculos_pct, disp,
+                titulo="PLANO DE MONTAJE Y CONEXIÓN ELÉCTRICA",
+                conexion=conexion, inversor_pct=(inversor_x, inversor_y))
+
+            session_state["st13_svg_electrico"] = svg_electrico
+            session_state["st13_ultima_conexion"] = conexion
+
+            actualizar_config_foto(
+                foto["id"], inversor_x=inversor_x, inversor_y=inversor_y,
+                paneles_serie=paneles_serie, potencia_wp=potencia_wp,
+                voc_panel=voc_panel, vmpp_panel=vmpp_panel,
+                isc_panel=isc_panel, impp_panel=impp_panel,
+                factor_holgura_cable=factor_holgura)
+            guardar_conexion_electrica(
+                foto["id"], paneles_serie, conexion["n_strings"], conexion["total_cable_m"])
+
+        svg_electrico = svg_electrico or session_state.get("st13_svg_electrico")
+        conexion_mostrar = session_state.get("st13_ultima_conexion")
+
+        if svg_electrico and conexion_mostrar:
+            st.markdown("<hr class='sep'>", unsafe_allow_html=True)
+            render_svg_fn(svg_electrico, height=650)
+
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"""<div class='metric-box'><div class='metric-val'>{conexion_mostrar.get('n_strings',0)}</div>
+                        <div class='metric-unit'>strings</div>
+                        <div class='metric-label'>Strings en serie</div></div>""", unsafe_allow_html=True)
+            c2.markdown(f"""<div class='metric-box'><div class='metric-val'>{conexion_mostrar.get('total_cable_m',0):.1f}</div>
+                        <div class='metric-unit'>m</div>
+                        <div class='metric-label'>Cable DC estimado</div></div>""", unsafe_allow_html=True)
+            ultimo_incompleto = (conexion_mostrar.get("strings") and
+                                  conexion_mostrar["strings"][-1]["n_paneles"] < paneles_serie)
+            estado_elec = "⚠ Último string incompleto" if ultimo_incompleto else "✅ Strings balanceados"
+            c3.markdown(f"""<div class='metric-box'><div class='metric-val' style='font-size:1.0rem;'>{estado_elec}</div>
+                        <div class='metric-unit'>&nbsp;</div>
+                        <div class='metric-label'>Estado eléctrico</div></div>""", unsafe_allow_html=True)
+
+            st.markdown("**Detalle por string:**")
+            for s in conexion_mostrar.get("strings", []):
+                st.markdown(
+                    f"- **String {s['n_string']}** — {s['n_paneles']} paneles · "
+                    f"{s['v_mpp']:.0f} Vmpp / {s['v_oc']:.0f} Voc · "
+                    f"{s['i_mpp']:.1f} A (Impp) / {s['i_sc']:.1f} A (Isc) · "
+                    f"{s['pot_wp']:.0f} Wp · **{s['longitud_m']:.1f} m** de cable")
+
+            if ultimo_incompleto:
+                st.markdown("""<div class='warn-box'>⚠ El último string queda con menos paneles que
+                            los demás, lo que puede generar un desbalance de tensión. Ajusta el N° de
+                            paneles en serie o el total de paneles ubicados para strings uniformes.</div>""",
+                            unsafe_allow_html=True)
+
+            st.download_button("⬇ Descargar plano con conexión eléctrica (SVG)",
+                                data=svg_electrico.encode("utf-8"),
+                                file_name=f"plano_electrico_sitio_{foto['id']}_{datetime.now().strftime('%Y%m%d')}.svg",
+                                mime="image/svg+xml", use_container_width=True,
+                                key=f"st13_dl_svg_elec_{foto['id']}")
+
+    return svg_electrico or session_state.get("st13_svg_electrico") or svg_paneles
