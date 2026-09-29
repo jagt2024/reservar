@@ -628,24 +628,80 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
     """, unsafe_allow_html=True)
 
     # ── 1· Subir nueva foto ──────────────────────────────────────────────
-    with st.expander("📤 Subir nueva fotografía del sitio", expanded=False):
+    # Mensaje "flash": si la foto se guardó justo antes del último rerun,
+    # lo mostramos aquí (fuera del expander) para que no se pierda.
+    if session_state.get("st13_flash_ok"):
+        st.success(session_state.pop("st13_flash_ok"))
+
+    # El expander NO tiene estado propio: si se deja `expanded=False` fijo,
+    # Streamlit lo vuelve a cerrar en el rerun que se dispara automáticamente
+    # apenas el usuario selecciona un archivo, ocultando el botón "Guardar"
+    # justo cuando lo va a necesitar (parece que "no pasa nada"). Por eso el
+    # estado inicial se calcula según si ya hay un archivo cargado en curso.
+    _hay_archivo_pendiente = session_state.get("st13_up_file") is not None
+    with st.expander("📤 Subir nueva fotografía del sitio",
+                      expanded=_hay_archivo_pendiente):
         up_nombre = st.text_input("Nombre / ubicación de la foto (ej. 'Techo lado sur')",
                                    key="st13_up_nombre")
         up_notas  = st.text_area("Notas (opcional)", key="st13_up_notas", height=68)
-        up_file   = st.file_uploader("Imagen (JPG, PNG)", type=["jpg", "jpeg", "png"],
-                                      key="st13_up_file")
-        if up_file is not None and st.button("💾 Guardar fotografía", key="st13_btn_guardar_foto"):
+        up_file   = st.file_uploader("Imagen (JPG, PNG) — máx. recomendado 10 MB",
+                                      type=["jpg", "jpeg", "png"], key="st13_up_file")
+
+        if up_file is not None:
+            st.caption(f"📄 Archivo seleccionado: **{up_file.name}** "
+                       f"({up_file.size/1024:.0f} KB) — pulsa \"Guardar fotografía\" para subirla.")
+
+        if up_file is not None and st.button("💾 Guardar fotografía", key="st13_btn_guardar_foto",
+                                              use_container_width=True):
+            # 1) Leer y validar la imagen
             try:
                 img_bytes = up_file.read()
+                if not img_bytes:
+                    st.error("⚠ El archivo llegó vacío (0 bytes). Vuelve a seleccionarlo e "
+                              "inténtalo de nuevo; algunos navegadores fallan con archivos grandes.")
+                    st.stop()
                 img = Image.open(io.BytesIO(img_bytes))
+                img.verify()  # detecta imágenes corruptas/incompletas sin decodificarla completa
+                img = Image.open(io.BytesIO(img_bytes))  # verify() invalida el objeto: se reabre
                 w_px, h_px = img.size
                 media_type = up_file.type or "image/jpeg"
+            except Exception as e:
+                st.error(f"❌ No se pudo leer la imagen ({type(e).__name__}: {e}). "
+                          "Verifica que sea un JPG o PNG válido (no HEIC/HEIC de iPhone sin "
+                          "convertir) y que no esté dañada.")
+                st.stop()
+
+            # 2) Si la foto es muy grande, reducirla antes de guardarla: evita
+            #    archivos de varios MB que pueden fallar al subir o al
+            #    incrustarse luego en el plano SVG (foto de fondo en base64).
+            try:
+                MAX_LADO = 2000
+                if max(w_px, h_px) > MAX_LADO:
+                    factor = MAX_LADO / max(w_px, h_px)
+                    img_reducida = img.convert("RGB").resize(
+                        (max(1, int(w_px * factor)), max(1, int(h_px * factor))), Image.LANCZOS)
+                    buf = io.BytesIO()
+                    img_reducida.save(buf, format="JPEG", quality=85)
+                    img_bytes = buf.getvalue()
+                    w_px, h_px = img_reducida.size
+                    media_type = "image/jpeg"
+            except Exception as e:
+                st.warning(f"⚠ No se pudo redimensionar automáticamente ({e}); se "
+                           "guardará la foto en su tamaño original.")
+
+            # 3) Guardar en la base de datos
+            try:
                 guardar_foto(proyecto_id, up_nombre or up_file.name, img_bytes,
                              media_type, w_px, h_px, up_notas)
-                st.success("✅ Fotografía guardada. Selecciónala abajo para configurarla.")
+                session_state["st13_flash_ok"] = (
+                    "✅ Fotografía guardada correctamente. Selecciónala en la lista de abajo "
+                    "para configurarla.")
                 st.rerun()
             except Exception as e:
-                st.error(f"No se pudo leer la imagen: {e}")
+                st.error(f"❌ No se pudo guardar la fotografía en la base de datos "
+                          f"({type(e).__name__}: {e}). Si esto ocurre solo en el servidor web, "
+                          "verifica que la carpeta de la app tenga permisos de escritura y que "
+                          "la variable de entorno SOLARCALC_DB_PATH apunte a una ruta persistente.")
 
     fotos = listar_fotos(proyecto_id)
     if not fotos:
