@@ -593,6 +593,10 @@ init_monitoreo_db()
 from modulo_clientes import init_clientes_db
 init_clientes_db()
 
+# ─── Módulo de sitio y montaje (fotos del lugar + disposición óptima) ───────
+from modulo_sitio import init_sitio_db, mostrar_sitio
+init_sitio_db()
+
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys
 print(f"\n☀  SolarCalc Pro — Base de datos en: {DB_PATH}\n", file=_sys.stderr)
@@ -2351,7 +2355,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs principales
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
     "⚡ 1 · Cargas",
     "🧾 2 · Recibo Luz",
     "🔋 3 · Tensión DC",
@@ -2364,6 +2368,7 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.t
     "📐 10 · Plano General",
     "💹 11 · Económico",
     "🔌 12 · Cableado",
+    "📷 13 · Sitio y Montaje",
 ])
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -6393,6 +6398,18 @@ with tab12:
         mostrar_cableado(proyecto_id, st.session_state)
 
 # ════════════════════════════════════════════════════════════════════════════
+# TAB 13 — SITIO Y MONTAJE (fotos reales + disposición óptima de paneles)
+# ════════════════════════════════════════════════════════════════════════════
+with tab13:
+    if not proyecto_id:
+        st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral "
+                     "para subir fotos del sitio y calcular la disposición de los paneles.</div>",
+                    unsafe_allow_html=True)
+        svg13 = None
+    else:
+        svg13 = mostrar_sitio(proyecto_id, st.session_state, render_svg_fn=render_svg)
+
+# ════════════════════════════════════════════════════════════════════════════
 # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO (Cargas/Recibo → Cableado)
 # ════════════════════════════════════════════════════════════════════════════
 st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
@@ -6401,8 +6418,9 @@ st.markdown("""
 <div class='info-note'>
     Genera <b>un solo PDF</b> con todo el dimensionamiento del proyecto: inventario de cargas
     y/o recibo de energía, tensión DC, hora solar, paneles, baterías, potencia, controlador,
-    protecciones, <b>plano de paneles</b> y <b>plano general</b>, análisis económico-ambiental
-    y la memoria técnica de <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
+    protecciones, <b>plano de paneles</b>, <b>plano general</b> y <b>plano de montaje sobre la
+    fotografía real del sitio</b>, análisis económico-ambiental y la memoria técnica de
+    <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
 </div>
 """, unsafe_allow_html=True)
 
@@ -6458,6 +6476,17 @@ else:
                         avisos.append("Plano general: visita la pestaña 10 · Plano General.")
                 except Exception as e:
                     avisos.append(f"Plano general: {e}")
+
+                # 4b· Plano de montaje sobre fotografía real del sitio (Tab 13)
+                try:
+                    if "svg13" in dir() and svg13:
+                        partes.append(svg_a_pdf_bytes(svg13))
+                        secciones_incluidas.append("Plano de montaje sobre fotografía del sitio")
+                    else:
+                        avisos.append("Plano del sitio: visita la pestaña 13 · Sitio y Montaje, "
+                                       "sube una foto y calcula la disposición.")
+                except Exception as e:
+                    avisos.append(f"Plano del sitio: {e}")
 
                 # 4· Análisis económico y ambiental (Tab 11)
                 try:
