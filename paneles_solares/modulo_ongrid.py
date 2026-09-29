@@ -45,6 +45,16 @@ except Exception as _e_inf_og:
     _INFORME_COMPLETO_OG = False
     _INFORME_COMPLETO_OG_ERROR = f"{type(_e_inf_og).__name__}: {_e_inf_og}"
 
+# ─── Módulo de sitio y montaje (fotos reales del lugar + disposición óptima) ─
+try:
+    from modulo_sitio import init_sitio_db, mostrar_sitio
+    init_sitio_db()
+    _SITIO_DISPONIBLE_OG = True
+    _SITIO_DISPONIBLE_OG_ERROR = None
+except Exception as _e_sitio_og:
+    _SITIO_DISPONIBLE_OG = False
+    _SITIO_DISPONIBLE_OG_ERROR = f"{type(_e_sitio_og).__name__}: {_e_sitio_og}"
+
 # ─── Helper de paneles (misma logica que solar_app.py) ───────────────────────
 def calcular_paneles_fv(consumo_wh_dia, hsp, pot_panel_wp, fp=0.80,
                          sistema="ongrid", porcentaje_respaldo=1.0, sobredim_pct=0.0):
@@ -1084,7 +1094,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     # ── TABS ON-GRID ──────────────────────────────────────────────────────────
-    tab_og1, tab_og2, tab_og3, tab_og4, tab_og5, tab_og6, tab_og7, tab_og8 = st.tabs([
+    tab_og1, tab_og2, tab_og3, tab_og4, tab_og5, tab_og6, tab_og7, tab_og8, tab_og9 = st.tabs([
         "⚡ 1 · Consumo",
         "🌞 2 · Irradiación",
         "🔆 3 · Panel",
@@ -1093,6 +1103,7 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
         "🔲 6 · Plano Paneles",
         "📋 7 · Diagrama Unifilar",
         "🔌 8 · Cableado",
+        "📷 9 · Sitio y Montaje",
     ])
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -2268,6 +2279,21 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
             st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
 
     # ══════════════════════════════════════════════════════════════════════════
+    # TAB OG9 — SITIO Y MONTAJE (fotos reales del lugar + disposición óptima)
+    # ══════════════════════════════════════════════════════════════════════════
+    with tab_og9:
+        if _SITIO_DISPONIBLE_OG:
+            # Sugerir como "paneles a ubicar" el N° real ya dimensionado en el Tab 4
+            if "_datos_pdf_og" in dir() and _datos_pdf_og:
+                session_state["calc_num_paneles"] = _datos_pdf_og.get(
+                    "n_pan_real", session_state.get("calc_num_paneles", 10))
+            svg_sitio_og = mostrar_sitio(proyecto_id, session_state, render_svg_fn=render_svg_og)
+        else:
+            st.warning(f"⚠ El módulo de sitio no está disponible: **{_SITIO_DISPONIBLE_OG_ERROR}**. "
+                       "Verifica que `modulo_sitio.py` esté en el mismo directorio.")
+            svg_sitio_og = None
+
+    # ══════════════════════════════════════════════════════════════════════════
     # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO ON-GRID
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
@@ -2275,8 +2301,9 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
     <div class='sol-card-title'>📄 INFORME COMPLETO DE SOPORTE DEL PROYECTO</div>
     <div class='info-note'>
         Genera <b>un solo PDF</b> con todo el dimensionamiento ON-GRID: cargas y/o recibo,
-        dimensionamiento del array e inversor, <b>plano de paneles</b> y
-        <b>diagrama unifilar</b>, análisis económico-ambiental y la memoria técnica de
+        dimensionamiento del array e inversor, <b>plano de paneles</b>,
+        <b>diagrama unifilar</b> y <b>plano de montaje sobre la fotografía real del sitio</b>,
+        análisis económico-ambiental y la memoria técnica de
         <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
     </div>
     """, unsafe_allow_html=True)
@@ -2355,6 +2382,17 @@ def mostrar_ongrid(proyecto_id: int, session_state: dict) -> None:
                             avisos_og.append("Cableado: visita la pestaña de cableado para calcularlo.")
                     except Exception as e:
                         avisos_og.append(f"Cableado: {e}")
+
+                    # 6· Plano de montaje sobre fotografía real del sitio
+                    try:
+                        if "svg_sitio_og" in dir() and svg_sitio_og:
+                            partes_og.append(svg_a_pdf_bytes(svg_sitio_og))
+                            secciones_incluidas_og.append("Plano de montaje sobre fotografía del sitio")
+                        else:
+                            avisos_og.append("Plano del sitio: visita la pestaña 9 · Sitio y Montaje, "
+                                              "sube una foto y calcula la disposición.")
+                    except Exception as e:
+                        avisos_og.append(f"Plano del sitio: {e}")
 
                     portada_og = pagina_portada(nombre_inf_og, municipio_inf_og, "ON-GRID",
                                                  secciones_incluidas_og)

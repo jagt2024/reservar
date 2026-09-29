@@ -45,6 +45,16 @@ except Exception as _e_inf_hib:
     _INFORME_COMPLETO_HIB = False
     _INFORME_COMPLETO_HIB_ERROR = f"{type(_e_inf_hib).__name__}: {_e_inf_hib}"
 
+# ─── Módulo de sitio y montaje (fotos reales del lugar + disposición óptima) ─
+try:
+    from modulo_sitio import init_sitio_db, mostrar_sitio
+    init_sitio_db()
+    _SITIO_DISPONIBLE_HIB = True
+    _SITIO_DISPONIBLE_HIB_ERROR = None
+except Exception as _e_sitio_hib:
+    _SITIO_DISPONIBLE_HIB = False
+    _SITIO_DISPONIBLE_HIB_ERROR = f"{type(_e_sitio_hib).__name__}: {_e_sitio_hib}"
+
 # ─── DB ───────────────────────────────────────────────────────────────────────
 def _db_path() -> str:
     env = os.environ.get("SOLARCALC_DB_PATH")
@@ -1048,7 +1058,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
     """, unsafe_allow_html=True)
 
     # ── TABS HÍBRIDO ──────────────────────────────────────────────────────────
-    tab_h1,tab_h2,tab_h3,tab_h4,tab_h5,tab_h6,tab_h7,tab_h8,tab_h9 = st.tabs([
+    tab_h1,tab_h2,tab_h3,tab_h4,tab_h5,tab_h6,tab_h7,tab_h8,tab_h9,tab_h10 = st.tabs([
         "⚡ 1 · Consumo",
         "🌞 2 · Irradiación",
         "🔆 3 · Panel",
@@ -1058,6 +1068,7 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
         "🔲 7 · Plano Paneles",
         "📋 8 · Diagrama Unifilar",
         "🔌 9 · Cableado",
+        "📷 10 · Sitio y Montaje",
     ])
 
     # ══════════════════════════════════════════════════════════════════════════
@@ -2416,6 +2427,21 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
             st.warning("⚠ El módulo de cableado no está disponible. Verifica que modulo_cableado.py esté en el mismo directorio.")
 
     # ══════════════════════════════════════════════════════════════════════════
+    # TAB H10 — SITIO Y MONTAJE (fotos reales del lugar + disposición óptima)
+    # ══════════════════════════════════════════════════════════════════════════
+    with tab_h10:
+        if _SITIO_DISPONIBLE_HIB:
+            # Sugerir como "paneles a ubicar" el N° real ya dimensionado en el Tab 5
+            if "_datos_pdf_hib" in dir() and _datos_pdf_hib:
+                session_state["calc_num_paneles"] = _datos_pdf_hib.get(
+                    "n_paneles", session_state.get("calc_num_paneles", 10))
+            svg_sitio_hib = mostrar_sitio(proyecto_id, session_state, render_svg_fn=render_svg_hib)
+        else:
+            st.warning(f"⚠ El módulo de sitio no está disponible: **{_SITIO_DISPONIBLE_HIB_ERROR}**. "
+                       "Verifica que `modulo_sitio.py` esté en el mismo directorio.")
+            svg_sitio_hib = None
+
+    # ══════════════════════════════════════════════════════════════════════════
     # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO HÍBRIDO
     # ══════════════════════════════════════════════════════════════════════════
     st.markdown("<hr class='sep' style='margin:2rem 0 1rem;'>", unsafe_allow_html=True)
@@ -2424,8 +2450,9 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
     <div class='info-note'>
         Genera <b>un solo PDF</b> con todo el dimensionamiento HÍBRIDO: cargas y/o recibo,
         dimensionamiento del array, banco de baterías e inversor híbrido,
-        <b>plano de paneles</b> y <b>diagrama unifilar</b>, análisis económico-ambiental
-        y la memoria técnica de <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
+        <b>plano de paneles</b>, <b>diagrama unifilar</b> y <b>plano de montaje sobre la
+        fotografía real del sitio</b>, análisis económico-ambiental y la memoria técnica de
+        <b>cableado</b> (RETIE/IEC) — listo como soporte de lo realizado.
     </div>
     """, unsafe_allow_html=True)
 
@@ -2503,6 +2530,17 @@ def mostrar_hibrido(proyecto_id: int, session_state: dict) -> None:
                             avisos_hib.append("Cableado: visita la pestaña de cableado para calcularlo.")
                     except Exception as e:
                         avisos_hib.append(f"Cableado: {e}")
+
+                    # 6· Plano de montaje sobre fotografía real del sitio
+                    try:
+                        if "svg_sitio_hib" in dir() and svg_sitio_hib:
+                            partes_hib.append(svg_a_pdf_bytes(svg_sitio_hib))
+                            secciones_incluidas_hib.append("Plano de montaje sobre fotografía del sitio")
+                        else:
+                            avisos_hib.append("Plano del sitio: visita la pestaña 10 · Sitio y Montaje, "
+                                               "sube una foto y calcula la disposición.")
+                    except Exception as e:
+                        avisos_hib.append(f"Plano del sitio: {e}")
 
                     portada_hib = pagina_portada(nombre_inf_hib, municipio_inf_hib, "HIBRIDO",
                                                   secciones_incluidas_hib)
