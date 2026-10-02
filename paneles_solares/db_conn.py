@@ -96,7 +96,7 @@ def _get_client():
     with _lock:
         if _client is not None and not _client.closed:
             return _client
-        url = _leer_credencial("TURSO_DATABASE_URL")
+        url = _leer_credencial("libsql://solarcalc-josegar.aws-sa-east-1.turso.io")
         token = _leer_credencial("TURSO_AUTH_TOKEN")
         if not url:
             raise ConfiguracionTursoFaltante(
