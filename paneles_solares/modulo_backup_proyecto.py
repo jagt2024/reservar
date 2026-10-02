@@ -218,10 +218,18 @@ def importar_proyecto(hojas: dict, usuario: dict, nombre_override: str = "",
 
     cols_sql = ",".join(campos.keys())
     placeholders = ",".join("?" * len(campos))
-    conn.execute(f"INSERT INTO proyectos({cols_sql}) VALUES ({placeholders})",
-                 list(campos.values()))
+    # Se usa el lastrowid del propio INSERT (vía cursor()), en vez de un
+    # SELECT last_insert_rowid() en una consulta separada: con Turso, cada
+    # execute() puede viajar como una petición HTTP independiente, así que
+    # no hay garantía de que "la última fila insertada" se recuerde entre
+    # dos llamadas distintas a conn.execute(). El cursor de la propia
+    # inserción, en cambio, siempre trae el id correcto (funciona igual con
+    # sqlite3 local que con db_conn/Turso).
+    cur = conn.cursor()
+    cur.execute(f"INSERT INTO proyectos({cols_sql}) VALUES ({placeholders})",
+                list(campos.values()))
     conn.commit()
-    nuevo_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    nuevo_id = cur.lastrowid
 
     resumen = {"proyecto_id": nuevo_id, "nombre": nombre_final, "tablas": {}}
     for tabla, df in hojas.items():

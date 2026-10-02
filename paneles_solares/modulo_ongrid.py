@@ -9,7 +9,8 @@ Dimensionamiento de sistema fotovoltaico ON-GRID (interconectado a la red):
 """
 
 import streamlit as st
-import sqlite3
+import sqlite3  # se mantiene solo por sqlite3.Row / excepciones, ver db_conn.py
+import db_conn
 import pandas as pd
 import math
 import os
@@ -76,22 +77,17 @@ def calcular_paneles_fv(consumo_wh_dia, hsp, pot_panel_wp, fp=0.80,
             "exceso_pct": exceso, "fp": fp, "hsp": hsp, "pot_panel_wp": pot_panel_wp}
 
 # ─── DB ───────────────────────────────────────────────────────────────────────
-def _db_path() -> str:
-    env = os.environ.get("SOLARCALC_DB_PATH")
-    if env:
-        return env
-    script_dir = pathlib.Path(__file__).parent.resolve()
-    candidate = script_dir / "solar_calc.db"
-    try:
-        t = script_dir / ".wt"; t.touch(); t.unlink()
-        return str(candidate)
-    except Exception:
-        return str(pathlib.Path(tempfile.gettempdir()) / "solar_calc.db")
-
-DB_PATH = _db_path()
+# ─── DB: migrado a Turso (libSQL) vía db_conn.py ────────────────────────
+# Antes esta función resolvía una ruta de archivo local (SOLARCALC_DB_PATH
+# o una carpeta del script) para sqlite3.connect(). En Streamlit Community
+# Cloud ese archivo se pierde en cada reinicio del contenedor (no hay disco
+# persistente), así que ahora se usa Turso a través de db_conn.py, que imita
+# la misma API de sqlite3 para que el resto de este archivo casi no cambie.
+# Configuración necesaria: ver las instrucciones al inicio de db_conn.py.
+DB_PATH = "Turso (libSQL) — ver TURSO_DATABASE_URL"  # solo informativo
 
 def get_conn():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    return db_conn.connect()
 
 # ─── HELPERS MATEMÁTICOS ──────────────────────────────────────────────────────
 def tension_dc_ongrid(consumo_wh: float) -> int:

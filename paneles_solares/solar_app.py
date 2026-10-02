@@ -324,53 +324,25 @@ import pathlib
 import os
 import tempfile
 
-# ─── RUTA PERSISTENTE DE LA BASE DE DATOS ────────────────────────────────────
-# Prioridad:
-#   1. st.secrets["db_path"]       → Streamlit Cloud con storage externo / servidor
-#   2. SOLARCALC_DB_PATH env var   → Docker / systemd / CI
-#   3. Misma carpeta que el script → Local Windows/Mac/Linux (si es escribible)
-#   4. /tmp                        → Fallback Streamlit Cloud (efímero pero funcional)
-def _resolve_db_path() -> str:
-    # 1. Streamlit secrets
-    try:
-        import streamlit as _st
-        if "db_path" in _st.secrets:
-            p = _st.secrets["db_path"]
-            # Asegurar que el directorio padre exista
-            pathlib.Path(p).parent.mkdir(parents=True, exist_ok=True)
-            return p
-    except Exception:
-        pass
+# ─── BASE DE DATOS: TURSO (libSQL) ───────────────────────────────────────────
+# Antes esta sección resolvía una ruta de archivo local para sqlite3.connect()
+# (con una cascada de 4 fallbacks). En Streamlit Community Cloud esa ruta
+# siempre acababa siendo inútil: cualquier archivo escrito en tiempo de
+# ejecución se pierde en cada reinicio del contenedor (no hay disco
+# persistente). Ahora se usa Turso a través de db_conn.py, que imita la
+# misma API de sqlite3 para que el resto de la app casi no cambie.
+#
+# Configuración necesaria (una sola vez): ver las instrucciones al inicio
+# de db_conn.py — variables TURSO_DATABASE_URL / TURSO_AUTH_TOKEN (como
+# variable de entorno, o en Settings → Secrets de Streamlit Community Cloud).
+import db_conn
 
-    # 2. Variable de entorno
-    env_path = os.environ.get("SOLARCALC_DB_PATH")
-    if env_path:
-        pathlib.Path(env_path).parent.mkdir(parents=True, exist_ok=True)
-        return env_path
-
-    # 3. Misma carpeta del script — solo si es escribible
-    script_dir = pathlib.Path(__file__).parent.resolve()
-    candidate  = script_dir / "solar_calc.db"
-    try:
-        # Prueba de escritura sin crear el archivo
-        test_file = script_dir / ".write_test"
-        test_file.touch()
-        test_file.unlink()
-        return str(candidate)
-    except (OSError, PermissionError):
-        pass
-
-    # 4. /tmp — siempre escribible (Streamlit Cloud, contenedores sin volumen)
-    tmp_path = pathlib.Path(tempfile.gettempdir()) / "solar_calc.db"
-    return str(tmp_path)
-
-DB_PATH = _resolve_db_path()
-
-# ── CRÍTICO: fijar env var ANTES de importar módulos externos ─────────────────
-os.environ["SOLARCALC_DB_PATH"] = DB_PATH
+# DB_PATH se conserva solo como texto informativo (se sigue mostrando en el
+# pie de página / logs de arranque, más abajo); ya no es una ruta real.
+DB_PATH = "Turso (libSQL) — ver TURSO_DATABASE_URL"
 
 def get_conn():
-    return sqlite3.connect(DB_PATH, check_same_thread=False)
+    return db_conn.connect()
 
 def init_db():
     conn = get_conn()
@@ -2001,13 +1973,16 @@ with st.sidebar:
                      disabled=_limite_alcanzado):
             if nuevo_nombre.strip():
                 conn = get_conn()
-                conn.execute(
+                _cur_nuevo_proy = conn.execute(
                     "INSERT INTO proyectos(nombre, municipio, creado_por_id, creado_por) "
                     "VALUES(?,?,?,?)",
                     (nuevo_nombre.strip(), nuevo_municipio.strip(),
                      _u.get("id"), _u.get("username")))
                 conn.commit()
-                nuevo_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+                # lastrowid del cursor del propio INSERT, no un SELECT separado
+                # (con Turso no hay garantía de que dos conn.execute() distintos
+                # compartan la misma sesión/estado).
+                nuevo_id = _cur_nuevo_proy.lastrowid
                 conn.close()
                 if usuario_activo():
                     registrar_auditoria(_u["id"], _u["username"], "CREAR_PROYECTO",

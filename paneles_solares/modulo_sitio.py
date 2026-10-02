@@ -20,7 +20,11 @@
 #
 # Requiere únicamente Pillow (ya usada por Streamlit). El análisis con IA es
 # opcional y requiere adicionalmente:  pip install anthropic
-# y la variable de entorno ANTHROPIC_API_KEY configurada.
+# y una clave de API de Anthropic, que puede configurarse de tres formas
+# (en este orden de prioridad): pegándola en la propia interfaz (pestaña
+# "🔑 Configurar clave de API", solo dura la sesión del navegador), la
+# variable de entorno ANTHROPIC_API_KEY, o st.secrets["ANTHROPIC_API_KEY"]
+# (Streamlit Community Cloud). Ver obtener_api_key_anthropic().
 # ══════════════════════════════════════════════════════════════════════════
 
 import base64
@@ -28,17 +32,25 @@ import io
 import json
 import math
 import os
-import sqlite3
 from datetime import datetime
 
 import streamlit as st
 from PIL import Image
 
+# ─── CONEXIÓN A LA BASE DE DATOS ─────────────────────────────────────────────
+# Antes este módulo usaba sqlite3 directo sobre un archivo local
+# (solarcalc.db). En Streamlit Community Cloud ese archivo se pierde cada
+# vez que el contenedor se reinicia (no hay disco persistente), así que
+# ahora se usa Turso (libSQL) a través de db_conn.py, que imita la misma
+# API de sqlite3 (execute/cursor/fetchone/fetchall/commit/close) para que
+# el resto de las funciones de este archivo no tenga que cambiar.
+# Configuración necesaria: ver las instrucciones al inicio de db_conn.py.
+import db_conn
 
-# ─── CONEXIÓN A LA MISMA BASE DE DATOS QUE solar_app.py ─────────────────────
+
+# ─── CONEXIÓN COMPARTIDA (misma base que solar_app.py y los demás módulos) ──
 def _get_conn():
-    db_path = os.environ.get("SOLARCALC_DB_PATH", "solarcalc.db")
-    return sqlite3.connect(db_path, check_same_thread=False)
+    return db_conn.connect()
 
 
 def _ensure_columns(conn, tabla, columnas: dict):
@@ -52,7 +64,7 @@ def _ensure_columns(conn, tabla, columnas: dict):
         if col not in existentes:
             try:
                 conn.execute(f"ALTER TABLE {tabla} ADD COLUMN {col} {definicion}")
-            except sqlite3.OperationalError:
+            except db_conn.OperationalError:
                 pass
 
 
@@ -132,7 +144,7 @@ def guardar_foto(proyecto_id, nombre, imagen_bytes, media_type, ancho_px, alto_p
     conn.execute(
         "INSERT INTO sitio_fotos(proyecto_id,nombre,media_type,imagen,ancho_px,alto_px,notas) "
         "VALUES (?,?,?,?,?,?,?)",
-        (proyecto_id, nombre, media_type, sqlite3.Binary(imagen_bytes), ancho_px, alto_px, notas))
+        (proyecto_id, nombre, media_type, db_conn.Binary(imagen_bytes), ancho_px, alto_px, notas))
     conn.commit()
     conn.close()
 
@@ -337,12 +349,36 @@ def calcular_conexion_electrica(paneles, paneles_por_string, potencia_wp, voc_pa
 
 
 # ─── ANÁLISIS OPCIONAL CON IA (Claude — visión) ────────────────────────────
-def analizar_sitio_ia(imagen_bytes: bytes, media_type: str, contexto: dict) -> dict:
+def obtener_api_key_anthropic(api_key_manual: str = None) -> str:
+    """
+    Resuelve la clave de API de Anthropic a usar, en este orden de prioridad:
+      1) `api_key_manual` — la que el usuario pegó en la interfaz (sesión actual).
+      2) Variable de entorno ANTHROPIC_API_KEY.
+      3) st.secrets["ANTHROPIC_API_KEY"] (Streamlit Community Cloud / secrets.toml).
+    Devuelve None si no se encontró ninguna.
+    """
+    if api_key_manual:
+        return api_key_manual.strip()
+    env_key = os.environ.get("ANTHROPIC_API_KEY")
+    if env_key:
+        return env_key.strip()
+    try:
+        secreto = st.secrets.get("ANTHROPIC_API_KEY")  # no falla si no hay secrets.toml
+        if secreto:
+            return str(secreto).strip()
+    except Exception:
+        pass
+    return None
+
+
+def analizar_sitio_ia(imagen_bytes: bytes, media_type: str, contexto: dict,
+                       api_key_manual: str = None) -> dict:
     """
     Envía la fotografía del sitio a Claude (modelo con visión) para que
     identifique automáticamente el área utilizable, los obstáculos visibles
     y recomiende orientación/inclinación. Requiere el paquete `anthropic`
-    (`pip install anthropic`) y la variable de entorno ANTHROPIC_API_KEY.
+    (`pip install anthropic`) y una clave de API válida — ver
+    `obtener_api_key_anthropic()` para el orden de prioridad de la clave.
     Lanza RuntimeError con un mensaje claro si no está disponible, para que
     la interfaz pueda ofrecer el modo manual sin romperse.
     """
@@ -353,11 +389,12 @@ def analizar_sitio_ia(imagen_bytes: bytes, media_type: str, contexto: dict) -> d
             "El paquete 'anthropic' no está instalado. Ejecuta: pip install anthropic"
         ) from e
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    api_key = obtener_api_key_anthropic(api_key_manual)
     if not api_key:
         raise RuntimeError(
-            "No se encontró la variable de entorno ANTHROPIC_API_KEY. "
-            "Configúrala para habilitar el análisis automático con IA."
+            "No se encontró ninguna clave de API de Anthropic. Pégala en "
+            "'🔑 Configurar clave de API' más abajo, o configura la variable de "
+            "entorno ANTHROPIC_API_KEY."
         )
 
     client = anthropic.Anthropic(api_key=api_key)
@@ -431,6 +468,60 @@ _PALETA_STRINGS = ["#00E676", "#40C4FF", "#FFD54F", "#FF8A65",
                    "#CE93D8", "#80CBC4", "#F48FB1", "#A5D6A7"]
 
 
+def _svg_panel_3d(px, py, pw, ph):
+    """
+    Devuelve el marcado SVG de UN panel solar con apariencia 3D/realista:
+    marco de aluminio (gradiente metálico), celda fotovoltaica con rejilla
+    de celdas, un brillo diagonal de vidrio y una sombra proyectada sutil
+    que da sensación de volumen. Coordenadas/tamaño en unidades del viewBox
+    (px, py = esquina superior izquierda del panel).
+
+    Nota: no se usan filtros SVG (feGaussianBlur, etc.) para que el mismo
+    plano se vea igual tanto en el navegador como al convertirse a PDF
+    (svglib/reportlab no soportan bien los filtros SVG).
+    """
+    pw = max(pw - 2, 4)
+    ph = max(ph - 2, 4)
+    marco = max(1.2, min(pw, ph) * 0.07)
+    cx, cy = px + marco, py + marco
+    cw, ch = max(pw - 2 * marco, 1), max(ph - 2 * marco, 1)
+
+    # Sombra proyectada (da sensación de que el panel está "elevado" del techo)
+    sombra = (f'<rect x="{px+2.2:.1f}" y="{py+3:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
+              f'fill="#000000" opacity="0.28" rx="2"/>')
+
+    # Marco metálico (aluminio)
+    marco_svg = (f'<rect x="{px:.1f}" y="{py:.1f}" width="{pw:.1f}" height="{ph:.1f}" '
+                 f'fill="url(#frameGrad)" stroke="#3A4250" stroke-width="1" rx="2"/>')
+
+    # Celda fotovoltaica (vidrio + silicio)
+    celda_svg = (f'<rect x="{cx:.1f}" y="{cy:.1f}" width="{cw:.1f}" height="{ch:.1f}" '
+                 f'fill="url(#panelGrad)" stroke="#06101F" stroke-width="0.8"/>')
+
+    # Rejilla de celdas (líneas finas, típico de un panel monocristalino)
+    n_cols = 6
+    n_filas = max(4, min(14, round(n_cols * (ch / cw)))) if cw > 0 else 6
+    lineas = []
+    for c in range(1, n_cols):
+        lx = cx + cw * c / n_cols
+        lineas.append(f'<line x1="{lx:.1f}" y1="{cy:.1f}" x2="{lx:.1f}" y2="{cy+ch:.1f}" '
+                       f'stroke="#FFFFFF" stroke-width="0.5" opacity="0.22"/>')
+    for r in range(1, n_filas):
+        ly = cy + ch * r / n_filas
+        lineas.append(f'<line x1="{cx:.1f}" y1="{ly:.1f}" x2="{cx+cw:.1f}" y2="{ly:.1f}" '
+                       f'stroke="#FFFFFF" stroke-width="0.4" opacity="0.16"/>')
+
+    # Brillo diagonal de vidrio (da el efecto de reflejo/3D)
+    bx1, by1 = cx, cy
+    bx2, by2 = cx + cw * 0.55, cy
+    bx3, by3 = cx + cw * 0.18, cy + ch
+    bx4, by4 = cx, cy + ch * 0.65
+    brillo = (f'<polygon points="{bx1:.1f},{by1:.1f} {bx2:.1f},{by2:.1f} '
+              f'{bx3:.1f},{by3:.1f} {bx4:.1f},{by4:.1f}" fill="#FFFFFF" opacity="0.10"/>')
+
+    return sombra + marco_svg + celda_svg + "".join(lineas) + brillo
+
+
 def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
                              area_pct, obstaculos_pct, disposicion,
                              titulo="PLANO DE MONTAJE SOBRE FOTOGRAFÍA DEL SITIO",
@@ -472,9 +563,7 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
         pw_pct = (pwm / ancho_real_m) * area_pct["w"] if ancho_real_m else 0
         ph_pct = (phm / alto_real_m) * area_pct["h"] if alto_real_m else 0
         px, py, pw, ph = pct_to_px(px_pct, py_pct, pw_pct, ph_pct)
-        panel_svg.append(f"""
-            <rect x="{px:.1f}" y="{py:.1f}" width="{max(pw-2,1):.1f}" height="{max(ph-2,1):.1f}"
-                  fill="url(#panelGrad)" stroke="#0A0E1A" stroke-width="1.5" rx="2"/>""")
+        panel_svg.append(_svg_panel_3d(px, py, pw, ph))
 
     n_ubic = disposicion.get("n_ubicados", 0)
     n_req  = disposicion.get("n_requeridos", 0)
@@ -546,9 +635,14 @@ def generar_svg_plano_sitio(imagen_bytes, media_type, ancho_real_m, alto_real_m,
       <line x1="0" y1="0" x2="0" y2="8" stroke="#FF5252" stroke-width="1.5"/>
     </pattern>
     <linearGradient id="panelGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#1565C0"/>
-      <stop offset="55%" stop-color="#0D47A1"/>
-      <stop offset="100%" stop-color="#0A2E5C"/>
+      <stop offset="0%" stop-color="#1E6FD9"/>
+      <stop offset="45%" stop-color="#0D47A1"/>
+      <stop offset="100%" stop-color="#081F42"/>
+    </linearGradient>
+    <linearGradient id="frameGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F1F3F6"/>
+      <stop offset="45%" stop-color="#B7C0CC"/>
+      <stop offset="100%" stop-color="#5B6472"/>
     </linearGradient>
   </defs>
 
@@ -697,11 +791,12 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
                     "✅ Fotografía guardada correctamente. Selecciónala en la lista de abajo "
                     "para configurarla.")
                 st.rerun()
+            except db_conn.ConfiguracionTursoFaltante as e:
+                st.error(f"❌ {e}")
             except Exception as e:
                 st.error(f"❌ No se pudo guardar la fotografía en la base de datos "
-                          f"({type(e).__name__}: {e}). Si esto ocurre solo en el servidor web, "
-                          "verifica que la carpeta de la app tenga permisos de escritura y que "
-                          "la variable de entorno SOLARCALC_DB_PATH apunte a una ruta persistente.")
+                          f"({type(e).__name__}: {e}). Verifica que TURSO_DATABASE_URL y "
+                          "TURSO_AUTH_TOKEN estén bien configurados en Settings → Secrets.")
 
     fotos = listar_fotos(proyecto_id)
     if not fotos:
@@ -765,8 +860,49 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
     st.markdown("<div class='sol-card-title' style='font-size:1.05rem;'>🤖 Análisis automático con IA (opcional)</div>",
                 unsafe_allow_html=True)
     st.caption("Usa Claude (visión) para detectar el área utilizable, los obstáculos y la "
-               "orientación/inclinación recomendadas directamente desde la fotografía. "
-               "Requiere `pip install anthropic` y la variable de entorno `ANTHROPIC_API_KEY`.")
+               "orientación/inclinación recomendadas directamente desde la fotografía.")
+
+    # ── Configuración de la clave de API (sin depender de variables de entorno) ─
+    with st.expander("🔑 Configurar clave de API de Anthropic", expanded=False):
+        st.markdown(
+            "Necesitas una **clave de API de Anthropic** para usar el análisis con IA "
+            "(se crea gratis en [console.anthropic.com](https://console.anthropic.com) → "
+            "*API Keys*). Pégala aquí abajo — **se usa solo en esta sesión del navegador, "
+            "no se guarda en ningún archivo ni base de datos.**")
+        clave_input = st.text_input(
+            "Clave de API (empieza con sk-ant-...)", type="password",
+            value=session_state.get("st13_api_key_manual", ""), key="st13_api_key_input")
+        if clave_input:
+            session_state["st13_api_key_manual"] = clave_input
+
+        clave_activa = obtener_api_key_anthropic(session_state.get("st13_api_key_manual"))
+        if clave_activa:
+            origen = ("pegada en esta sesión" if session_state.get("st13_api_key_manual")
+                      else "variable de entorno / secrets del servidor")
+            st.success(f"✅ Clave detectada (…{clave_activa[-4:]}) — origen: {origen}.")
+        else:
+            st.warning("⚠ Todavía no hay ninguna clave configurada. Pégala arriba, o "
+                       "configúrala de forma permanente así:")
+            st.markdown("""
+- **Windows (PowerShell)** — abre PowerShell y ejecuta, luego **reinicia** la terminal/IDE:
+  ```
+  setx ANTHROPIC_API_KEY "sk-ant-tu-clave-aqui"
+  ```
+- **Windows (por la interfaz gráfica)**: Panel de Control → Sistema → Configuración
+  avanzada del sistema → Variables de entorno → *Nueva…* → Nombre `ANTHROPIC_API_KEY`,
+  Valor: tu clave. Cierra y vuelve a abrir la terminal/IDE para que tome el cambio.
+- **Linux / macOS**: agrega esta línea a tu `~/.bashrc` o `~/.zshrc` y abre una terminal nueva:
+  ```
+  export ANTHROPIC_API_KEY="sk-ant-tu-clave-aqui"
+  ```
+- **Streamlit Community Cloud**: en el panel de tu app → *Settings → Secrets*, agrega:
+  ```
+  ANTHROPIC_API_KEY = "sk-ant-tu-clave-aqui"
+  ```
+- **Otro hosting web**: busca la sección "Environment Variables" / "Config Vars" del
+  panel de tu proveedor y agrega `ANTHROPIC_API_KEY` con tu clave como valor.
+            """)
+
     n_paneles_sugerido = int(session_state.get("calc_num_paneles", 10) or 10)
     if st.button("🤖 Analizar sitio con IA", key=f"st13_ia_{foto['id']}"):
         with st.spinner("Analizando la fotografía con IA..."):
@@ -778,7 +914,9 @@ def mostrar_sitio(proyecto_id, session_state, render_svg_fn=None):
                     "alto_panel_m": session_state.get("st13_alto_panel_m", 2.28),
                     "municipio": session_state.get("proyecto_municipio", "Colombia"),
                 }
-                resultado_ia = analizar_sitio_ia(imagen_bytes, media_type, contexto)
+                resultado_ia = analizar_sitio_ia(
+                    imagen_bytes, media_type, contexto,
+                    api_key_manual=session_state.get("st13_api_key_manual"))
                 session_state["st13_ia_resultado"] = resultado_ia
                 st.success(
                     f"✅ IA: orientación recomendada **{resultado_ia.get('orientacion_recomendada','—')}**, "

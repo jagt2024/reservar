@@ -1,30 +1,24 @@
 """
 db_utils.py — Conexión compartida de base de datos para SolarCalc Pro
 
-ARQUITECTURA:
-- solar_app.py resuelve DB_PATH y lo fija en os.environ["SOLARCALC_DB_PATH"]
-- Este módulo SIEMPRE lee esa variable de entorno
-- Si la variable aún no está seteada (import antes de solar_app), usa /tmp
-- get_conn() crea las tablas si no existen en cada llamada desde módulos externos
+ARQUITECTURA (migrado a Turso):
+- Antes este módulo abría sqlite3.connect() sobre un archivo local
+  (resuelto vía SOLARCALC_DB_PATH, fijado por solar_app.py). En Streamlit
+  Community Cloud ese archivo se pierde en cada reinicio del contenedor
+  (no hay disco persistente), así que ahora se usa Turso (libSQL) a
+  través de db_conn.py, que imita la misma API de sqlite3 (execute,
+  cursor, fetchone/fetchall, row_factory, executemany, commit, close,
+  excepciones) para que el resto de este archivo casi no cambie.
+- get_conn() sigue creando las tablas si no existen en cada llamada,
+  exactamente igual que antes.
+- Configuración necesaria: ver las instrucciones al inicio de db_conn.py
+  (variables TURSO_DATABASE_URL / TURSO_AUTH_TOKEN).
 """
-import sqlite3
-import os
-import pathlib
-import tempfile
-
-
-def _get_db_path() -> str:
-    """Lee la ruta fijada por solar_app.py. Nunca resuelve por sí solo."""
-    p = os.environ.get("SOLARCALC_DB_PATH", "")
-    if p and p.strip():
-        return p.strip()
-    # Fallback solo si solar_app aún no se ejecutó (no debería pasar en producción)
-    return str(pathlib.Path(tempfile.gettempdir()) / "solar_calc.db")
+import db_conn
 
 
 def get_conn():
-    db_path = _get_db_path()
-    conn = sqlite3.connect(db_path, check_same_thread=False)
+    conn = db_conn.connect()
     _ensure_tables(conn)
     return conn
 
@@ -123,9 +117,11 @@ def init_modulos_db():
     conn.close()
 
 
-# Exponer DB_PATH como función para compatibilidad
+# Compatibilidad: nada en el código usa esto directamente (se verificó),
+# pero se deja por si algo externo llegara a llamarlo — ya no hay una
+# "ruta de archivo" real porque los datos viven en Turso, no en disco local.
 def get_db_path() -> str:
-    return _get_db_path()
+    return "(usando Turso vía db_conn.py — ya no aplica una ruta de archivo local)"
 
 
-DB_PATH = _get_db_path()
+DB_PATH = get_db_path()

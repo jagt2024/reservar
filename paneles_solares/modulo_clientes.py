@@ -141,7 +141,7 @@ def init_clientes_db():
 def crear_cliente(datos: dict, usuario: dict) -> int:
     conn = get_conn()
     ahora = _now()
-    conn.execute("""
+    c = conn.execute("""
         INSERT INTO clientes
             (nombre, tipo_persona, documento, email, telefono, direccion,
              municipio, departamento, etapa, fuente, valor_estimado,
@@ -159,7 +159,10 @@ def crear_cliente(datos: dict, usuario: dict) -> int:
         usuario["id"], usuario["username"], datos.get("notas", ""), ahora, ahora,
     ))
     conn.commit()
-    nuevo_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    # lastrowid del cursor del propio INSERT, no un SELECT separado (ver
+    # nota en modulo_backup_proyecto.py: con Turso no hay garantía de que
+    # dos conn.execute() distintos compartan la misma sesión/estado).
+    nuevo_id = c.lastrowid
     conn.close()
     return nuevo_id
 

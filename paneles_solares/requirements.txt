@@ -13,12 +13,32 @@ numpy>=1.24.0
 # ── Exportación de archivos ───────────────────────────────────────────────────
 reportlab>=4.0.0
 openpyxl>=3.1.0
-python-docx>=1.1.0
 svglib>=2.2.0
-pypdf 
+pypdf
 
 # ── Utilidades ────────────────────────────────────────────────────────────────
 Pillow>=10.0.0
 yagmail
-psycopg2-binary
+
+# ── Base de datos: Turso (libSQL) — persistencia en Streamlit Community Cloud ─
+# Usado por db_conn.py (capa de compatibilidad con sqlite3) para que los datos
+# del proyecto (y las fotos del sitio) no se pierdan cuando el contenedor se
+# reinicia. Requiere configurar TURSO_DATABASE_URL / TURSO_AUTH_TOKEN — ver
+# las instrucciones al inicio de db_conn.py.
+libsql-client>=0.3.1
+
+# ── IA opcional: análisis automático de fotos del sitio (modulo_sitio.py) ────
+# Solo se usa si el usuario activa "Analizar sitio con IA" y configura una
+# clave de API de Anthropic (ver obtener_api_key_anthropic() en modulo_sitio.py).
+# El resto de la app funciona igual sin esta clave configurada.
+anthropic>=0.40.0
+
+# ── streamlit-autorefresh ya estaba instalada arriba (primera sección) ──────
+# (usada por modulo_monitoreo.py vía `from streamlit_autorefresh import st_autorefresh`)
+
+# ── NOTA: no se encontró ningún uso de estos dos paquetes en el código actual.
+# Se dejan comentados en vez de borrarlos, por si los necesita algún módulo
+# que no esté en este repaso — descomenta el que sí estés usando:
+# python-docx>=1.1.0   # generación de documentos Word
+# psycopg2-binary      # conexión a PostgreSQL
 
