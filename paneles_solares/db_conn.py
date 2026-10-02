@@ -96,12 +96,12 @@ def _get_client():
     with _lock:
         if _client is not None and not _client.closed:
             return _client
-        url = _leer_credencial(st.secrets.get("TURSO_DATABASE_URL"))
-        token = _leer_credencial(st.secrets.get("TURSO_AUTH_TOKEN"))
+        url = _leer_credencial("TURSO_DATABASE_URL")
+        token = _leer_credencial("TURSO_AUTH_TOKEN")
         if not url:
             raise ConfiguracionTursoFaltante(
                 "Falta configurar TURSO_DATABASE_URL (y TURSO_AUTH_TOKEN) como variable de "
-                "entorno o en st.secrets. Ve a https://turso.tech, crea una base de datos "
+                "entorno o en st.secrets. Ve a http://turso.tech, crea una base de datos "
                 "gratuita, y agrega esas dos claves en Settings → Secrets de tu app en "
                 "Streamlit Community Cloud.")
         _client = libsql_client.create_client_sync(url=url, auth_token=token)
