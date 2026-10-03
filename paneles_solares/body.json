@@ -1,0 +1,1 @@
+{"requests":[{"type":"execute","stmt":{"sql":"SELECT 1"}},{"type":"close"}]}

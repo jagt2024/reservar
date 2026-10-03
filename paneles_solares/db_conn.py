@@ -238,14 +238,41 @@ class ClienteTursoHTTP:
 
 # ─── Resolución de credenciales (env var o st.secrets) ──────────────────────
 def _leer_credencial(nombre: str):
+    """
+    Lee una credencial de entorno o st.secrets, siempre con .strip(): un
+    espacio o salto de línea pegado por accidente al copiar un token hace
+    que el servidor lo rechace con un error de JWT poco claro ("JWT error:
+    InvalidToken"), así que se quita aquí para no tener que depurarlo cada
+    vez.
+
+    También tolera un error de formato común en secrets.toml: escribir
+        [NOMBRE]
+        NOMBRE = "valor"
+    (una SECCIÓN con el mismo nombre) en vez de simplemente
+        NOMBRE = "valor"
+    En TOML eso crea una tabla anidada, así que st.secrets.get(nombre)
+    devuelve un objeto tipo diccionario en vez del texto esperado — y
+    convertirlo a texto con str(...) produce algo como "{'NOMBRE': '...'}",
+    que ya no es ni una URL ni un token válidos. Aquí se detecta ese caso
+    y se recupera igual el valor de adentro, para que la app funcione
+    aunque el secrets.toml esté mal formateado — pero lo correcto es
+    corregirlo (quitar la línea "[NOMBRE]", dejar solo NOMBRE = "valor").
+    """
     valor = os.environ.get(nombre)
-    if valor:
-        return valor
+    if valor and valor.strip():
+        return valor.strip()
     if st is not None:
         try:
             valor = st.secrets.get(nombre)
-            if valor:
-                return str(valor)
+            if valor is None:
+                return None
+            if hasattr(valor, "get") and not isinstance(valor, str):
+                anidado = valor.get(nombre)  # ver nota sobre [NOMBRE] mal formateado arriba
+                if anidado and str(anidado).strip():
+                    return str(anidado).strip()
+                return None
+            if str(valor).strip():
+                return str(valor).strip()
         except Exception:
             pass
     return None

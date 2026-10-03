@@ -57,9 +57,11 @@ def parse_args(argv=None):
         description="Migra una base SQLite local a Turso (libSQL), una sola vez.")
     p.add_argument("--local", default="solar_calc.db",
                     help="Ruta al archivo .db local a migrar (default: solar_calc.db)")
-    p.add_argument("--url", default=os.environ.get("TURSO_DATABASE_URL"),
+    # .strip(): un espacio o salto de línea pegado por accidente al copiar
+    # el token hace que el servidor lo rechace con "JWT error: InvalidToken".
+    p.add_argument("--url", default=(os.environ.get("TURSO_DATABASE_URL") or "").strip() or None,
                     help="URL de la base de Turso (o variable de entorno TURSO_DATABASE_URL)")
-    p.add_argument("--token", default=os.environ.get("TURSO_AUTH_TOKEN"),
+    p.add_argument("--token", default=(os.environ.get("TURSO_AUTH_TOKEN") or "").strip() or None,
                     help="Auth token de Turso (o variable de entorno TURSO_AUTH_TOKEN)")
     p.add_argument("--tablas", default=None,
                     help="Lista opcional separada por comas para migrar solo esas tablas "
@@ -92,7 +94,8 @@ def conectar_turso(url, token):
     if not url:
         print("❌ Falta la URL de Turso. Pásala con --url o define TURSO_DATABASE_URL.")
         sys.exit(1)
-    url = _normalizar_url_turso(url)
+    url = _normalizar_url_turso(url.strip())
+    token = token.strip() if token else token
     cliente = ClienteTursoHTTP(url=url, auth_token=token)
     try:
         cliente.execute("SELECT 1")  # prueba real de conexión antes de seguir
