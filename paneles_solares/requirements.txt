@@ -20,12 +20,13 @@ pypdf
 Pillow>=10.0.0
 yagmail
 
-# ── Base de datos: Turso (libSQL) — persistencia en Streamlit Community Cloud ─
-# Usado por db_conn.py (capa de compatibilidad con sqlite3) para que los datos
-# del proyecto (y las fotos del sitio) no se pierdan cuando el contenedor se
-# reinicia. Requiere configurar TURSO_DATABASE_URL / TURSO_AUTH_TOKEN — ver
-# las instrucciones al inicio de db_conn.py.
-libsql-client>=0.3.1
+# ── Base de datos: Turso — persistencia en Streamlit Community Cloud ────────
+# db_conn.py habla directamente el protocolo HTTP de Turso (Hrana v2) usando
+# solo la librería estándar de Python — por eso ya NO hace falta el paquete
+# `libsql-client` (se quitó de aquí intencionalmente: dio dos fallos de
+# conexión distintos y opacos contra el servidor real, ver notas en
+# db_conn.py). Solo falta configurar TURSO_DATABASE_URL / TURSO_AUTH_TOKEN —
+# ver las instrucciones al inicio de db_conn.py.
 
 # ── IA opcional: análisis automático de fotos del sitio (modulo_sitio.py) ────
 # Solo se usa si el usuario activa "Analizar sitio con IA" y configura una

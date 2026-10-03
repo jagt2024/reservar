@@ -32,13 +32,18 @@ import sqlite3
 import sys
 import time
 
-TURSO_DATABASE_URL= "libsql://solarcalc-josegar.aws-sa-east-1.turso.io"
+# NOTA DE SEGURIDAD: las credenciales de Turso NUNCA van escritas literalmente
+# aquí. Se leen solo de variables de entorno (TURSO_DATABASE_URL /
+# TURSO_AUTH_TOKEN) o de los argumentos --url / --token en la línea de
+# comandos — ver parse_args() más abajo.
 
-
+# Usa el mismo cliente HTTP propio que db_conn.py (protocolo Hrana v2 de
+# Turso, sin depender del paquete `libsql-client`, que falló de formas
+# distintas y opacas contra el servidor real — ver notas en db_conn.py).
 try:
-    import libsql_client
+    from db_conn import ClienteTursoHTTP, LibsqlError
 except ImportError:
-    print("❌ Falta el paquete 'libsql-client'. Instálalo con:\n    pip install libsql-client")
+    print("❌ No se encontró db_conn.py. Debe estar en la misma carpeta que este script.")
     sys.exit(1)
 
 
@@ -52,7 +57,7 @@ def parse_args(argv=None):
         description="Migra una base SQLite local a Turso (libSQL), una sola vez.")
     p.add_argument("--local", default="solar_calc.db",
                     help="Ruta al archivo .db local a migrar (default: solar_calc.db)")
-    p.add_argument("--url", default=os.environ.get("libsql://solarcalc-josegar.aws-sa-east-1.turso.io"),
+    p.add_argument("--url", default=os.environ.get("TURSO_DATABASE_URL"),
                     help="URL de la base de Turso (o variable de entorno TURSO_DATABASE_URL)")
     p.add_argument("--token", default=os.environ.get("TURSO_AUTH_TOKEN"),
                     help="Auth token de Turso (o variable de entorno TURSO_AUTH_TOKEN)")
@@ -74,12 +79,29 @@ def conectar_local(ruta):
     return sqlite3.connect(ruta)
 
 
+def _normalizar_url_turso(url: str) -> str:
+    """El cliente HTTP necesita "https://", no "libsql://" (ver notas en
+    db_conn.py). Mismo host, mismo puerto — solo cambia el esquema."""
+    if url and url.startswith("libsql://"):
+        return "https://" + url[len("libsql://"):]
+    return url
+
+
 # ─── Conexión a Turso (inyectable para pruebas, ver tests) ──────────────────
 def conectar_turso(url, token):
     if not url:
         print("❌ Falta la URL de Turso. Pásala con --url o define TURSO_DATABASE_URL.")
         sys.exit(1)
-    return libsql_client.create_client_sync(url=url, auth_token=token)
+    url = _normalizar_url_turso(url)
+    cliente = ClienteTursoHTTP(url=url, auth_token=token)
+    try:
+        cliente.execute("SELECT 1")  # prueba real de conexión antes de seguir
+    except LibsqlError as e:
+        print(f"❌ No se pudo conectar a Turso en '{url}': {e}")
+        print("   Verifica que la URL y el token sean correctos y estén vigentes "
+              "(un token revocado o una URL mal copiada producen este mismo error).")
+        sys.exit(1)
+    return cliente
 
 
 # ─── Esquema y filtrado de tablas ───────────────────────────────────────────
