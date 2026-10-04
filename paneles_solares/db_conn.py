@@ -59,13 +59,13 @@
 # ══════════════════════════════════════════════════════════════════════════
 
 import base64
+import http.client
 import json
 import os
 import sqlite3  # SOLO para reutilizar sus clases de excepción y sqlite3.Row;
                  # ya no se usa sqlite3.connect() en ningún lado de este módulo.
 import threading
-import urllib.error
-import urllib.request
+import urllib.parse
 
 try:
     import streamlit as st
@@ -148,35 +148,68 @@ class ClienteTursoHTTP:
     execute(sql, args), batch(stmts) y close() — la misma interfaz que
     usaba libsql_client.ClientSync, así que _Cursor/Connection más abajo
     no necesitan cambiar.
+
+    Mantiene UNA conexión TCP/TLS abierta y la reutiliza entre llamadas
+    (keep-alive), en vez de abrir una nueva por cada consulta. La primera
+    versión usaba urllib.request.urlopen() para cada llamada, que abre un
+    socket y hace el handshake TLS desde cero cada vez — eso es rápido en
+    una red local, pero contra un servidor remoto (Turso) ese handshake
+    repetido en cada una de las decenas de consultas que hace la app en
+    cada "rerun" de Streamlit era la causa principal de la lentitud.
     """
     def __init__(self, url: str, auth_token: str, timeout: float = 15.0):
-        self._endpoint = url.rstrip("/") + "/v2/pipeline"
+        partes = urllib.parse.urlsplit(url)
+        self._scheme = partes.scheme
+        self._host = partes.hostname
+        self._port = partes.port or (443 if self._scheme == "https" else 80)
+        self._path = (partes.path.rstrip("/") if partes.path else "") + "/v2/pipeline"
         self._token = auth_token
         self._timeout = timeout
         self.closed = False
+        self._conn_http = None  # http.client.HTTPSConnection, se crea perezosamente
+        self._lock = threading.Lock()  # una sola conexión compartida: una petición a la vez
+
+    def _abrir_conexion_http(self):
+        cls = http.client.HTTPSConnection if self._scheme == "https" else http.client.HTTPConnection
+        return cls(self._host, self._port, timeout=self._timeout)
 
     def _post(self, requests_hrana: list) -> dict:
         body = json.dumps({"baton": None, "requests": requests_hrana}).encode("utf-8")
-        req = urllib.request.Request(
-            self._endpoint, data=body, method="POST",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {self._token}",
-            })
-        try:
-            with urllib.request.urlopen(req, timeout=self._timeout) as resp:
-                crudo = resp.read().decode("utf-8", errors="replace")
-        except urllib.error.HTTPError as e:
-            crudo_error = e.read().decode("utf-8", errors="replace")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self._token}",
+        }
+
+        with self._lock:
+            for intento in (1, 2):
+                try:
+                    if self._conn_http is None:
+                        self._conn_http = self._abrir_conexion_http()
+                    self._conn_http.request("POST", self._path, body=body, headers=headers)
+                    resp = self._conn_http.getresponse()
+                    crudo = resp.read().decode("utf-8", errors="replace")
+                    estado = resp.status
+                    break
+                except (http.client.HTTPException, OSError) as e:
+                    # La conexión persistente puede haberse caído (p. ej. el
+                    # servidor cerró un socket inactivo). Se descarta y se
+                    # reintenta UNA vez con una conexión nueva antes de
+                    # darse por vencido.
+                    try:
+                        if self._conn_http is not None:
+                            self._conn_http.close()
+                    except Exception:
+                        pass
+                    self._conn_http = None
+                    if intento == 2:
+                        raise LibsqlError(
+                            f"No se pudo conectar a {self._host}:{self._port}{self._path}: "
+                            f"{type(e).__name__}: {e}", "CONNECTION_ERROR") from e
+
+        if estado != 200:
             raise LibsqlError(
-                f"El servidor Turso respondió HTTP {e.code} en {self._endpoint}. "
-                f"Cuerpo de la respuesta: {crudo_error[:1000]}",
-                f"HTTP_{e.code}",
-            ) from e
-        except urllib.error.URLError as e:
-            raise LibsqlError(
-                f"No se pudo conectar a {self._endpoint}: {e.reason}", "CONNECTION_ERROR"
-            ) from e
+                f"El servidor Turso respondió HTTP {estado} en {self._path}. "
+                f"Cuerpo de la respuesta: {crudo[:1000]}", f"HTTP_{estado}")
 
         try:
             data = json.loads(crudo)
@@ -233,6 +266,13 @@ class ClienteTursoHTTP:
         return resultados
 
     def close(self):
+        with self._lock:
+            if self._conn_http is not None:
+                try:
+                    self._conn_http.close()
+                except Exception:
+                    pass
+                self._conn_http = None
         self.closed = True
 
 

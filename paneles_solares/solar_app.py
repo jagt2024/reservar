@@ -542,7 +542,6 @@ from modulo_seguridad import (
     mostrar_gestion_usuarios, mostrar_cambio_password,
     tiene_permiso, usuario_activo, registrar_auditoria, ROLES,
 )
-init_seguridad_db()
 
 # ─── Módulo de cableado ──────────────────────────────────────────────────────
 from modulo_cableado import mostrar_cableado, generar_pdf_cableado
@@ -559,15 +558,34 @@ except Exception as _e_inf:
 # ─── Módulo de monitoreo de sesiones (solo administradores) ─────────────────
 from modulo_monitoreo import (init_monitoreo_db, registrar_latido,
                                verificar_expulsion, mostrar_widget_chat_usuario)
-init_monitoreo_db()
 
 # ─── Módulo de gestión de clientes (CRM) ─────────────────────────────────────
 from modulo_clientes import init_clientes_db
-init_clientes_db()
 
 # ─── Módulo de sitio y montaje (fotos del lugar + disposición óptima) ───────
 from modulo_sitio import init_sitio_db, mostrar_sitio
-init_sitio_db()
+
+
+# ─── Inicialización del esquema: UNA sola vez por proceso, no en cada rerun ─
+# init_db() y las demás init_*_db() solo crean tablas "IF NOT EXISTS", así
+# que repetirlas en cada rerun era seguro pero innecesario con sqlite3 local
+# (consultas instantáneas). Contra Turso, cada una es un viaje de red
+# completo — con 5 funciones de inicialización, eso son 5 viajes de red
+# de más en CADA interacción con la app. st.cache_resource ejecuta esta
+# función una sola vez por proceso del servidor (se comparte entre todas
+# las sesiones/usuarios), exactamente lo que se necesita para un setup que
+# solo debe correr una vez.
+@st.cache_resource
+def _inicializar_esquema_una_vez():
+    init_db()
+    init_seguridad_db()
+    init_monitoreo_db()
+    init_clientes_db()
+    init_sitio_db()
+    return True
+
+
+_inicializar_esquema_una_vez()
 
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys
@@ -1874,15 +1892,26 @@ with st.sidebar:
     # Un proyecto solo lo puede ver/cargar quien lo creó, o un administrador.
     _es_admin_proy = tiene_permiso("ver_usuarios")
 
-    conn = get_conn()
-    if _es_admin_proy:
-        proyectos_df = pd.read_sql(
-            "SELECT id, nombre, creado_por FROM proyectos ORDER BY id DESC", conn)
-    else:
-        proyectos_df = pd.read_sql(
-            "SELECT id, nombre, creado_por FROM proyectos "
-            "WHERE creado_por_id=? ORDER BY id DESC", conn, params=(_u.get("id"),))
-    conn.close()
+    # Esta consulta se ejecuta en CADA interacción con la app (el sidebar se
+    # vuelve a correr en cada "rerun" de Streamlit, sin importar qué pestaña
+    # esté activa), así que se cachea unos segundos — con la base de datos
+    # local (sqlite3) esto no hacía falta, pero contra Turso cada consulta es
+    # un viaje de red completo. Se invalida explícitamente al crear/eliminar
+    # un proyecto (ver más abajo) para que el dropdown se actualice al
+    # instante en vez de esperar a que venza el caché.
+    @st.cache_data(ttl=15, show_spinner=False)
+    def _listar_proyectos_sidebar(es_admin: bool, usuario_id):
+        _c = get_conn()
+        if es_admin:
+            _df = pd.read_sql("SELECT id, nombre, creado_por FROM proyectos ORDER BY id DESC", _c)
+        else:
+            _df = pd.read_sql(
+                "SELECT id, nombre, creado_por FROM proyectos "
+                "WHERE creado_por_id=? ORDER BY id DESC", _c, params=(usuario_id,))
+        _c.close()
+        return _df
+
+    proyectos_df = _listar_proyectos_sidebar(_es_admin_proy, _u.get("id"))
 
     opciones = ["── Seleccionar proyecto ──"] + \
                [f"{r['id']} | {r['nombre']}" for _, r in proyectos_df.iterrows()]
@@ -1984,6 +2013,7 @@ with st.sidebar:
                 # compartan la misma sesión/estado).
                 nuevo_id = _cur_nuevo_proy.lastrowid
                 conn.close()
+                _listar_proyectos_sidebar.clear()  # para que aparezca de inmediato en el dropdown
                 if usuario_activo():
                     registrar_auditoria(_u["id"], _u["username"], "CREAR_PROYECTO",
                                         f"Proyecto #{nuevo_id} '{nuevo_nombre.strip()}' creado",
@@ -2029,6 +2059,7 @@ with st.sidebar:
                     conn.execute("DELETE FROM proyectos  WHERE id=?",          (proyecto_id,))
                     conn.commit()
                     conn.close()
+                    _listar_proyectos_sidebar.clear()  # para que desaparezca de inmediato del dropdown
                     if usuario_activo():
                         _u2 = usuario_activo()
                         registrar_auditoria(
