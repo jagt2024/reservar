@@ -12,13 +12,19 @@
 # filas que ya existan en Turso (mismo ID) simplemente se saltan.
 #
 # USO:
-#   1) Instala la dependencia (una vez):
-#        pip install libsql-client
-#   2) Define las credenciales de tu base de Turso, por variable de entorno:
-#        export TURSO_DATABASE_URL="libsql://tu-base-xxxx.turso.io"   (Linux/Mac)
-#        setx TURSO_DATABASE_URL "libsql://tu-base-xxxx.turso.io"     (Windows)
-#        export TURSO_AUTH_TOKEN="tu-token-aqui"
-#      … o pásalas directamente como argumentos (ver --url / --token abajo).
+#   1) No necesita instalar nada aparte de lo que ya usa db_conn.py (debe
+#      estar en la misma carpeta que este script).
+#   2) Las credenciales de Turso se leen, en este orden de prioridad
+#      (la primera que se encuentre gana):
+#        a) --url / --token directamente en la línea de comandos (ver abajo).
+#        b) Variable de entorno:
+#             export TURSO_DATABASE_URL="libsql://tu-base-xxxx.turso.io"   (Linux/Mac)
+#             setx TURSO_DATABASE_URL "libsql://tu-base-xxxx.turso.io"     (Windows;
+#                 nota: setx solo aplica a terminales NUEVAS, no a la que ya tenías abierta)
+#             export TURSO_AUTH_TOKEN="tu-token-aqui"
+#        c) .streamlit/secrets.toml, si ya lo usas para tu app Streamlit:
+#             TURSO_DATABASE_URL = "libsql://tu-base-xxxx.turso.io"
+#             TURSO_AUTH_TOKEN = "tu-token-aqui"
 #   3) Ejecuta:
 #        python migrar_a_turso.py --local solar_calc.db
 #
@@ -40,8 +46,13 @@ import time
 # Usa el mismo cliente HTTP propio que db_conn.py (protocolo Hrana v2 de
 # Turso, sin depender del paquete `libsql-client`, que falló de formas
 # distintas y opacas contra el servidor real — ver notas en db_conn.py).
+# También reutiliza su lector de credenciales (_leer_credencial): además
+# de variables de entorno, así este script puede leer directamente de
+# .streamlit/secrets.toml (si ya tienes las claves guardadas ahí, no hace
+# falta exportarlas aparte), con el mismo .strip() y la misma tolerancia a
+# un secrets.toml mal formateado con una sección "[NOMBRE]" de más.
 try:
-    from db_conn import ClienteTursoHTTP, LibsqlError
+    from db_conn import ClienteTursoHTTP, LibsqlError, _leer_credencial, diagnosticar_credencial
 except ImportError:
     print("❌ No se encontró db_conn.py. Debe estar en la misma carpeta que este script.")
     sys.exit(1)
@@ -57,12 +68,15 @@ def parse_args(argv=None):
         description="Migra una base SQLite local a Turso (libSQL), una sola vez.")
     p.add_argument("--local", default="solar_calc.db",
                     help="Ruta al archivo .db local a migrar (default: solar_calc.db)")
-    # .strip(): un espacio o salto de línea pegado por accidente al copiar
-    # el token hace que el servidor lo rechace con "JWT error: InvalidToken".
-    p.add_argument("--url", default=(os.environ.get("TURSO_DATABASE_URL") or "").strip() or None,
-                    help="URL de la base de Turso (o variable de entorno TURSO_DATABASE_URL)")
-    p.add_argument("--token", default=(os.environ.get("TURSO_AUTH_TOKEN") or "").strip() or None,
-                    help="Auth token de Turso (o variable de entorno TURSO_AUTH_TOKEN)")
+    # _leer_credencial busca primero en variables de entorno y, si no
+    # encuentra nada, en .streamlit/secrets.toml — con .strip() automático
+    # y tolerancia a una sección "[NOMBRE]" de más (ver db_conn.py).
+    p.add_argument("--url", default=_leer_credencial("TURSO_DATABASE_URL"),
+                    help="URL de la base de Turso (o variable de entorno TURSO_DATABASE_URL, "
+                         "o secrets.toml)")
+    p.add_argument("--token", default=_leer_credencial("TURSO_AUTH_TOKEN"),
+                    help="Auth token de Turso (o variable de entorno TURSO_AUTH_TOKEN, "
+                         "o secrets.toml)")
     p.add_argument("--tablas", default=None,
                     help="Lista opcional separada por comas para migrar solo esas tablas "
                          "(por defecto: todas)")
@@ -93,6 +107,11 @@ def _normalizar_url_turso(url: str) -> str:
 def conectar_turso(url, token):
     if not url:
         print("❌ Falta la URL de Turso. Pásala con --url o define TURSO_DATABASE_URL.")
+        print("\n   Diagnóstico de por qué no se encontró automáticamente:")
+        print("   " + diagnosticar_credencial("TURSO_DATABASE_URL").replace("\n", "\n   "))
+        if not token:
+            print("\n   Diagnóstico de TURSO_AUTH_TOKEN:")
+            print("   " + diagnosticar_credencial("TURSO_AUTH_TOKEN").replace("\n", "\n   "))
         sys.exit(1)
     url = _normalizar_url_turso(url.strip())
     token = token.strip() if token else token
@@ -159,7 +178,15 @@ def copiar_tabla(conn_local, cliente_turso, nombre):
     copiadas = 0
     for inicio in range(0, total, LOTE):
         lote_filas = filas[inicio:inicio + LOTE]
-        statements = [(sql_insert, list(fila)) for fila in lote_filas]
+        # PRAGMA foreign_keys=OFF en cada lote: las tablas se copian en
+        # orden alfabético, no en el orden que respetaría todas las
+        # dependencias (p. ej. "baterias" se copia antes que "proyectos").
+        # Sin esto, Turso rechaza con "FOREIGN KEY constraint failed" una
+        # fila que referencia una fila de otra tabla que aún no se ha
+        # copiado. Las relaciones quedan intactas de todas formas, porque
+        # se preservan los IDs originales de cada fila.
+        statements = [("PRAGMA foreign_keys = OFF", None)]
+        statements += [(sql_insert, list(fila)) for fila in lote_filas]
         cliente_turso.batch(statements)
         copiadas += len(lote_filas)
         print(f"    … {copiadas}/{total} filas", end="\r")
@@ -189,28 +216,57 @@ def main(argv=None):
     print(f"\n{'Tabla':30s} {'Local':>8s} {'Turso (antes)':>14s}")
     print("-" * 56)
 
-    resumen = []
     t0 = time.time()
-    for nombre, sql_create in tablas:
-        n_local = contar_filas(conn_local, nombre, es_turso=False)
 
-        if args.solo_verificar:
+    if args.solo_verificar:
+        resumen = []
+        for nombre, _sql_create in tablas:
+            n_local = contar_filas(conn_local, nombre, es_turso=False)
             existe = tabla_existe_en_turso(cliente_turso, nombre)
             n_turso_antes = contar_filas(cliente_turso, nombre, es_turso=True) if existe else 0
             print(f"{nombre:30s} {n_local:>8d} {n_turso_antes:>14d}")
             resumen.append((nombre, n_local, n_turso_antes, n_turso_antes))
-            continue
+    else:
+        # ── Pasada 1: crear TODAS las tablas antes de insertar nada ──────
+        # Si se crea e inserta tabla por tabla (en el orden alfabético en
+        # que vienen de sqlite_master), una tabla con una columna
+        # FOREIGN KEY hacia otra que todavía no existe (p. ej. "baterias"
+        # antes que "proyectos", alfabéticamente) hace que Turso rechace el
+        # INSERT con "no such table: main.proyectos" — a diferencia de
+        # sqlite3 local, que por defecto no exige la tabla referenciada.
+        # Creando el esquema completo primero, esto no puede pasar sin
+        # importar el orden alfabético de los nombres.
+        tablas_nuevas = {}
+        for nombre, sql_create in tablas:
+            try:
+                tablas_nuevas[nombre] = crear_tabla_en_turso(cliente_turso, nombre, sql_create)
+            except LibsqlError as e:
+                print(f"❌ No se pudo crear la tabla '{nombre}': {e}")
+                tablas_nuevas[nombre] = None  # se omite más abajo
 
-        creada = crear_tabla_en_turso(cliente_turso, nombre, sql_create)
-        n_turso_antes = 0 if creada else contar_filas(cliente_turso, nombre, es_turso=True)
-        print(f"{nombre:30s} {n_local:>8d} {n_turso_antes:>14d}"
-              + ("  (tabla nueva)" if creada else ""))
+        # ── Pasada 2: copiar los datos, ya con el esquema completo ───────
+        resumen = []
+        for nombre, _sql_create in tablas:
+            n_local = contar_filas(conn_local, nombre, es_turso=False)
+            creada = tablas_nuevas.get(nombre)
 
-        if n_local > 0:
-            copiar_tabla(conn_local, cliente_turso, nombre)
+            if creada is None:
+                print(f"{nombre:30s} {n_local:>8d} {'—':>14s}  (omitida: no se pudo crear)")
+                resumen.append((nombre, n_local, 0, 0))
+                continue
 
-        n_turso_despues = contar_filas(cliente_turso, nombre, es_turso=True)
-        resumen.append((nombre, n_local, n_turso_antes, n_turso_despues))
+            n_turso_antes = 0 if creada else contar_filas(cliente_turso, nombre, es_turso=True)
+            print(f"{nombre:30s} {n_local:>8d} {n_turso_antes:>14d}"
+                  + ("  (tabla nueva)" if creada else ""))
+
+            if n_local > 0:
+                try:
+                    copiar_tabla(conn_local, cliente_turso, nombre)
+                except LibsqlError as e:
+                    print(f"    ❌ Error copiando filas de '{nombre}': {e}")
+
+            n_turso_despues = contar_filas(cliente_turso, nombre, es_turso=True)
+            resumen.append((nombre, n_local, n_turso_antes, n_turso_despues))
 
     conn_local.close()
     cliente_turso.close()

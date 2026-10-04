@@ -237,6 +237,9 @@ class ClienteTursoHTTP:
 
 
 # ─── Resolución de credenciales (env var o st.secrets) ──────────────────────
+_ULTIMO_ERROR_SECRETS = {}  # nombre_credencial -> motivo por el que no se encontró
+
+
 def _leer_credencial(nombre: str):
     """
     Lee una credencial de entorno o st.secrets, siempre con .strip(): un
@@ -261,21 +264,58 @@ def _leer_credencial(nombre: str):
     valor = os.environ.get(nombre)
     if valor and valor.strip():
         return valor.strip()
-    if st is not None:
+    if st is None:
+        return None
+    try:
+        valor = st.secrets.get(nombre)
+    except Exception as e:
+        # No se pudo ni siquiera acceder a st.secrets (p. ej. no existe
+        # ningún secrets.toml, o esta versión de Streamlit no permite leerlo
+        # fuera de `streamlit run`). Antes esto se tragaba en silencio y
+        # devolvía None sin explicación — ver diagnosticar_credencial() más
+        # abajo si necesitas ver el motivo exacto.
+        _ULTIMO_ERROR_SECRETS[nombre] = f"{type(e).__name__}: {e}"
+        return None
+    if valor is None:
+        _ULTIMO_ERROR_SECRETS[nombre] = "no está esa clave en st.secrets (ni en variables de entorno)"
+        return None
+    if hasattr(valor, "get") and not isinstance(valor, str):
+        anidado = valor.get(nombre)  # ver nota sobre [NOMBRE] mal formateado arriba
+        if anidado and str(anidado).strip():
+            return str(anidado).strip()
+        _ULTIMO_ERROR_SECRETS[nombre] = (
+            f"st.secrets['{nombre}'] es una sección/tabla, pero no tiene adentro "
+            f"una clave llamada igual ('{nombre}'). Contenido encontrado: {dict(valor) if hasattr(valor, 'items') else valor!r}")
+        return None
+    if str(valor).strip():
+        return str(valor).strip()
+    return None
+
+
+def diagnosticar_credencial(nombre: str) -> str:
+    """
+    Explica POR QUÉ _leer_credencial(nombre) devolvió None la última vez
+    que se llamó. Útil cuando una credencial "debería estar" en
+    secrets.toml pero el script sigue sin encontrarla.
+    """
+    partes = []
+    partes.append(f"Variable de entorno {nombre}: "
+                   f"{'definida' if os.environ.get(nombre) else 'NO definida'}")
+    if st is None:
+        partes.append("El paquete streamlit no está disponible en este proceso "
+                       "(_leer_credencial nunca llega a revisar st.secrets).")
+    else:
         try:
-            valor = st.secrets.get(nombre)
-            if valor is None:
-                return None
-            if hasattr(valor, "get") and not isinstance(valor, str):
-                anidado = valor.get(nombre)  # ver nota sobre [NOMBRE] mal formateado arriba
-                if anidado and str(anidado).strip():
-                    return str(anidado).strip()
-                return None
-            if str(valor).strip():
-                return str(valor).strip()
+            ruta_secrets = getattr(st.secrets, "_file_paths", None)
+            partes.append(f"Streamlit busca secrets.toml en: {ruta_secrets or '(no se pudo determinar)'}")
         except Exception:
             pass
-    return None
+        if nombre in _ULTIMO_ERROR_SECRETS:
+            partes.append(f"Último motivo al leer st.secrets['{nombre}']: {_ULTIMO_ERROR_SECRETS[nombre]}")
+        else:
+            partes.append(f"st.secrets['{nombre}'] no ha fallado todavía en este proceso "
+                           "(o nunca se intentó leer — ejecuta primero _leer_credencial).")
+    return "\n".join(partes)
 
 
 class ConfiguracionTursoFaltante(RuntimeError):
