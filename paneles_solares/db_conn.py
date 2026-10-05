@@ -149,13 +149,23 @@ class ClienteTursoHTTP:
     usaba libsql_client.ClientSync, así que _Cursor/Connection más abajo
     no necesitan cambiar.
 
-    Mantiene UNA conexión TCP/TLS abierta y la reutiliza entre llamadas
-    (keep-alive), en vez de abrir una nueva por cada consulta. La primera
-    versión usaba urllib.request.urlopen() para cada llamada, que abre un
-    socket y hace el handshake TLS desde cero cada vez — eso es rápido en
-    una red local, pero contra un servidor remoto (Turso) ese handshake
-    repetido en cada una de las decenas de consultas que hace la app en
-    cada "rerun" de Streamlit era la causa principal de la lentitud.
+    Mantiene conexiones TCP/TLS abiertas y las reutiliza entre llamadas
+    (keep-alive), en vez de abrir una nueva por cada consulta.
+
+    IMPORTANTE — una conexión POR HILO, no una sola compartida: Streamlit
+    ejecuta cada sesión (cada pestaña/usuario) en su propio hilo. Una
+    primera versión de esta clase usaba UNA sola conexión compartida
+    protegida por un candado (threading.Lock), y eso resultó ser un error
+    serio: si dos sesiones hacían una consulta al mismo tiempo, una tenía
+    que ESPERAR a que la otra terminara por completo (incluyendo
+    reintentos) antes de poder hacer la suya — convirtiendo lo que debía
+    ser una mejora de velocidad en un cuello de botella que bloqueaba
+    sesiones enteras entre sí, y que probablemente causaba (o empeoraba)
+    errores de sesión de Streamlit bajo uso concurrente. Con
+    threading.local(), cada hilo tiene su PROPIA conexión persistente:
+    se sigue evitando repetir el handshake TLS en cada consulta (el
+    beneficio de velocidad se mantiene), pero ninguna sesión bloquea a
+    otra.
     """
     def __init__(self, url: str, auth_token: str, timeout: float = 15.0):
         partes = urllib.parse.urlsplit(url)
@@ -166,8 +176,7 @@ class ClienteTursoHTTP:
         self._token = auth_token
         self._timeout = timeout
         self.closed = False
-        self._conn_http = None  # http.client.HTTPSConnection, se crea perezosamente
-        self._lock = threading.Lock()  # una sola conexión compartida: una petición a la vez
+        self._local = threading.local()  # .conn: la conexión persistente DE ESTE HILO
 
     def _abrir_conexion_http(self):
         cls = http.client.HTTPSConnection if self._scheme == "https" else http.client.HTTPConnection
@@ -180,31 +189,33 @@ class ClienteTursoHTTP:
             "Authorization": f"Bearer {self._token}",
         }
 
-        with self._lock:
-            for intento in (1, 2):
+        for intento in (1, 2):
+            try:
+                conn_http = getattr(self._local, "conn", None)
+                if conn_http is None:
+                    conn_http = self._abrir_conexion_http()
+                    self._local.conn = conn_http
+                conn_http.request("POST", self._path, body=body, headers=headers)
+                resp = conn_http.getresponse()
+                crudo = resp.read().decode("utf-8", errors="replace")
+                estado = resp.status
+                break
+            except (http.client.HTTPException, OSError) as e:
+                # La conexión persistente (de este hilo) puede haberse
+                # caído (p. ej. el servidor cerró un socket inactivo). Se
+                # descarta y se reintenta UNA vez con una conexión nueva
+                # antes de darse por vencido. Esto NO afecta a otros
+                # hilos/sesiones, cada uno tiene la suya.
                 try:
-                    if self._conn_http is None:
-                        self._conn_http = self._abrir_conexion_http()
-                    self._conn_http.request("POST", self._path, body=body, headers=headers)
-                    resp = self._conn_http.getresponse()
-                    crudo = resp.read().decode("utf-8", errors="replace")
-                    estado = resp.status
-                    break
-                except (http.client.HTTPException, OSError) as e:
-                    # La conexión persistente puede haberse caído (p. ej. el
-                    # servidor cerró un socket inactivo). Se descarta y se
-                    # reintenta UNA vez con una conexión nueva antes de
-                    # darse por vencido.
-                    try:
-                        if self._conn_http is not None:
-                            self._conn_http.close()
-                    except Exception:
-                        pass
-                    self._conn_http = None
-                    if intento == 2:
-                        raise LibsqlError(
-                            f"No se pudo conectar a {self._host}:{self._port}{self._path}: "
-                            f"{type(e).__name__}: {e}", "CONNECTION_ERROR") from e
+                    if conn_http is not None:
+                        conn_http.close()
+                except Exception:
+                    pass
+                self._local.conn = None
+                if intento == 2:
+                    raise LibsqlError(
+                        f"No se pudo conectar a {self._host}:{self._port}{self._path}: "
+                        f"{type(e).__name__}: {e}", "CONNECTION_ERROR") from e
 
         if estado != 200:
             raise LibsqlError(
@@ -266,13 +277,17 @@ class ClienteTursoHTTP:
         return resultados
 
     def close(self):
-        with self._lock:
-            if self._conn_http is not None:
-                try:
-                    self._conn_http.close()
-                except Exception:
-                    pass
-                self._conn_http = None
+        """Cierra la conexión persistente DEL HILO que llama a close()
+        (p. ej. desde cerrar_cliente_global()). Otros hilos con su propia
+        conexión abierta no se ven afectados; esas se liberan solas
+        cuando ese hilo termina."""
+        conn_http = getattr(self._local, "conn", None)
+        if conn_http is not None:
+            try:
+                conn_http.close()
+            except Exception:
+                pass
+            self._local.conn = None
         self.closed = True
 
 
