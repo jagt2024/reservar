@@ -22,6 +22,7 @@ efecto se aplica en su siguiente interacción.
 """
 import streamlit as st
 import pandas as pd
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -160,6 +161,41 @@ def _tiempo_conectado(login_time_str: str) -> str:
     return _formatear_duracion(minutos)
 
 
+def _throttle(clave: str, intervalo_segundos: float) -> bool:
+    """
+    Devuelve True como máximo una vez cada `intervalo_segundos`, usando
+    st.session_state para decidir (sin tocar la base de datos). Streamlit
+    vuelve a correr todo el script en cada interacción ("rerun"); con
+    sqlite3 local, repetir una consulta en cada rerun era gratis, pero
+    contra Turso cada una es un viaje de red completo. Funciones como el
+    "latido" de sesión no necesitan escribir en la base literalmente en
+    cada rerun — cada pocos segundos es más que suficiente para su
+    propósito (mostrarle al administrador que el usuario sigue conectado).
+    """
+    ahora = time.monotonic()
+    clave_ss = f"_throttle_{clave}"
+    ultimo = st.session_state.get(clave_ss, 0.0)
+    if ahora - ultimo >= intervalo_segundos:
+        st.session_state[clave_ss] = ahora
+        return True
+    return False
+
+
+# ─── Esquema: evitar repetir CREATE TABLE IF NOT EXISTS en cada rerun ───────
+_ESQUEMA_YA_VERIFICADO = False
+
+
+def _asegurar_esquema():
+    """Llama a init_monitoreo_db() una sola vez por proceso (no en cada
+    rerun). Se usa en los puntos de entrada de este módulo (el widget de
+    chat y el panel de administrador) como red de seguridad adicional,
+    incluso si solar_app.py ya la inicializó también al arrancar."""
+    global _ESQUEMA_YA_VERIFICADO
+    if not _ESQUEMA_YA_VERIFICADO:
+        init_monitoreo_db()
+        _ESQUEMA_YA_VERIFICADO = True
+
+
 def _session_id() -> str:
     """Identificador único y estable por pestaña/navegador (no por usuario:
     si el mismo usuario abre dos pestañas, cuentan como dos sesiones)."""
@@ -196,6 +232,15 @@ def registrar_latido(usuario: dict, modulo_activo: str = None,
                       proyecto_id: int = None, proyecto_nombre: str = None):
     if not usuario:
         return
+
+    # Se actualiza como máximo cada 30s: esta función se llama en CADA
+    # rerun de Streamlit, pero el administrador no necesita una precisión
+    # de milisegundos en "última actividad" — y cada escritura es un viaje
+    # de red a Turso. Nota: el primer latido de una sesión nueva siempre
+    # se registra de inmediato (ver _throttle: la primera vez da True).
+    if not _throttle("latido", 30):
+        return
+
     sid = _session_id()
     ip, ua = _cliente_info()
     now = _now()
@@ -257,6 +302,13 @@ def verificar_expulsion():
 
     if _AUTOREFRESH_DISPONIBLE:
         st_autorefresh(interval=INTERVALO_VIGILANCIA_MS, key="_monitor_watchdog")
+
+    # Igual que en registrar_latido: revisar "¿me expulsaron?" en CADA
+    # rerun (p. ej. mientras alguien escribe rápido en un campo) es más
+    # frecuente de lo que este chequeo necesita. Cada pocos segundos sigue
+    # siendo, en la práctica, "casi instantáneo" para el usuario expulsado.
+    if not _throttle("verificar_expulsion", 5):
+        return
 
     conn = get_conn()
     row = conn.execute(
@@ -412,7 +464,12 @@ def eliminar_hilo_completo(usuario_id: int) -> int:
     return total
 
 
+@st.cache_data(ttl=10, show_spinner=False)
 def contar_no_leidos_usuario(usuario_id: int) -> int:
+    # Se llama en cada rerun para cualquier usuario no-admin (el widget de
+    # chat vive en el sidebar). 10s de margen es imperceptible para un
+    # contador de "mensajes nuevos", y evita un viaje de red de más en
+    # cada clic que no tenga nada que ver con el chat.
     conn = get_conn()
     n = conn.execute(
         "SELECT COUNT(*) FROM mensajes_chat "
@@ -477,7 +534,7 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     usuario_activo_fn      = usuario_activo_fn or usuario_activo
     registrar_auditoria_fn = registrar_auditoria_fn or registrar_auditoria
 
-    init_monitoreo_db()
+    _asegurar_esquema()
 
     # ── Acceso restringido a administradores ─────────────────────────────
     if not tiene_permiso_fn("ver_usuarios"):
@@ -491,7 +548,10 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
         </div>""", unsafe_allow_html=True)
         return
 
-    _limpiar_sesiones_viejas()
+    # Es solo limpieza de sesiones viejas (garbage collection); no necesita
+    # correr en cada vista del panel, cada minuto es más que suficiente.
+    if _throttle("limpiar_sesiones_viejas", 60):
+        _limpiar_sesiones_viejas()
     _u = usuario_activo_fn()
 
     st.markdown(f"""
@@ -830,7 +890,7 @@ def mostrar_widget_chat_usuario(usuario_activo_fn=None, tiene_permiso_fn=None):
     if not _u or tiene_permiso_fn("ver_usuarios"):
         return  # los administradores no necesitan este widget
 
-    init_monitoreo_db()
+    _asegurar_esquema()
     n_nuevos = contar_no_leidos_usuario(_u["id"])
     etiqueta = f"💬 Mensajes de Administración{f' ({n_nuevos})' if n_nuevos else ''}"
 
