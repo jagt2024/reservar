@@ -2361,7 +2361,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs principales
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
+# ─── NAVEGACIÓN POR SECCIÓN (en vez de st.tabs) ─────────────────────────────
+# st.tabs() ejecuta el código de las 13 pestañas en CADA rerun, sin importar
+# cuál esté visible — es solo un tema visual del navegador, no afecta qué
+# código de Python corre. Con sqlite3 local esto no se notaba (consultas
+# instantáneas); contra Turso, cada clic pagaba la factura de red de las
+# ~60 consultas repartidas entre las 13 pestañas, no solo las de la que se
+# estaba viendo — de ahí la demora al cambiar de pestaña y, probablemente,
+# los errores de sesión de Streamlit bajo esa carga.
+# st.segmented_control (o st.radio como respaldo) sí permite ejecutar SOLO
+# la sección elegida, con if/elif en vez de with — el contenido de cada
+# sección no cambia, solo la línea que lo abre.
+_ETIQUETAS_SECCIONES = [
     "⚡ 1 · Cargas",
     "🧾 2 · Recibo Luz",
     "🔋 3 · Tensión DC",
@@ -2375,12 +2386,22 @@ tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13
     "💹 11 · Económico",
     "🔌 12 · Cableado",
     "📷 13 · Sitio y Montaje",
-])
+]
+if hasattr(st, "segmented_control"):
+    _seccion_activa = st.segmented_control(
+        "Secciones", _ETIQUETAS_SECCIONES, default=_ETIQUETAS_SECCIONES[0],
+        label_visibility="collapsed", key="_nav_seccion_activa")
+    if _seccion_activa is None:  # por si el widget permite deseleccionar
+        _seccion_activa = _ETIQUETAS_SECCIONES[0]
+else:
+    _seccion_activa = st.radio(
+        "Secciones", _ETIQUETAS_SECCIONES, horizontal=True,
+        label_visibility="collapsed", key="_nav_seccion_activa")
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 1 — ANÁLISIS DE CARGAS
 # ════════════════════════════════════════════════════════════════════════════
-with tab1:
+if _seccion_activa == "⚡ 1 · Cargas":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>1</span> ANÁLISIS DE CARGA ELÉCTRICA</div>
     """, unsafe_allow_html=True)
@@ -2946,7 +2967,7 @@ with tab1:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECIBO DE LUZ
 # ════════════════════════════════════════════════════════════════════════════
-with tab2:
+elif _seccion_activa == "🧾 2 · Recibo Luz":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>2</span> CONSUMO DESDE EL RECIBO DE ENERGÍA</div>
     """, unsafe_allow_html=True)
@@ -3351,7 +3372,7 @@ with tab2:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 3 — TENSIÓN DC
 # ════════════════════════════════════════════════════════════════════════════
-with tab3:
+elif _seccion_activa == "🔋 3 · Tensión DC":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>3</span> ESTÁNDAR DE TENSIÓN DC DEL SISTEMA</div>
     """, unsafe_allow_html=True)
@@ -3441,7 +3462,7 @@ with tab3:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 4 — HORA SOLAR PICO
 # ════════════════════════════════════════════════════════════════════════════
-with tab4:
+elif _seccion_activa == "🌞 4 · Hora Solar":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>4</span> HORA SOLAR PICO (HSP)</div>
     """, unsafe_allow_html=True)
@@ -3631,7 +3652,7 @@ with tab4:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 5 — PANEL SOLAR
 # ════════════════════════════════════════════════════════════════════════════
-with tab5:
+elif _seccion_activa == "🔆 5 · Panel Solar":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>5</span> SELECCIÓN DEL PANEL SOLAR</div>
     """, unsafe_allow_html=True)
@@ -3831,7 +3852,7 @@ with tab5:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 6 — BATERÍAS
 # ════════════════════════════════════════════════════════════════════════════
-with tab6:
+elif _seccion_activa == "🔋 6 · Baterías":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>7</span> CÁLCULO DE BATERÍAS LITIO 100 Ah</div>
     """, unsafe_allow_html=True)
@@ -4173,7 +4194,7 @@ with tab6:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 7 — POTENCIA INSTALADA
 # ════════════════════════════════════════════════════════════════════════════
-with tab7:
+elif _seccion_activa == "📊 7 · Potencia":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>6</span> CÁLCULO DE POTENCIA INSTALADA EN PANELES</div>
     """, unsafe_allow_html=True)
@@ -4441,7 +4462,7 @@ with tab7:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 8 — CONTROLADOR MPPT
 # ════════════════════════════════════════════════════════════════════════════
-with tab8:
+elif _seccion_activa == "🎛 8 · Controlador":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>8</span> SELECCIÓN CONTROLADOR DE CARGA (MPPT / PWM)</div>
     """, unsafe_allow_html=True)
@@ -4978,7 +4999,7 @@ with tab8:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 9 — PLANO DE INSTALACIÓN DE PANELES
 # ════════════════════════════════════════════════════════════════════════════
-with tab9:
+elif _seccion_activa == "🔲 9 · Plano Paneles":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>9</span> PLANO DE INSTALACIÓN DE PANELES SOLARES</div>
     """, unsafe_allow_html=True)
@@ -5443,6 +5464,11 @@ with tab9:
       <!-- Title block -->
       {title_svg}
     </svg>'''
+    # Se guarda en session_state para que el Informe Completo (que corre
+    # siempre, fuera de esta sección) pueda incluirlo aunque el usuario ya
+    # haya cambiado a otra sección — antes todas las secciones corrían en
+    # cada rerun y esta variable local bastaba; ya no.
+    st.session_state["_svg_code_paneles"] = svg_code
 
     render_svg(svg_code, height=max(svg_h, 480))
 
@@ -5498,7 +5524,7 @@ with tab9:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 10 — PLANO GENERAL DEL PROYECTO
 # ════════════════════════════════════════════════════════════════════════════
-with tab10:
+elif _seccion_activa == "📐 10 · Plano General":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>10</span> PLANO GENERAL DEL SISTEMA FOTOVOLTAICO</div>
     """, unsafe_allow_html=True)
@@ -5984,6 +6010,7 @@ with tab10:
       {legend10}
       {title10}
     </svg>'''
+    st.session_state["_svg10_plano_general"] = svg10  # ver nota en la sección 9 (Plano Paneles)
 
     render_svg(svg10, height=740)
 
@@ -6040,7 +6067,7 @@ with tab10:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 11 — ANÁLISIS ECONÓMICO Y AMBIENTAL (OFF-GRID)
 # ════════════════════════════════════════════════════════════════════════════
-with tab11:
+elif _seccion_activa == "💹 11 · Económico":
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>11</span>
     ANÁLISIS ECONÓMICO Y AMBIENTAL — SISTEMA OFF-GRID</div>
@@ -6382,6 +6409,7 @@ with tab11:
             co2=co2_eco, arboles=arboles_eco, gen_anio=gen_anio_eco, gen_mes=gen_mes_eco,
             flujos=flujos,
         )
+        st.session_state["_datos_pdf_eco"] = _datos_pdf_eco  # ver nota en la sección 9 (Plano Paneles)
         try:
             pdf_eco = generar_pdf_economico(proyecto_id, p_eco, _datos_pdf_eco)
             st.download_button(
@@ -6396,7 +6424,7 @@ with tab11:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 12 — CABLEADO
 # ════════════════════════════════════════════════════════════════════════════
-with tab12:
+elif _seccion_activa == "🔌 12 · Cableado":
     if not proyecto_id:
         st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral para calcular el cableado.</div>",
                     unsafe_allow_html=True)
@@ -6406,7 +6434,7 @@ with tab12:
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 13 — SITIO Y MONTAJE (fotos reales + disposición óptima de paneles)
 # ════════════════════════════════════════════════════════════════════════════
-with tab13:
+elif _seccion_activa == "📷 13 · Sitio y Montaje":
     if not proyecto_id:
         st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral "
                      "para subir fotos del sitio y calcular la disposición de los paneles.</div>",
@@ -6414,6 +6442,8 @@ with tab13:
         svg13 = None
     else:
         svg13 = mostrar_sitio(proyecto_id, st.session_state, render_svg_fn=render_svg)
+    if svg13:
+        st.session_state["_svg13_sitio"] = svg13  # ver nota en la sección 9 (Plano Paneles)
 
 # ════════════════════════════════════════════════════════════════════════════
 # INFORME COMPLETO DE SOPORTE — PDF CONSOLIDADO (Cargas/Recibo → Cableado)
@@ -6463,10 +6493,21 @@ else:
                 except Exception as e:
                     avisos.append(f"Dimensionamiento técnico: {e}")
 
+                # Nota: antes esta sección leía svg_code/svg10/svg13/_datos_pdf_eco
+                # como variables locales ("X in dir()"), porque con st.tabs()
+                # las 13 pestañas corrían siempre en cada rerun y esas
+                # variables ya estaban pobladas sin importar cuál se estuviera
+                # viendo. Ahora que solo corre la sección activa (ver nota de
+                # rendimiento en la definición de _seccion_activa), cada
+                # sección guarda su resultado en st.session_state al calcularlo
+                # — así el informe puede incluirlo aunque el usuario ya haya
+                # cambiado de sección.
+
                 # 2· Plano de paneles (Tab 9)
                 try:
-                    if "svg_code" in dir():
-                        partes.append(svg_a_pdf_bytes(svg_code))
+                    _svg_paneles_inf = st.session_state.get("_svg_code_paneles")
+                    if _svg_paneles_inf:
+                        partes.append(svg_a_pdf_bytes(_svg_paneles_inf))
                         secciones_incluidas.append("Plano de instalación de paneles")
                     else:
                         avisos.append("Plano de paneles: visita la pestaña 9 · Plano Paneles.")
@@ -6475,8 +6516,9 @@ else:
 
                 # 3· Plano general del sistema (Tab 10)
                 try:
-                    if "svg10" in dir():
-                        partes.append(svg_a_pdf_bytes(svg10))
+                    _svg10_inf = st.session_state.get("_svg10_plano_general")
+                    if _svg10_inf:
+                        partes.append(svg_a_pdf_bytes(_svg10_inf))
                         secciones_incluidas.append("Plano general del sistema")
                     else:
                         avisos.append("Plano general: visita la pestaña 10 · Plano General.")
@@ -6485,8 +6527,9 @@ else:
 
                 # 4b· Plano de montaje sobre fotografía real del sitio (Tab 13)
                 try:
-                    if "svg13" in dir() and svg13:
-                        partes.append(svg_a_pdf_bytes(svg13))
+                    _svg13_inf = st.session_state.get("_svg13_sitio")
+                    if _svg13_inf:
+                        partes.append(svg_a_pdf_bytes(_svg13_inf))
                         secciones_incluidas.append("Plano de montaje sobre fotografía del sitio")
                     else:
                         avisos.append("Plano del sitio: visita la pestaña 13 · Sitio y Montaje, "
@@ -6496,8 +6539,9 @@ else:
 
                 # 4· Análisis económico y ambiental (Tab 11)
                 try:
-                    if "_datos_pdf_eco" in dir() and _datos_pdf_eco:
-                        partes.append(generar_pdf_economico(proyecto_id, p_inf, _datos_pdf_eco))
+                    _datos_eco_inf = st.session_state.get("_datos_pdf_eco")
+                    if _datos_eco_inf:
+                        partes.append(generar_pdf_economico(proyecto_id, p_inf, _datos_eco_inf))
                         secciones_incluidas.append("Análisis económico y ambiental")
                     else:
                         avisos.append("Análisis económico: visita la pestaña 11 · Económico "
