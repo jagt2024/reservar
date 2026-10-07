@@ -580,14 +580,38 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     _hilos_admin = _lista_hilos_para_admin()
     n_no_leidos_total = int(_hilos_admin["no_leidos"].sum()) if not _hilos_admin.empty else 0
 
-    mt1, mt2, mt3, mt4 = st.tabs([
+    # st.tabs() ejecuta las 4 sub-pestañas en CADA rerun (p. ej. cada vez
+    # que el admin desconecta a alguien o manda un mensaje), sin importar
+    # cuál esté viendo — mismo problema que se corrigió en la navegación
+    # principal de solar_app.py. Se usa segmented_control/radio + if/elif
+    # para que solo corra la sección elegida. El valor interno de la
+    # opción "Mensajes" se mantiene fijo (sin el contador) para que la
+    # comparación no se rompa cuando el número de mensajes cambia entre
+    # reruns; el contador solo se muestra vía format_func.
+    _OPCIONES_MONITOREO = [
         "🟢 Conectados ahora", "📜 Historial de sesiones",
-        "📁 Proyectos creados",
-        f"💬 Mensajes{f' ({n_no_leidos_total})' if n_no_leidos_total else ''}",
-    ])
+        "📁 Proyectos creados", "💬 Mensajes",
+    ]
 
-    # ══ TAB 1 — Sesiones activas ═══════════════════════════════════════════
-    with mt1:
+    def _fmt_opcion_monitoreo(op):
+        if op == "💬 Mensajes" and n_no_leidos_total:
+            return f"💬 Mensajes ({n_no_leidos_total})"
+        return op
+
+    if hasattr(st, "segmented_control"):
+        _seccion_mon = st.segmented_control(
+            "Secciones", _OPCIONES_MONITOREO, format_func=_fmt_opcion_monitoreo,
+            default=_OPCIONES_MONITOREO[0], label_visibility="collapsed",
+            key="_nav_monitoreo_seccion")
+        if _seccion_mon is None:
+            _seccion_mon = _OPCIONES_MONITOREO[0]
+    else:
+        _seccion_mon = st.radio(
+            "Secciones", _OPCIONES_MONITOREO, format_func=_fmt_opcion_monitoreo,
+            horizontal=True, label_visibility="collapsed", key="_nav_monitoreo_seccion")
+
+    # ══ Sesiones activas ═════════════════════════════════════════════════
+    if _seccion_mon == "🟢 Conectados ahora":
         conn = get_conn()
         df = pd.read_sql("SELECT * FROM sesiones_activas ORDER BY last_seen DESC", conn)
         conn.close()
@@ -668,8 +692,8 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                 st.markdown("<hr style='border-color:#161D30;margin:0.2rem 0;'>",
                             unsafe_allow_html=True)
 
-    # ══ TAB 2 — Historial ═══════════════════════════════════════════════════
-    with mt2:
+    # ══ Historial ════════════════════════════════════════════════════════
+    elif _seccion_mon == "📜 Historial de sesiones":
         conn = get_conn()
         hist = pd.read_sql(
             "SELECT id AS ID, username AS Usuario, rol AS Rol, "
@@ -747,8 +771,8 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                     st.success("Historial de sesiones vaciado.")
                     st.rerun()
 
-    # ══ TAB 3 — Proyectos creados ════════════════════════════════════════════
-    with mt3:
+    # ══ Proyectos creados ═══════════════════════════════════════════════════
+    elif _seccion_mon == "📁 Proyectos creados":
         conn = get_conn()
         cols = [c[1] for c in conn.execute("PRAGMA table_info(proyectos)").fetchall()]
         select_creador = "creado_por" if "creado_por" in cols else "NULL"
@@ -782,8 +806,8 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
             proys["Creado_por"] = proys["Creado_por"].fillna("— (sin registrar)")
             st.dataframe(proys, use_container_width=True, hide_index=True)
 
-    # ══ TAB 4 — Mensajes / Chat con usuarios ═════════════════════════════════
-    with mt4:
+    # ══ Mensajes / Chat con usuarios ════════════════════════════════════════
+    elif _seccion_mon == "💬 Mensajes":
         if _hilos_admin.empty:
             st.info("Todavía no hay usuarios con quienes chatear. En cuanto "
                      "alguien se conecte a la aplicación aparecerá aquí.")

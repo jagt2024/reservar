@@ -389,12 +389,24 @@ def mostrar_gestion_usuarios():
     </div>
     """, unsafe_allow_html=True)
 
-    tab_lista, tab_nuevo, tab_auditoria = st.tabs([
-        "👥 Usuarios", "➕ Nuevo usuario", "📋 Auditoría"
-    ])
+    # st.tabs() ejecuta las 3 sub-pestañas en CADA rerun, sin importar cuál
+    # se esté viendo — mismo problema que se corrigió en la navegación
+    # principal de solar_app.py y en el panel de Monitoreo. Se usa
+    # segmented_control/radio + if/elif para que solo corra la elegida.
+    _OPCIONES_USUARIOS = ["👥 Usuarios", "➕ Nuevo usuario", "📋 Auditoría"]
+    if hasattr(st, "segmented_control"):
+        _seccion_usr = st.segmented_control(
+            "Secciones", _OPCIONES_USUARIOS, default=_OPCIONES_USUARIOS[0],
+            label_visibility="collapsed", key="_nav_usuarios_seccion")
+        if _seccion_usr is None:
+            _seccion_usr = _OPCIONES_USUARIOS[0]
+    else:
+        _seccion_usr = st.radio(
+            "Secciones", _OPCIONES_USUARIOS, horizontal=True,
+            label_visibility="collapsed", key="_nav_usuarios_seccion")
 
-    # ── TAB: Lista de usuarios ────────────────────────────────────────────────
-    with tab_lista:
+    # ── Lista de usuarios ──────────────────────────────────────────────────
+    if _seccion_usr == "👥 Usuarios":
         conn = get_conn()
         usuarios_df = pd.read_sql(
             "SELECT id, username, nombre_completo, email, rol, activo, creado, ultimo_acceso "
@@ -523,7 +535,7 @@ def mostrar_gestion_usuarios():
                                     st.success("Contraseña actualizada ✓")
 
     # ── TAB: Nuevo usuario ────────────────────────────────────────────────────
-    with tab_nuevo:
+    elif _seccion_usr == "➕ Nuevo usuario":
         if not tiene_permiso("crear_usuarios"):
             st.error("🔒 No tienes permiso para crear usuarios.")
         else:
@@ -606,7 +618,7 @@ def mostrar_gestion_usuarios():
                             st.error(f"❌ Error: {e}")
 
     # ── TAB: Auditoría ────────────────────────────────────────────────────────
-    with tab_auditoria:
+    elif _seccion_usr == "📋 Auditoría":
         if not tiene_permiso("ver_auditoria"):
             st.error("🔒 No tienes permiso para ver la auditoría.")
         else:
