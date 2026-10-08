@@ -386,6 +386,7 @@ def desconectar_sesion(session_id: str, admin_username: str):
         "WHERE session_id=?", (admin_username, _now(), session_id))
     conn.commit()
     conn.close()
+    _limpiar_cache_monitoreo()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -414,6 +415,8 @@ def enviar_mensaje(usuario_id: int, usuario_username: str,
           1 if remitente == "usuario" else 0))
     conn.commit()
     conn.close()
+    _limpiar_cache_monitoreo()
+    contar_no_leidos_usuario.clear()  # el destinatario ve su contador al instante
 
 
 def obtener_hilo(usuario_id: int) -> pd.DataFrame:
@@ -432,6 +435,7 @@ def marcar_leido_admin(usuario_id: int):
         "WHERE usuario_id=? AND leido_admin=0", (usuario_id,))
     conn.commit()
     conn.close()
+    _limpiar_cache_monitoreo()
 
 
 def marcar_leido_usuario(usuario_id: int):
@@ -441,6 +445,7 @@ def marcar_leido_usuario(usuario_id: int):
         "WHERE usuario_id=? AND leido_usuario=0", (usuario_id,))
     conn.commit()
     conn.close()
+    contar_no_leidos_usuario.clear()  # su contador de "nuevos" baja al instante
 
 
 def eliminar_mensaje(mensaje_id: int):
@@ -449,6 +454,8 @@ def eliminar_mensaje(mensaje_id: int):
     conn.execute("DELETE FROM mensajes_chat WHERE id=?", (mensaje_id,))
     conn.commit()
     conn.close()
+    _limpiar_cache_monitoreo()
+    contar_no_leidos_usuario.clear()
 
 
 def eliminar_hilo_completo(usuario_id: int) -> int:
@@ -461,6 +468,8 @@ def eliminar_hilo_completo(usuario_id: int) -> int:
     conn.execute("DELETE FROM mensajes_chat WHERE usuario_id=?", (usuario_id,))
     conn.commit()
     conn.close()
+    _limpiar_cache_monitoreo()
+    contar_no_leidos_usuario.clear()
     return total
 
 
@@ -479,10 +488,70 @@ def contar_no_leidos_usuario(usuario_id: int) -> int:
     return n
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def _sesiones_activas_cacheado() -> pd.DataFrame:
+    """Sesiones conectadas ahora. TTL corto (5 s) porque es la vista "en
+    vivo" del panel; el botón Actualizar y las acciones de desconectar
+    invalidan el caché al instante (ver _limpiar_cache_monitoreo)."""
+    conn = get_conn()
+    df = pd.read_sql("SELECT * FROM sesiones_activas ORDER BY last_seen DESC", conn)
+    conn.close()
+    return df
+
+
+@st.cache_data(ttl=15, show_spinner=False)
+def _historial_sesiones_cacheado() -> pd.DataFrame:
+    """Últimas 300 sesiones cerradas. Cambia poco; se invalida al vaciar
+    o borrar registros desde el panel."""
+    conn = get_conn()
+    df = pd.read_sql(
+        "SELECT id AS ID, username AS Usuario, rol AS Rol, "
+        "modulos_usados AS 'Módulos usados', ip AS IP, "
+        "login_time AS 'Conectado', fin_time AS 'Finalizó', "
+        "motivo_fin AS Motivo FROM sesiones_historial ORDER BY id DESC LIMIT 300",
+        conn)
+    conn.close()
+    return df
+
+
+@st.cache_data(ttl=30, show_spinner=False)
+def _proyectos_creados_cacheado() -> pd.DataFrame:
+    """Reporte de proyectos creados (solo lectura, cambia poco): 2 consultas
+    a Turso (PRAGMA + SELECT) que antes se repetían en cada rerun."""
+    conn = get_conn()
+    cols = [c[1] for c in conn.execute("PRAGMA table_info(proyectos)").fetchall()]
+    select_creador = "creado_por" if "creado_por" in cols else "NULL"
+    df = pd.read_sql(f"""
+        SELECT id AS ID, nombre AS Nombre, municipio AS Municipio,
+               {select_creador} AS Creado_por, creado AS Fecha
+        FROM proyectos ORDER BY id DESC
+    """, conn)
+    conn.close()
+    return df
+
+
+def _limpiar_cache_monitoreo():
+    """Invalida todos los cachés de este módulo. Se llama tras cualquier
+    acción que modifique los datos que muestran (desconectar a alguien,
+    vaciar historial, enviar/leer/eliminar mensajes) y desde el botón
+    'Actualizar', para que el cambio se vea de inmediato en vez de esperar
+    a que venza el TTL."""
+    _sesiones_activas_cacheado.clear()
+    _historial_sesiones_cacheado.clear()
+    _proyectos_creados_cacheado.clear()
+    _lista_hilos_para_admin.clear()
+
+
+@st.cache_data(ttl=5, show_spinner=False)
 def _lista_hilos_para_admin() -> pd.DataFrame:
     """Usuarios con quienes existe (o existió) contacto: cualquiera que se
     haya conectado alguna vez (activo o en historial) o que ya tenga un
-    hilo de mensajes, junto con su cantidad de mensajes sin leer."""
+    hilo de mensajes, junto con su cantidad de mensajes sin leer.
+
+    Cacheada 5 s: el panel de administrador usa st.tabs(), que ejecuta el
+    código de las 4 sub-pestañas en CADA rerun, y esta función hace 2
+    consultas a Turso cada vez. Se invalida explícitamente al enviar,
+    leer o eliminar mensajes (ver _limpiar_cache_monitoreo)."""
     conn = get_conn()
     personas = pd.read_sql("""
         SELECT usuario_id, username FROM sesiones_activas WHERE usuario_id IS NOT NULL
@@ -567,6 +636,7 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     c_ref, _ = st.columns([1, 5])
     with c_ref:
         if st.button("🔄 Actualizar", use_container_width=True):
+            _limpiar_cache_monitoreo()  # sin esto, Actualizar mostraría datos cacheados
             st.rerun()
 
     if not _AUTOREFRESH_DISPONIBLE:
@@ -580,41 +650,23 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
     _hilos_admin = _lista_hilos_para_admin()
     n_no_leidos_total = int(_hilos_admin["no_leidos"].sum()) if not _hilos_admin.empty else 0
 
-    # st.tabs() ejecuta las 4 sub-pestañas en CADA rerun (p. ej. cada vez
-    # que el admin desconecta a alguien o manda un mensaje), sin importar
-    # cuál esté viendo — mismo problema que se corrigió en la navegación
-    # principal de solar_app.py. Se usa segmented_control/radio + if/elif
-    # para que solo corra la sección elegida. El valor interno de la
-    # opción "Mensajes" se mantiene fijo (sin el contador) para que la
-    # comparación no se rompa cuando el número de mensajes cambia entre
-    # reruns; el contador solo se muestra vía format_func.
-    _OPCIONES_MONITOREO = [
+    # NOTA: se probó convertir estas sub-pestañas a segmented_control/radio
+    # (if/elif) para que solo corriera la elegida. Resultó CONTRAPRODUCENTE:
+    # con st.tabs(), cambiar de pestaña es una operación puramente del
+    # navegador (CSS) y no toca el servidor; con un widget de selección,
+    # cada cambio de sección SÍ dispara un rerun completo (con su viaje de
+    # red a Turso). Se revirtió a st.tabs() y en su lugar se cachean las
+    # consultas de cada sub-pestaña (ver las funciones @st.cache_data más
+    # arriba), para que re-ejecutar las 4 en cada rerun sea barato.
+    mt1, mt2, mt3, mt4 = st.tabs([
         "🟢 Conectados ahora", "📜 Historial de sesiones",
-        "📁 Proyectos creados", "💬 Mensajes",
-    ]
+        "📁 Proyectos creados",
+        f"💬 Mensajes{f' ({n_no_leidos_total})' if n_no_leidos_total else ''}",
+    ])
 
-    def _fmt_opcion_monitoreo(op):
-        if op == "💬 Mensajes" and n_no_leidos_total:
-            return f"💬 Mensajes ({n_no_leidos_total})"
-        return op
-
-    if hasattr(st, "segmented_control"):
-        _seccion_mon = st.segmented_control(
-            "Secciones", _OPCIONES_MONITOREO, format_func=_fmt_opcion_monitoreo,
-            default=_OPCIONES_MONITOREO[0], label_visibility="collapsed",
-            key="_nav_monitoreo_seccion")
-        if _seccion_mon is None:
-            _seccion_mon = _OPCIONES_MONITOREO[0]
-    else:
-        _seccion_mon = st.radio(
-            "Secciones", _OPCIONES_MONITOREO, format_func=_fmt_opcion_monitoreo,
-            horizontal=True, label_visibility="collapsed", key="_nav_monitoreo_seccion")
-
-    # ══ Sesiones activas ═════════════════════════════════════════════════
-    if _seccion_mon == "🟢 Conectados ahora":
-        conn = get_conn()
-        df = pd.read_sql("SELECT * FROM sesiones_activas ORDER BY last_seen DESC", conn)
-        conn.close()
+    # ══ TAB 1 — Sesiones activas ═══════════════════════════════════════════
+    with mt1:
+        df = _sesiones_activas_cacheado()
 
         if df.empty:
             st.info("No hay usuarios conectados en este momento.")
@@ -692,16 +744,9 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                 st.markdown("<hr style='border-color:#161D30;margin:0.2rem 0;'>",
                             unsafe_allow_html=True)
 
-    # ══ Historial ════════════════════════════════════════════════════════
-    elif _seccion_mon == "📜 Historial de sesiones":
-        conn = get_conn()
-        hist = pd.read_sql(
-            "SELECT id AS ID, username AS Usuario, rol AS Rol, "
-            "modulos_usados AS 'Módulos usados', ip AS IP, "
-            "login_time AS 'Conectado', fin_time AS 'Finalizó', "
-            "motivo_fin AS Motivo FROM sesiones_historial ORDER BY id DESC LIMIT 300",
-            conn)
-        conn.close()
+    # ══ TAB 2 — Historial ═══════════════════════════════════════════════════
+    with mt2:
+        hist = _historial_sesiones_cacheado()
         if hist.empty:
             st.info("Aún no hay historial de sesiones cerradas.")
         else:
@@ -743,6 +788,7 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                                       [(i,) for i in seleccionados])
                     conn.commit()
                     conn.close()
+                    _limpiar_cache_monitoreo()
                     registrar_auditoria_fn(
                         _u["id"], _u["username"], "ELIMINAR_HISTORIAL_SESIONES",
                         f"{len(seleccionados)} registro(s) de historial eliminados",
@@ -764,6 +810,7 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                     conn.execute("DELETE FROM sesiones_historial")
                     conn.commit()
                     conn.close()
+                    _limpiar_cache_monitoreo()
                     registrar_auditoria_fn(
                         _u["id"], _u["username"], "VACIAR_HISTORIAL_SESIONES",
                         f"Historial de sesiones vaciado por completo ({total} registros)",
@@ -771,17 +818,9 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                     st.success("Historial de sesiones vaciado.")
                     st.rerun()
 
-    # ══ Proyectos creados ═══════════════════════════════════════════════════
-    elif _seccion_mon == "📁 Proyectos creados":
-        conn = get_conn()
-        cols = [c[1] for c in conn.execute("PRAGMA table_info(proyectos)").fetchall()]
-        select_creador = "creado_por" if "creado_por" in cols else "NULL"
-        proys = pd.read_sql(f"""
-            SELECT id AS ID, nombre AS Nombre, municipio AS Municipio,
-                   {select_creador} AS Creado_por, creado AS Fecha
-            FROM proyectos ORDER BY id DESC
-        """, conn)
-        conn.close()
+    # ══ TAB 3 — Proyectos creados ════════════════════════════════════════════
+    with mt3:
+        proys = _proyectos_creados_cacheado()
 
         if proys.empty:
             st.info("Aún no se han creado proyectos.")
@@ -806,8 +845,8 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
             proys["Creado_por"] = proys["Creado_por"].fillna("— (sin registrar)")
             st.dataframe(proys, use_container_width=True, hide_index=True)
 
-    # ══ Mensajes / Chat con usuarios ════════════════════════════════════════
-    elif _seccion_mon == "💬 Mensajes":
+    # ══ TAB 4 — Mensajes / Chat con usuarios ═════════════════════════════════
+    with mt4:
         if _hilos_admin.empty:
             st.info("Todavía no hay usuarios con quienes chatear. En cuanto "
                      "alguien se conecte a la aplicación aparecerá aquí.")

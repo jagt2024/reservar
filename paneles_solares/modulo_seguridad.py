@@ -375,6 +375,36 @@ def mostrar_usuario_sidebar():
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO DE GESTIÓN DE USUARIOS (solo admin/superadmin)
 # ═══════════════════════════════════════════════════════════════════════════════
+@st.cache_data(ttl=15, show_spinner=False)
+def _listar_usuarios_cacheado() -> pd.DataFrame:
+    """Lista de usuarios para el panel de administración. Se cachea porque
+    st.tabs() ejecuta el código de las 3 sub-pestañas en CADA rerun (aunque
+    solo una esté visible) y cada consulta a Turso es un viaje de red. Se
+    invalida explícitamente (.clear()) al crear/editar/eliminar un usuario
+    desde este mismo panel; el TTL cubre cambios hechos desde otros lados
+    (p. ej. 'ultimo_acceso' al iniciar sesión)."""
+    conn = get_conn()
+    df = pd.read_sql(
+        "SELECT id, username, nombre_completo, email, rol, activo, creado, ultimo_acceso "
+        "FROM usuarios ORDER BY creado DESC", conn)
+    conn.close()
+    return df
+
+
+@st.cache_data(ttl=10, show_spinner=False)
+def _listar_auditoria_cacheado() -> pd.DataFrame:
+    """Últimos 200 registros de auditoría. 10 s de margen es imperceptible
+    para un registro histórico y evita repetir la consulta en cada rerun."""
+    conn = get_conn()
+    df = pd.read_sql("""
+        SELECT fecha, username, accion, modulo, detalle
+        FROM auditoria
+        ORDER BY fecha DESC LIMIT 200
+    """, conn)
+    conn.close()
+    return df
+
+
 def mostrar_gestion_usuarios():
     """Panel completo de administración de usuarios."""
     u = usuario_activo()
@@ -390,28 +420,25 @@ def mostrar_gestion_usuarios():
     """, unsafe_allow_html=True)
 
     # st.tabs() ejecuta las 3 sub-pestañas en CADA rerun, sin importar cuál
-    # se esté viendo — mismo problema que se corrigió en la navegación
-    # principal de solar_app.py y en el panel de Monitoreo. Se usa
-    # segmented_control/radio + if/elif para que solo corra la elegida.
-    _OPCIONES_USUARIOS = ["👥 Usuarios", "➕ Nuevo usuario", "📋 Auditoría"]
-    if hasattr(st, "segmented_control"):
-        _seccion_usr = st.segmented_control(
-            "Secciones", _OPCIONES_USUARIOS, default=_OPCIONES_USUARIOS[0],
-            label_visibility="collapsed", key="_nav_usuarios_seccion")
-        if _seccion_usr is None:
-            _seccion_usr = _OPCIONES_USUARIOS[0]
-    else:
-        _seccion_usr = st.radio(
-            "Secciones", _OPCIONES_USUARIOS, horizontal=True,
-            label_visibility="collapsed", key="_nav_usuarios_seccion")
+    # NOTA: se probó convertir estas sub-pestañas a segmented_control/radio
+    # (if/elif) para evitar que las 3 ejecuten sus consultas en cada rerun.
+    # Resultó CONTRAPRODUCENTE: con st.tabs(), cambiar de pestaña es una
+    # operación puramente del navegador (CSS) y no toca el servidor; con
+    # un widget de selección, cada cambio de sección SÍ dispara un rerun
+    # completo (viaje de red a Turso incluido). Es decir, se cambió "todas
+    # las pestañas consultan en cada rerun" (el problema original) por
+    # "cada simple clic de cambiar de pestaña ahora ES un rerun" (peor
+    # para un panel que se usa cambiando de sección seguido). Se revirtió
+    # a st.tabs() y en su lugar se cachean las consultas pesadas de cada
+    # sub-pestaña (ver @st.cache_data más abajo), para que re-ejecutar las
+    # 3 en cada rerun sea barato en vez de intentar evitar la re-ejecución.
+    tab_lista, tab_nuevo, tab_auditoria = st.tabs([
+        "👥 Usuarios", "➕ Nuevo usuario", "📋 Auditoría"
+    ])
 
-    # ── Lista de usuarios ──────────────────────────────────────────────────
-    if _seccion_usr == "👥 Usuarios":
-        conn = get_conn()
-        usuarios_df = pd.read_sql(
-            "SELECT id, username, nombre_completo, email, rol, activo, creado, ultimo_acceso "
-            "FROM usuarios ORDER BY creado DESC", conn)
-        conn.close()
+    # ── TAB: Lista de usuarios ────────────────────────────────────────────────
+    with tab_lista:
+        usuarios_df = _listar_usuarios_cacheado()
 
         st.markdown(f"""
         <div style='display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;'>
@@ -484,6 +511,7 @@ def mostrar_gestion_usuarios():
                             conn.execute("UPDATE usuarios SET rol=? WHERE id=?",
                                          (nuevo_rol, row["id"]))
                             conn.commit(); conn.close()
+                            _listar_usuarios_cacheado.clear()
                             registrar_auditoria(u["id"], u["username"], "CAMBIO_ROL",
                                                 f"Usuario #{row['id']} → rol: {nuevo_rol}", "usuarios")
                             st.success("Rol actualizado ✓"); st.rerun()
@@ -496,6 +524,7 @@ def mostrar_gestion_usuarios():
                             conn.execute("UPDATE usuarios SET activo=? WHERE id=?",
                                          (btn_val, row["id"]))
                             conn.commit(); conn.close()
+                            _listar_usuarios_cacheado.clear()
                             registrar_auditoria(u["id"], u["username"],
                                                 "ACTIVAR" if btn_val else "DESACTIVAR",
                                                 f"Usuario #{row['id']} @{row['username']}", "usuarios")
@@ -510,6 +539,7 @@ def mostrar_gestion_usuarios():
                                     conn = get_conn()
                                     conn.execute("DELETE FROM usuarios WHERE id=?", (row["id"],))
                                     conn.commit(); conn.close()
+                                    _listar_usuarios_cacheado.clear()
                                     registrar_auditoria(u["id"], u["username"], "ELIMINAR_USUARIO",
                                                         f"@{row['username']}", "usuarios")
                                     st.success("Usuario eliminado ✓"); st.rerun()
@@ -535,7 +565,7 @@ def mostrar_gestion_usuarios():
                                     st.success("Contraseña actualizada ✓")
 
     # ── TAB: Nuevo usuario ────────────────────────────────────────────────────
-    elif _seccion_usr == "➕ Nuevo usuario":
+    with tab_nuevo:
         if not tiene_permiso("crear_usuarios"):
             st.error("🔒 No tienes permiso para crear usuarios.")
         else:
@@ -605,6 +635,7 @@ def mostrar_gestion_usuarios():
                               n_email.strip().lower(), _hash_password(n_pwd),
                               n_rol, u["id"]))
                         conn.commit(); conn.close()
+                        _listar_usuarios_cacheado.clear()
                         registrar_auditoria(u["id"], u["username"], "CREAR_USUARIO",
                                             f"@{n_username} rol:{n_rol}", "usuarios")
                         st.success(f"✓ Usuario @{n_username} creado exitosamente")
@@ -618,17 +649,11 @@ def mostrar_gestion_usuarios():
                             st.error(f"❌ Error: {e}")
 
     # ── TAB: Auditoría ────────────────────────────────────────────────────────
-    elif _seccion_usr == "📋 Auditoría":
+    with tab_auditoria:
         if not tiene_permiso("ver_auditoria"):
             st.error("🔒 No tienes permiso para ver la auditoría.")
         else:
-            conn = get_conn()
-            aud_df = pd.read_sql("""
-                SELECT fecha, username, accion, modulo, detalle
-                FROM auditoria
-                ORDER BY fecha DESC LIMIT 200
-            """, conn)
-            conn.close()
+            aud_df = _listar_auditoria_cacheado()
 
             col_f1, col_f2, col_f3 = st.columns(3)
             with col_f1:
