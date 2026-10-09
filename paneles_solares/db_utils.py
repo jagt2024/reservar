@@ -9,17 +9,33 @@ ARQUITECTURA (migrado a Turso):
   través de db_conn.py, que imita la misma API de sqlite3 (execute,
   cursor, fetchone/fetchall, row_factory, executemany, commit, close,
   excepciones) para que el resto de este archivo casi no cambie.
-- get_conn() sigue creando las tablas si no existen en cada llamada,
-  exactamente igual que antes.
+- get_conn() crea las tablas si no existen, pero SOLO LA PRIMERA VEZ por
+  proceso (ver _ESQUEMA_LISTO). Antes lo hacía en cada llamada: con sqlite3
+  local eso costaba microsegundos, pero contra Turso son ~11 sentencias
+  CREATE TABLE IF NOT EXISTS = 11 viajes de red EXTRA antes de cada
+  consulta real, en cada uno de los módulos que usan get_conn().
 - Configuración necesaria: ver las instrucciones al inicio de db_conn.py
   (variables TURSO_DATABASE_URL / TURSO_AUTH_TOKEN).
 """
+import threading
+
 import db_conn
+
+_ESQUEMA_LISTO = False
+_ESQUEMA_LOCK = threading.Lock()
 
 
 def get_conn():
+    global _ESQUEMA_LISTO
     conn = db_conn.connect()
-    _ensure_tables(conn)
+    if not _ESQUEMA_LISTO:
+        with _ESQUEMA_LOCK:
+            if not _ESQUEMA_LISTO:  # doble verificación: otro hilo pudo ganar la carrera
+                _ensure_tables(conn)
+                # Solo se marca como listo si _ensure_tables terminó sin
+                # error; si falló (p. ej. red caída), se reintentará en la
+                # próxima llamada en vez de dar el esquema por creado.
+                _ESQUEMA_LISTO = True
     return conn
 
 

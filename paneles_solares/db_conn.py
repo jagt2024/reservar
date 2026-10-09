@@ -476,6 +476,37 @@ class Row:
         return repr(dict(zip(self._columnas, self._valores)))
 
 
+# ─── DDL idempotente: no repetir CREATE ... IF NOT EXISTS ya ejecutados ─────
+# Casi todos los módulos tienen una función init_*_db() que corre varias
+# sentencias "CREATE TABLE IF NOT EXISTS" y se llama desde las funciones que
+# dibujan cada sección — es decir, en CADA rerun de Streamlit. Con sqlite3
+# local eso costaba microsegundos; contra Turso cada sentencia es un viaje
+# de red completo (11 en db_utils, varias más en cada módulo). Como esas
+# sentencias son idempotentes por definición, una vez que una se ejecutó
+# con éxito en este proceso no hace falta volver a enviarla.
+# Limitación asumida: si alguien borra una tabla en Turso MIENTRAS la app
+# sigue corriendo, no se recreará hasta reiniciar el proceso.
+_PREFIJOS_DDL_IDEMPOTENTE = (
+    "CREATE TABLE IF NOT EXISTS",
+    "CREATE INDEX IF NOT EXISTS",
+    "CREATE UNIQUE INDEX IF NOT EXISTS",
+)
+_DDL_YA_EJECUTADO = set()
+
+
+def _clave_ddl(sql: str):
+    """Devuelve una clave normalizada si `sql` es DDL idempotente, o None."""
+    normalizado = " ".join(sql.split())
+    if normalizado.upper().startswith(_PREFIJOS_DDL_IDEMPOTENTE):
+        return normalizado
+    return None
+
+
+def reiniciar_cache_ddl():
+    """Olvida qué DDL ya se ejecutó (útil en pruebas o tras recrear la base)."""
+    _DDL_YA_EJECUTADO.clear()
+
+
 # ─── Adaptadores con API estilo sqlite3 ─────────────────────────────────────
 class _Cursor:
     """Imita sqlite3.Cursor: execute(), executemany(), fetchone(), fetchall(),
@@ -505,10 +536,20 @@ class _Cursor:
 
     def execute(self, sql, params=()):
         args = list(params) if params else None
+
+        clave_ddl = None if args else _clave_ddl(sql)
+        if clave_ddl is not None and clave_ddl in _DDL_YA_EJECUTADO:
+            # Ya se ejecutó con éxito en este proceso: se omite el viaje de red.
+            self._rows, self._idx = [], 0
+            self.lastrowid, self.rowcount, self.description = None, 0, None
+            return self
+
         try:
             resultado = self._conn._client.execute(sql, args)
         except LibsqlError as e:
             raise _traducir_error(e) from e
+        if clave_ddl is not None:
+            _DDL_YA_EJECUTADO.add(clave_ddl)
         self._aplicar_resultado(resultado)
         return self
 
