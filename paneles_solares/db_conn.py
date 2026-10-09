@@ -127,7 +127,13 @@ def _valor_de_hrana(d):
     if tipo == "text":
         return d["value"]
     if tipo == "blob":
-        return base64.b64decode(d["base64"])
+        # Turso envía los BLOB en base64 SIN el relleno final "=" (según la
+        # especificación Hrana el relleno es opcional), pero b64decode lo
+        # exige y falla con binascii.Error ("Incorrect padding") según el
+        # tamaño de la imagen. Se completa el relleno antes de decodificar.
+        b64 = d["base64"]
+        b64 += "=" * (-len(b64) % 4)
+        return base64.b64decode(b64)
     return d.get("value")
 
 
