@@ -2361,18 +2361,14 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Tabs principales
-# ─── NAVEGACIÓN POR SECCIÓN (en vez de st.tabs) ─────────────────────────────
-# st.tabs() ejecuta el código de las 13 pestañas en CADA rerun, sin importar
-# cuál esté visible — es solo un tema visual del navegador, no afecta qué
-# código de Python corre. Con sqlite3 local esto no se notaba (consultas
-# instantáneas); contra Turso, cada clic pagaba la factura de red de las
-# ~60 consultas repartidas entre las 13 pestañas, no solo las de la que se
-# estaba viendo — de ahí la demora al cambiar de pestaña y, probablemente,
-# los errores de sesión de Streamlit bajo esa carga.
-# st.segmented_control (o st.radio como respaldo) sí permite ejecutar SOLO
-# la sección elegida, con if/elif en vez de with — el contenido de cada
-# sección no cambia, solo la línea que lo abre.
-_ETIQUETAS_SECCIONES = [
+# NOTA: se probó reemplazar st.tabs() por segmented_control/radio + if/elif
+# para que solo corriera la sección elegida. Resultó CONTRAPRODUCENTE: con
+# st.tabs(), cambiar de pestaña lo hace solo el navegador y NO envía nada al
+# servidor (on_change='ignore'); con un widget de selección, cada cambio de
+# sección dispara un rerun completo del script. Se revirtió a st.tabs() y el
+# costo de que las 13 secciones corran en cada rerun se ataca reduciendo los
+# viajes de red a Turso (caché de lecturas en db_conn.py).
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12, tab13 = st.tabs([
     "⚡ 1 · Cargas",
     "🧾 2 · Recibo Luz",
     "🔋 3 · Tensión DC",
@@ -2386,22 +2382,12 @@ _ETIQUETAS_SECCIONES = [
     "💹 11 · Económico",
     "🔌 12 · Cableado",
     "📷 13 · Sitio y Montaje",
-]
-if hasattr(st, "segmented_control"):
-    _seccion_activa = st.segmented_control(
-        "Secciones", _ETIQUETAS_SECCIONES, default=_ETIQUETAS_SECCIONES[0],
-        label_visibility="collapsed", key="_nav_seccion_activa")
-    if _seccion_activa is None:  # por si el widget permite deseleccionar
-        _seccion_activa = _ETIQUETAS_SECCIONES[0]
-else:
-    _seccion_activa = st.radio(
-        "Secciones", _ETIQUETAS_SECCIONES, horizontal=True,
-        label_visibility="collapsed", key="_nav_seccion_activa")
+])
 
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 1 — ANÁLISIS DE CARGAS
 # ════════════════════════════════════════════════════════════════════════════
-if _seccion_activa == "⚡ 1 · Cargas":
+with tab1:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>1</span> ANÁLISIS DE CARGA ELÉCTRICA</div>
     """, unsafe_allow_html=True)
@@ -2967,7 +2953,7 @@ if _seccion_activa == "⚡ 1 · Cargas":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 2 — RECIBO DE LUZ
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🧾 2 · Recibo Luz":
+with tab2:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>2</span> CONSUMO DESDE EL RECIBO DE ENERGÍA</div>
     """, unsafe_allow_html=True)
@@ -3372,7 +3358,7 @@ elif _seccion_activa == "🧾 2 · Recibo Luz":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 3 — TENSIÓN DC
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🔋 3 · Tensión DC":
+with tab3:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>3</span> ESTÁNDAR DE TENSIÓN DC DEL SISTEMA</div>
     """, unsafe_allow_html=True)
@@ -3462,7 +3448,7 @@ elif _seccion_activa == "🔋 3 · Tensión DC":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 4 — HORA SOLAR PICO
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🌞 4 · Hora Solar":
+with tab4:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>4</span> HORA SOLAR PICO (HSP)</div>
     """, unsafe_allow_html=True)
@@ -3652,7 +3638,7 @@ elif _seccion_activa == "🌞 4 · Hora Solar":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 5 — PANEL SOLAR
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🔆 5 · Panel Solar":
+with tab5:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>5</span> SELECCIÓN DEL PANEL SOLAR</div>
     """, unsafe_allow_html=True)
@@ -3852,7 +3838,7 @@ elif _seccion_activa == "🔆 5 · Panel Solar":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 6 — BATERÍAS
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🔋 6 · Baterías":
+with tab6:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>7</span> CÁLCULO DE BATERÍAS LITIO 100 Ah</div>
     """, unsafe_allow_html=True)
@@ -4194,7 +4180,7 @@ elif _seccion_activa == "🔋 6 · Baterías":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 7 — POTENCIA INSTALADA
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "📊 7 · Potencia":
+with tab7:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>6</span> CÁLCULO DE POTENCIA INSTALADA EN PANELES</div>
     """, unsafe_allow_html=True)
@@ -4462,7 +4448,7 @@ elif _seccion_activa == "📊 7 · Potencia":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 8 — CONTROLADOR MPPT
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🎛 8 · Controlador":
+with tab8:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>8</span> SELECCIÓN CONTROLADOR DE CARGA (MPPT / PWM)</div>
     """, unsafe_allow_html=True)
@@ -4999,7 +4985,7 @@ elif _seccion_activa == "🎛 8 · Controlador":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 9 — PLANO DE INSTALACIÓN DE PANELES
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🔲 9 · Plano Paneles":
+with tab9:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>9</span> PLANO DE INSTALACIÓN DE PANELES SOLARES</div>
     """, unsafe_allow_html=True)
@@ -5524,7 +5510,7 @@ elif _seccion_activa == "🔲 9 · Plano Paneles":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 10 — PLANO GENERAL DEL PROYECTO
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "📐 10 · Plano General":
+with tab10:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>10</span> PLANO GENERAL DEL SISTEMA FOTOVOLTAICO</div>
     """, unsafe_allow_html=True)
@@ -6067,7 +6053,7 @@ elif _seccion_activa == "📐 10 · Plano General":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 11 — ANÁLISIS ECONÓMICO Y AMBIENTAL (OFF-GRID)
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "💹 11 · Económico":
+with tab11:
     st.markdown("""
     <div class='sol-card-title'><span class='step-badge'>11</span>
     ANÁLISIS ECONÓMICO Y AMBIENTAL — SISTEMA OFF-GRID</div>
@@ -6424,7 +6410,7 @@ elif _seccion_activa == "💹 11 · Económico":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 12 — CABLEADO
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "🔌 12 · Cableado":
+with tab12:
     if not proyecto_id:
         st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral para calcular el cableado.</div>",
                     unsafe_allow_html=True)
@@ -6434,7 +6420,7 @@ elif _seccion_activa == "🔌 12 · Cableado":
 # ════════════════════════════════════════════════════════════════════════════
 # TAB 13 — SITIO Y MONTAJE (fotos reales + disposición óptima de paneles)
 # ════════════════════════════════════════════════════════════════════════════
-elif _seccion_activa == "📷 13 · Sitio y Montaje":
+with tab13:
     if not proyecto_id:
         st.markdown("<div class='warn-box'>⚠ Selecciona o crea un proyecto en el menú lateral "
                      "para subir fotos del sitio y calcular la disposición de los paneles.</div>",
@@ -6493,15 +6479,11 @@ else:
                 except Exception as e:
                     avisos.append(f"Dimensionamiento técnico: {e}")
 
-                # Nota: antes esta sección leía svg_code/svg10/svg13/_datos_pdf_eco
-                # como variables locales ("X in dir()"), porque con st.tabs()
-                # las 13 pestañas corrían siempre en cada rerun y esas
-                # variables ya estaban pobladas sin importar cuál se estuviera
-                # viendo. Ahora que solo corre la sección activa (ver nota de
-                # rendimiento en la definición de _seccion_activa), cada
-                # sección guarda su resultado en st.session_state al calcularlo
-                # — así el informe puede incluirlo aunque el usuario ya haya
-                # cambiado de sección.
+                # Cada sección guarda su resultado (svg_code, svg10, svg13,
+                # _datos_pdf_eco) en st.session_state al calcularlo, y el
+                # informe lo lee de ahí en vez de depender de variables locales
+                # ("X in dir()"): así no importa en qué orden o en qué rerun
+                # se calculó cada una.
 
                 # 2· Plano de paneles (Tab 9)
                 try:
