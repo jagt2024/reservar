@@ -62,6 +62,9 @@ import base64
 import http.client
 import json
 import os
+import re
+import time
+from collections import OrderedDict
 import sqlite3  # SOLO para reutilizar sus clases de excepción y sqlite3.Row;
                  # ya no se usa sqlite3.connect() en ningún lado de este módulo.
 import threading
@@ -513,6 +516,176 @@ def reiniciar_cache_ddl():
     _DDL_YA_EJECUTADO.clear()
 
 
+# ─── CACHÉ DE LECTURAS (SELECT) con invalidación por escritura ───────────────
+# Streamlit vuelve a ejecutar TODO el script en cada interacción, y con
+# st.tabs() las 13 secciones corren en cada rerun: decenas de SELECT que con
+# sqlite3 local eran gratis y contra Turso son un viaje de red cada uno. Los
+# resultados de SELECT se guardan en memoria unos segundos.
+#
+# Por qué es seguro:
+#  * Cualquier escritura (INSERT/UPDATE/DELETE/ALTER/DDL nuevo) invalida las
+#    lecturas afectadas ANTES de que la función que escribió continúe, así
+#    que dentro de esta app nunca se ve un dato viejo tras guardar algo.
+#    Cada lectura cacheada recuerda de qué tablas leyó; una escritura a la
+#    tabla X solo borra lo que leyó X (y cualquier lectura de la que no se
+#    pudo determinar la tabla). Escrituras a tablas "padre" o desconocidas
+#    vacían todo el caché (por si hubiera borrados en cascada).
+#  * Nunca se cachean las tablas "en vivo" (sesiones, sesiones_activas,
+#    sesiones_historial, mensajes_chat) ni consultas no deterministas
+#    (random(), 'now', last_insert_rowid()...).
+#  * Si una escritura ocurre mientras otra sesión estaba leyendo, el
+#    resultado de esa lectura se descarta en vez de guardarse (contador de
+#    "generación").
+# Límite asumido: el caché es POR PROCESO. Si otro proceso (p. ej. el script
+# de migración, o la app corriendo en local contra la misma base) escribe en
+# Turso, esta instancia lo verá cuando venza el TTL. TTL por defecto: 30 s;
+# se ajusta con la variable de entorno DB_CACHE_TTL_SEGUNDOS (0 = desactivar).
+def _leer_ttl_cache() -> float:
+    try:
+        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "30")))
+    except ValueError:
+        return 30.0
+
+
+_TTL_LECTURAS = _leer_ttl_cache()
+_MAX_BYTES_ENTRADA = 4_000_000     # un resultado más grande (p. ej. varias fotos) no se cachea
+_MAX_BYTES_TOTAL = 40_000_000
+_MAX_ENTRADAS = 400
+
+# Tablas que se escriben con mucha frecuencia (latido de sesión, auditoría,
+# chat): una escritura a ellas solo invalida las lecturas que las usaron.
+_TABLAS_ESCRITURA_SELECTIVAS = {
+    "sesiones", "sesiones_activas", "sesiones_historial", "mensajes_chat", "auditoria",
+}
+_RE_TABLAS_EN_VIVO = re.compile(
+    r"\b(sesiones|sesiones_activas|sesiones_historial|mensajes_chat)\b", re.I)
+_RE_NO_DETERMINISTA = re.compile(
+    r"\b(random|last_insert_rowid|changes|total_changes)\s*\(|'now'|\"now\"|current_(timestamp|date|time)",
+    re.I)
+_RE_TABLAS_SELECT = re.compile(r'\b(?:FROM|JOIN)\s+["`\[]?(?:\w+\.)?(\w+)', re.I)
+_RE_FROM_CON_COMA = re.compile(r'\bFROM\s+[\w"`\.]+(?:\s+(?:AS\s+)?\w+)?\s*,', re.I)
+_RE_TABLA_ESCRITURA = re.compile(
+    r'^\s*(?:INSERT(?:\s+OR\s+\w+)?\s+INTO|REPLACE\s+INTO|UPDATE(?:\s+OR\s+\w+)?|DELETE\s+FROM'
+    r'|ALTER\s+TABLE|DROP\s+TABLE(?:\s+IF\s+EXISTS)?'
+    r'|CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)(?:\s+IF\s+NOT\s+EXISTS)?)'
+    r'\s+["`\[]?(?:\w+\.)?(\w+)', re.I)
+
+_cache_lecturas = OrderedDict()    # clave -> (expira, resultado, bytes, tablas|None)
+_cache_bytes = 0
+_cache_generacion = 0
+_cache_lock = threading.Lock()
+_cache_stats = {"hits": 0, "misses": 0, "invalidaciones": 0}
+
+
+def _es_lectura(sql: str) -> bool:
+    s = sql.lstrip().upper()
+    return s.startswith("SELECT") or (s.startswith("PRAGMA") and "=" not in s)
+
+
+def _clave_lectura(sql: str, args):
+    """(sql_normalizado, args) si este SELECT se puede cachear; si no, None."""
+    if _TTL_LECTURAS <= 0:
+        return None
+    normalizado = " ".join(sql.split())
+    if not normalizado.upper().startswith("SELECT"):
+        return None
+    if _RE_TABLAS_EN_VIVO.search(normalizado) or _RE_NO_DETERMINISTA.search(normalizado):
+        return None
+    clave = (normalizado, tuple(args) if args else ())
+    try:
+        hash(clave)
+    except TypeError:
+        return None
+    return clave
+
+
+def _tablas_de_select(sql: str):
+    """Conjunto de tablas que lee el SELECT, o None si no se pudo determinar."""
+    if _RE_FROM_CON_COMA.search(sql):
+        return None
+    tablas = {m.lower() for m in _RE_TABLAS_SELECT.findall(sql)}
+    return frozenset(tablas) if tablas else None
+
+
+def _bytes_de_resultado(resultado) -> int:
+    total = 0
+    for fila in resultado.rows:
+        total += 64
+        for v in fila:
+            total += len(v) if isinstance(v, (bytes, str)) else 16
+    return total
+
+
+def _cache_leer(clave):
+    global _cache_bytes
+    with _cache_lock:
+        item = _cache_lecturas.get(clave)
+        if item is None:
+            _cache_stats["misses"] += 1
+            return None
+        expira, resultado, tam, _tablas = item
+        if expira < time.monotonic():
+            del _cache_lecturas[clave]
+            _cache_bytes -= tam
+            _cache_stats["misses"] += 1
+            return None
+        _cache_lecturas.move_to_end(clave)
+        _cache_stats["hits"] += 1
+        return resultado
+
+
+def _cache_guardar(clave, resultado, tablas, generacion_al_leer: int):
+    global _cache_bytes
+    tam = _bytes_de_resultado(resultado)
+    if tam > _MAX_BYTES_ENTRADA:
+        return
+    with _cache_lock:
+        if generacion_al_leer != _cache_generacion:
+            return  # hubo una escritura mientras se leía: el resultado puede ser viejo
+        previo = _cache_lecturas.pop(clave, None)
+        if previo is not None:
+            _cache_bytes -= previo[2]
+        _cache_lecturas[clave] = (time.monotonic() + _TTL_LECTURAS, resultado, tam, tablas)
+        _cache_bytes += tam
+        while _cache_lecturas and (len(_cache_lecturas) > _MAX_ENTRADAS
+                                   or _cache_bytes > _MAX_BYTES_TOTAL):
+            _, (_e, _r, t_viejo, _t) = _cache_lecturas.popitem(last=False)
+            _cache_bytes -= t_viejo
+
+
+def limpiar_cache_lecturas():
+    """Vacía todo el caché de lecturas (útil tras recrear la base o en pruebas)."""
+    global _cache_bytes, _cache_generacion
+    with _cache_lock:
+        _cache_lecturas.clear()
+        _cache_bytes = 0
+        _cache_generacion += 1
+        _cache_stats["invalidaciones"] += 1
+
+
+def _invalidar_por_escritura(sql: str):
+    """Invalida las lecturas afectadas por una sentencia que NO es lectura."""
+    global _cache_bytes, _cache_generacion
+    m = _RE_TABLA_ESCRITURA.match(sql)
+    tabla = m.group(1).lower() if m else None
+    if tabla is None or tabla not in _TABLAS_ESCRITURA_SELECTIVAS:
+        limpiar_cache_lecturas()
+        return
+    with _cache_lock:
+        _cache_generacion += 1
+        _cache_stats["invalidaciones"] += 1
+        for k in [k for k, (_e, _r, _t, tablas) in _cache_lecturas.items()
+                  if tablas is None or tabla in tablas]:
+            _cache_bytes -= _cache_lecturas.pop(k)[2]
+
+
+def estadisticas_cache_lecturas() -> dict:
+    """Aciertos/fallos/invalidaciones y tamaño actual (para diagnóstico)."""
+    with _cache_lock:
+        return dict(_cache_stats, entradas=len(_cache_lecturas),
+                    bytes=_cache_bytes, ttl_segundos=_TTL_LECTURAS)
+
+
 # ─── Adaptadores con API estilo sqlite3 ─────────────────────────────────────
 class _Cursor:
     """Imita sqlite3.Cursor: execute(), executemany(), fetchone(), fetchall(),
@@ -550,12 +723,28 @@ class _Cursor:
             self.lastrowid, self.rowcount, self.description = None, 0, None
             return self
 
+        clave_sel = _clave_lectura(sql, args)
+        generacion = 0
+        if clave_sel is not None:
+            en_cache = _cache_leer(clave_sel)
+            if en_cache is not None:
+                self._aplicar_resultado(en_cache)
+                return self
+            generacion = _cache_generacion  # para descartar si hay una escritura en medio
+
+        es_escritura = not _es_lectura(sql)
         try:
             resultado = self._conn._client.execute(sql, args)
         except LibsqlError as e:
             raise _traducir_error(e) from e
+        finally:
+            if es_escritura:
+                # También si falló: el estado remoto es incierto, mejor no servir caché.
+                _invalidar_por_escritura(sql)
         if clave_ddl is not None:
             _DDL_YA_EJECUTADO.add(clave_ddl)
+        if clave_sel is not None:
+            _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
         self._aplicar_resultado(resultado)
         return self
 
@@ -572,6 +761,8 @@ class _Cursor:
             resultados = self._conn._client.batch(lote)
         except LibsqlError as e:
             raise _traducir_error(e) from e
+        finally:
+            _invalidar_por_escritura(sql)
         # sqlite3.Cursor.executemany() no deja filas para leer; se deja
         # lastrowid/rowcount del ÚLTIMO statement ejecutado, igual que sqlite3.
         self._rows, self._idx = [], 0
