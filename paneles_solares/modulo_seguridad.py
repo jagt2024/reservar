@@ -375,7 +375,7 @@ def mostrar_usuario_sidebar():
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO DE GESTIÓN DE USUARIOS (solo admin/superadmin)
 # ═══════════════════════════════════════════════════════════════════════════════
-@st.cache_data(ttl=15, show_spinner=False)
+#@st.cache_data(ttl=15, show_spinner=False)
 def _listar_usuarios_cacheado() -> pd.DataFrame:
     """Lista de usuarios para el panel de administración. Se cachea porque
     st.tabs() ejecuta el código de las 3 sub-pestañas en CADA rerun (aunque
@@ -391,7 +391,7 @@ def _listar_usuarios_cacheado() -> pd.DataFrame:
     return df
 
 
-@st.cache_data(ttl=10, show_spinner=False)
+#@st.cache_data(ttl=10, show_spinner=False)
 def _listar_auditoria_cacheado() -> pd.DataFrame:
     """Últimos 200 registros de auditoría. 10 s de margen es imperceptible
     para un registro histórico y evita repetir la consulta en cada rerun."""
