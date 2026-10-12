@@ -1899,7 +1899,7 @@ with st.sidebar:
     # un viaje de red completo. Se invalida explícitamente al crear/eliminar
     # un proyecto (ver más abajo) para que el dropdown se actualice al
     # instante en vez de esperar a que venza el caché.
-    @st.cache_data(ttl=90, show_spinner=False)
+    @st.cache_data(ttl=30, show_spinner=False)
     def _listar_proyectos_sidebar(es_admin: bool, usuario_id):
         _c = get_conn()
         if es_admin:
