@@ -575,7 +575,7 @@ from modulo_sitio import init_sitio_db, mostrar_sitio
 # función una sola vez por proceso del servidor (se comparte entre todas
 # las sesiones/usuarios), exactamente lo que se necesita para un setup que
 # solo debe correr una vez.
-@st.cache_resource
+#@st.cache_resource
 def _inicializar_esquema_una_vez():
     init_db()
     init_seguridad_db()
@@ -1899,7 +1899,7 @@ with st.sidebar:
     # un viaje de red completo. Se invalida explícitamente al crear/eliminar
     # un proyecto (ver más abajo) para que el dropdown se actualice al
     # instante en vez de esperar a que venza el caché.
-    @st.cache_data(ttl=30, show_spinner=False)
+    #@st.cache_data(ttl=30, show_spinner=False)
     def _listar_proyectos_sidebar(es_admin: bool, usuario_id):
         _c = get_conn()
         if es_admin:
