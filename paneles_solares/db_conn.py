@@ -542,9 +542,9 @@ def reiniciar_cache_ddl():
 # se ajusta con la variable de entorno DB_CACHE_TTL_SEGUNDOS (0 = desactivar).
 def _leer_ttl_cache() -> float:
     try:
-        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "20")))
+        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "120")))
     except ValueError:
-        return 20.0
+        return 120.0
 
 
 _TTL_LECTURAS = _leer_ttl_cache()
