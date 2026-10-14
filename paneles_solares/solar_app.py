@@ -469,19 +469,19 @@ def init_db():
 
     # Sembrar los catálogos con valores por defecto la primera vez (si están
     # vacíos), para que se vea igual que antes aunque ahora sean editables.
-    if c.execute("SELECT COUNT(*) FROM catalogo_paneles").fetchone()[0] == 0:
-        for _modelo, _wp, _voc, _isc in [
-            ("JinkoSolar Tiger Neo 550", 550, 49.8, 13.96),
-            ("Trina Solar Vertex 550",   550, 49.5, 14.01),
-            ("Canadian Solar HiKu6 550", 550, 49.7, 13.98),
-            ("LONGi Hi-MO 6 550",        550, 50.2, 13.95),
-            ("JA Solar JAM72D30 550",    550, 49.6, 14.02),
-            ("Risen RSM132-8-650M",      650, 56.4, 14.71),
-            ("Bifacial 440W",            440, 41.8, 13.45),
-        ]:
-            c.execute(
-                "INSERT INTO catalogo_paneles(modelo,potencia_wp,voc,isc,creado_por) "
-                "VALUES (?,?,?,?,'Sistema')", (_modelo, _wp, _voc, _isc))
+    #if c.execute("SELECT COUNT(*) FROM catalogo_paneles").fetchone()[0] == 0:
+    #    for _modelo, _wp, _voc, _isc in [
+    #        ("JinkoSolar Tiger Neo 550", 550, 49.8, 13.96),
+    #        ("Trina Solar Vertex 550",   550, 49.5, 14.01),
+    #        ("Canadian Solar HiKu6 550", 550, 49.7, 13.98),
+    #        ("LONGi Hi-MO 6 550",        550, 50.2, 13.95),
+    #        ("JA Solar JAM72D30 550",    550, 49.6, 14.02),
+    #        ("Risen RSM132-8-650M",      650, 56.4, 14.71),
+    #        ("Bifacial 440W",            440, 41.8, 13.45),
+    #    ]:
+    #        c.execute(
+    #            "INSERT INTO catalogo_paneles(modelo,potencia_wp,voc,isc,creado_por) "
+    #            "VALUES (?,?,?,?,'Sistema')", (_modelo, _wp, _voc, _isc))
 
     if c.execute("SELECT COUNT(*) FROM catalogo_baterias").fetchone()[0] == 0:
         for _modelo, _ah, _v, _tec in [
