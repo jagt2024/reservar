@@ -542,9 +542,9 @@ def reiniciar_cache_ddl():
 # se ajusta con la variable de entorno DB_CACHE_TTL_SEGUNDOS (0 = desactivar).
 def _leer_ttl_cache() -> float:
     try:
-        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "5")))
+        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "30")))
     except ValueError:
-        return 5.0
+        return 30.0
 
 
 _TTL_LECTURAS = _leer_ttl_cache()
@@ -725,12 +725,12 @@ class _Cursor:
 
         clave_sel = _clave_lectura(sql, args)
         generacion = 0
-        #if clave_sel is not None:
-        #    en_cache = _cache_leer(clave_sel)
-        #    if en_cache is not None:
-        #        self._aplicar_resultado(en_cache)
-        #        return self
-        #    generacion = _cache_generacion  # para descartar si hay una escritura en medio
+        if clave_sel is not None:
+            en_cache = _cache_leer(clave_sel)
+            if en_cache is not None:
+                self._aplicar_resultado(en_cache)
+                return self
+            generacion = _cache_generacion  # para descartar si hay una escritura en medio
 
         es_escritura = not _es_lectura(sql)
         try:
@@ -743,9 +743,9 @@ class _Cursor:
                 _invalidar_por_escritura(sql)
         if clave_ddl is not None:
             _DDL_YA_EJECUTADO.add(clave_ddl)
-        #if clave_sel is not None:
-        #    _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
-        #self._aplicar_resultado(resultado)
+        if clave_sel is not None:
+            _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
+        self._aplicar_resultado(resultado)
         return self
 
     def executemany(self, sql, seq_de_params):
