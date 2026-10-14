@@ -723,8 +723,8 @@ class _Cursor:
             self.lastrowid, self.rowcount, self.description = None, 0, None
             return self
 
-        #clave_sel = _clave_lectura(sql, args)
-        #generacion = 0
+        clave_sel = _clave_lectura(sql, args)
+        generacion = 0
         #if clave_sel is not None:
         #    en_cache = _cache_leer(clave_sel)
         #    if en_cache is not None:
