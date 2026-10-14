@@ -547,7 +547,7 @@ def _leer_ttl_cache() -> float:
         return 30.0
 
 
-_TTL_LECTURAS = _leer_ttl_cache()
+_TTL_LECTURAS = 0 #_leer_ttl_cache()
 _MAX_BYTES_ENTRADA = 4_000_000     # un resultado más grande (p. ej. varias fotos) no se cachea
 _MAX_BYTES_TOTAL = 40_000_000
 _MAX_ENTRADAS = 400
@@ -723,14 +723,14 @@ class _Cursor:
             self.lastrowid, self.rowcount, self.description = None, 0, None
             return self
 
-        clave_sel = _clave_lectura(sql, args)
-        generacion = 0
-        if clave_sel is not None:
-            en_cache = _cache_leer(clave_sel)
-            if en_cache is not None:
-                self._aplicar_resultado(en_cache)
-                return self
-            generacion = _cache_generacion  # para descartar si hay una escritura en medio
+        #clave_sel = _clave_lectura(sql, args)
+        #generacion = 0
+        #if clave_sel is not None:
+        #    en_cache = _cache_leer(clave_sel)
+        #    if en_cache is not None:
+        #        self._aplicar_resultado(en_cache)
+        #        return self
+        #    generacion = _cache_generacion  # para descartar si hay una escritura en medio
 
         es_escritura = not _es_lectura(sql)
         try:
@@ -743,9 +743,9 @@ class _Cursor:
                 _invalidar_por_escritura(sql)
         if clave_ddl is not None:
             _DDL_YA_EJECUTADO.add(clave_ddl)
-        if clave_sel is not None:
-            _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
-        self._aplicar_resultado(resultado)
+        #if clave_sel is not None:
+        #    _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
+        #self._aplicar_resultado(resultado)
         return self
 
     def executemany(self, sql, seq_de_params):
