@@ -62,7 +62,9 @@ import base64
 import http.client
 import json
 import os
+import queue
 import re
+import socket
 import time
 from collections import OrderedDict
 import sqlite3  # SOLO para reutilizar sus clases de excepción y sqlite3.Row;
@@ -158,23 +160,21 @@ class ClienteTursoHTTP:
     usaba libsql_client.ClientSync, así que _Cursor/Connection más abajo
     no necesitan cambiar.
 
-    Mantiene conexiones TCP/TLS abiertas y las reutiliza entre llamadas
-    (keep-alive), en vez de abrir una nueva por cada consulta.
+    Mantiene un GRUPO (pool) de conexiones TCP/TLS abiertas y las reutiliza
+    entre llamadas (keep-alive), en vez de abrir una nueva por consulta.
 
-    IMPORTANTE — una conexión POR HILO, no una sola compartida: Streamlit
-    ejecuta cada sesión (cada pestaña/usuario) en su propio hilo. Una
-    primera versión de esta clase usaba UNA sola conexión compartida
-    protegida por un candado (threading.Lock), y eso resultó ser un error
-    serio: si dos sesiones hacían una consulta al mismo tiempo, una tenía
-    que ESPERAR a que la otra terminara por completo (incluyendo
-    reintentos) antes de poder hacer la suya — convirtiendo lo que debía
-    ser una mejora de velocidad en un cuello de botella que bloqueaba
-    sesiones enteras entre sí, y que probablemente causaba (o empeoraba)
-    errores de sesión de Streamlit bajo uso concurrente. Con
-    threading.local(), cada hilo tiene su PROPIA conexión persistente:
-    se sigue evitando repetir el handshake TLS en cada consulta (el
-    beneficio de velocidad se mantiene), pero ninguna sesión bloquea a
-    otra.
+    Historial de diseño (para no repetir errores):
+      1. UNA conexión compartida con un candado global: una consulta lenta
+         (o un reintento) bloqueaba a TODAS las sesiones.
+      2. Una conexión POR HILO (threading.local): sin bloqueos, pero Streamlit
+         crea un hilo NUEVO para cada interacción del usuario (el hilo termina
+         cuando no quedan reruns pendientes), así que esa conexión casi nunca
+         se reutilizaba: cada interacción pagaba otro apretón de manos TCP+TLS
+         (contra una base en otra región, cientos de milisegundos).
+      3. (actual) Un pool compartido: cada petición toma EN EXCLUSIVA una
+         conexión libre (o abre una nueva si no hay) y la devuelve al terminar.
+         No hay candado durante la petición, así que ninguna sesión bloquea a
+         otra, y las conexiones sobreviven entre interacciones.
     """
     def __init__(self, url: str, auth_token: str, timeout: float = 15.0):
         partes = urllib.parse.urlsplit(url)
@@ -185,11 +185,38 @@ class ClienteTursoHTTP:
         self._token = auth_token
         self._timeout = timeout
         self.closed = False
-        self._local = threading.local()  # .conn: la conexión persistente DE ESTE HILO
+        self._libres = queue.LifoQueue()   # (conexión, instante del último uso)
+        self._max_libres = 8               # conexiones inactivas que se conservan
+        self._max_inactividad = 120.0      # s; el servidor cierra sockets inactivos
 
     def _abrir_conexion_http(self):
         cls = http.client.HTTPSConnection if self._scheme == "https" else http.client.HTTPConnection
         return cls(self._host, self._port, timeout=self._timeout)
+
+    @staticmethod
+    def _cerrar_conexion(conn_http):
+        try:
+            conn_http.close()
+        except Exception:
+            pass
+
+    def _tomar_conexion(self):
+        """(conexión, reutilizada). Toma una libre y reciente, o abre una nueva."""
+        while True:
+            try:
+                conn_http, ultimo_uso = self._libres.get_nowait()
+            except queue.Empty:
+                return self._abrir_conexion_http(), False
+            if time.monotonic() - ultimo_uso > self._max_inactividad:
+                self._cerrar_conexion(conn_http)   # probablemente ya la cerró el servidor
+                continue
+            return conn_http, True
+
+    def _devolver_conexion(self, conn_http):
+        if self.closed or self._libres.qsize() >= self._max_libres:
+            self._cerrar_conexion(conn_http)
+        else:
+            self._libres.put((conn_http, time.monotonic()))
 
     def _post(self, requests_hrana: list) -> dict:
         body = json.dumps({"baton": None, "requests": requests_hrana}).encode("utf-8")
@@ -199,32 +226,35 @@ class ClienteTursoHTTP:
         }
 
         for intento in (1, 2):
+            conn_http, reutilizada = self._tomar_conexion()
+            fase = "conexión"
             try:
-                conn_http = getattr(self._local, "conn", None)
-                if conn_http is None:
-                    conn_http = self._abrir_conexion_http()
-                    self._local.conn = conn_http
+                if conn_http.sock is None:
+                    conn_http.connect()
+                fase = "petición"
                 conn_http.request("POST", self._path, body=body, headers=headers)
                 resp = conn_http.getresponse()
                 crudo = resp.read().decode("utf-8", errors="replace")
                 estado = resp.status
-                break
+                conservar = not resp.will_close
             except (http.client.HTTPException, OSError) as e:
-                # La conexión persistente (de este hilo) puede haberse
-                # caído (p. ej. el servidor cerró un socket inactivo). Se
-                # descarta y se reintenta UNA vez con una conexión nueva
-                # antes de darse por vencido. Esto NO afecta a otros
-                # hilos/sesiones, cada uno tiene la suya.
-                try:
-                    if conn_http is not None:
-                        conn_http.close()
-                except Exception:
-                    pass
-                self._local.conn = None
-                if intento == 2:
-                    raise LibsqlError(
-                        f"No se pudo conectar a {self._host}:{self._port}{self._path}: "
-                        f"{type(e).__name__}: {e}", "CONNECTION_ERROR") from e
+                self._cerrar_conexion(conn_http)
+                # Reintento (una sola vez) SOLO si es seguro: si falló al
+                # CONECTAR (no se envió nada) o si la conexión era una
+                # reutilizada que el servidor cerró por inactividad. Nunca
+                # tras un timeout: ahí el servidor pudo haber procesado ya la
+                # petición y reintentar duplicaría una escritura.
+                es_timeout = isinstance(e, (TimeoutError, socket.timeout))
+                if intento == 1 and not es_timeout and (fase == "conexión" or reutilizada):
+                    continue
+                raise LibsqlError(
+                    f"No se pudo conectar a {self._host}:{self._port}{self._path} "
+                    f"({fase}): {type(e).__name__}: {e}", "CONNECTION_ERROR") from e
+            if conservar:
+                self._devolver_conexion(conn_http)
+            else:
+                self._cerrar_conexion(conn_http)
+            break
 
         if estado != 200:
             raise LibsqlError(
@@ -286,18 +316,15 @@ class ClienteTursoHTTP:
         return resultados
 
     def close(self):
-        """Cierra la conexión persistente DEL HILO que llama a close()
-        (p. ej. desde cerrar_cliente_global()). Otros hilos con su propia
-        conexión abierta no se ven afectados; esas se liberan solas
-        cuando ese hilo termina."""
-        conn_http = getattr(self._local, "conn", None)
-        if conn_http is not None:
-            try:
-                conn_http.close()
-            except Exception:
-                pass
-            self._local.conn = None
+        """Cierra todas las conexiones libres del pool (las que estén en uso
+        se cierran al terminar su petición, porque self.closed ya es True)."""
         self.closed = True
+        while True:
+            try:
+                conn_http, _ = self._libres.get_nowait()
+            except queue.Empty:
+                break
+            self._cerrar_conexion(conn_http)
 
 
 # ─── Resolución de credenciales (env var o st.secrets) ──────────────────────
@@ -511,9 +538,54 @@ def _clave_ddl(sql: str):
     return None
 
 
+# Al arrancar la app (proceso nuevo, o tras dormirse en Streamlit Cloud) las
+# funciones init_*_db() envían ~30 sentencias CREATE ... IF NOT EXISTS que NO
+# HACEN NADA porque las tablas ya existen, pero cada una es un viaje de red
+# (~10 s de espera inicial con una base remota). Se consulta UNA sola vez qué
+# tablas/índices existen y se omiten los CREATE de los que ya están.
+_RE_NOMBRE_DDL = re.compile(
+    r'^CREATE\s+(?:UNIQUE\s+)?(?:TABLE|INDEX)\s+IF\s+NOT\s+EXISTS\s+["`\[]?(?:\w+\.)?(\w+)', re.I)
+_objetos_existentes = None      # set de nombres en minúsculas; None = por consultar
+_objetos_lock = threading.Lock()
+
+
+def _objeto_ya_existe(sql_normalizado: str, cliente) -> bool:
+    """True si el CREATE ... IF NOT EXISTS apunta a algo que ya existe."""
+    global _objetos_existentes
+    m = _RE_NOMBRE_DDL.match(sql_normalizado)
+    if not m:
+        return False
+    with _objetos_lock:
+        if _objetos_existentes is None:
+            try:
+                res = cliente.execute(
+                    "SELECT name FROM sqlite_master WHERE type IN ('table','index')", None)
+            except LibsqlError:
+                return False        # no se pudo saber: se ejecuta el CREATE normalmente
+            _objetos_existentes = {str(f[0]).lower() for f in res.rows}
+        return m.group(1).lower() in _objetos_existentes
+
+
+def _registrar_cambio_de_esquema(sql: str):
+    """Mantiene al día el conjunto de objetos existentes tras un DDL real."""
+    global _objetos_existentes
+    s = " ".join(sql.split())
+    m = _RE_NOMBRE_DDL.match(s)
+    with _objetos_lock:
+        if m and _objetos_existentes is not None:
+            _objetos_existentes.add(m.group(1).lower())      # CREATE nuevo: se añade
+        elif s.upper().startswith(("DROP", "ALTER", "CREATE")):
+            _objetos_existentes = None                        # cualquier otro cambio: se reconsulta
+            if s.upper().startswith("DROP"):
+                _DDL_YA_EJECUTADO.clear()   # tras un DROP, un CREATE IF NOT EXISTS vuelve a ser necesario
+
+
 def reiniciar_cache_ddl():
     """Olvida qué DDL ya se ejecutó (útil en pruebas o tras recrear la base)."""
+    global _objetos_existentes
     _DDL_YA_EJECUTADO.clear()
+    with _objetos_lock:
+        _objetos_existentes = None
 
 
 # ─── CACHÉ DE LECTURAS (SELECT) con invalidación por escritura ───────────────
@@ -542,9 +614,9 @@ def reiniciar_cache_ddl():
 # se ajusta con la variable de entorno DB_CACHE_TTL_SEGUNDOS (0 = desactivar).
 def _leer_ttl_cache() -> float:
     try:
-        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "3")))
+        return max(0.0, float(os.environ.get("DB_CACHE_TTL_SEGUNDOS", "30")))
     except ValueError:
-        return 5.0
+        return 30.0
 
 
 _TTL_LECTURAS = _leer_ttl_cache()
@@ -562,6 +634,10 @@ _RE_TABLAS_EN_VIVO = re.compile(
 _RE_NO_DETERMINISTA = re.compile(
     r"\b(random|last_insert_rowid|changes|total_changes)\s*\(|'now'|\"now\"|current_(timestamp|date|time)",
     re.I)
+# PRAGMA table_info(x) solo cambia con ALTER/CREATE/DROP sobre x, que ya invalidan
+# el caché. Módulos como backup_proyecto lo consultan ~80 veces por dibujado.
+_RE_PRAGMA_ESTRUCTURA = re.compile(
+    r'^PRAGMA\s+table_x?info\s*\(\s*["`\[]?(?:\w+\.)?(\w+)["`\]]?\s*\)\s*;?$', re.I)
 _RE_TABLAS_SELECT = re.compile(r'\b(?:FROM|JOIN)\s+["`\[]?(?:\w+\.)?(\w+)', re.I)
 _RE_FROM_CON_COMA = re.compile(r'\bFROM\s+[\w"`\.]+(?:\s+(?:AS\s+)?\w+)?\s*,', re.I)
 _RE_TABLA_ESCRITURA = re.compile(
@@ -587,9 +663,12 @@ def _clave_lectura(sql: str, args):
     if _TTL_LECTURAS <= 0:
         return None
     normalizado = " ".join(sql.split())
-    if not normalizado.upper().startswith("SELECT"):
+    if not (normalizado.upper().startswith("SELECT") or _RE_PRAGMA_ESTRUCTURA.match(normalizado)):
         return None
-    if _RE_TABLAS_EN_VIVO.search(normalizado) or _RE_NO_DETERMINISTA.search(normalizado):
+    es_pragma = bool(_RE_PRAGMA_ESTRUCTURA.match(normalizado))
+    # La exclusión de tablas "en vivo" aplica a los DATOS (SELECT), no a la
+    # estructura: PRAGMA table_info(sesiones) describe columnas, no sesiones.
+    if (not es_pragma and _RE_TABLAS_EN_VIVO.search(normalizado)) or _RE_NO_DETERMINISTA.search(normalizado):
         return None
     clave = (normalizado, tuple(args) if args else ())
     try:
@@ -601,6 +680,9 @@ def _clave_lectura(sql: str, args):
 
 def _tablas_de_select(sql: str):
     """Conjunto de tablas que lee el SELECT, o None si no se pudo determinar."""
+    m_pragma = _RE_PRAGMA_ESTRUCTURA.match(" ".join(sql.split()))
+    if m_pragma:
+        return frozenset({m_pragma.group(1).lower()})
     if _RE_FROM_CON_COMA.search(sql):
         return None
     tablas = {m.lower() for m in _RE_TABLAS_SELECT.findall(sql)}
@@ -722,6 +804,11 @@ class _Cursor:
             self._rows, self._idx = [], 0
             self.lastrowid, self.rowcount, self.description = None, 0, None
             return self
+        if clave_ddl is not None and _objeto_ya_existe(clave_ddl, self._conn._client):
+            _DDL_YA_EJECUTADO.add(clave_ddl)   # ya existe en la base: no hay nada que crear
+            self._rows, self._idx = [], 0
+            self.lastrowid, self.rowcount, self.description = None, 0, None
+            return self
 
         clave_sel = _clave_lectura(sql, args)
         generacion = 0
@@ -743,6 +830,8 @@ class _Cursor:
                 _invalidar_por_escritura(sql)
         if clave_ddl is not None:
             _DDL_YA_EJECUTADO.add(clave_ddl)
+        if es_escritura:
+            _registrar_cambio_de_esquema(sql)
         if clave_sel is not None:
             _cache_guardar(clave_sel, resultado, _tablas_de_select(sql), generacion)
         self._aplicar_resultado(resultado)

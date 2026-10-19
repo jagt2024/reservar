@@ -309,15 +309,28 @@ def mostrar_login():
             </div>
             """, unsafe_allow_html=True)
 
-            username = st.text_input("Usuario o correo electrónico",
-                                     placeholder="usuario@empresa.com",
-                                     key="login_user")
-            password = st.text_input("Contraseña", type="password",
-                                     placeholder="••••••••",
-                                     key="login_pass")
+            # Los campos van dentro de un st.form: fuera de un formulario,
+            # Streamlit vuelve a ejecutar TODO el script cada vez que un campo
+            # pierde el foco (o se pulsa Enter), y si ese rerun es lento (la
+            # app consulta una base remota) la pantalla se queda "cargando"
+            # mientras la persona intenta seguir escribiendo. Dentro de un
+            # formulario, escribir NO dispara ningún rerun: los valores se
+            # envían juntos al pulsar el botón o la tecla Enter.
+            try:
+                _form_login = st.form("form_login", clear_on_submit=False, border=False)
+            except TypeError:  # versiones de Streamlit sin el parámetro border
+                _form_login = st.form("form_login", clear_on_submit=False)
+            with _form_login:
+                username = st.text_input("Usuario o correo electrónico",
+                                         placeholder="usuario@empresa.com",
+                                         key="login_user")
+                password = st.text_input("Contraseña", type="password",
+                                         placeholder="••••••••",
+                                         key="login_pass")
+                enviado = st.form_submit_button("Ingresar →", use_container_width=True,
+                                                type="primary")
 
-            if st.button("Ingresar →", use_container_width=True, type="primary",
-                         key="login_btn"):
+            if enviado:
                 if not username or not password:
                     st.error("Ingresa usuario y contraseña")
                 else:
@@ -375,7 +388,7 @@ def mostrar_usuario_sidebar():
 # ═══════════════════════════════════════════════════════════════════════════════
 # MÓDULO DE GESTIÓN DE USUARIOS (solo admin/superadmin)
 # ═══════════════════════════════════════════════════════════════════════════════
-#@st.cache_data(ttl=90, show_spinner=False)
+@st.cache_data(ttl=15, show_spinner=False)
 def _listar_usuarios_cacheado() -> pd.DataFrame:
     """Lista de usuarios para el panel de administración. Se cachea porque
     st.tabs() ejecuta el código de las 3 sub-pestañas en CADA rerun (aunque
@@ -391,7 +404,7 @@ def _listar_usuarios_cacheado() -> pd.DataFrame:
     return df
 
 
-#@st.cache_data(ttl=30, show_spinner=False)
+@st.cache_data(ttl=10, show_spinner=False)
 def _listar_auditoria_cacheado() -> pd.DataFrame:
     """Últimos 200 registros de auditoría. 10 s de margen es imperceptible
     para un registro histórico y evita repetir la consulta en cada rerun."""

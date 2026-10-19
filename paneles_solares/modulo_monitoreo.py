@@ -872,7 +872,15 @@ def mostrar_monitoreo(usuario_activo_fn=None, tiene_permiso_fn=None,
                     format_func=lambda i: etiquetas[i], key="chat_usuario_sel")
 
             if usuario_sel_id is not None:
-                marcar_leido_admin(usuario_sel_id)
+                # Solo se escribe si HAY mensajes sin leer. Antes se ejecutaba
+                # el UPDATE en CADA dibujado del panel (st.tabs() corre las 4
+                # sub-pestañas en cada rerun), y como toda escritura a
+                # mensajes_chat invalida los cachés del panel, las consultas
+                # de los hilos se repetían contra Turso en cada interacción.
+                _no_leidos_sel = int(_hilos_admin.loc[
+                    _hilos_admin["usuario_id"] == usuario_sel_id, "no_leidos"].iloc[0])
+                if _no_leidos_sel > 0:
+                    marcar_leido_admin(usuario_sel_id)
                 hilo = obtener_hilo(usuario_sel_id)
                 nombre_usuario = (_hilos_admin.loc[
                     _hilos_admin["usuario_id"] == usuario_sel_id, "username"]
