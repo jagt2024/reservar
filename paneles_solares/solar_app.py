@@ -344,6 +344,83 @@ DB_PATH = "Turso (libSQL) — ver TURSO_DATABASE_URL"
 def get_conn():
     return db_conn.connect()
 
+
+# ─── Precarga por lotes de las lecturas de Off-Grid ─────────────────────────
+# La pantalla de dimensionamiento (con st.tabs() se dibujan las 13 secciones en
+# cada interacción) hacía ~25 SELECT a la base, uno tras otro; contra Turso cada
+# uno es un viaje de red. Cuando el caché está vacío (primera carga, o tras
+# guardar algo) se traen TODAS en una sola petición (db_conn.precargar_lecturas).
+# Es solo una optimización: si una consulta cambia de texto deja de coincidir y
+# la app simplemente la ejecuta normalmente. El texto de estas sentencias se
+# generó capturando lo que ejecuta la app; el segundo valor indica si la
+# consulta lleva el id del proyecto como argumento.
+_LECTURAS_OFFGRID = (
+    ('SELECT COUNT(*) FROM catalogo_paneles', False),
+    ('SELECT COUNT(*) FROM catalogo_baterias', False),
+    ('SELECT * FROM proyectos WHERE id=?', True),
+    ('SELECT nombre FROM proyectos WHERE id=?', True),
+    ('SELECT * FROM cargas WHERE proyecto_id=?', True),
+    ('SELECT * FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT * FROM recibos WHERE proyecto_id=? ORDER BY id DESC', True),
+    ('SELECT cantidad, potencia_w, horas_dia FROM cargas WHERE proyecto_id=?', True),
+    ('SELECT tension_dc FROM proyectos WHERE id=?', True),
+    ('SELECT hsp, municipio FROM proyectos WHERE id=?', True),
+    ('SELECT * FROM catalogo_paneles ORDER BY modelo', False),
+    ('SELECT * FROM catalogo_baterias ORDER BY modelo', False),
+    ('SELECT generado, modelo, capacidad_ah, tension_banco_v, num_baterias, capacidad_real_ah, autonomia_real_h FROM baterias WHERE proyecto_id=? ORDER BY id DESC LIMIT 3', True),
+    ('SELECT hsp FROM proyectos WHERE id=?', True),
+    ('SELECT potencia_wp FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT hsp, tension_dc FROM proyectos WHERE id=?', True),
+    ('SELECT potencia_wp, voc, isc FROM paneles WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT periodo, kwh_periodo, dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT id, tension_dc, num_paneles, potencia_instalada_w, corriente_mppt, generado FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT id, generado, consumo_con_fs, tension_dc, hsp, num_paneles, num_baterias, corriente_mppt FROM resultados WHERE proyecto_id=? ORDER BY id DESC LIMIT 10', True),
+    ('SELECT cantidad,potencia_w,horas_dia FROM cargas WHERE proyecto_id=?', True),
+    ('SELECT kwh_periodo,dias_periodo FROM recibos WHERE proyecto_id=? ORDER BY id DESC LIMIT 1', True),
+    ('SELECT electrodomestico,cantidad,potencia_w,horas_dia,es_motor FROM cargas WHERE proyecto_id=?', True),
+    ('SELECT tension_dc, hsp FROM proyectos WHERE id=?', True),
+    ('SELECT id,nombre,media_type,ancho_px,alto_px,ancho_real_m,alto_real_m,area_x,area_y,area_w,area_h,obstaculos,orientacion,inclinacion,notas,creado,inversor_x,inversor_y,paneles_serie,potencia_wp,voc_panel,vmpp_panel,isc_panel,impp_panel,factor_holgura_cable FROM sitio_fotos WHERE proyecto_id=? ORDER BY id DESC', True),
+)
+
+
+def _precargar_offgrid_si_aplica():
+    if st.session_state.get("modulo_activo", "dimensionamiento") != "dimensionamiento":
+        return
+    try:
+        _pid = int(str(st.session_state.get("sel_proyecto")).split(" | ")[0])
+    except (TypeError, ValueError):
+        return                                   # todavía no hay un proyecto elegido
+    db_conn.precargar_lecturas(
+        [(sql, (_pid,) if usa_pid else ()) for sql, usa_pid in _LECTURAS_OFFGRID])
+
+
+# ─── Excel/PDF del proyecto: se generan solo cuando algo cambió ─────────────
+# generar_excel() y generar_pdf() (openpyxl/reportlab) se ejecutaban en CADA
+# rerun, 2 veces cada una, solo para alimentar los botones de descarga: ~0,5 s
+# de CPU por interacción aunque nadie descargara nada. Se guardan en caché con
+# una clave que incluye TODO de lo que dependen: el proyecto, la base de datos
+# (db_conn.version_datos() cambia con cualquier escritura de datos) y los 9
+# valores de st.session_state que leen (verificado con ast: ver _CLAVES_EXPORT).
+_CLAVES_EXPORT = (
+    "calc_num_paneles", "calc_pot_panel_wp", "calc_pot_real_wp", "calc_pr",
+    "calc_sobredim", "calc_dod_pct", "calc_bat_cap_ah", "calc_dias_autonomia",
+    "calc_eff_pct",
+)
+
+
+def _firma_export():
+    return tuple((k, st.session_state.get(k)) for k in _CLAVES_EXPORT)
+
+
+@st.cache_data(ttl=120, show_spinner=False, max_entries=16)
+def _excel_cacheado(proyecto_id, pinfo, firma, version_datos):
+    return generar_excel(proyecto_id, pinfo)
+
+
+@st.cache_data(ttl=120, show_spinner=False, max_entries=16)
+def _pdf_cacheado(proyecto_id, pinfo, firma, version_datos):
+    return generar_pdf(proyecto_id, pinfo)
+
 def init_db():
     conn = get_conn()
     c = conn.cursor()
@@ -1892,6 +1969,8 @@ with st.sidebar:
     # Un proyecto solo lo puede ver/cargar quien lo creó, o un administrador.
     _es_admin_proy = tiene_permiso("ver_usuarios")
 
+    _precargar_offgrid_si_aplica()   # ~25 lecturas en 1 sola petición (ver arriba)
+
     # Esta consulta se ejecuta en CADA interacción con la app (el sidebar se
     # vuelve a correr en cada "rerun" de Streamlit, sin importar qué pestaña
     # esté activa), así que se cachea unos segundos — con la base de datos
@@ -2912,7 +2991,7 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
             try:
-                xls_bytes = generar_excel(proyecto_id, pinfo)
+                xls_bytes = _excel_cacheado(proyecto_id, pinfo, _firma_export(), db_conn.version_datos())
                 fname_xls = f"SolarCalc_{pinfo[1].replace(' ','_')}_{datetime.now().strftime('%Y%m%d')}.xlsx"
                 st.download_button(
                     label="⬇ Descargar Excel",
@@ -2937,7 +3016,7 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
             try:
-                pdf_bytes = generar_pdf(proyecto_id, pinfo)
+                pdf_bytes = _pdf_cacheado(proyecto_id, pinfo, _firma_export(), db_conn.version_datos())
                 fname_pdf = f"SolarCalc_{pinfo[1].replace(' ','_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
                 st.download_button(
                     label="⬇ Descargar PDF",
@@ -4970,7 +5049,7 @@ with tab8:
         col_d1, col_d2 = st.columns(2)
         with col_d1:
             try:
-                xls7 = generar_excel(proyecto_id, pinfo7)
+                xls7 = _excel_cacheado(proyecto_id, pinfo7, _firma_export(), db_conn.version_datos())
                 st.download_button("⬇ Descargar Excel (.xlsx)",
                     data=xls7,
                     file_name=f"SolarCalc_{pinfo7[1].replace(' ','_')}_{datetime.now().strftime('%Y%m%d')}.xlsx",
@@ -4980,7 +5059,7 @@ with tab8:
                 st.error(f"Error Excel: {ex}")
         with col_d2:
             try:
-                pdf7 = generar_pdf(proyecto_id, pinfo7)
+                pdf7 = _pdf_cacheado(proyecto_id, pinfo7, _firma_export(), db_conn.version_datos())
                 st.download_button("⬇ Descargar PDF (.pdf)",
                     data=pdf7,
                     file_name=f"SolarCalc_{pinfo7[1].replace(' ','_')}_{datetime.now().strftime('%Y%m%d')}.pdf",

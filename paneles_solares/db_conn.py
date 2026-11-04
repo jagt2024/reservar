@@ -273,9 +273,11 @@ class ClienteTursoHTTP:
     def execute(self, sql, args=None) -> _HranaResultSet:
         return self.batch([(sql, args)])[0]
 
-    def batch(self, stmts: list) -> list:
+    def batch(self, stmts: list, tolerar_errores: bool = False) -> list:
         """stmts: lista de (sql, args) o (sql,). Devuelve una lista de
-        _HranaResultSet, una por statement (en el mismo orden)."""
+        _HranaResultSet, una por statement (en el mismo orden). Con
+        tolerar_errores=True, una sentencia que falla deja None en su lugar
+        en vez de lanzar (se usa para precargar lecturas de forma opcional)."""
         requests_hrana = []
         for item in stmts:
             sql, args = item if isinstance(item, tuple) else (item, None)
@@ -297,6 +299,9 @@ class ClienteTursoHTTP:
                     f"{json.dumps(data)[:1000]}", "RESULT_MISMATCH")
             r = resultados_crudos[i]
             if r.get("type") == "error":
+                if tolerar_errores:
+                    resultados.append(None)
+                    continue
                 err = r.get("error", {})
                 raise LibsqlError(err.get("message", str(err)), err.get("code", "SERVER_ERROR"))
             if r.get("type") != "ok":
@@ -649,6 +654,10 @@ _RE_TABLA_ESCRITURA = re.compile(
 _cache_lecturas = OrderedDict()    # clave -> (expira, resultado, bytes, tablas|None)
 _cache_bytes = 0
 _cache_generacion = 0
+# Número de escrituras a tablas de DATOS (no cuenta auditoría, sesiones ni chat).
+# Sirve de parte de la clave para cachear resultados DERIVADOS de la base (p. ej.
+# el Excel/PDF de un proyecto): mientras no cambie, esos resultados siguen vigentes.
+_version_datos = 0
 _cache_lock = threading.Lock()
 _cache_stats = {"hits": 0, "misses": 0, "invalidaciones": 0}
 
@@ -737,11 +746,12 @@ def _cache_guardar(clave, resultado, tablas, generacion_al_leer: int):
 
 def limpiar_cache_lecturas():
     """Vacía todo el caché de lecturas (útil tras recrear la base o en pruebas)."""
-    global _cache_bytes, _cache_generacion
+    global _cache_bytes, _cache_generacion, _version_datos
     with _cache_lock:
         _cache_lecturas.clear()
         _cache_bytes = 0
         _cache_generacion += 1
+        _version_datos += 1
         _cache_stats["invalidaciones"] += 1
 
 
@@ -759,6 +769,54 @@ def _invalidar_por_escritura(sql: str):
         for k in [k for k, (_e, _r, _t, tablas) in _cache_lecturas.items()
                   if tablas is None or tabla in tablas]:
             _cache_bytes -= _cache_lecturas.pop(k)[2]
+
+
+def version_datos() -> int:
+    """Cambia cada vez que se escribe en una tabla de datos del proyecto."""
+    return _version_datos
+
+
+def _cache_tiene(clave) -> bool:
+    with _cache_lock:
+        item = _cache_lecturas.get(clave)
+        return item is not None and item[0] >= time.monotonic()
+
+
+def precargar_lecturas(consultas) -> int:
+    """
+    Trae en UNA sola petición HTTP todas las lecturas de `consultas`
+    (iterable de (sql, args)) que aún no estén en el caché, y las guarda.
+    Una pantalla que hace 25 SELECT seguidos pagaba 25 viajes de red; con
+    esto paga 1. Es solo una optimización: si una sentencia no coincide
+    exactamente con la que luego ejecuta la app, simplemente no se usa y la
+    app consulta normalmente; si algo falla, se ignora sin afectar a nadie.
+    Devuelve cuántas lecturas quedaron precargadas.
+    """
+    if _TTL_LECTURAS <= 0:
+        return 0
+    pendientes = []
+    for sql, args in consultas:
+        lista = list(args) if args else None
+        clave = _clave_lectura(sql, lista)
+        if clave is None or _cache_tiene(clave):
+            continue
+        pendientes.append((clave, sql, lista))
+    if not pendientes:
+        return 0
+    generacion = _cache_generacion
+    try:
+        resultados = _get_client().batch(
+            [(sql, lista) for _, sql, lista in pendientes], tolerar_errores=True)
+    except Exception:
+        return 0
+    guardadas = 0
+    for (clave, sql, _lista), res in zip(pendientes, resultados):
+        if res is not None:
+            _cache_guardar(clave, res, _tablas_de_select(sql), generacion)
+            guardadas += 1
+    with _cache_lock:
+        _cache_stats["precargas"] = _cache_stats.get("precargas", 0) + guardadas
+    return guardadas
 
 
 def estadisticas_cache_lecturas() -> dict:
