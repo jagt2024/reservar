@@ -578,7 +578,10 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db()
+# init_db() NO se llama aquí: corre una sola vez por proceso dentro de
+# _inicializar_esquema_una_vez() (más abajo). Esta llamada suelta se ejecutaba en
+# CADA rerun y era el primer contacto de red de cada interacción: si la conexión
+# a Turso fallaba justo ahí, caía toda la pantalla (sqlite3.OperationalError).
 
 
 # ─── Catálogos de paneles y baterías (compartidos, editables por los usuarios) ─
@@ -662,7 +665,19 @@ def _inicializar_esquema_una_vez():
     return True
 
 
-_inicializar_esquema_una_vez()
+try:
+    _inicializar_esquema_una_vez()
+except Exception as _e_init_bd:
+    # Streamlit Cloud OCULTA el mensaje de las excepciones no capturadas ("The
+    # original error message is redacted"), lo que impide saber qué pasó. Aquí se
+    # muestra el motivo real. st.cache_resource no guarda las excepciones, así que
+    # el siguiente rerun vuelve a intentarlo.
+    st.error("⚠ No se pudo conectar con la base de datos (Turso). Suele ser momentáneo: "
+             "pulsa Reintentar o recarga la página en unos segundos.")
+    st.code(f"{type(_e_init_bd).__name__}: {_e_init_bd}", language=None)
+    if st.button("🔄 Reintentar", key="_reintentar_bd"):
+        st.rerun()
+    st.stop()
 
 # ─── Log ruta de BD (visible en consola al iniciar) ──────────────────────────
 import sys as _sys

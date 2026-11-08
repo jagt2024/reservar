@@ -64,6 +64,7 @@ import json
 import os
 import queue
 import re
+import select
 import socket
 import time
 from collections import OrderedDict
@@ -187,7 +188,14 @@ class ClienteTursoHTTP:
         self.closed = False
         self._libres = queue.LifoQueue()   # (conexión, instante del último uso)
         self._max_libres = 8               # conexiones inactivas que se conservan
-        self._max_inactividad = 120.0      # s; el servidor cierra sockets inactivos
+        # Una conexión inactiva puede quedar "medio muerta" (el otro extremo —o algún
+        # equipo intermedio de la nube— la descarta SIN avisar): al usarla no hay
+        # error, solo silencio hasta el timeout. Por eso solo se reutiliza si lleva
+        # poco rato inactiva, y menos aún para ESCRIBIR (no se puede reintentar con
+        # seguridad una escritura que venció por timeout).
+        self._max_inactividad_lectura = 20.0    # s
+        self._max_inactividad_escritura = 5.0   # s
+        self._timeout_reutilizada = 6.0         # s; falla rápido al probar una conexión vieja
 
     def _abrir_conexion_http(self):
         cls = http.client.HTTPSConnection if self._scheme == "https" else http.client.HTTPConnection
@@ -200,15 +208,28 @@ class ClienteTursoHTTP:
         except Exception:
             pass
 
-    def _tomar_conexion(self):
-        """(conexión, reutilizada). Toma una libre y reciente, o abre una nueva."""
+    @staticmethod
+    def _conexion_viva(conn_http) -> bool:
+        """False si el otro extremo ya cerró la conexión (FIN/RST pendiente de leer)."""
+        sock = conn_http.sock
+        if sock is None:
+            return False
+        try:
+            legibles, _, _ = select.select([sock], [], [], 0)
+        except (OSError, ValueError):
+            return False
+        return not legibles     # legible sin haber enviado nada = EOF o datos inesperados
+
+    def _tomar_conexion(self, solo_lectura: bool = False):
+        """(conexión, reutilizada). Toma una libre, reciente y viva, o abre una nueva."""
+        edad_max = self._max_inactividad_lectura if solo_lectura else self._max_inactividad_escritura
         while True:
             try:
                 conn_http, ultimo_uso = self._libres.get_nowait()
             except queue.Empty:
                 return self._abrir_conexion_http(), False
-            if time.monotonic() - ultimo_uso > self._max_inactividad:
-                self._cerrar_conexion(conn_http)   # probablemente ya la cerró el servidor
+            if time.monotonic() - ultimo_uso > edad_max or not self._conexion_viva(conn_http):
+                self._cerrar_conexion(conn_http)
                 continue
             return conn_http, True
 
@@ -218,39 +239,62 @@ class ClienteTursoHTTP:
         else:
             self._libres.put((conn_http, time.monotonic()))
 
-    def _post(self, requests_hrana: list) -> dict:
+    # Respuestas HTTP que significan "ahora no puedo", no "tu consulta está mal":
+    # el servidor las devuelve ANTES de ejecutar nada (límite de tasa, base
+    # despertando, pasarela sin respuesta), así que reintentar es seguro.
+    _ESTADOS_TRANSITORIOS = (429, 502, 503, 504)
+    _PAUSAS = (0.4, 1.2)
+
+    def _post(self, requests_hrana: list, solo_lectura: bool = False) -> dict:
         body = json.dumps({"baton": None, "requests": requests_hrana}).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self._token}",
         }
 
-        for intento in (1, 2):
-            conn_http, reutilizada = self._tomar_conexion()
+        for intento in (1, 2, 3):
+            conn_http, reutilizada = self._tomar_conexion(solo_lectura)
             fase = "conexión"
             try:
                 if conn_http.sock is None:
                     conn_http.connect()
                 fase = "petición"
+                if reutilizada and solo_lectura:
+                    conn_http.sock.settimeout(self._timeout_reutilizada)
                 conn_http.request("POST", self._path, body=body, headers=headers)
                 resp = conn_http.getresponse()
                 crudo = resp.read().decode("utf-8", errors="replace")
                 estado = resp.status
                 conservar = not resp.will_close
+                if reutilizada and solo_lectura and conn_http.sock is not None:
+                    conn_http.sock.settimeout(self._timeout)
             except (http.client.HTTPException, OSError) as e:
                 self._cerrar_conexion(conn_http)
-                # Reintento (una sola vez) SOLO si es seguro: si falló al
-                # CONECTAR (no se envió nada) o si la conexión era una
-                # reutilizada que el servidor cerró por inactividad. Nunca
-                # tras un timeout: ahí el servidor pudo haber procesado ya la
-                # petición y reintentar duplicaría una escritura.
                 es_timeout = isinstance(e, (TimeoutError, socket.timeout))
-                if intento == 1 and not es_timeout and (fase == "conexión" or reutilizada):
+                if solo_lectura:
+                    reintentable = True          # una lectura es idempotente: reintentar nunca duplica nada
+                else:
+                    # Una ESCRITURA solo se reintenta si es seguro que el servidor NO la
+                    # procesó: falló al conectar, o una conexión reutilizada ya estaba
+                    # cerrada. Tras un timeout no se sabe, y reintentar podría duplicarla.
+                    reintentable = fase == "conexión" or (reutilizada and not es_timeout)
+                max_intentos = 2 if es_timeout else 3    # no acumular 3 timeouts de 15 s
+                if reintentable and intento < max_intentos:
+                    if not reutilizada:
+                        time.sleep(self._PAUSAS[intento - 1])
                     continue
                 raise LibsqlError(
                     f"No se pudo conectar a {self._host}:{self._port}{self._path} "
-                    f"({fase}): {type(e).__name__}: {e}", "CONNECTION_ERROR") from e
-            if conservar:
+                    f"({fase}, intento {intento}): {type(e).__name__}: {e}",
+                    "CONNECTION_ERROR") from e
+            if estado in self._ESTADOS_TRANSITORIOS and intento < 3:
+                self._cerrar_conexion(conn_http)
+                time.sleep(self._PAUSAS[intento - 1])
+                continue
+            # Solo se reutiliza una conexión cuyo intercambio terminó bien (HTTP 200): tras
+            # un error, el servidor o algún intermediario puede haber dejado la conexión en
+            # un estado dudoso (por ejemplo, con el cuerpo de la petición sin leer).
+            if conservar and estado == 200:
                 self._devolver_conexion(conn_http)
             else:
                 self._cerrar_conexion(conn_http)
@@ -287,7 +331,8 @@ class ClienteTursoHTTP:
             requests_hrana.append({"type": "execute", "stmt": stmt})
         requests_hrana.append({"type": "close"})
 
-        data = self._post(requests_hrana)
+        solo_lectura = all(_es_lectura(it[0] if isinstance(it, tuple) else it) for it in stmts)
+        data = self._post(requests_hrana, solo_lectura=solo_lectura)
         resultados_crudos = data.get("results", [])
 
         resultados = []
