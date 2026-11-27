@@ -639,6 +639,452 @@ def get_economic_calendar():
     
     return pd.DataFrame(events)
 
+# ============================================
+# SIMULADOR DE TRADING (dinero ficticio, sin broker)
+# ============================================
+CATEGORY_MAP = {
+    "Acciones": ("Acción", STOCKS),
+    "Criptomonedas": ("Cripto", CRYPTOS),
+    "Metales": ("Metal", METALS),
+}
+SYMBOL_INFO = {
+    sym: (name, short)
+    for _label, (short, _dict) in CATEGORY_MAP.items()
+    for name, sym in _dict.items()
+}
+
+
+@st.cache_data(ttl=15)
+def get_live_price(symbol):
+    """Último precio disponible en Yahoo Finance (caché de 15 s)."""
+    stamp = datetime.now().strftime("%H:%M:%S")
+    try:
+        price = yf.Ticker(symbol).fast_info["last_price"]
+        if price is not None and not pd.isna(price) and float(price) > 0:
+            return float(price), stamp
+    except Exception:
+        pass
+    try:
+        hist = yf.Ticker(symbol).history(period="1d", interval="1m")
+        if hist is not None and not hist.empty:
+            if isinstance(hist.columns, pd.MultiIndex):
+                hist.columns = hist.columns.get_level_values(0)
+            closes = hist["Close"].dropna()
+            if not closes.empty:
+                return float(closes.iloc[-1]), stamp
+    except Exception:
+        pass
+    return None, None
+
+
+@st.cache_data(ttl=300)
+def get_asset_signal(symbol, horizon_days):
+    """
+    Señal de trading para un activo combinando:
+      - Predicción ML (RandomForest) -> cambio esperado en %
+      - Puntuación técnica de 'Mejores Oportunidades' (momentum, RSI, etc.)
+    Devuelve un dict o None si no hay datos suficientes.
+    """
+    try:
+        end = datetime.now().date() + timedelta(days=1)
+        start = end - timedelta(days=366)
+        data = get_real_time_data(symbol, start, end)
+        if data is None or data.empty:
+            return None
+        data = calculate_indicators(data)
+        if data is None:
+            return None
+
+        current = float(data["Close"].iloc[-1])
+        preds, _ = predict_prices(data, int(horizon_days))
+        if preds is None or current <= 0:
+            return None
+
+        predicted = float(preds[-1])
+        pred_change = (predicted - current) / current * 100
+        pred_score = min(100.0, max(0.0, (pred_change + 10) * 5))
+
+        tech_score, tech_reco = None, None
+        adf = analyze_best_investment_opportunities('3d')
+        if adf is not None and not adf.empty:
+            row = adf[adf["Símbolo"] == symbol]
+            if not row.empty:
+                tech_score = float(row["Score"].iloc[0])
+                tech_reco = str(row["Recomendación"].iloc[0])
+
+        combined = (0.5 * pred_score + 0.5 * tech_score) if tech_score is not None else pred_score
+
+        if combined >= 60:
+            action = "Comprar"
+        elif combined <= 40:
+            action = "Vender"
+        else:
+            action = "Mantener"
+        strength = "fuerte" if (combined >= 75 or combined <= 25) else "moderada"
+
+        return {
+            "symbol": symbol,
+            "current": current,
+            "predicted": predicted,
+            "pred_change": pred_change,
+            "tech_score": tech_score,
+            "tech_reco": tech_reco,
+            "combined": combined,
+            "action": action,
+            "strength": strength,
+        }
+    except Exception:
+        return None
+
+
+def sim_init(capital):
+    st.session_state["sim"] = {
+        "cash": float(capital),
+        "initial": float(capital),
+        "positions": {},   # symbol -> {name, category, qty, avg_cost}
+        "trades": [],      # historial de operaciones
+    }
+
+
+def sim_trade(side, symbol, qty, price, fee_pct, signal_action=None):
+    """Ejecuta una compra o venta simulada. Devuelve (ok, mensaje)."""
+    sim = st.session_state["sim"]
+    name, cat = SYMBOL_INFO[symbol]
+    if qty is None or price is None or qty <= 0 or price <= 0:
+        return False, "Cantidad o precio inválido."
+    fee_rate = fee_pct / 100.0
+    realized = 0.0
+
+    if side == "Compra":
+        cost = qty * price
+        fee = cost * fee_rate
+        total = cost + fee
+        if total > sim["cash"] + 1e-9:
+            return False, f"Efectivo insuficiente: necesitas ${total:,.2f} y tienes ${sim['cash']:,.2f}."
+        pos = sim["positions"].get(symbol)
+        if pos:
+            new_qty = pos["qty"] + qty
+            pos["avg_cost"] = (pos["qty"] * pos["avg_cost"] + total) / new_qty
+            pos["qty"] = new_qty
+        else:
+            sim["positions"][symbol] = {
+                "name": name, "category": cat, "qty": qty, "avg_cost": total / qty,
+            }
+        sim["cash"] -= total
+        msg = f"Compraste {qty:,.6g} {name} a ${price:,.2f} (comisión ${fee:,.2f})."
+    else:
+        pos = sim["positions"].get(symbol)
+        if not pos or pos["qty"] <= 1e-12:
+            return False, f"No tienes posición en {name} para vender."
+        if qty > pos["qty"] + 1e-9:
+            return False, f"Solo tienes {pos['qty']:,.6g} unidades de {name}."
+        qty = min(qty, pos["qty"])
+        gross = qty * price
+        fee = gross * fee_rate
+        net = gross - fee
+        realized = net - qty * pos["avg_cost"]
+        pos["qty"] -= qty
+        if pos["qty"] <= 1e-9:
+            del sim["positions"][symbol]
+        sim["cash"] += net
+        msg = f"Vendiste {qty:,.6g} {name} a ${price:,.2f} (P&L realizado ${realized:,.2f})."
+
+    sim["trades"].append({
+        "Fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Categoría": cat,
+        "Activo": name,
+        "Símbolo": symbol,
+        "Operación": side,
+        "Cantidad": qty,
+        "Precio": price,
+        "Comisión": fee,
+        "P&L realizado": realized,
+        "Señal del análisis": signal_action or "-",
+    })
+    return True, msg
+
+
+def build_category_plan(short, horizon):
+    """Evalúa los mejores candidatos de una categoría + las posiciones abiertas en ella."""
+    sim = st.session_state["sim"]
+    adf = analyze_best_investment_opportunities('3d')
+    candidates = []
+    if adf is not None and not adf.empty:
+        candidates = list(adf[adf["Categoría"] == short].head(3)["Símbolo"])
+    held = [s for s, p in sim["positions"].items() if p["category"] == short]
+    rows = []
+    for s in list(dict.fromkeys(candidates + held)):
+        sig = get_asset_signal(s, horizon)
+        if sig is None:
+            continue
+        rows.append({
+            "Símbolo": s,
+            "Activo": SYMBOL_INFO[s][0],
+            "En cartera": s in held,
+            "Cambio predicho (%)": sig["pred_change"],
+            "Score técnico": sig["tech_score"] if sig["tech_score"] is not None else float("nan"),
+            "Puntuación combinada": sig["combined"],
+            "Señal": sig["action"],
+        })
+    return pd.DataFrame(rows)
+
+
+def _render_simulator():
+    if "sim" not in st.session_state:
+        sim_init(10000.0)
+    sim = st.session_state["sim"]
+    horizon = int(prediction_period)
+
+    # ---------- Configuración ----------
+    with st.expander("⚙️ Configuración de la simulación"):
+        c1, c2, c3 = st.columns(3)
+        capital = c1.number_input(
+            "Capital inicial (USD) – se aplica al reiniciar",
+            min_value=100.0, max_value=10_000_000.0, value=float(sim["initial"]),
+            step=100.0, key="sim_capital_input",
+        )
+        fee_pct = c2.number_input(
+            "Comisión por operación (%)", min_value=0.0, max_value=5.0,
+            value=0.10, step=0.05, key="sim_fee",
+        )
+        c3.write("")
+        if c3.button("♻️ Reiniciar simulación", key="sim_reset"):
+            sim_init(capital)
+            st.session_state.pop("sim_msg", None)
+            st.rerun()
+
+    # ---------- Valoración en vivo ----------
+    prices = {}
+    for sym, pos in sim["positions"].items():
+        p, _ = get_live_price(sym)
+        prices[sym] = p if p else pos["avg_cost"]
+    invested = sum(pos["qty"] * prices[s] for s, pos in sim["positions"].items())
+    equity = sim["cash"] + invested
+    pnl_total = equity - sim["initial"]
+    pnl_pct = pnl_total / sim["initial"] * 100 if sim["initial"] else 0
+    realized_total = sum(t["P&L realizado"] for t in sim["trades"])
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("Valor total", f"${equity:,.2f}", f"{pnl_pct:+.2f}%")
+    m2.metric("Efectivo", f"${sim['cash']:,.2f}")
+    m3.metric("Invertido", f"${invested:,.2f}")
+    m4.metric("P&L realizado", f"${realized_total:,.2f}")
+    st.caption(
+        f"🕒 Actualizado {datetime.now().strftime('%H:%M:%S')} · Los precios de Yahoo Finance pueden tener "
+        "retraso (acciones ~15 min; fuera de horario se muestra el último cierre)."
+    )
+
+    st.markdown("---")
+
+    # ---------- Operar un activo ----------
+    st.subheader("🛒 Operar un activo según el análisis")
+    cat_labels = list(CATEGORY_MAP.keys())
+    default_idx = cat_labels.index(category) if category in cat_labels else 0
+    c1, c2 = st.columns(2)
+    sel_cat = c1.selectbox("Categoría", cat_labels, index=default_idx, key="sim_cat")
+    short, asset_dict_sim = CATEGORY_MAP[sel_cat]
+    sel_name = c2.selectbox("Activo", list(asset_dict_sim.keys()), key=f"sim_asset_{sel_cat}")
+    sym = asset_dict_sim[sel_name]
+
+    price, ts = get_live_price(sym)
+    sig = get_asset_signal(sym, horizon)
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Precio en vivo", f"${price:,.2f}" if price else "N/D")
+    if sig:
+        k2.metric(f"Precio predicho ({horizon}d)", f"${sig['predicted']:,.2f}", f"{sig['pred_change']:+.2f}%")
+        k3.metric("Score técnico", f"{sig['tech_score']:.0f}/100" if sig["tech_score"] is not None else "N/D")
+        k4.metric("Puntuación combinada", f"{sig['combined']:.0f}/100")
+        label = f"Señal: **{sig['action'].upper()}** ({sig['strength']}) · puntuación {sig['combined']:.0f}/100"
+        if sig["action"] == "Comprar":
+            st.success("🟢 " + label)
+        elif sig["action"] == "Vender":
+            st.error("🔴 " + label)
+        else:
+            st.info("⚪ " + label)
+    else:
+        st.warning("No hay datos suficientes para generar una señal de este activo.")
+
+    pos = sim["positions"].get(sym)
+    if pos and price:
+        pl = (price - pos["avg_cost"]) * pos["qty"]
+        st.caption(
+            f"📌 Posición actual: {pos['qty']:,.6g} uds · costo prom. ${pos['avg_cost']:,.2f} · "
+            f"P&L no realizado ${pl:,.2f}"
+        )
+
+    o1, o2 = st.columns([1, 1])
+    mode = o1.radio("Tipo de orden", ["Monto (USD)", "Cantidad (unidades)"], horizontal=True, key="sim_mode")
+    if mode == "Monto (USD)":
+        value = o2.number_input("Monto (USD)", min_value=0.0, value=1000.0, step=100.0, key="sim_amount")
+    else:
+        value = o2.number_input("Cantidad", min_value=0.0, value=1.0, step=0.1, format="%.6f", key="sim_qty")
+
+    fee_rate = fee_pct / 100.0
+    qty_buy = qty_sell = 0.0
+    if price:
+        if mode == "Monto (USD)":
+            qty_buy = value / (price * (1 + fee_rate))
+            qty_sell = value / price
+        else:
+            qty_buy = qty_sell = value
+        st.caption(f"Estimado: comprar ≈ {qty_buy:,.6g} uds · vender ≈ {qty_sell:,.6g} uds a ${price:,.2f}")
+
+    b1, b2, b3 = st.columns(3)
+    action_sig = sig["action"] if sig else None
+    result = None
+    if b1.button("🟢 Comprar", use_container_width=True, disabled=not price, key="sim_buy"):
+        result = sim_trade("Compra", sym, qty_buy, price, fee_pct, action_sig)
+    if b2.button("🔴 Vender", use_container_width=True, disabled=not price, key="sim_sell"):
+        sell_qty = min(qty_sell, pos["qty"]) if pos else qty_sell
+        result = sim_trade("Venta", sym, sell_qty, price, fee_pct, action_sig)
+    if b3.button("⏹️ Cerrar posición", use_container_width=True, disabled=not (price and pos), key="sim_close"):
+        result = sim_trade("Venta", sym, pos["qty"], price, fee_pct, action_sig)
+    if result:
+        st.session_state["sim_msg"] = result
+        st.rerun()
+
+    msg = st.session_state.get("sim_msg")
+    if msg:
+        (st.success if msg[0] else st.error)(msg[1])
+
+    st.markdown("---")
+
+    # ---------- Simulación automática por categoría ----------
+    st.subheader("🤖 Simular por categoría")
+    st.caption(
+        "Evalúa los 3 mejores activos de la categoría (según 'Mejores Oportunidades') y tus posiciones abiertas en ella. "
+        "Vende lo que tenga señal de venta y compra el candidato con mejor puntuación si su señal es de compra."
+    )
+    p1, p2, p3 = st.columns([1, 1, 1])
+    plan_cat = p1.selectbox("Categoría", cat_labels, key="sim_plan_cat")
+    alloc = p2.slider("% del efectivo a invertir", 5, 100, 25, 5, key="sim_alloc")
+    plan_short = CATEGORY_MAP[plan_cat][0]
+    plan_df = build_category_plan(plan_short, horizon)
+
+    if plan_df.empty:
+        st.info("No hay datos suficientes para esta categoría en este momento.")
+    else:
+        st.dataframe(
+            plan_df.sort_values("Puntuación combinada", ascending=False),
+            use_container_width=True, hide_index=True,
+            column_config={
+                "Cambio predicho (%)": st.column_config.NumberColumn(format="%.2f"),
+                "Score técnico": st.column_config.NumberColumn(format="%.0f"),
+                "Puntuación combinada": st.column_config.NumberColumn(format="%.0f"),
+            },
+        )
+        sells = plan_df[(plan_df["En cartera"]) & (plan_df["Señal"] == "Vender")]
+        buys = plan_df[plan_df["Señal"] == "Comprar"].sort_values("Puntuación combinada", ascending=False)
+        buy_pick = buys.iloc[0] if not buys.empty else None
+
+        if sells.empty and buy_pick is None:
+            st.info("Plan: sin operaciones. Ninguna señal de compra y nada que vender en esta categoría.")
+        else:
+            steps = [f"Vender {r['Activo']}" for _, r in sells.iterrows()]
+            if buy_pick is not None:
+                steps.append(f"Comprar {buy_pick['Activo']} con el {alloc}% del efectivo")
+            st.write("**Plan:** " + " → ".join(steps))
+
+        if p3.button("▶️ Ejecutar plan", disabled=(sells.empty and buy_pick is None), key="sim_run_plan"):
+            outcomes = []
+            for _, r in sells.iterrows():
+                s = r["Símbolo"]
+                px, _ = get_live_price(s)
+                held = sim["positions"].get(s)
+                if px and held:
+                    outcomes.append(sim_trade("Venta", s, held["qty"], px, fee_pct, "Vender"))
+            if buy_pick is not None:
+                s = buy_pick["Símbolo"]
+                px, _ = get_live_price(s)
+                budget = sim["cash"] * alloc / 100.0
+                if px and budget > 0:
+                    outcomes.append(sim_trade("Compra", s, budget / (px * (1 + fee_rate)), px, fee_pct, "Comprar"))
+            st.session_state["sim_msg"] = (
+                all(o[0] for o in outcomes) if outcomes else False,
+                " ".join(o[1] for o in outcomes) if outcomes else "No se pudo ejecutar ninguna operación.",
+            )
+            st.rerun()
+
+    st.markdown("---")
+
+    # ---------- Cartera por categoría ----------
+    st.subheader("💼 Cartera por categoría")
+    if sim["positions"]:
+        rows = []
+        for s, p in sim["positions"].items():
+            px = prices[s]
+            value_now = p["qty"] * px
+            cost = p["qty"] * p["avg_cost"]
+            rows.append({
+                "Categoría": p["category"], "Activo": p["name"], "Símbolo": s,
+                "Cantidad": p["qty"], "Costo prom.": p["avg_cost"], "Precio": px,
+                "Valor": value_now, "P&L ($)": value_now - cost,
+                "P&L (%)": (value_now - cost) / cost * 100 if cost else 0,
+            })
+        pos_df = pd.DataFrame(rows)
+        st.dataframe(
+            pos_df, use_container_width=True, hide_index=True,
+            column_config={
+                "Cantidad": st.column_config.NumberColumn(format="%.6g"),
+                "Costo prom.": st.column_config.NumberColumn(format="$%.2f"),
+                "Precio": st.column_config.NumberColumn(format="$%.2f"),
+                "Valor": st.column_config.NumberColumn(format="$%.2f"),
+                "P&L ($)": st.column_config.NumberColumn(format="$%.2f"),
+                "P&L (%)": st.column_config.NumberColumn(format="%.2f%%"),
+            },
+        )
+
+        g1, g2 = st.columns([3, 2])
+        by_cat = pos_df.groupby("Categoría").agg(Valor=("Valor", "sum"), PnL=("P&L ($)", "sum")).reset_index()
+        by_cat["% del portafolio"] = by_cat["Valor"] / equity * 100
+        by_cat = by_cat.rename(columns={"PnL": "P&L ($)"})
+        cash_row = pd.DataFrame([{
+            "Categoría": "Efectivo", "Valor": sim["cash"], "P&L ($)": 0.0,
+            "% del portafolio": sim["cash"] / equity * 100 if equity else 0,
+        }])
+        summary = pd.concat([by_cat, cash_row], ignore_index=True)
+        g1.dataframe(
+            summary, use_container_width=True, hide_index=True,
+            column_config={
+                "Valor": st.column_config.NumberColumn(format="$%.2f"),
+                "P&L ($)": st.column_config.NumberColumn(format="$%.2f"),
+                "% del portafolio": st.column_config.NumberColumn(format="%.1f%%"),
+            },
+        )
+        fig_pie = go.Figure(go.Pie(labels=summary["Categoría"], values=summary["Valor"], hole=0.45))
+        fig_pie.update_layout(height=260, margin=dict(t=10, b=10, l=10, r=10), template="plotly_white")
+        g2.plotly_chart(fig_pie, use_container_width=True)
+    else:
+        st.info("Aún no tienes posiciones abiertas. Compra un activo o ejecuta un plan por categoría.")
+
+    # ---------- Historial ----------
+    st.subheader("🧾 Historial de operaciones")
+    if sim["trades"]:
+        trades_df = pd.DataFrame(sim["trades"][::-1])
+        st.dataframe(trades_df, use_container_width=True, hide_index=True)
+        st.download_button(
+            "📥 Descargar historial CSV", trades_df.to_csv(index=False),
+            file_name=f"simulacion_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+            mime="text/csv", key="sim_dl",
+        )
+    else:
+        st.caption("Todavía no hay operaciones.")
+
+
+def _make_live(func):
+    """Refresca el simulador cada 30 s si la versión de Streamlit soporta fragmentos."""
+    frag = getattr(st, "fragment", None)
+    if frag is None:
+        return func
+    try:
+        return frag(run_every=30)(func)
+    except TypeError:
+        return frag(func)
+
+
+render_simulator = _make_live(_render_simulator)
+
 # Sidebar - Configuración
 st.sidebar.header("⚙️ Configuración")
 
@@ -689,12 +1135,13 @@ else:
 refresh = st.sidebar.button("🔄 Actualizar Datos", type="primary")
 
 # Main content
-tab1, tab2, tab3, tab4, tab5 = st.tabs([
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "📊 Análisis Principal", 
     "🎯 Mejores Oportunidades", 
     "🏆 Top Performers", 
     "📅 Calendario Económico", 
-    "📈 Datos Detallados"
+    "📈 Datos Detallados",
+    "🧪 Simulador"
 ])
 
 with tab1:
@@ -1548,6 +1995,17 @@ with tab5:
             file_name=f"{selected_symbol}_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv"
         )
+
+with tab6:
+    st.header("🧪 Simulador de Trading en Tiempo Real")
+    st.warning(
+        "Simulación con **dinero ficticio**: no se ejecutan órdenes reales. "
+        "Las señales provienen del modelo predictivo y no garantizan resultados. "
+        "Uso educativo, no es asesoramiento financiero."
+    )
+    if not hasattr(st, "fragment"):
+        st.info("Tu versión de Streamlit no soporta refresco automático; usa '🔄 Actualizar Datos' para refrescar precios.")
+    render_simulator()
 
 # Footer
 st.sidebar.markdown("---")
