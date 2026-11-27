@@ -8,6 +8,7 @@ numpy==1.26.3
 plotly==5.18.0
 scikit-learn==1.4.0
 requests==2.31.0              # Para llamadas a APIs (calendario económico)
+pillow==10.4.0
 
 # ============================================
 # Dependencias OPCIONALES (para APIs adicionales)
